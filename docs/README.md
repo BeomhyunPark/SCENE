@@ -18,5 +18,6 @@
 
 - [GitHub Projects 운영 기준](project-management.md)
 - [진행 보드](https://github.com/users/BeomhyunPark/projects/5/views/1)
+- [D05·D06·D12 실제 Present 검증 (2026-09-30)](test_results/2026-09-30-present-application-cancellation-wrapup.md)
 
 [SCENE 소개로 돌아가기](../README.md)
