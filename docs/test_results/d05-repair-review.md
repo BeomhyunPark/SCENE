@@ -12,6 +12,8 @@
 
 ## 검증
 
+후속 사용자 재검토에서 화면 밖의 복귀·예외 경로를 추가 수정했다. 최신 결과는 [경로 재수정 검토](cross-route-repair-review.md)를 따른다. 아래 검증은 최초 수정 당시의 범위다.
+
 저장된 reactions 및 안내 바인딩을 다시 읽어 검사한 22개 시나리오 모두 통과했다. 결과는 `d05-reaction-check.json`, 재현 코드는 `d05-reaction-check.figma.js`다. 재현 코드는 Figma use_figma 문맥에서 실행하며 캔버스나 변수 기본값을 수정하지 않는다.
 
 `d05-repair-guidance.png`는 캔버스 캡처다. 실제 Present 클릭, 서버 권한·저장·시간 검증은 수행하지 않았다. 원본 감사는 수정 전 증거로 유지한다.

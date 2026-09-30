@@ -12,6 +12,8 @@
 
 ## 검증
 
+후속 사용자 재검토에서 화면 밖의 복귀·예외 경로를 추가 수정했다. 최신 결과는 [경로 재수정 검토](cross-route-repair-review.md)를 따른다. 아래 검증은 최초 수정 당시의 범위다.
+
 저장된 내비게이션 및 구조 검사 15/15 통과. `d03-reaction-check.json`에 결과, `d03-reaction-check.figma.js`에 Figma use_figma용 읽기 전용 재현 코드가 있다. `d03-repair-board.png`는 캔버스 캡처다.
 
 실제 Present 클릭과 서버 저장 검증은 수행하지 않았다. 원본 감사 파일은 수정 전 증거로 유지한다. 미배정 이름의 배정 조작은 이후 [D04 수정 검토](d04-repair-review.md)에 기록했다.
