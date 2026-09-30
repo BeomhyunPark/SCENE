@@ -1,6 +1,6 @@
 # Church Event Operations Platform — Product Decisions
 
-> **2026-09-30 baseline:** DEC-001~027의 기존 본문·Status 보존. 새 DEC 생성 없음. 최신 요청의 제품명 SCENE 및 Technical Design / implementation 전 상태가 현재 기준이다. DEC-024/027의 단계와 §17 Product Name OPEN은 이전 이력이며 기술 기준은 [Architecture](../architecture/architecture-v0.1.md)를 따른다. 공식 Decision Log 정합화는 검토 필요.
+> **2026-09-30 baseline:** DEC-001~027의 기존 본문·Status 보존. 이후 사용자 승인으로 DEC-028(O01 신청 수정 정책)을 추가했다. 최신 요청의 제품명 SCENE 및 Technical Design / implementation 전 상태가 현재 기준이다. DEC-024/027의 단계와 §17 Product Name OPEN은 이전 이력이며 기술 기준은 [Architecture](../architecture/architecture-v0.1.md)를 따른다. 이전 Decision Log 정합화는 검토 필요.
 >
 > DEC-027은 단계 설명에 한해 DEC-024를 대체한다고 기록하지만 DEC-024의 원래 CONFIRMED 표기는 보존한다. Evidence Type의 HYPOTHESIS 용어 충돌도 [검토 기록](../architecture/architecture-v0.1.md)에 남긴다.
 > [Product Definition](PRODUCT_DEFINITION.md) · [Research](RESEARCH.md)
@@ -711,3 +711,32 @@ Operational Structure Research와 Product Definition Gate를 거치며 확정 �
 
 - Product Definition Gate v0.1
 - `PRODUCT_DEFINITION.md` v0.1
+
+---
+
+## DEC-028 — O01 신규 신청 마감과 자기 신청 수정 마감 분리
+
+**Date:** 2026-09-30
+
+**Status:** CONFIRMED
+
+### Decision
+
+사용자가 다음 정책안을 승인했다.
+
+- 신규 신청 마감과 기존 신청의 수정 마감은 별도로 설정한다. 신규 신청이 마감됐다는 이유만으로 기존 신청 수정을 금지하지 않는다.
+- 수정 마감 전에는 이름·참석 범위 수정을 허용한다.
+- 휴대폰 번호 변경은 새 번호 재인증을 완료한 뒤에만 저장한다. 재인증 없이 기존 연락처를 덮어쓰지 않는다.
+- 수정 마감 이후에는 직접 수정 대신 운영팀 문의를 안내한다. 기존 접수 내역은 유지한다.
+
+### Consequence
+
+행사별 실제 마감 시각은 별도 운영 설정이며 이번 결정은 특정 날짜나 시각을 고정하지 않는다. 취소·행사 종료·운영 배정·결제 정책을 이 결정으로 변경하지 않는다. 신청 수정이 운영자의 배정 상태를 자동 변경한다는 의미도 아니다.
+
+Figma의 시간 상태와 인증 성공은 테스트 변수·fixture로 표현한다. 실제 서비스에서는 서버에서 수정 시한을 재확인하고, 새 번호 인증 결과가 변경 대상 번호와 연결되었는지 검증해야 한다. 프로토타입의 확인 버튼은 실제 SMS 인증 구현이 아니다.
+
+### Evidence
+
+- 사용자 승인: 신규·수정 마감 분리, 이름·참석 범위 수정, 새 휴대폰 재인증, 수정 마감 후 운영팀 문의 제안에 대한 “ㅇㅇ” 응답.
+- 관련 이슈: [D05 #17](https://github.com/BeomhyunPark/SCENE/issues/17).
+- [Figma 반영 스크립트](../design/o01-figma-policy-update.figma.js) · [O01 검증 기록](../test_results/2026-09-30-o01-policy.md).

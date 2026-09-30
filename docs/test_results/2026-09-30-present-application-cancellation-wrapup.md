@@ -1,5 +1,7 @@
 # D05·D06·D12 실제 Present 검증
 
+> 이 기록은 O01 확정 전의 역사적 검사다. 이후 [DEC-028 정책 반영·검증](2026-09-30-o01-policy.md)으로 신규 신청 마감과 수정 마감이 분리됐다. 특히 마감 안내 진입만으로 수정 금지를 판정하던 이전 기대값을 현재 정책으로 재사용하지 않는다.
+
 검증일: 2026-09-30 (Asia/Seoul)
 
 관련 이슈: [#17](https://github.com/BeomhyunPark/SCENE/issues/17), [#18](https://github.com/BeomhyunPark/SCENE/issues/18), [#24](https://github.com/BeomhyunPark/SCENE/issues/24)

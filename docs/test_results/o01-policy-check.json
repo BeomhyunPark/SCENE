@@ -1,0 +1,274 @@
+{
+  "method": "Read saved Figma actions and simulate SET_VARIABLE/CONDITIONAL/NODE in memory; not Present or server tests",
+  "count": 29,
+  "passed": 29,
+  "cases": [
+    {
+      "name": "save e=false c=false pending=false verified=false",
+      "id": "I444:30872;476:3877",
+      "expected": "826:44314",
+      "actual": [
+        "826:44314"
+      ],
+      "pass": true
+    },
+    {
+      "name": "save e=false c=false pending=false verified=true",
+      "id": "I444:30872;476:3877",
+      "expected": "826:44314",
+      "actual": [
+        "826:44314"
+      ],
+      "pass": true
+    },
+    {
+      "name": "save e=false c=false pending=true verified=false",
+      "id": "I444:30872;476:3877",
+      "expected": "826:44314",
+      "actual": [
+        "826:44314"
+      ],
+      "pass": true
+    },
+    {
+      "name": "save e=false c=false pending=true verified=true",
+      "id": "I444:30872;476:3877",
+      "expected": "826:44314",
+      "actual": [
+        "826:44314"
+      ],
+      "pass": true
+    },
+    {
+      "name": "save e=false c=true pending=false verified=false",
+      "id": "I444:30872;476:3877",
+      "expected": "826:44314",
+      "actual": [
+        "826:44314"
+      ],
+      "pass": true
+    },
+    {
+      "name": "save e=false c=true pending=false verified=true",
+      "id": "I444:30872;476:3877",
+      "expected": "826:44314",
+      "actual": [
+        "826:44314"
+      ],
+      "pass": true
+    },
+    {
+      "name": "save e=false c=true pending=true verified=false",
+      "id": "I444:30872;476:3877",
+      "expected": "826:44314",
+      "actual": [
+        "826:44314"
+      ],
+      "pass": true
+    },
+    {
+      "name": "save e=false c=true pending=true verified=true",
+      "id": "I444:30872;476:3877",
+      "expected": "826:44314",
+      "actual": [
+        "826:44314"
+      ],
+      "pass": true
+    },
+    {
+      "name": "save e=true c=false pending=false verified=false",
+      "id": "I444:30872;476:3877",
+      "expected": "395:30927",
+      "actual": [
+        "395:30927"
+      ],
+      "pass": true
+    },
+    {
+      "name": "save e=true c=false pending=false verified=true",
+      "id": "I444:30872;476:3877",
+      "expected": "395:30927",
+      "actual": [
+        "395:30927"
+      ],
+      "pass": true
+    },
+    {
+      "name": "save e=true c=false pending=true verified=false",
+      "id": "I444:30872;476:3877",
+      "expected": "395:30800",
+      "actual": [
+        "395:30800"
+      ],
+      "pass": true
+    },
+    {
+      "name": "save e=true c=false pending=true verified=true",
+      "id": "I444:30872;476:3877",
+      "expected": "395:30927",
+      "actual": [
+        "395:30927"
+      ],
+      "pass": true
+    },
+    {
+      "name": "save e=true c=true pending=false verified=false",
+      "id": "I444:30872;476:3877",
+      "expected": "826:44314",
+      "actual": [
+        "826:44314"
+      ],
+      "pass": true
+    },
+    {
+      "name": "save e=true c=true pending=false verified=true",
+      "id": "I444:30872;476:3877",
+      "expected": "826:44314",
+      "actual": [
+        "826:44314"
+      ],
+      "pass": true
+    },
+    {
+      "name": "save e=true c=true pending=true verified=false",
+      "id": "I444:30872;476:3877",
+      "expected": "826:44314",
+      "actual": [
+        "826:44314"
+      ],
+      "pass": true
+    },
+    {
+      "name": "save e=true c=true pending=true verified=true",
+      "id": "I444:30872;476:3877",
+      "expected": "826:44314",
+      "actual": [
+        "826:44314"
+      ],
+      "pass": true
+    },
+    {
+      "name": "auth context=false e=false c=false",
+      "id": "I444:30839;476:3877",
+      "expected": "395:30836",
+      "actual": [
+        "395:30836"
+      ],
+      "pass": true
+    },
+    {
+      "name": "auth context=false e=false c=true",
+      "id": "I444:30839;476:3877",
+      "expected": "577:43798",
+      "actual": [
+        "577:43798"
+      ],
+      "pass": true
+    },
+    {
+      "name": "auth context=false e=true c=false",
+      "id": "I444:30839;476:3877",
+      "expected": "395:30836",
+      "actual": [
+        "395:30836"
+      ],
+      "pass": true
+    },
+    {
+      "name": "auth context=false e=true c=true",
+      "id": "I444:30839;476:3877",
+      "expected": "577:43798",
+      "actual": [
+        "577:43798"
+      ],
+      "pass": true
+    },
+    {
+      "name": "auth context=true e=false c=false",
+      "id": "I444:30839;476:3877",
+      "expected": "826:44314",
+      "actual": [
+        "826:44314"
+      ],
+      "pass": true
+    },
+    {
+      "name": "auth context=true e=false c=true",
+      "id": "I444:30839;476:3877",
+      "expected": "826:44314",
+      "actual": [
+        "826:44314"
+      ],
+      "pass": true
+    },
+    {
+      "name": "auth context=true e=true c=false",
+      "id": "I444:30839;476:3877",
+      "expected": "395:30885",
+      "actual": [
+        "395:30885"
+      ],
+      "pass": true
+    },
+    {
+      "name": "auth context=true e=true c=true",
+      "id": "I444:30839;476:3877",
+      "expected": "826:44314",
+      "actual": [
+        "826:44314"
+      ],
+      "pass": true
+    },
+    {
+      "name": "entry I445:30901;476:3877 e=false",
+      "id": "I445:30901;476:3877",
+      "expected": "395:30763",
+      "actual": [
+        "395:30763"
+      ],
+      "pass": true
+    },
+    {
+      "name": "entry I445:30901;476:3877 e=true",
+      "id": "I445:30901;476:3877",
+      "expected": "395:30763",
+      "actual": [
+        "395:30763"
+      ],
+      "pass": true
+    },
+    {
+      "name": "entry 478:31022 e=false",
+      "id": "478:31022",
+      "expected": "395:30763",
+      "actual": [
+        "395:30763"
+      ],
+      "pass": true
+    },
+    {
+      "name": "entry 478:31022 e=true",
+      "id": "478:31022",
+      "expected": "395:30763",
+      "actual": [
+        "395:30763"
+      ],
+      "pass": true
+    },
+    {
+      "name": "discard draft",
+      "id": "I444:30866;416:3852",
+      "expected": "395:30836",
+      "actual": [
+        "395:30836"
+      ],
+      "pass": true
+    }
+  ],
+  "defaultsRestored": {
+    "editDeadlineOpen": true,
+    "phoneChangePending": false,
+    "newPhoneVerified": false,
+    "phoneChangeAuthContext": false
+  }
+}
