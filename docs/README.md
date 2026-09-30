@@ -8,6 +8,9 @@
 
 - [Project Context](product/PROJECT_CONTEXT.md)
 - [Product Definition](product/PRODUCT_DEFINITION.md) · [Product Decisions](product/PRODUCT_DECISIONS.md)
+- [역할별 접근·작업 권한 검토 결과](product/access-policy-review.md)
+- [Owner·위임·탈퇴 검토](product/owner-handover-review.md)
+- [조직 생성·가입·초대 검토 결과](product/organization-entry-review.md)
 - [Research와 원문 Artifact](product/RESEARCH.md)
 - [Figma Workspace Governance](design/figma-workspace-governance.md)
 - [Architecture와 소스 우선순위·검토 필요사항](architecture/architecture-v0.1.md)

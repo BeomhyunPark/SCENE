@@ -7,18 +7,24 @@
 | 개념 | 의미 |
 |---|---|
 | Authentication | 누구인지 확인 |
-| Membership | 어느 Space에 소속되는지 |
+| Membership | 어느 Space에 소속되는지. 행사 전용 협력자는 조직 Membership 없이 접근 가능 |
 | Event Access | 어느 Event에 접근할 수 있는지 |
 | Authorization | 해당 행위를 수행할 Permission이 있는지 |
 | Operational Responsibility | 누구의 어떤 운영 업무를 담당하는지 |
 
-업무 담당이라는 이유로 모든 개인정보 접근권을 주지 않는다. 필요한 정보 조회 범위와 수정 권한·책임 범위는 동일하지 않을 수 있다.
+일반 행사 운영진은 담당 업무에 맞게 정보 접근권을 부여한다. 조직 관리자와 그룹 리더의 조회 범위는 아래 후속 결정에 따른다. 필요한 정보 조회 범위와 수정 권한·책임 범위는 동일하지 않을 수 있다.
 
 - Space role: `OWNER / ADMIN / MEMBER`.
 - Event role: `OWNER / MANAGER / STAFF`.
 - Server-side authorization은 Permission 기반.
 - 초기 구현 방향: Java enum + Role → Permission Set mapping. DB `permissions / role_permissions` 테이블은 만들지 않는다.
 - [Permission 후보 목록](api-architecture-v0.1.md#permissions)과 실제 role mapping은 구분한다. 미제공 Role별 세부 허용 집합을 추가 확정하지 않는다.
+
+### 2026-09-30 사용자 답변 반영
+
+[DEC-028~030](../product/PRODUCT_DECISIONS.md#dec-028--조직-관리자의-행사-조회와-행사-수정-권한을-구분한다)에 따라 조직 관리자에게 행사 운영진 지정 없이도 같은 조직 행사의 개인별 정보·정산 상세를 포함한 전체 조회를 허용하지만, 행사 수정은 별도 권한이다. 행사 운영진은 담당 업무에 따라 사람별 권한을 달리 부여한다. 그룹 리더는 자기 그룹원의 연락처·신청 정보를 포함한 전체 정보·리더용 정보, 참가자는 자기 정보·참가자용 안내를 본다.
+
+기존 Role → Permission Set 기준만으로 개별 운영자 권한을 표현할 수 있는지 재검토해야 한다. 개별 권한 저장 구조·기본값·부여자·회수 방식은 OPEN이며 새 권한 테이블을 확정하지 않는다. 조직 관리자 전체 조회와 리더의 자기 그룹원 전체 조회 범위는 사용자 추가 답변으로 확정했다. 정보 분류와 권한 없음 화면·서버 일치 기준은 DEC-031 및 [확정 정책](../product/access-policy-review.md)을 따른다. 서버 Permission·tenant·resource 소속 검사는 계속 적용한다.
 
 ## 2. 인증 영역과 Session
 
@@ -89,6 +95,24 @@ Event API는 `eventId`를 tenant anchor로 사용하고 서버가 `spaceId`를 r
 
 ## 8. OPEN
 
-Session store/TTL/복구, Access 재발급, OWNER cardinality/transfer, Role별 Permission mapping 상세, 민감 필드 접근, 보존기간·익명화 필드, Export infrastructure, QR credential 구조는 OPEN 또는 원문 대조 필요.
+Session store/TTL/복구, Access 재발급, OWNER cardinality/transfer, Role별 Permission mapping과 개별 권한 판정 상세, 일반 운영진의 민감 필드 접근, 보존기간·익명화 필드, Export infrastructure, QR credential 구조는 OPEN 또는 원문 대조 필요. 조직 관리자와 그룹 리더의 전체 조회 범위는 위 후속 결정으로 확정했다.
 
 전체 업무 OPEN 목록: [API Architecture](api-architecture-v0.1.md#open-items).
+
+
+## 2026-09-30 Owner·책임 이전 후속 정책
+
+[DEC-032~035](../product/PRODUCT_DECISIONS.md#dec-032--조직행사-owner는-복수-가능하며-같은-사람이-두-역할을-맡을-수-있다)에 따라 조직·행사 Owner는 복수 가능하고 같은 사람이 두 역할을 맡을 수 있다. 수락 T0에 새 Owner가 즉시 권한을 받고, 넘긴 사람의 해당 Owner·인수인계 권한만 T0+14일에 종료한다. 다른 조직·행사 역할과 별도 권한은 유지한다.
+
+업무 상태 PENDING에서는 요청자 취소·수신자 거절, HANDOVER에서는 양쪽 취소, COMPLETED에서는 취소 불가·새 위임 시작으로 처리한다. 취소는 위임·인수인계와 해당 권한·책임 이전 상태만 복구하고 실제 행사 작업 데이터는 유지한다. 위임과 Membership 종료는 별도다.
+
+마지막 Owner 이탈은 후임 수락 전 차단하고 탈퇴·제거 전 남은 행사 책임·준비 업무의 인수자 수락을 검사한다. 조직 Owner는 행사 책임구조 복구를 시작하고 새 담당자를 지정해 수락을 받는다. 긴급 상황에서는 기존 담당자 접근을 먼저 차단하고 책임자 지정 필요 상태를 표시할 수 있다. 조직 Owner를 모든 행사의 상시 Owner로 자동 지정하지 않는다.
+
+기존 OWNER cardinality·transfer 전체가 미정이라는 설명은 위 제품 정책에 한해 갱신한다. 상세 관계·권한 저장·만료·동시성·세션·endpoint/DTO와 책임자 지정 상태의 저장 방식은 기술 설계에서 정한다. 업무 상태명을 DB enum으로 자동 확정하거나 행사 lifecycle에 새 상태를 임의 추가하지 않는다. 모든 조직 Owner의 접근 불가 상황은 별도 Account/Organization Recovery 정책으로 남긴다. [검토 결과](../product/owner-handover-review.md)에 적용 범위와 후속 #5·#8·#9·#10을 기록한다.
+
+
+## 2026-09-30 조직 가입·행사 전용 협력자 후속 정책
+
+[DEC-036~039](../product/PRODUCT_DECISIONS.md#dec-036--검증된-조직-생성자가-최초-owner가-된다)와 [검토 결과](../product/organization-entry-review.md)를 적용한다. 검증된 생성자가 최초 Owner가 되고, 조직 검색 가입 요청은 조직 Owner 승인, 대상자 조직 초대는 수락만으로 MEMBER가 된다. 대기 사용자는 조직 내부 정보를 보지 못한다. 초대는 대상 계정·범위·만료·1회 소비를 검증한다. 7일은 제안값이며 정확한 TTL은 상세 계약에서 정한다.
+
+조직 Membership과 행사 접근은 별개다. 조직 소속 없이 해당 행사만 운영하는 협력자는 운영계정 ↔ Event 운영자 관계와 Permission으로 접근을 판정하고 조직 내부·다른 행사 접근을 자동 허용하지 않는다. 모든 행사 운영자에게 memberId와 Membership을 요구하던 최초 기준은 갱신한다. DB 관계·FK·DTO·endpoint·초대 재전송·동시성·소속 제거 시 독립 행사 접근 처리의 상세 계약은 후속 기술 검토에서 정한다.

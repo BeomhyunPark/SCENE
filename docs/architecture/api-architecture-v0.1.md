@@ -162,7 +162,7 @@ Endpoint는 추가 참조 원문과 회수된 대화에 제시된 경로다. 메
 - Space 하위 경계: `/api/v1/operator/spaces/{spaceId}/members`, `/api/v1/operator/spaces/{spaceId}/events`.
 - 후보 Permission: `SPACE_READ`, `SPACE_UPDATE`, `MEMBER_READ`, `MEMBER_MANAGE`, `EVENT_CREATE`.
 - Space role: `OWNER / ADMIN / MEMBER`.
-- 최초 Organization 가입 / Space 생성 / Invitation flow는 OPEN.
+- Organization 생성자 Owner, 가입 요청의 조직 Owner 승인, 대상자 초대 수락 흐름은 DEC-036~037로 확정했다. 초대·대기·취소·만료의 상세 계약은 후속 설계에서 정한다.
 - Space OWNER cardinality / transfer policy는 OPEN.
 - Member role 변경은 좁은 PATCH DTO. Membership 제거 전 Owner, Event responsibility, 기타 dependency 검사.
 
@@ -196,7 +196,7 @@ PATCH  /api/v1/operator/events/{eventId}/operators/{operatorId}
 DELETE /api/v1/operator/events/{eventId}/operators/{operatorId}
 ```
 
-Event 생성 + creator를 `event_users.OWNER`로 생성하는 작업은 하나의 transaction. API 이름은 DB `event_users` 대신 `operators`. Operator 추가는 `userId`보다 `memberId`를 사용하여 user → member → event operator 관계를 강제한다.
+Event 생성 + creator를 `event_users.OWNER`로 생성하는 작업은 하나의 transaction. API 이름은 DB `event_users` 대신 `operators`. 최초 기준의 memberId 기반 추가는 조직 Member 경로로 남길 수 있으나 DEC-039의 행사 전용 협력자 경로도 필요하다. 모든 운영자에게 user → member → event operator를 강제하지 않는다. 행사 전용 초대·사용자 참조·DTO 계약은 후속 설계에서 정한다.
 
 Event 종료·Owner 이전은 중요한 command 후보지만 정확한 transition/transfer 정책·경로는 OPEN이다.
 
@@ -605,7 +605,7 @@ AUDIT_LOG_READ
 
 ### 기존 OPEN
 
-1. Organization 최초 가입 / Space 생성 / Invitation flow.
+1. Organization 최초 가입 / Space 생성 / Invitation 제품 흐름은 DEC-036~039로 확정. 상세 계약과 정확한 초대 TTL·재전송·행사 전용 협력자 경로는 후속 설계.
 2. Space OWNER와 Event OWNER cardinality / transfer policy.
 3. Event lifecycle transition rule. `DRAFT → ACTIVE → ENDED → ARCHIVED`의 허용 조건·전이는 미정.
 4. Participant Access recovery 및 Session TTL. 정확한 session store도 OPEN.
@@ -621,9 +621,28 @@ AUDIT_LOG_READ
 
 - Endpoint별 request/response의 제공 범위 밖 세부와 상세 DDL.
 - Role → Permission Set의 상세 mapping과 표에 미명시된 읽기/취소 Permission.
+- 2026-09-30 [DEC-028~030](../product/PRODUCT_DECISIONS.md#dec-028--조직-관리자의-행사-조회와-행사-수정-권한을-구분한다): 조직 관리자의 행사 조회·수정 분리, 운영자별 업무 권한, 조직 관리자의 행사 전체 조회와 리더의 자기 그룹원 전체 조회를 반영해야 한다. 연락처·신청 답변과 조직 관리자의 정산 상세 조회를 포함한다. 화면과 서버의 권한 판단은 DEC-031에 따라 일치시킨다. 개별 권한 저장·판정 방식과 조직·그룹 조회의 endpoint/DTO 경계는 OPEN. 고정 Role mapping만으로 개별 권한 요구가 해결됐다고 해석하지 않는다.
 - QR credential, Notice targeting, idempotency key scope/TTL/response replay와 raw Access Key 1회 전달의 결합.
 - Field별 보존기간·익명화 범위, Export 파일·비동기 job 계약.
 - logs/history의 Domain별 cursor 채택과 request/tracing context의 상세 연결.
 - `APPLICATION_CLOSED`와 `FORM_CLOSED`의 의미·매핑·통합 여부.
 
 이 항목은 이번 문서 작업에서 새 의사결정을 내리지 않았음을 표시한다. API map이 있다는 사실만으로 Gate Review 완료·구현 준비 완료를 주장하지 않는다.
+
+
+## 2026-09-30 Owner·책임 이전 후속 정책
+
+[DEC-032~035](../product/PRODUCT_DECISIONS.md#dec-032--조직행사-owner는-복수-가능하며-같은-사람이-두-역할을-맡을-수-있다)에 따라 조직·행사 Owner는 복수 가능하고 같은 사람이 두 역할을 맡을 수 있다. 수락 T0에 새 Owner가 즉시 권한을 받고, 넘긴 사람의 해당 Owner·인수인계 권한만 T0+14일에 종료한다. 다른 조직·행사 역할과 별도 권한은 유지한다.
+
+업무 상태 PENDING에서는 요청자 취소·수신자 거절, HANDOVER에서는 양쪽 취소, COMPLETED에서는 취소 불가·새 위임 시작으로 처리한다. 취소는 위임·인수인계와 해당 권한·책임 이전 상태만 복구하고 실제 행사 작업 데이터는 유지한다. 위임과 Membership 종료는 별도다.
+
+마지막 Owner 이탈은 후임 수락 전 차단하고 탈퇴·제거 전 남은 행사 책임·준비 업무의 인수자 수락을 검사한다. 조직 Owner는 행사 책임구조 복구를 시작하고 새 담당자를 지정해 수락을 받는다. 긴급 상황에서는 기존 담당자 접근을 먼저 차단하고 책임자 지정 필요 상태를 표시할 수 있다. 조직 Owner를 모든 행사의 상시 Owner로 자동 지정하지 않는다.
+
+기존 OWNER cardinality·transfer 전체가 미정이라는 설명은 위 제품 정책에 한해 갱신한다. 상세 관계·권한 저장·만료·동시성·세션·endpoint/DTO와 책임자 지정 상태의 저장 방식은 기술 설계에서 정한다. 업무 상태명을 DB enum으로 자동 확정하거나 행사 lifecycle에 새 상태를 임의 추가하지 않는다. 모든 조직 Owner의 접근 불가 상황은 별도 Account/Organization Recovery 정책으로 남긴다. [검토 결과](../product/owner-handover-review.md)에 적용 범위와 후속 #5·#8·#9·#10을 기록한다.
+
+
+## 2026-09-30 조직 가입·행사 전용 협력자 후속 정책
+
+[DEC-036~039](../product/PRODUCT_DECISIONS.md#dec-036--검증된-조직-생성자가-최초-owner가-된다)와 [검토 결과](../product/organization-entry-review.md)를 적용한다. 검증된 생성자가 최초 Owner가 되고, 조직 검색 가입 요청은 조직 Owner 승인, 대상자 조직 초대는 수락만으로 MEMBER가 된다. 대기 사용자는 조직 내부 정보를 보지 못한다. 초대는 대상 계정·범위·만료·1회 소비를 검증한다. 7일은 제안값이며 정확한 TTL은 상세 계약에서 정한다.
+
+조직 Membership과 행사 접근은 별개다. 조직 소속 없이 해당 행사만 운영하는 협력자는 운영계정 ↔ Event 운영자 관계와 Permission으로 접근을 판정하고 조직 내부·다른 행사 접근을 자동 허용하지 않는다. 모든 행사 운영자에게 memberId와 Membership을 요구하던 최초 기준은 갱신한다. DB 관계·FK·DTO·endpoint·초대 재전송·동시성·소속 제거 시 독립 행사 접근 처리의 상세 계약은 후속 기술 검토에서 정한다.

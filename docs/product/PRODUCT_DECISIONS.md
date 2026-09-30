@@ -5,6 +5,8 @@
 > DEC-027은 단계 설명에 한해 DEC-024를 대체한다고 기록하지만 DEC-024의 원래 CONFIRMED 표기는 보존한다. Evidence Type의 HYPOTHESIS 용어 충돌도 [검토 기록](../architecture/architecture-v0.1.md)에 남긴다.
 > [Product Definition](PRODUCT_DEFINITION.md) · [Research](RESEARCH.md)
 
+> **2026-09-30 후속 검토:** [이슈 #3 사용자 답변](https://github.com/BeomhyunPark/SCENE/issues/3#issuecomment-5902388629)에 근거한 접근·권한 방향을 DEC-028~030에 추가했다. [추가 답변](https://github.com/BeomhyunPark/SCENE/issues/3#issuecomment-5902501911)의 전체 조회 범위와 화면·서버 일치 원칙은 해당 결정과 DEC-031에 반영했다. 앞의 baseline 설명은 문서 최초 정리 당시 이력이다. 확정 정책과 후속 작업은 [권한 검토](access-policy-review.md)에 기록한다.
+
 > 이 문서는 프로젝트에서 **실제로 확정된 제품 의사결정만 기록하는 Decision Log**다.
 >
 > 아이디어나 Research Hypothesis는 확정사항으로 기록하지 않는다.
@@ -711,3 +713,394 @@ Operational Structure Research와 Product Definition Gate를 거치며 확정 �
 
 - Product Definition Gate v0.1
 - `PRODUCT_DEFINITION.md` v0.1
+
+---
+
+## DEC-028 — 조직 관리자의 행사 조회와 행사 수정 권한을 구분한다
+
+**Date:** 2026-09-30
+
+**Status:** CONFIRMED — 제품 방향
+
+### Context
+
+조직 관리자에게 행사 진행 상황을 보고하는 업무가 있다.
+
+### Decision
+
+조직 관리자는 해당 행사 운영진이 아니어도 같은 조직 행사의 전체 정보를 조회한다. 참가자 개인정보·연락처·신청 답변·개인별 정산 상세 등 행사 데이터를 일부 숨기거나 별도 조회 허용 단계로 나누지 않는다. 이 조회 권한이 행사 수정 권한을 자동으로 부여하지 않는다. 조직 관리자는 앱과 운영진을 관리하는 사용자로 본다.
+
+### Alternatives
+
+행사 운영진에게만 조회를 허용하는 방식과 보고용 요약만 기본 제공하고 개인별 정보·정산 상세를 별도 허용하는 방식은 채택하지 않는다. 조회와 수정은 구분한다.
+
+### Reason
+
+조직 관리자가 행사 진행을 직접 확인할 수 있도록 한다. 사용자는 조직 관리자가 이미 교적 관리 과정에서 정보를 알고 있어 일부 정보를 숨길 필요가 없다고 설명했다.
+
+### Consequence
+
+조직 역할과 행사 작업 권한을 구분한다. 사용자 사례의 직책을 시스템 역할에 자동 매핑하지 않는다. 개인별 정보·정산 상세를 포함한 행사 전체 조회 방향은 확정한다. 시스템 역할 매핑·조회 계약은 기술 검토에서 정한다.
+
+### Evidence
+
+[최초 답변의 첫 번째 항목](https://github.com/BeomhyunPark/SCENE/issues/3#issuecomment-5902388629), [추가 답변의 첫 번째 항목](https://github.com/BeomhyunPark/SCENE/issues/3#issuecomment-5902501911).
+
+---
+
+## DEC-029 — 행사 운영진의 업무 권한을 사람별로 달리 부여한다
+
+**Date:** 2026-09-30
+
+**Status:** CONFIRMED — 제품 방향
+
+### Context
+
+조 편성·정산 등 특정 업무 정보가 필요 없는 운영진도 있다.
+
+### Decision
+
+행사 운영진의 조회·작업 권한은 담당 업무에 맞게 사람별로 달리 부여할 수 있어야 한다. 운영진이라는 이유만으로 조 편성·정산 등의 모든 정보를 제공하지 않는다.
+
+### Alternatives
+
+모든 행사 운영진에게 같은 정보와 작업 권한을 주는 방식은 사용자 답변의 방향으로 선택되지 않았다. 구체적인 권한 설정 UI와 기술 대안은 아직 비교·확정하지 않았다.
+
+### Reason
+
+사용자가 경험한 실제 행사 운영에서도 운영진별로 필요한 정보와 업무가 다르다.
+
+### Consequence
+
+기존 고정 Role → Permission Set 기준이 개별 권한 요구를 표현할 수 있는지 재검토한다. 개별 권한 저장 구조·부여자·기본값·회수 방식과 업무별 정확한 허용 집합은 OPEN이다.
+
+### Evidence
+
+[이슈 #3 사용자 답변의 두 번째 항목](https://github.com/BeomhyunPark/SCENE/issues/3#issuecomment-5902388629).
+
+---
+
+## DEC-030 — 그룹 리더와 참가자의 정보 범위를 관계와 대상에 맞게 제한한다
+
+**Date:** 2026-09-30
+
+**Status:** CONFIRMED — 제품 방향
+
+### Context
+
+그룹 리더용 정보와 일반 참가자가 필요한 정보는 다르다.
+
+### Decision
+
+그룹 리더는 자기 그룹원의 전체 정보와 리더에게 공개된 정보를 본다. 연락처·신청 정보도 자기 그룹원 조회 범위에 포함한다. 일반 참가자는 자기 개인정보와 참가자용 공지·시간표를 본다. 운영진·리더용 정보를 일반 참가자에게 자동으로 제공하지 않는다.
+
+### Alternatives
+
+자기 그룹원의 이름·배정만 보여주고 연락처 등을 제한하는 안은 채택하지 않는다. 참가자에게 운영진·그룹 리더와 같은 범위의 정보를 자동 공개하지 않는다.
+
+### Reason
+
+그룹 리더가 자기 조원을 관리하는 데 필요한 전체 정보를 확인하고 일반 참가자는 자기 정보와 안내를 확인하도록 한다.
+
+### Consequence
+
+자기 정보·자기 그룹·공지 대상의 접근 경계를 구분한다. 자기 그룹원의 연락처·신청 정보를 포함한 전체 조회는 확정한다. 그룹 리더의 수정·Export 권한은 자동 부여하지 않으며 identity·Notice targeting 기술 방식은 별도 검토한다.
+
+### Evidence
+
+[최초 답변의 세 번째 항목](https://github.com/BeomhyunPark/SCENE/issues/3#issuecomment-5902388629), [추가 답변의 두 번째 항목](https://github.com/BeomhyunPark/SCENE/issues/3#issuecomment-5902501911).
+
+
+---
+
+## DEC-031 — 정보 분류를 유지하고 화면과 서버의 권한 판단을 일치시킨다
+
+**Date:** 2026-09-30
+
+**Status:** CONFIRMED
+
+### Context
+
+사용자가 정보 구분 추천안과 권한 없는 화면·서버 처리 설명을 검토했다.
+
+### Decision
+
+기존 PUBLIC / INTERNAL / PERSONAL / SENSITIVE / SECURITY 정보 분류를 유지하고, 실제 조회 범위는 DEC-028~030을 따른다. 조회 권한이 없는 메뉴·정보는 숨기고, 조회만 가능하면 읽기 전용, 업무 조건으로 실행 불가하면 이유와 함께 비활성화한다. 직접 URL 진입과 권한 회수 상황에도 화면과 서버가 같은 현재 권한·대상 범위를 적용한다.
+
+### Alternatives
+
+화면의 버튼만 숨기고 실제 데이터 요청은 허용하는 방식은 채택하지 않는다.
+
+### Reason
+
+사용자는 URL 등 다른 방식으로 접근할 수 있으므로 앞단과 뒷단의 권한 판단이 일치해야 한다고 답했다.
+
+### Consequence
+
+정보 분류만으로 승인된 조직 관리자·자기 그룹원 전체 조회를 축소하지 않는다. 기존 Permission·tenant·resource 검사를 유지한다. 조회 허용을 수정·공개·Export 허용으로 자동 확대하지 않는다.
+
+### Evidence
+
+[추가 답변의 세 번째 항목](https://github.com/BeomhyunPark/SCENE/issues/3#issuecomment-5902501911).
+
+
+---
+
+## DEC-032 — 조직·행사 Owner는 복수 가능하며 같은 사람이 두 역할을 맡을 수 있다
+
+**Date:** 2026-09-30
+
+**Status:** CONFIRMED — 현재 전제
+
+### Context
+
+조직과 행사 책임자가 여러 명일 수 있고 같은 사람이 조직 운영과 행사 주관을 함께 맡는다.
+
+### Decision
+
+조직 Owner와 행사 Owner는 각각 복수 가능하다는 전제로 진행한다. 같은 사람이 두 역할을 함께 맡을 수 있다. 사용자는 조직 Owner를 단수로 제한할지는 고민 중이지만 현재는 복수를 전제로 진행하라고 답했다.
+
+### Alternatives
+
+조직 Owner를 한 명으로 제한하는 안은 현 단계에서 선택하지 않았다.
+
+### Reason
+
+사용자가 설명한 실제 조직·행사 운영 방식에 맞춘다.
+
+### Consequence
+
+조직 Owner와 행사 Owner를 서로 배타적인 사용자로 모델링하지 않는다. 조직 Owner라는 이유로 모든 행사 Owner·수정 권한을 자동 부여하지 않는다. 복수 관계를 반영하되 상세 cardinality·DB 제약은 기술 설계에서 정한다.
+
+### Evidence
+
+[이슈 #4 첫 번째 답변](https://github.com/BeomhyunPark/SCENE/issues/4#issuecomment-5902713929).
+
+---
+
+## DEC-033 — Owner 위임은 수락과 인수인계 기간을 거친다
+
+**Date:** 2026-09-30
+
+**Status:** CONFIRMED — 업무 방향
+
+### Context
+
+인수인계 중 취소하는 일이 있어 위임 즉시 기존 책임자를 완전히 제거하는 방식은 적절하지 않다.
+
+### Decision
+
+넘기는 Owner가 시작하고 받는 사람이 수락한다. PENDING에서는 넘기는 사람이 취소하고 받는 사람은 거절한다. 수락 T0에 받는 사람이 즉시 정상 Owner가 되며 HANDOVER 14일 동안 넘기는 사람에게 해당 Owner·인수인계 권한을 유지한다. T0+14일에 넘기는 사람의 해당 권한을 종료하고 새 Owner는 유지한다. HANDOVER에서는 양쪽 모두 취소할 수 있다. COMPLETED 이후에는 취소할 수 없고 새 위임을 시작한다.
+
+### Alternatives
+
+수락 없이 권한을 이전하거나 위임 직후 넘기는 사람의 권한을 모두 회수하는 방식은 채택하지 않는다.
+
+### Reason
+
+사용자가 실제 인수인계에서 취소가 빈번하다고 설명했다.
+
+### Consequence
+
+수락·인수인계·취소·완료를 구분한다. 취소는 위임·인수인계 상태와 그 위임에 따른 권한·책임 이전만 복구하고 실제 행사 업무 데이터는 유지한다. 다른 조직·행사 역할과 별도 권한은 유지한다. 위임과 Membership 종료는 별도이며 인수인계 후 조직 이탈에도 남은 책임을 다시 검사한다. 기술 상세는 [검토 결과](owner-handover-review.md)에 정리한다.
+
+### Evidence
+
+[최초 세 번째 답변](https://github.com/BeomhyunPark/SCENE/issues/4#issuecomment-5902713929), [추가 확정의 두 번째·세 번째 항목](https://github.com/BeomhyunPark/SCENE/issues/4#issuecomment-5902838001).
+
+---
+
+## DEC-034 — 남은 행사 책임과 준비 업무는 수락된 인계 없이 버리지 않는다
+
+**Date:** 2026-09-30
+
+**Status:** CONFIRMED — 업무 방향
+
+### Context
+
+운영자가 탈퇴하거나 제거될 때 맡은 책임이 남을 수 있다.
+
+### Decision
+
+남은 행사 책임·준비 업무를 맡을 사람이 수락하지 않았다면 조직 탈퇴·멤버 제거를 허용하지 않는다. 마지막 Owner도 후임 수락 전 이탈할 수 없으며 경고·동의만으로 예외를 허용하지 않는다. 적합한 행사 담당 인계자가 없다면 조직 Owner가 책임을 받고 다른 사람에게 수락을 받아 인계할 수 있어야 한다.
+
+### Alternatives
+
+남은 책임을 처리하지 않고 운영자가 자유롭게 탈퇴하거나 제거되는 방식은 채택하지 않는다.
+
+### Reason
+
+사용자는 담당자가 임의로 이탈해 책임이 남는 것을 방지해야 한다고 답했다.
+
+### Consequence
+
+탈퇴·제거 전 미인계 책임과 인수자의 수락을 검사한다. 개인 이탈과 조직·행사 종료 및 데이터 삭제는 구분한다. 긴급 접근 차단은 DEC-035의 복구 흐름으로 처리하며 Membership 종료를 자동 실행하지 않는다.
+
+### Evidence
+
+[최초 네 번째 답변](https://github.com/BeomhyunPark/SCENE/issues/4#issuecomment-5902713929), [추가 확정의 첫 번째·세 번째 항목](https://github.com/BeomhyunPark/SCENE/issues/4#issuecomment-5902838001).
+
+
+---
+
+## DEC-035 — 조직 Owner는 행사 책임구조를 복구할 수 있다
+
+**Date:** 2026-09-30
+
+**Status:** CONFIRMED
+
+### Context
+
+행사 책임자의 부재·중단 또는 긴급 접근 차단 후에도 책임자를 지정할 수 있어야 한다.
+
+### Decision
+
+조직 Owner가 복구를 시작하고 새 행사 Owner를 지정한다. 대상자가 수락하면 책임을 이전한다. 긴급 상황에서는 기존 담당자 접근을 먼저 차단하고 행사에 책임자 지정 필요 상태를 표시한 뒤 새 Owner를 지정할 수 있다.
+
+### Alternatives
+
+조직 Owner를 모든 행사의 상시 Owner로 자동 지정하는 방식은 채택하지 않는다.
+
+### Reason
+
+행사 책임구조를 복구하는 관리 권한과 평소 행사 운영 권한을 구분한다.
+
+### Consequence
+
+긴급 접근 차단은 일반 탈퇴·제거와 구분하고 Membership 종료·실제 업무 데이터 삭제로 확대하지 않는다. 책임자 지정 필요의 저장 방식은 기술 설계에서 정하며 행사 lifecycle enum을 새로 추가하지 않는다. 모든 조직 Owner가 접근 불가능한 경우는 별도 Account/Organization Recovery 정책으로 남긴다.
+
+### Evidence
+
+[이슈 #4 추가 확정의 네 번째 항목](https://github.com/BeomhyunPark/SCENE/issues/4#issuecomment-5902838001).
+
+
+---
+
+## DEC-036 — 검증된 조직 생성자가 최초 Owner가 된다
+
+**Date:** 2026-09-30
+
+**Status:** CONFIRMED — 제품 정책
+
+### Context
+
+조직 생성·가입·초대와 행사 운영자 접근 경계를 검토했다.
+
+### Decision
+
+검증된 운영계정 사용자가 이메일 인증과 조직 검색·중복 후보 확인을 거쳐 조직을 생성하면 최초 조직 Owner가 된다. 생성·운영 권한 확인을 받고 초기에는 별도 SCENE 승인·증명서 제출을 요구하지 않는다. Owner와 결제 담당자는 구분한다.
+
+### Alternatives
+
+생성자와 Owner를 분리하거나 결제자를 Owner로 고정하는 안은 채택하지 않는다.
+
+### Reason
+
+조직 생성의 책임자를 명확히 하면서 초기 진입 부담을 줄인다.
+
+### Consequence
+
+복수 Owner 정책을 유지한다. 이메일 인증·중복 확인의 상세 계약은 후속 설계에서 정한다.
+
+### Evidence
+
+[이슈 #5 사용자 답변](https://github.com/BeomhyunPark/SCENE/issues/5#issuecomment-5902896850).
+
+
+---
+
+## DEC-037 — 조직 가입 요청은 Owner 승인, 대상자 초대는 수락으로 가입한다
+
+**Date:** 2026-09-30
+
+**Status:** CONFIRMED — 제품 정책
+
+### Context
+
+조직 생성·가입·초대와 행사 운영자 접근 경계를 검토했다.
+
+### Decision
+
+조직 검색 후 가입 요청은 조직 Owner가 승인·거절한다. 조직 Owner의 대상자 초대는 수락하면 추가 승인 없이 Membership이 성립한다. 초기 승인권은 조직 Owner에게만 있고 행사 Owner에게 자동 부여하지 않는다. 대기 사용자는 조직 내부 정보에 접근하지 못한다. 대상 이메일·조직·기본 접근 범위·만료·1회 사용 토큰을 갖는 초대를 사용한다.
+
+### Alternatives
+
+가입 요청과 초대에 동일한 이중 승인 절차를 적용하거나 무제한 공개 초대 링크를 사용하는 안은 채택하지 않는다.
+
+### Reason
+
+관계를 먼저 요청한 주체에 따라 확인 절차를 구분한다.
+
+### Consequence
+
+사용자 대기 요청 취소·거절 후 재신청, 초대 수락 전 취소·만료·재초대를 지원한다. 정확한 TTL과 재전송 계약은 후속 상세다. 7일은 사용자 제안값이다.
+
+### Evidence
+
+[이슈 #5 사용자 답변](https://github.com/BeomhyunPark/SCENE/issues/5#issuecomment-5902896850).
+
+
+---
+
+## DEC-038 — 중복 조직은 후보로 안내하며 이름만으로 생성 차단·자동 병합하지 않는다
+
+**Date:** 2026-09-30
+
+**Status:** CONFIRMED — 제품 정책
+
+### Context
+
+조직 생성·가입·초대와 행사 운영자 접근 경계를 검토했다.
+
+### Decision
+
+생성 전 조직명·지역 등 최소 비교 정보로 중복 후보를 안내한다. 기존 조직 가입 요청 또는 다른 조직으로 새로 만들기를 선택할 수 있다. 이름만 같다고 생성을 차단하지 않고 중복 조직을 자동 병합하지 않는다.
+
+### Alternatives
+
+조직 이름 UNIQUE만으로 동일 조직을 판정하거나 자동 병합하는 안은 채택하지 않는다.
+
+### Reason
+
+같은 이름의 교회가 있을 수 있고 조직 병합은 권한·행사·결제·개인정보 관계를 함께 다뤄야 한다.
+
+### Consequence
+
+실제 중복 확인·이전·보관/종료는 별도 운영지원 복구 절차로 검토한다. 회원 제거는 기존 책임 인계 정책을 따른다.
+
+### Evidence
+
+[이슈 #5 사용자 답변](https://github.com/BeomhyunPark/SCENE/issues/5#issuecomment-5902896850).
+
+
+---
+
+## DEC-039 — 조직 소속 없이 특정 행사만 운영하는 협력자를 허용한다
+
+**Date:** 2026-09-30
+
+**Status:** CONFIRMED — 제품 정책
+
+### Context
+
+조직 생성·가입·초대와 행사 운영자 접근 경계를 검토했다.
+
+### Decision
+
+Organization Membership과 Event Role은 별개다. 조직 Member에게 행사 Role을 부여할 수 있고 조직 Membership 없이 특정 행사만 운영하는 Event-scoped Collaborator를 허용한다. 행사 초대는 해당 행사 접근만 부여하고 조직 가입은 별도로 처리한다.
+
+### Alternatives
+
+모든 행사 운영자에게 영구 조직 Membership을 강제하거나 행사 초대가 조직 소속을 자동 부여하는 안은 채택하지 않는다.
+
+### Reason
+
+임시 스태프·외부 협력자는 한 행사를 도울 수 있지만 조직 전체에 소속될 필요는 없다.
+
+### Consequence
+
+기존 user → member → event_user 필수 관계와 모든 추가에 memberId를 요구한 기준을 재검토한다. 운영계정과 Participant 구분·tenant·Permission 검사는 유지한다. 상세 관계·권한·API/DTO 계약은 후속 이슈에서 정한다.
+
+### Evidence
+
+[이슈 #5 사용자 답변](https://github.com/BeomhyunPark/SCENE/issues/5#issuecomment-5902896850).
