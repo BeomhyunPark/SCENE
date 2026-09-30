@@ -1,6 +1,7 @@
 # D05·D06·D12 실제 Present 검증
 
-검증일: 2026-09-30 (Asia/Seoul)  
+검증일: 2026-09-30 (Asia/Seoul)
+
 관련 이슈: [#17](https://github.com/BeomhyunPark/SCENE/issues/17), [#18](https://github.com/BeomhyunPark/SCENE/issues/18), [#24](https://github.com/BeomhyunPark/SCENE/issues/24)
 
 ## 결론과 검증 범위
