@@ -11,6 +11,10 @@
 - [역할별 접근·작업 권한 검토 결과](product/access-policy-review.md)
 - [Owner·위임·탈퇴 검토](product/owner-handover-review.md)
 - [조직 생성·가입·초대 검토 결과](product/organization-entry-review.md)
+- [조 편성 저장·공개·참가자 안내 검토 결과](product/group-publication-review.md)
+- [조 편성 변경·동시 수정·실패 복구 검토 결과](product/group-change-recovery-review.md)
+- [행사 종료·보관·재개 검토 결과](product/event-lifecycle-review.md)
+- [Export·보존·삭제·복구 검토 결과](product/data-retention-export-review.md)
 - [Research와 원문 Artifact](product/RESEARCH.md)
 - [Figma Workspace Governance](design/figma-workspace-governance.md)
 - [Architecture와 소스 우선순위·검토 필요사항](architecture/architecture-v0.1.md)
@@ -21,5 +25,6 @@
 
 - [GitHub Projects 운영 기준](project-management.md)
 - [진행 보드](https://github.com/users/BeomhyunPark/projects/5/views/1)
+- [프로토타입 감사 수정 현황·검증 자료](test_results/repair-status.md)
 
 [SCENE 소개로 돌아가기](../README.md)
