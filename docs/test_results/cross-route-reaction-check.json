@@ -1,0 +1,453 @@
+{
+  "verification": "Read-back saved reactions, variable guards and component bindings; no actual Present clicks, browser history or backend calls.",
+  "passed": 80,
+  "total": 80,
+  "cases": [
+    {
+      "defect": "D12",
+      "name": "unfinished ending -> event list -> record home preserves 0/2",
+      "pass": true
+    },
+    {
+      "defect": "D12",
+      "name": "unfinished ending -> retrospective save -> preparation record stays unfinished",
+      "pass": true
+    },
+    {
+      "defect": "D12",
+      "name": "370:28974 shared preparation route preserves unfinished record",
+      "pass": true
+    },
+    {
+      "defect": "D12",
+      "name": "371:29056 shared preparation route preserves unfinished record",
+      "pass": true
+    },
+    {
+      "defect": "D12",
+      "name": "369:30014 shared preparation route preserves unfinished record",
+      "pass": true
+    },
+    {
+      "defect": "D12",
+      "name": "369:30324 shared preparation route preserves unfinished record",
+      "pass": true
+    },
+    {
+      "defect": "D12",
+      "name": "saved retrospective -> list -> record retains unfinished home",
+      "pass": true
+    },
+    {
+      "defect": "D12",
+      "name": "370:28974 original completed fixture remains separate",
+      "pass": true
+    },
+    {
+      "defect": "D12",
+      "name": "371:29056 original completed fixture remains separate",
+      "pass": true
+    },
+    {
+      "defect": "D12",
+      "name": "371:29372 original completed fixture remains separate",
+      "pass": true
+    },
+    {
+      "defect": "D12",
+      "name": "original completed closing explicitly resets unfinished fixture",
+      "pass": true
+    },
+    {
+      "defect": "D03D04",
+      "name": "first save initializes 1 assigned",
+      "pass": true
+    },
+    {
+      "defect": "D03D04",
+      "name": "cancel preview leaves first assignment intact",
+      "pass": true
+    },
+    {
+      "defect": "D03D04",
+      "name": "박서연 selection preserves previous members before save",
+      "pass": true
+    },
+    {
+      "defect": "D03D04",
+      "name": "박서연 preview uses current first-save count",
+      "pass": true
+    },
+    {
+      "defect": "D03D04",
+      "name": "박서연 save accumulates without sample jump",
+      "pass": true
+    },
+    {
+      "defect": "D03D04",
+      "name": "박서연 repeated save does not double count",
+      "pass": true
+    },
+    {
+      "defect": "D03D04",
+      "name": "이도현 selection preserves previous members before save",
+      "pass": true
+    },
+    {
+      "defect": "D03D04",
+      "name": "이도현 preview uses current first-save count",
+      "pass": true
+    },
+    {
+      "defect": "D03D04",
+      "name": "이도현 save accumulates without sample jump",
+      "pass": true
+    },
+    {
+      "defect": "D03D04",
+      "name": "이도현 repeated save does not double count",
+      "pass": true
+    },
+    {
+      "defect": "D03D04",
+      "name": "정하은 selection preserves previous members before save",
+      "pass": true
+    },
+    {
+      "defect": "D03D04",
+      "name": "정하은 preview uses current first-save count",
+      "pass": true
+    },
+    {
+      "defect": "D03D04",
+      "name": "정하은 save accumulates without sample jump",
+      "pass": true
+    },
+    {
+      "defect": "D03D04",
+      "name": "정하은 repeated save does not double count",
+      "pass": true
+    },
+    {
+      "defect": "D03D04",
+      "name": "최지우 selection preserves previous members before save",
+      "pass": true
+    },
+    {
+      "defect": "D03D04",
+      "name": "최지우 preview uses current first-save count",
+      "pass": true
+    },
+    {
+      "defect": "D03D04",
+      "name": "최지우 save accumulates without sample jump",
+      "pass": true
+    },
+    {
+      "defect": "D03D04",
+      "name": "최지우 repeated save does not double count",
+      "pass": true
+    },
+    {
+      "defect": "D03D04",
+      "name": "오유진 selection preserves previous members before save",
+      "pass": true
+    },
+    {
+      "defect": "D03D04",
+      "name": "오유진 preview uses current first-save count",
+      "pass": true
+    },
+    {
+      "defect": "D03D04",
+      "name": "오유진 save accumulates without sample jump",
+      "pass": true
+    },
+    {
+      "defect": "D03D04",
+      "name": "오유진 repeated save does not double count",
+      "pass": true
+    },
+    {
+      "defect": "D03D04",
+      "name": "민서윤 selection preserves previous members before save",
+      "pass": true
+    },
+    {
+      "defect": "D03D04",
+      "name": "민서윤 preview uses current first-save count",
+      "pass": true
+    },
+    {
+      "defect": "D03D04",
+      "name": "민서윤 save accumulates without sample jump",
+      "pass": true
+    },
+    {
+      "defect": "D03D04",
+      "name": "민서윤 repeated save does not double count",
+      "pass": true
+    },
+    {
+      "defect": "D03D04",
+      "name": "six successive saves retain Kim Minsu and total 104",
+      "pass": true
+    },
+    {
+      "defect": "D03D04",
+      "name": "board -> participants -> board retains seven assignments",
+      "pass": true
+    },
+    {
+      "defect": "D03D04",
+      "name": "board -> event home -> board retains seven assignments",
+      "pass": true
+    },
+    {
+      "defect": "D03D04",
+      "name": "박서연 pool and member visibility share committed state",
+      "pass": true
+    },
+    {
+      "defect": "D03D04",
+      "name": "박서연 member component has correct label",
+      "pass": true
+    },
+    {
+      "defect": "D03D04",
+      "name": "이도현 pool and member visibility share committed state",
+      "pass": true
+    },
+    {
+      "defect": "D03D04",
+      "name": "이도현 member component has correct label",
+      "pass": true
+    },
+    {
+      "defect": "D03D04",
+      "name": "정하은 pool and member visibility share committed state",
+      "pass": true
+    },
+    {
+      "defect": "D03D04",
+      "name": "정하은 member component has correct label",
+      "pass": true
+    },
+    {
+      "defect": "D03D04",
+      "name": "최지우 pool and member visibility share committed state",
+      "pass": true
+    },
+    {
+      "defect": "D03D04",
+      "name": "최지우 member component has correct label",
+      "pass": true
+    },
+    {
+      "defect": "D03D04",
+      "name": "오유진 pool and member visibility share committed state",
+      "pass": true
+    },
+    {
+      "defect": "D03D04",
+      "name": "오유진 member component has correct label",
+      "pass": true
+    },
+    {
+      "defect": "D03D04",
+      "name": "민서윤 pool and member visibility share committed state",
+      "pass": true
+    },
+    {
+      "defect": "D03D04",
+      "name": "민서윤 member component has correct label",
+      "pass": true
+    },
+    {
+      "defect": "D03D04",
+      "name": "detail contains all six added membership rows",
+      "pass": true
+    },
+    {
+      "defect": "D03D04",
+      "name": "saved board opens live first-group detail",
+      "pass": true
+    },
+    {
+      "defect": "D03D04",
+      "name": "detail -> participants -> board retains state",
+      "pass": true
+    },
+    {
+      "defect": "D05",
+      "name": "editable authenticated application opens editable guidance",
+      "pass": true
+    },
+    {
+      "defect": "D05",
+      "name": "editable guidance contains no closed/read-only claim",
+      "pass": true
+    },
+    {
+      "defect": "D05",
+      "name": "editable guidance return still permits edit and save consistently",
+      "pass": true
+    },
+    {
+      "defect": "D05",
+      "name": "contact-only entry keeps read-only guidance",
+      "pass": true
+    },
+    {
+      "defect": "D05",
+      "name": "contact-only direct save remains blocked",
+      "pass": true
+    },
+    {
+      "defect": "D11",
+      "name": "ONE second scheduled task before progress returns to schedule",
+      "pass": true
+    },
+    {
+      "defect": "D11",
+      "name": "ONE second scheduled task after progress returns to schedule",
+      "pass": true
+    },
+    {
+      "defect": "D11",
+      "name": "ONE schedule reentry preserves second task progress",
+      "pass": true
+    },
+    {
+      "defect": "D11",
+      "name": "ONE explicit my work routes to current lobby-state list",
+      "pass": true
+    },
+    {
+      "defect": "D11",
+      "name": "ONE second task my-work origin returns to correct list",
+      "pass": true
+    },
+    {
+      "defect": "D11",
+      "name": "CHECKED second scheduled task before progress returns to schedule",
+      "pass": true
+    },
+    {
+      "defect": "D11",
+      "name": "CHECKED second scheduled task after progress returns to schedule",
+      "pass": true
+    },
+    {
+      "defect": "D11",
+      "name": "CHECKED schedule reentry preserves second task progress",
+      "pass": true
+    },
+    {
+      "defect": "D11",
+      "name": "CHECKED explicit my work routes to current lobby-state list",
+      "pass": true
+    },
+    {
+      "defect": "D11",
+      "name": "CHECKED second task my-work origin returns to correct list",
+      "pass": true
+    },
+    {
+      "defect": "D11",
+      "name": "DONE second scheduled task before progress returns to schedule",
+      "pass": true
+    },
+    {
+      "defect": "D11",
+      "name": "DONE second scheduled task after progress returns to schedule",
+      "pass": true
+    },
+    {
+      "defect": "D11",
+      "name": "DONE schedule reentry preserves second task progress",
+      "pass": true
+    },
+    {
+      "defect": "D11",
+      "name": "DONE explicit my work routes to current lobby-state list",
+      "pass": true
+    },
+    {
+      "defect": "D11",
+      "name": "DONE second task my-work origin returns to correct list",
+      "pass": true
+    },
+    {
+      "defect": "D06",
+      "name": "cancelled application removes internal policy placeholder",
+      "pass": true
+    },
+    {
+      "defect": "D07",
+      "name": "APPROVED opens request-specific guidance",
+      "pass": true
+    },
+    {
+      "defect": "D07",
+      "name": "APPROVED direct cancel also uses request-specific guidance",
+      "pass": true
+    },
+    {
+      "defect": "D07",
+      "name": "REJECTED opens request-specific guidance",
+      "pass": true
+    },
+    {
+      "defect": "D07",
+      "name": "REJECTED direct cancel also uses request-specific guidance",
+      "pass": true
+    }
+  ],
+  "inspectedNodeIds": [
+    "840:44523",
+    "374:29406",
+    "840:44521",
+    "370:29401",
+    "371:29372",
+    "370:28974",
+    "371:29056",
+    "369:30014",
+    "369:30324",
+    "371:29380",
+    "369:29991",
+    "657:47558",
+    "809:44535",
+    "851:44742",
+    "851:44764",
+    "851:44766",
+    "809:44536",
+    "809:44537",
+    "809:44538",
+    "809:44539",
+    "809:44540",
+    "809:44385",
+    "657:45579",
+    "809:44373",
+    "657:47360",
+    "809:44413",
+    "851:44881",
+    "478:31022",
+    "I444:30814;476:3877",
+    "I444:30839;476:3877",
+    "588:34668",
+    "I853:44596;476:3877",
+    "478:31044",
+    "I444:30872;476:3877",
+    "I445:30901;476:3877",
+    "622:278",
+    "I664:43699;664:42461",
+    "664:43722",
+    "I664:43858;664:42461",
+    "664:43881",
+    "664:43400",
+    "833:44603",
+    "833:44500"
+  ],
+  "branch": "fix/prototype-cross-route-state"
+}

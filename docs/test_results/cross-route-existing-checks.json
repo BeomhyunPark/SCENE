@@ -1,0 +1,1021 @@
+{
+  "verification": "Rerun stored read-back scripts after cross-route fixes. Actual Present and backend not tested. Original D03 snapshot assertions superseded by cross-route first-assignment tests.",
+  "passed": 201,
+  "total": 201,
+  "results": [
+    {
+      "name": "d01",
+      "verification": "Read-back prototype reaction evaluation; not actual Present clicks or backend tests",
+      "passed": 25,
+      "total": 25,
+      "cases": [
+        {
+          "name": "request creates PENDING without Owner grant",
+          "pass": true
+        },
+        {
+          "name": "pending last Owner cannot leave",
+          "pass": true
+        },
+        {
+          "name": "direct final leave also blocked before acceptance",
+          "pass": true
+        },
+        {
+          "name": "14-day fixture cannot complete pending request",
+          "pass": true
+        },
+        {
+          "name": "requester cancellation preserves original Owner",
+          "pass": true
+        },
+        {
+          "name": "requester cannot accept recipient request",
+          "pass": true
+        },
+        {
+          "name": "QA recipient remains non-Owner before acceptance",
+          "pass": true
+        },
+        {
+          "name": "recipient acceptance grants Owner at T0",
+          "pass": true
+        },
+        {
+          "name": "new last Owner cannot leave while predecessor only hands over",
+          "pass": true
+        },
+        {
+          "name": "requester cannot leave with unaccepted responsibilities",
+          "pass": true
+        },
+        {
+          "name": "direct final leave blocked with residual responsibilities",
+          "pass": true
+        },
+        {
+          "name": "recipient separately accepts residual responsibilities",
+          "pass": true
+        },
+        {
+          "name": "responsibility acceptance opens separate leave confirmation",
+          "pass": true
+        },
+        {
+          "name": "separate membership leave retains successor Owner",
+          "pass": true
+        },
+        {
+          "name": "departed requester cannot cancel handover",
+          "pass": true
+        },
+        {
+          "name": "recipient rejects pending request without Owner grant",
+          "pass": true
+        },
+        {
+          "name": "이서연 handover cancellation restores transfer roles",
+          "pass": true
+        },
+        {
+          "name": "김하늘 handover cancellation restores transfer roles",
+          "pass": true
+        },
+        {
+          "name": "14-day fixture removes only predecessor handover authority",
+          "pass": true
+        },
+        {
+          "name": "completed transfer cannot be cancelled",
+          "pass": true
+        },
+        {
+          "name": "late responsibility acceptance remains reachable",
+          "pass": true
+        },
+        {
+          "name": "successor can accept residual responsibility after 14 days",
+          "pass": true
+        },
+        {
+          "name": "ordinary Member leave does not replace unrelated Owner",
+          "pass": true
+        },
+        {
+          "name": "unprivileged request is rejected",
+          "pass": true
+        },
+        {
+          "name": "inactive recipient cannot be nominated",
+          "pass": true
+        }
+      ],
+      "inspectedNodeIds": [
+        "638:36881",
+        "638:36899",
+        "638:36917",
+        "791:43344",
+        "791:43279",
+        "791:43177",
+        "791:43337",
+        "638:35876",
+        "791:43378",
+        "791:43193",
+        "791:43433",
+        "791:43241",
+        "791:43192",
+        "791:43176",
+        "791:43392",
+        "791:43481",
+        "791:43257"
+      ]
+    },
+    {
+      "name": "d02",
+      "verification": "Read-back prototype reaction evaluation; not actual Present clicks or backend tests",
+      "passed": 24,
+      "total": 24,
+      "cases": [
+        {
+          "name": "initial task opens 1/2 detail",
+          "pass": true
+        },
+        {
+          "name": "checking second item persists 2/2",
+          "pass": true
+        },
+        {
+          "name": "schedule preserves checked but incomplete task",
+          "pass": true
+        },
+        {
+          "name": "completion persists DONE and 2/2 label",
+          "pass": true
+        },
+        {
+          "name": "completed task returns to completed list",
+          "pass": true
+        },
+        {
+          "name": "field navigation preserves task state",
+          "pass": true
+        },
+        {
+          "name": "622:17 schedule entry preserves completion",
+          "pass": true
+        },
+        {
+          "name": "622:17 schedule task opens completed 2/2 detail",
+          "pass": true
+        },
+        {
+          "name": "661:41711 schedule entry preserves completion",
+          "pass": true
+        },
+        {
+          "name": "661:41711 schedule task opens completed 2/2 detail",
+          "pass": true
+        },
+        {
+          "name": "661:41858 schedule entry preserves completion",
+          "pass": true
+        },
+        {
+          "name": "661:41858 schedule task opens completed 2/2 detail",
+          "pass": true
+        },
+        {
+          "name": "661:41897 schedule entry preserves completion",
+          "pass": true
+        },
+        {
+          "name": "661:41897 schedule task opens completed 2/2 detail",
+          "pass": true
+        },
+        {
+          "name": "661:43185 schedule entry preserves completion",
+          "pass": true
+        },
+        {
+          "name": "661:43185 schedule task opens completed 2/2 detail",
+          "pass": true
+        },
+        {
+          "name": "attachment navigation preserves completion",
+          "pass": true
+        },
+        {
+          "name": "attachment return opens completed detail",
+          "pass": true
+        },
+        {
+          "name": "completed checklist does not silently reopen task",
+          "pass": true
+        },
+        {
+          "name": "explicit reopen preserves both checked items",
+          "pass": true
+        },
+        {
+          "name": "schedule reflects explicit reopen",
+          "pass": true
+        },
+        {
+          "name": "explicit uncheck returns task to 1/2",
+          "pass": true
+        },
+        {
+          "name": "schedule reflects explicit uncheck",
+          "pass": true
+        },
+        {
+          "name": "schedule status is bound to persisted label",
+          "pass": true
+        }
+      ],
+      "inspectedNodeIds": [
+        "664:43396",
+        "664:43462",
+        "622:274",
+        "664:43516",
+        "664:43566",
+        "664:43774",
+        "622:17",
+        "661:41711",
+        "661:41858",
+        "661:41897",
+        "661:43185",
+        "664:43553",
+        "664:43590",
+        "664:43545",
+        "664:43560",
+        "664:43502"
+      ]
+    },
+    {
+      "name": "d04",
+      "verification": "Read-back prototype reaction and variable-binding evaluation; not actual Present clicks or backend tests",
+      "passed": 82,
+      "total": 82,
+      "cases": [
+        {
+          "name": "민서윤 opens named chooser",
+          "pass": true
+        },
+        {
+          "name": "민서윤 1조 selection only creates review",
+          "pass": true
+        },
+        {
+          "name": "민서윤 1조 save updates counts and membership",
+          "pass": true
+        },
+        {
+          "name": "민서윤 duplicate save does not double count",
+          "pass": true
+        },
+        {
+          "name": "민서윤 opens named chooser",
+          "pass": true
+        },
+        {
+          "name": "민서윤 2조 selection only creates review",
+          "pass": true
+        },
+        {
+          "name": "민서윤 2조 save updates counts and membership",
+          "pass": true
+        },
+        {
+          "name": "민서윤 duplicate save does not double count",
+          "pass": true
+        },
+        {
+          "name": "정예린 opens named chooser",
+          "pass": true
+        },
+        {
+          "name": "정예린 1조 selection only creates review",
+          "pass": true
+        },
+        {
+          "name": "정예린 1조 save updates counts and membership",
+          "pass": true
+        },
+        {
+          "name": "정예린 duplicate save does not double count",
+          "pass": true
+        },
+        {
+          "name": "정예린 opens named chooser",
+          "pass": true
+        },
+        {
+          "name": "정예린 2조 selection only creates review",
+          "pass": true
+        },
+        {
+          "name": "정예린 2조 save updates counts and membership",
+          "pass": true
+        },
+        {
+          "name": "정예린 duplicate save does not double count",
+          "pass": true
+        },
+        {
+          "name": "송태훈 opens named chooser",
+          "pass": true
+        },
+        {
+          "name": "송태훈 1조 selection only creates review",
+          "pass": true
+        },
+        {
+          "name": "송태훈 1조 save updates counts and membership",
+          "pass": true
+        },
+        {
+          "name": "송태훈 duplicate save does not double count",
+          "pass": true
+        },
+        {
+          "name": "송태훈 opens named chooser",
+          "pass": true
+        },
+        {
+          "name": "송태훈 2조 selection only creates review",
+          "pass": true
+        },
+        {
+          "name": "송태훈 2조 save updates counts and membership",
+          "pass": true
+        },
+        {
+          "name": "송태훈 duplicate save does not double count",
+          "pass": true
+        },
+        {
+          "name": "이주원 opens named chooser",
+          "pass": true
+        },
+        {
+          "name": "이주원 1조 selection only creates review",
+          "pass": true
+        },
+        {
+          "name": "이주원 1조 save updates counts and membership",
+          "pass": true
+        },
+        {
+          "name": "이주원 duplicate save does not double count",
+          "pass": true
+        },
+        {
+          "name": "이주원 opens named chooser",
+          "pass": true
+        },
+        {
+          "name": "이주원 2조 selection only creates review",
+          "pass": true
+        },
+        {
+          "name": "이주원 2조 save updates counts and membership",
+          "pass": true
+        },
+        {
+          "name": "이주원 duplicate save does not double count",
+          "pass": true
+        },
+        {
+          "name": "박다은 opens named chooser",
+          "pass": true
+        },
+        {
+          "name": "박다은 1조 selection only creates review",
+          "pass": true
+        },
+        {
+          "name": "박다은 1조 save updates counts and membership",
+          "pass": true
+        },
+        {
+          "name": "박다은 duplicate save does not double count",
+          "pass": true
+        },
+        {
+          "name": "박다은 opens named chooser",
+          "pass": true
+        },
+        {
+          "name": "박다은 2조 selection only creates review",
+          "pass": true
+        },
+        {
+          "name": "박다은 2조 save updates counts and membership",
+          "pass": true
+        },
+        {
+          "name": "박다은 duplicate save does not double count",
+          "pass": true
+        },
+        {
+          "name": "정지후 opens named chooser",
+          "pass": true
+        },
+        {
+          "name": "정지후 1조 selection only creates review",
+          "pass": true
+        },
+        {
+          "name": "정지후 1조 save updates counts and membership",
+          "pass": true
+        },
+        {
+          "name": "정지후 duplicate save does not double count",
+          "pass": true
+        },
+        {
+          "name": "정지후 opens named chooser",
+          "pass": true
+        },
+        {
+          "name": "정지후 2조 selection only creates review",
+          "pass": true
+        },
+        {
+          "name": "정지후 2조 save updates counts and membership",
+          "pass": true
+        },
+        {
+          "name": "정지후 duplicate save does not double count",
+          "pass": true
+        },
+        {
+          "name": "chooser cancel preserves initial assignment",
+          "pass": true
+        },
+        {
+          "name": "review cancel preserves initial assignment",
+          "pass": true
+        },
+        {
+          "name": "changing selected group before save commits only final choice",
+          "pass": true
+        },
+        {
+          "name": "sequential save 1 keeps earlier assignments",
+          "pass": true
+        },
+        {
+          "name": "sequential save 2 keeps earlier assignments",
+          "pass": true
+        },
+        {
+          "name": "sequential save 3 keeps earlier assignments",
+          "pass": true
+        },
+        {
+          "name": "sequential save 4 keeps earlier assignments",
+          "pass": true
+        },
+        {
+          "name": "sequential save 5 keeps earlier assignments",
+          "pass": true
+        },
+        {
+          "name": "sequential save 6 keeps earlier assignments",
+          "pass": true
+        },
+        {
+          "name": "six saves keep total 104 and split group counts",
+          "pass": true
+        },
+        {
+          "name": "all six can be added to 1조",
+          "pass": true
+        },
+        {
+          "name": "all six can be added to 2조",
+          "pass": true
+        },
+        {
+          "name": "민서윤 unassigned card visibility follows saved state",
+          "pass": true
+        },
+        {
+          "name": "민서윤 appears in only selected group",
+          "pass": true
+        },
+        {
+          "name": "정예린 unassigned card visibility follows saved state",
+          "pass": true
+        },
+        {
+          "name": "정예린 appears in only selected group",
+          "pass": true
+        },
+        {
+          "name": "송태훈 unassigned card visibility follows saved state",
+          "pass": true
+        },
+        {
+          "name": "송태훈 appears in only selected group",
+          "pass": true
+        },
+        {
+          "name": "이주원 unassigned card visibility follows saved state",
+          "pass": true
+        },
+        {
+          "name": "이주원 appears in only selected group",
+          "pass": true
+        },
+        {
+          "name": "박다은 unassigned card visibility follows saved state",
+          "pass": true
+        },
+        {
+          "name": "박다은 appears in only selected group",
+          "pass": true
+        },
+        {
+          "name": "정지후 unassigned card visibility follows saved state",
+          "pass": true
+        },
+        {
+          "name": "정지후 appears in only selected group",
+          "pass": true
+        },
+        {
+          "name": "민서윤 participant row follows saved group",
+          "pass": true
+        },
+        {
+          "name": "정예린 participant row follows saved group",
+          "pass": true
+        },
+        {
+          "name": "송태훈 participant row follows saved group",
+          "pass": true
+        },
+        {
+          "name": "이주원 participant row follows saved group",
+          "pass": true
+        },
+        {
+          "name": "박다은 participant row follows saved group",
+          "pass": true
+        },
+        {
+          "name": "saved board returns to updated participant view",
+          "pass": true
+        },
+        {
+          "name": "participant view returns to updated board",
+          "pass": true
+        },
+        {
+          "name": "saved board returns to updated home",
+          "pass": true
+        },
+        {
+          "name": "updated home returns to updated board",
+          "pass": true
+        },
+        {
+          "name": "old participant route avoids stale board after save",
+          "pass": true
+        }
+      ],
+      "inspectedNodeIds": [
+        "657:39787",
+        "816:44647",
+        "816:44666",
+        "816:44871",
+        "657:39788",
+        "657:39789",
+        "657:39790",
+        "657:39791",
+        "657:39792",
+        "816:44646",
+        "816:44887",
+        "816:44665",
+        "816:43673",
+        "816:43674",
+        "816:43675",
+        "816:43676",
+        "816:43677",
+        "816:43672",
+        "816:43538",
+        "816:44308",
+        "816:43537",
+        "816:44114",
+        "657:46346"
+      ],
+      "frames": {
+        "board": "816:43491",
+        "home": "816:44063",
+        "participants": "816:44263",
+        "chooser": "816:44637",
+        "review": "816:44654",
+        "detail1": "816:44673",
+        "detail2": "816:44696"
+      },
+      "scope": "Six displayed unassigned participants; target groups 1 and 2; existing 86/104 saved board"
+    },
+    {
+      "name": "d05",
+      "verification": "Read-back prototype reaction and copy-binding evaluation; not actual Present clicks or backend tests",
+      "passed": 22,
+      "total": 22,
+      "cases": [
+        {
+          "name": "contact-only entry carries direct edit restriction",
+          "pass": true
+        },
+        {
+          "name": "OTP request keeps restriction",
+          "pass": true
+        },
+        {
+          "name": "authentication permits read-only application lookup",
+          "pass": true
+        },
+        {
+          "name": "authenticated application copy matches contact-only state",
+          "pass": true
+        },
+        {
+          "name": "closed-entry edit action opens contact guidance",
+          "pass": true
+        },
+        {
+          "name": "direct save is blocked without attendance mutation",
+          "pass": true
+        },
+        {
+          "name": "edit-period guidance respects contact-only entry",
+          "pass": true
+        },
+        {
+          "name": "guidance returns to application without lifting restriction",
+          "pass": true
+        },
+        {
+          "name": "back returns to matching closed entry",
+          "pass": true
+        },
+        {
+          "name": "changing authentication phone preserves edit restriction",
+          "pass": true
+        },
+        {
+          "name": "478:31022 editable entry explicitly restores editable fixture",
+          "pass": true
+        },
+        {
+          "name": "478:31022 normal edit remains reachable",
+          "pass": true
+        },
+        {
+          "name": "478:31022 allowed save still updates attendance",
+          "pass": true
+        },
+        {
+          "name": "I443:30828;476:3877 editable entry explicitly restores editable fixture",
+          "pass": true
+        },
+        {
+          "name": "I443:30828;476:3877 normal edit remains reachable",
+          "pass": true
+        },
+        {
+          "name": "I443:30828;476:3877 allowed save still updates attendance",
+          "pass": true
+        },
+        {
+          "name": "I443:30843;476:3877 editable entry explicitly restores editable fixture",
+          "pass": true
+        },
+        {
+          "name": "I443:30843;476:3877 normal edit remains reachable",
+          "pass": true
+        },
+        {
+          "name": "I443:30843;476:3877 allowed save still updates attendance",
+          "pass": true
+        },
+        {
+          "name": "cancelled application lookup remains on existing cancelled flow",
+          "pass": true
+        },
+        {
+          "name": "I478:31044;476:3869 copy is bound to edit state",
+          "pass": true
+        },
+        {
+          "name": "395:30865 copy is bound to edit state",
+          "pass": true
+        }
+      ],
+      "inspectedNodeIds": [
+        "I445:30901;476:3877",
+        "I444:30814;476:3877",
+        "I444:30839;476:3877",
+        "478:31044",
+        "I444:30872;476:3877",
+        "588:34668",
+        "I826:44326;476:3877",
+        "I444:30850;416:3852",
+        "574:31156",
+        "478:31022",
+        "I443:30828;476:3877",
+        "I443:30843;476:3877"
+      ],
+      "blockedFrameId": "826:44314",
+      "policyOpen": "O01: application deadline versus edit deadline and allowed fields remain unresolved"
+    },
+    {
+      "name": "d06-d12",
+      "verification": "Saved prototype reactions, variable guards, text bindings and static structure evaluated. No actual Present clicks or server calls.",
+      "passed": 48,
+      "total": 48,
+      "cases": [
+        {
+          "defect": "D06",
+          "name": "label matches application page destination",
+          "pass": true
+        },
+        {
+          "defect": "D07",
+          "name": "pending request opens cancel confirmation",
+          "pass": true
+        },
+        {
+          "defect": "D07",
+          "name": "keep waiting preserves pending state",
+          "pass": true
+        },
+        {
+          "defect": "D07",
+          "name": "confirm cancels pending request",
+          "pass": true
+        },
+        {
+          "defect": "D07",
+          "name": "status check cannot restore cancelled pending UI",
+          "pass": true
+        },
+        {
+          "defect": "D07",
+          "name": "resubmission explicitly resets request to pending",
+          "pass": true
+        },
+        {
+          "defect": "D07",
+          "name": "approved request cannot be cancelled",
+          "pass": true
+        },
+        {
+          "defect": "D08",
+          "name": "create entry requests declaration before granting Owner",
+          "pass": true
+        },
+        {
+          "defect": "D08",
+          "name": "direct final create without declaration is blocked",
+          "pass": true
+        },
+        {
+          "defect": "D08",
+          "name": "declaration proceeds to review without creating organization",
+          "pass": true
+        },
+        {
+          "defect": "D08",
+          "name": "return clears declaration",
+          "pass": true
+        },
+        {
+          "defect": "D08",
+          "name": "declared final confirmation grants existing Owner fixture",
+          "pass": true
+        },
+        {
+          "defect": "D09",
+          "name": "Owner can review pending invite cancellation",
+          "pass": true
+        },
+        {
+          "defect": "D09",
+          "name": "back preserves pending invite and link",
+          "pass": true
+        },
+        {
+          "defect": "D09",
+          "name": "cancel invalidates original link and updates status",
+          "pass": true
+        },
+        {
+          "defect": "D09",
+          "name": "old invite acceptance is blocked after cancellation",
+          "pass": true
+        },
+        {
+          "defect": "D09",
+          "name": "reinvite creates new generation preserving old link invalidity",
+          "pass": true
+        },
+        {
+          "defect": "D09",
+          "name": "old link remains rejected after reinvite",
+          "pass": true
+        },
+        {
+          "defect": "D09",
+          "name": "new invitation can be accepted once",
+          "pass": true
+        },
+        {
+          "defect": "D09",
+          "name": "repeat new acceptance is blocked",
+          "pass": true
+        },
+        {
+          "defect": "D09",
+          "name": "accepted invite cannot be cancelled",
+          "pass": true
+        },
+        {
+          "defect": "D09",
+          "name": "non Owner cannot cancel",
+          "pass": true
+        },
+        {
+          "defect": "D09",
+          "name": "non Owner cannot reinvite",
+          "pass": true
+        },
+        {
+          "defect": "D10",
+          "name": "entry starts purpose selection",
+          "pass": true
+        },
+        {
+          "defect": "D10",
+          "name": "missing purpose cannot reach final confirmation",
+          "pass": true
+        },
+        {
+          "defect": "D10",
+          "name": "운영 현황 확인 retained through final confirmation",
+          "pass": true
+        },
+        {
+          "defect": "D10",
+          "name": "회고 자료 정리 retained through final confirmation",
+          "pass": true
+        },
+        {
+          "defect": "D10",
+          "name": "purpose row 839:44426 has live binding",
+          "pass": true
+        },
+        {
+          "defect": "D10",
+          "name": "purpose row 839:44429 has live binding",
+          "pass": true
+        },
+        {
+          "defect": "D10",
+          "name": "zero record fixture keeps file generation disabled",
+          "pass": true
+        },
+        {
+          "defect": "D11",
+          "name": "ONE schedule detail returns to schedule",
+          "pass": true
+        },
+        {
+          "defect": "D11",
+          "name": "ONE my work detail returns to matching state list",
+          "pass": true
+        },
+        {
+          "defect": "D11",
+          "name": "CHECKED schedule detail returns to schedule",
+          "pass": true
+        },
+        {
+          "defect": "D11",
+          "name": "CHECKED my work detail returns to matching state list",
+          "pass": true
+        },
+        {
+          "defect": "D11",
+          "name": "DONE schedule detail returns to schedule",
+          "pass": true
+        },
+        {
+          "defect": "D11",
+          "name": "DONE my work detail returns to matching state list",
+          "pass": true
+        },
+        {
+          "defect": "D12",
+          "name": "unfinished MT settings is connected",
+          "pass": true
+        },
+        {
+          "defect": "D12",
+          "name": "Owner sees unfinished task warning",
+          "pass": true
+        },
+        {
+          "defect": "D12",
+          "name": "warning cancellation preserves event",
+          "pass": true
+        },
+        {
+          "defect": "D12",
+          "name": "final without warning acknowledgement cannot end",
+          "pass": true
+        },
+        {
+          "defect": "D12",
+          "name": "final cancellation clears acknowledgement",
+          "pass": true
+        },
+        {
+          "defect": "D12",
+          "name": "explicit end navigates to ended home",
+          "pass": true
+        },
+        {
+          "defect": "D12",
+          "name": "ended home opens preserved unfinished record",
+          "pass": true
+        },
+        {
+          "defect": "D12",
+          "name": "record retains checklist 0/2",
+          "pass": true
+        },
+        {
+          "defect": "D12",
+          "name": "record mutating checklist reactions removed",
+          "pass": true
+        },
+        {
+          "defect": "D12",
+          "name": "reentry after ending stays ended",
+          "pass": true
+        },
+        {
+          "defect": "D12",
+          "name": "non EventOwner gets permission guidance",
+          "pass": true
+        },
+        {
+          "defect": "D12",
+          "name": "non EventOwner cannot bypass final guard",
+          "pass": true
+        }
+      ],
+      "inspectedNodeIds": [
+        "578:31478",
+        "833:44603",
+        "833:44499",
+        "833:44500",
+        "638:36472",
+        "I264:25217;30:5405",
+        "264:125",
+        "833:44548",
+        "833:44532",
+        "833:44547",
+        "833:44626",
+        "833:44563",
+        "833:44564",
+        "638:36658",
+        "638:36628",
+        "833:44655",
+        "651:42366",
+        "651:42700",
+        "839:44395",
+        "839:44396",
+        "622:274",
+        "I664:43440;664:42461",
+        "664:43396",
+        "I664:43480;664:42461",
+        "I664:43523;664:42461",
+        "374:29448",
+        "840:44411",
+        "840:44426",
+        "840:44443",
+        "840:44427",
+        "840:44442",
+        "840:44522"
+      ]
+    }
+  ]
+}
