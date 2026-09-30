@@ -129,6 +129,7 @@ Tenant 밖 Resource의 존재를 숨겨야 하면 `404`. Resource를 볼 수 있
 - Application 최초 제출, Payment 생성/Refund, Check-in 등 대화에 제시된 중복 위험 경계를 우선 기록한다. 모든 API에 의무화하지 않는다.
 - Export와 외부 Integration도 Idempotency-Key 후보. Idempotency와 business uniqueness는 별개다.
 - Key scope·TTL·동일 key/다른 payload·응답 재전달 세부는 OPEN.
+- #7 후속 정책: Group 저장·공개는 오래된 덮어쓰기와 동일 작업 재시도의 중복 반영을 방지한다. 결과 불명 시 서버 반영 여부를 확인한다. 이 제품 요구를 충족할 구체적인 key·version·request 계약은 후속 설계한다.
 - `X-Request-Id`는 요청 식별 개념, distributed tracing context는 분산 trace 전파 개념. 둘을 동일 개념으로 취급하지 않는다.
 - 초기 `X-Request-Id`로 사용자 오류와 Backend log 연결. 분산 tracing 도입 시 `traceparent` / `tracestate`와 구분.
 - 모든 Domain에 DELETE를 강제하지 않는다. Payment는 VOID/REFUND, Participant 익명화는 별도 command로 다룬다.
@@ -182,7 +183,7 @@ DELETE /api/v1/operator/spaces/{spaceId}/members/{memberId}
 - Event Operator 경계: `/api/v1/operator/events/{eventId}/operators`.
 - 후보 Permission: `EVENT_READ`, `EVENT_UPDATE`, `EVENT_CLOSE`, `EVENT_USER_READ`, `EVENT_USER_MANAGE`.
 - Event role: `OWNER / MANAGER / STAFF`.
-- Event lifecycle에 언급된 `DRAFT → ACTIVE → ENDED → ARCHIVED`의 정확한 transition rule은 OPEN. 해당 이름만으로 모든 전이를 허용하지 않는다.
+- Event lifecycle 제품 전이는 #8/DEC-049~053을 따른다. 활성화·종료·ENDED 재개·ENDED 보관·ARCHIVED 해제를 구분한다. ACTIVE 직접 보관과 ARCHIVED 직접 재개는 허용하지 않는다. 상세 command 계약은 후속이다.
 - Event OWNER cardinality / transfer, Space role과 Event role의 상세 Permission mapping은 OPEN 또는 원문 대조 필요.
 
 ```http
@@ -198,7 +199,7 @@ DELETE /api/v1/operator/events/{eventId}/operators/{operatorId}
 
 Event 생성 + creator를 `event_users.OWNER`로 생성하는 작업은 하나의 transaction. API 이름은 DB `event_users` 대신 `operators`. 최초 기준의 memberId 기반 추가는 조직 Member 경로로 남길 수 있으나 DEC-039의 행사 전용 협력자 경로도 필요하다. 모든 운영자에게 user → member → event operator를 강제하지 않는다. 행사 전용 초대·사용자 참조·DTO 계약은 후속 설계에서 정한다.
 
-Event 종료·Owner 이전은 중요한 command 후보지만 정확한 transition/transfer 정책·경로는 OPEN이다.
+Event 종료·재개·보관/해제·Owner 이전은 중요한 command 경계다. 제품 정책은 #4·#8에 확정했고 endpoint/DTO·세부 판정·동시성 계약은 후속이다.
 
 ## 6. Participant
 
@@ -334,6 +335,8 @@ GET /api/v1/participant/fees
 
 조회 `EVENT_READ`, 쓰기 `GROUP_WRITE`.
 
+2026-09-30 후속 정책: 아래 편성 변경·이동은 운영 작업본을 변경한다. 저장만으로 참가자 공개본을 바꾸지 않는다. 일반 조장은 공개된 자기 조만 조회하며 준비 중 편성 접근은 별도 업무 권한으로 검사한다. 공개 권한·실행 endpoint와 DTO는 상세 계약에서 정한다.
+
 ```http
 GET    /groups
 POST   /groups
@@ -368,7 +371,7 @@ Leader endpoint 경계는 유지하되 `group_leaders`가 참조하는 identity 
 GET /api/v1/participant/group
 ```
 
-다른 Participant의 Group을 임의 조회하지 않는다. 사람의 배정 판단을 지원하며 자동 편성을 확정하지 않는다.
+자기 **공개본**만 반환하며 다른 Participant의 Group을 임의 조회하지 않는다. 공개 전 준비 중 / 공개됐지만 미배정 / 현재 배정을 구분하고 공개된 배정의 마지막 갱신 시각을 제공한다. 작업본 저장 직후에도 다시 공개하기 전까지 이전 공개본을 반환한다. 사람의 배정 판단을 지원하며 자동 편성을 확정하지 않는다.
 
 ## 12. Room / Accommodation
 
@@ -607,7 +610,7 @@ AUDIT_LOG_READ
 
 1. Organization 최초 가입 / Space 생성 / Invitation 제품 흐름은 DEC-036~039로 확정. 상세 계약과 정확한 초대 TTL·재전송·행사 전용 협력자 경로는 후속 설계.
 2. Space OWNER와 Event OWNER cardinality / transfer policy.
-3. Event lifecycle transition rule. `DRAFT → ACTIVE → ENDED → ARCHIVED`의 허용 조건·전이는 미정.
+3. Event lifecycle: #8에서 제품 전이·상태별 행동을 확정했다. 세부 Permission·Override·정정·request/DTO·동시성 계약은 OPEN.
 4. Participant Access recovery 및 Session TTL. 정확한 session store도 OPEN.
 5. Form OPEN/CLOSE 실제 data model.
 6. Event/Schedule/Flight timezone model. API UTC canonical 표현과 구분.
@@ -646,3 +649,45 @@ AUDIT_LOG_READ
 [DEC-036~039](../product/PRODUCT_DECISIONS.md#dec-036--검증된-조직-생성자가-최초-owner가-된다)와 [검토 결과](../product/organization-entry-review.md)를 적용한다. 검증된 생성자가 최초 Owner가 되고, 조직 검색 가입 요청은 조직 Owner 승인, 대상자 조직 초대는 수락만으로 MEMBER가 된다. 대기 사용자는 조직 내부 정보를 보지 못한다. 초대는 대상 계정·범위·만료·1회 소비를 검증한다. 7일은 제안값이며 정확한 TTL은 상세 계약에서 정한다.
 
 조직 Membership과 행사 접근은 별개다. 조직 소속 없이 해당 행사만 운영하는 협력자는 운영계정 ↔ Event 운영자 관계와 Permission으로 접근을 판정하고 조직 내부·다른 행사 접근을 자동 허용하지 않는다. 모든 행사 운영자에게 memberId와 Membership을 요구하던 최초 기준은 갱신한다. DB 관계·FK·DTO·endpoint·초대 재전송·동시성·소속 제거 시 독립 행사 접근 처리의 상세 계약은 후속 기술 검토에서 정한다.
+
+
+## 2026-09-30 조 편성 저장·공개 후속 정책
+
+[검토 결과와 DEC-040~043](../product/group-publication-review.md)에 따라 작업본 저장과 참가자 공개를 분리한다. 공개 후 작업본을 수정해도 직전 공개본을 제공하며 별도 공개에서 한 번에 반영한다. 부분 배정 저장·공개를 허용하고 공개 전 활성 미배정자 수·영향 경고와 명시적 확인을 받는다. 취소 참가자는 완료 검사·공개 명단에서 제외하고 부분 참석자의 배정을 정상 공개한다.
+
+일반 참가자는 자기 공개 배정, 일반 조장은 공개된 자기 조 명단과 #3에서 허용한 정보를 조회한다. 준비 중 편성 접근은 별도 업무 권한으로 검사한다. 조직 관리자 전체 조회 원칙은 유지하며 겸임 권한 판정 상세는 후속 설계한다. 저장은 참가자 안내를 발생시키지 않고 최초 공개 대상 참가자·조장, 변경 공개 영향 참가자·이전/신규 조장을 식별한다.
+
+Working/Published는 논리적 상태이며 별도 테이블·DB enum·snapshot 형식을 이번 결정으로 확정하지 않는다. 기존 Group 이동 transaction은 작업본의 원자적 변경이고 공개본 갱신은 별도 경계다. #7에서 취소 즉시 제외·동시 수정 덮어쓰기 금지·실패 분리·재시도 중복 방지 제품 정책을 확정했다. 공개 endpoint·DTO·권한, 버전 형식·변경 건수 계산·안내 채널·실패/재시도 상세 기술 계약은 후속 설계한다. 실제 화면·접근 검토는 #10에 남긴다.
+
+
+## 2026-09-30 조 편성 변경·복구 후속 정책
+
+[DEC-044~048 및 검토 결과](../product/group-change-recovery-review.md)를 적용한다. 일반 정보 변경은 배정을 유지하고 판단에 영향을 주는 변경은 검토 필요로 표시한다. 취소자는 재공개를 기다리지 않고 활성 편성·공개 명단·조장 조회 대상에서 즉시 제외한다. 과거 배정은 기록으로 보존하되 조장 조회에 계속 제공하지 않는다. 복귀는 과거 배정을 참고하고 운영자가 확인하며 자동 복원하지 않는다.
+
+배정 이동은 참가자·조장·조별 현황·안내 대상·실제 참조 운영정보에 대한 영향을 표시하고 숙소·차량을 무조건 자동 변경하지 않는다. 일반 이동은 작업본 저장과 공개를 구분하며 취소·현재 권한 회수는 공개 대기 없이 접근 범위에 반영한다.
+
+오래된 저장의 조용한 덮어쓰기를 금지하고 충돌은 최신/내 변경 비교와 사용자 확인으로 해결한다. 공개 확인 후 버전이 바뀌면 재확인한다. 안전한 비충돌 병합은 가능하지만 판단하기 어려우면 저장을 거절한다. 전체 화면 독점 잠금은 사용하지 않는다.
+
+확실한 저장 실패·결과 불명·공개 실패·공개 성공/알림 실패를 구분한다. 불명 결과는 서버 반영 여부 확인 후 재시도하고 동일 작업이 중복 반영되지 않게 한다. 공개 실패는 작업본과 이전 공개본을 유지하며 알림 실패는 공개본 유지·실패 알림만 재전송한다. 변경자·시간·대상·전후를 기록하고 Undo는 현재 상태의 역변경으로 새 저장·필요시 공개한다.
+
+버전 단위·request/DTO·중복 방지 key/TTL·결과 확인·History schema·알림 추적·임시 보관 방식/기간/계정 범위·민감정보 처리·회수 후 복구는 후속 기술 계약이다. 새 endpoint·테이블·localStorage 사용을 자동 확정하지 않는다. 현재 권한·참가 자격 검사는 복구와 재시도에도 적용한다. #8에서 종료 후 정리/정정과 현장 운영 차단·보관 읽기 전용을 확정했다. 종료 후 취소/복귀·지연 알림 상세는 후속 계약, 기록·임시 보관 보존/삭제는 #9, 실제 클릭은 #10에서 검토한다.
+
+
+## 2026-09-30 행사 종료·보관·재개 후속 정책
+
+[DEC-049~053 및 상태별 행동](../product/event-lifecycle-review.md)을 적용한다. 활성화·종료·재개는 Event Owner, 조직 Owner는 부재·복구 등 조직 관리 Override를 담당한다. ENDED 보관은 Event Owner 또는 조직 Owner가 실행한다. 미완료 업무·정산·배정은 경고와 명시적 확인 후 종료/보관을 허용하며 일반 차단 조건으로 사용하지 않는다.
+
+ENDED는 조회·정산·회고·후속 업무·후속 공지·감사 가능한 기록 정리를 허용한다. 참가 신청·새 체크인/현장 취소·새 조 편성/재공개·현장 일정 운영은 차단한다. 마지막 공개 편성은 기록으로 보존하고 오류 정정은 별도 이유·이력으로 처리한다. 현재 권한·취소자 조회 제외를 계속 검사한다. 일반 Undo나 저장으로 종료 상태를 우회하지 않는다.
+
+재개 ENDED → ACTIVE는 실행자·시간·사유를 남기는 새 전이이며 종료 전 데이터 Rollback이 아니다. ARCHIVED는 읽기 전용·보관 목록/검색 재진입을 제공하고 삭제를 뜻하지 않는다. ACTIVE 직접 보관은 차단한다. 보관 해제는 ARCHIVED → ENDED이며 실제 재개를 별도로 실행한다.
+
+전이 endpoint/DTO·Permission, 조직 Override/해제 권한·정정 대상/계약, 종료 후 참가 취소/복귀·지연 알림·신청 설정, 동시성·중복 실행·실패 복구의 상세는 후속 기술 설계다. 기존 상태 후보의 제품 전이를 갱신하며 새로운 DB enum·테이블·API 경로를 이번 답변으로 추가 확정하지 않는다. #9에서 보존/삭제/Export, #10에서 실제 클릭 경로를 검토한다.
+
+
+## 2026-09-30 Export·보존·삭제·복구 후속 정책
+
+[DEC-054~059 및 검토 결과](../product/data-retention-export-review.md)에 따라 조회와 Export 권한을 분리한다. Event Owner·관리/복구 목적의 조직 Owner·명시적 Export 권한 운영자에게 목적/대상/필드 범위로 허용한다. 일반 조장은 기본 Export 불가다. 민감정보 추가 확인, 개인정보/내부정보 반출의 실행자·시각·조직/행사·목적·범위·등급·건수·결과 기록, 생성/다운로드 구분을 적용하고 파일 내용을 로그에 복제하지 않는다.
+
+개인정보·운영 기록·정산·Audit/Security는 별도 보존 목적/lifecycle을 가진다. ARCHIVED는 무기한 보존 근거가 아니며 과거 배정/History도 불필요한 개인 연결을 정리한다. Archive·Anonymize·Delete를 구분하고 soft delete를 최종 파기로 표시하지 않는다. 삭제 전 영향/유지 데이터와 의존 관계를 확인해 삭제·익명화·참조 제거·필요 보존을 처리한다. 최종 삭제/실질 익명화는 일반 복구를 제공하지 않는다.
+
+구체적 보존/유예/백업 기간, 유예 도입 여부, 전체 행사 삭제의 조직 Owner 제한 제안·정리/익명화 실행권, 만료 다운로드/확인 수단·현재 권한 검사·파일 수명·파기 job/실패·FK/CASCADE·재식별 검증은 #12에서 근거와 계약을 정한다. Event 삭제가 Audit를 무조건 삭제하거나 보관 읽기 전용이 파기 정책을 면제하지 않는다. 새 수집 필드·DB enum·endpoint·기간 상수를 확정하지 않는다. 실제 클릭 검토는 #10이다.

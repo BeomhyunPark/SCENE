@@ -1104,3 +1104,663 @@ Organization Membership과 Event Role은 별개다. 조직 Member에게 행사 R
 ### Evidence
 
 [이슈 #5 사용자 답변](https://github.com/BeomhyunPark/SCENE/issues/5#issuecomment-5902896850).
+
+
+---
+
+## DEC-040 — 조 편성의 작업본 저장과 참가자 공개를 분리한다
+
+**Date:** 2026-09-30
+
+**Status:** CONFIRMED — 제품 정책
+
+### Context
+
+조 편성 저장·공개와 참가자 안내 범위를 검토했다.
+
+### Decision
+
+Working State와 Published State를 구분한다. 저장은 작업 보존이며 참가자·일반 조장에게 자동 노출하거나 안내하지 않는다. 공개 후 수정하면 미공개 변경 있음 상태가 되고 다시 공개하기 전까지 직전 공개본을 제공한다. 공개는 한 번에 반영하며 마지막 공개 시각·미공개 변경 건수·이전 편성 표시 안내·변경사항 공개 행동을 제공한다.
+
+### Alternatives
+
+저장 즉시 참가자에게 공개하는 방식 대신 별도 공개 실행을 사용한다.
+
+### Reason
+
+운영자가 재편성하는 중간 상태를 참가자에게 노출하지 않고 공식 안내 시점을 선택한다.
+
+### Consequence
+
+작업본과 공개본의 저장·버전·스냅샷 구현, 공개 권한과 API는 후속 설계한다.
+
+### Evidence
+
+[이슈 #6 사용자 답변](https://github.com/BeomhyunPark/SCENE/issues/6#issuecomment-5903217761).
+
+
+---
+
+## DEC-041 — 일부 배정도 저장·공개하며 미배정 공개는 경고와 확인을 받는다
+
+**Date:** 2026-09-30
+
+**Status:** CONFIRMED — 제품 정책
+
+### Context
+
+조 편성 저장·공개와 참가자 안내 범위를 검토했다.
+
+### Decision
+
+부분 배정·미배정이 남아 있어도 저장한다. 공개도 가능하되 활성 미배정자의 수와 참가자에게 보일 상태를 경고하고 명시적 확인을 받는다. 취소 참가자는 완료 검사·공개 명단에서 제외한다. 부분 참석자는 배정됐다면 일반 배정처럼 공개한다.
+
+### Alternatives
+
+전체 배정 완료를 저장·공개의 필수 조건으로 강제하는 방식 대신 미배정 경고와 공개 확인을 사용한다.
+
+### Reason
+
+늦은 신청·참석 확인·판단 보류 때문에 전체 배정 완료를 기다리지 않고 확정된 편성을 안내할 수 있어야 한다.
+
+### Consequence
+
+인증·권한·유효성 검사는 유지한다. 이후 #7의 DEC-044에서 취소자의 활성 편성·공개 명단·조장 조회 즉시 제외를 확정했다.
+
+### Evidence
+
+[이슈 #6 사용자 답변](https://github.com/BeomhyunPark/SCENE/issues/6#issuecomment-5903217761).
+
+
+---
+
+## DEC-042 — 공개와 안내 전달을 구분하고 변경 영향에 따라 안내 대상을 정한다
+
+**Date:** 2026-09-30
+
+**Status:** CONFIRMED — 제품 정책
+
+### Context
+
+조 편성 저장·공개와 참가자 안내 범위를 검토했다.
+
+### Decision
+
+최초 공개는 대상 참가자·조장에게 안내한다. 이후 변경 공개는 실제 영향을 받은 참가자와 기존·신규 조장에게 안내한다. 내부 저장은 안내를 발생시키지 않는다. A의 1조→3조 변경은 A·1조 조장·3조 조장에게 안내한다.
+
+### Alternatives
+
+저장마다 또는 변경과 무관하게 모든 참가자에게 안내하는 방식 대신 공개 시 영향 대상을 식별한다.
+
+### Reason
+
+변경을 알아야 할 사람이 안내를 받고 관련 없는 전체 참가자는 반복 안내를 받지 않도록 한다.
+
+### Consequence
+
+전달 채널·실패·재시도·중복 방지·공개와 알림의 기술 경계는 후속 검토한다.
+
+### Evidence
+
+[이슈 #6 사용자 답변](https://github.com/BeomhyunPark/SCENE/issues/6#issuecomment-5903217761).
+
+
+---
+
+## DEC-043 — 참가자와 일반 조장은 공개본을 조회하며 준비 중 접근은 업무 권한으로 구분한다
+
+**Date:** 2026-09-30
+
+**Status:** CONFIRMED — 제품 정책
+
+### Context
+
+조 편성 저장·공개와 참가자 안내 범위를 검토했다.
+
+### Decision
+
+일반 참가자는 자기 공개된 배정과 참가자용 정보만 본다. 일반 조장은 공개된 자기 조 명단과 #3에서 허용한 자기 조원 전체 정보·리더용 정보를 본다. 편성 작업 권한을 가진 조장·운영자는 준비 중 편성도 조회한다. 참가자 화면은 준비 중·아직 미배정·현재 배정을 구분하고 공개된 배정의 마지막 갱신 시각을 제공한다.
+
+### Alternatives
+
+일반 조장 역할만으로 준비 중 편성을 조회하는 방식 대신 편성 업무 권한을 구분한다.
+
+### Reason
+
+공식 편성 기준의 접근 범위를 유지하고 참가자가 자신의 배정 상태와 정보 갱신 시점을 이해하도록 한다.
+
+### Consequence
+
+다른 조 개인정보·전체 명단을 참가자에게 자동 공개하지 않는다. 조직 관리자 전체 조회 원칙은 유지하며 겸임 권한 계약과 공개 시 조장 범위 전환·권한 회수는 후속 설계한다.
+
+### Evidence
+
+[이슈 #6 사용자 답변](https://github.com/BeomhyunPark/SCENE/issues/6#issuecomment-5903217761).
+
+
+---
+
+## DEC-044 — 참가 정보 변경은 배정을 검토하고 취소자는 즉시 활성 편성·조장 조회에서 제외한다
+
+**Date:** 2026-09-30
+
+**Status:** CONFIRMED — 제품 정책
+
+### Context
+
+조 편성 변경·동시 수정·실패 복구를 검토했다.
+
+### Decision
+
+배정을 무효화하지 않는 정보 변경은 기존 배정을 유지한다. 편성 판단에 영향을 주는 변경은 배정 검토 필요와 영향을 표시하고 운영자가 유지·이동·미배정을 결정한다. 취소자는 재공개를 기다리지 않고 활성 편성·공개 명단·조장 조회에서 즉시 제외하며 과거 기록은 보존한다. 복귀 시 과거 조를 자동 복원하지 않고 참고값으로 운영자에게 제시한다.
+
+### Alternatives
+
+정보 변경마다 자동으로 미배정 처리하거나 취소자의 접근 제외를 다음 공개까지 미루는 방식을 채택하지 않는다.
+
+### Reason
+
+운영자 배정 판단을 유지하면서 현재 참가 자격·접근 상태를 공개본 유지보다 우선한다.
+
+### Consequence
+
+과거 기록은 보존하되 일반 조장 조회 근거로 사용하지 않는다. 변경 검토 조건과 복귀 확인 계약은 후속 설계한다.
+
+### Evidence
+
+[이슈 #7 사용자 답변](https://github.com/BeomhyunPark/SCENE/issues/7#issuecomment-5903652283), [검토 결과](group-change-recovery-review.md).
+
+
+---
+
+## DEC-045 — 배정 변경의 영향을 식별하고 관련 운영정보의 재검토를 안내한다
+
+**Date:** 2026-09-30
+
+**Status:** CONFIRMED — 제품 정책
+
+### Context
+
+조 편성 변경·동시 수정·실패 복구를 검토했다.
+
+### Decision
+
+영향 참가자·이전/신규 조장·조별 현황·조 단위 안내 대상·배정을 참조하는 운영정보를 식별해 보여준다. 숙소·차량 등 실제 의존 정보는 필요한 재검토를 안내하며 무조건 자동 수정하지 않는다.
+
+### Alternatives
+
+조 이동에 따라 관련 배정을 일괄 자동 변경하는 방식 대신 의존 감지와 재검토 안내를 구분한다.
+
+### Reason
+
+관련 업무의 변경 누락을 줄이면서 숙소·차량 등의 별도 판단을 유지한다.
+
+### Consequence
+
+실제 참조 관계와 영향 감지 범위는 후속 기술 계약이다. 작업본 이동과 공식 공개 반영 시점은 #6을 따른다.
+
+### Evidence
+
+[이슈 #7 사용자 답변](https://github.com/BeomhyunPark/SCENE/issues/7#issuecomment-5903652283), [검토 결과](group-change-recovery-review.md).
+
+
+---
+
+## DEC-046 — 오래된 저장의 조용한 덮어쓰기를 금지하고 공개 버전을 재확인한다
+
+**Date:** 2026-09-30
+
+**Status:** CONFIRMED — 제품 정책
+
+### Context
+
+조 편성 변경·동시 수정·실패 복구를 검토했다.
+
+### Decision
+
+최신 상태와 내 변경을 비교한다. 같은 대상 충돌은 사용자 확인 후 해결하고 판단하기 어려우면 저장을 거절한다. 안전하게 병합할 수 있는 비충돌 변경은 유지할 수 있다. 공개 확인 이후 현재 편성이 달라지면 최신 내용을 다시 확인해야 한다. 화면 열기만으로 전체 편성을 독점 잠그지 않는다.
+
+### Alternatives
+
+마지막 저장이 이전 변경을 조용히 덮어쓰는 방식이나 화면 전체 독점 잠금을 채택하지 않는다.
+
+### Reason
+
+여러 운영자의 작업을 보존하고 실제 공개되는 편성을 사용자가 확인하도록 한다.
+
+### Consequence
+
+버전 단위·병합·검사 형식은 후속 설계한다. Presence는 보조 제안이며 필수 구현으로 확정하지 않는다.
+
+### Evidence
+
+[이슈 #7 사용자 답변](https://github.com/BeomhyunPark/SCENE/issues/7#issuecomment-5903652283), [검토 결과](group-change-recovery-review.md).
+
+
+---
+
+## DEC-047 — 저장·공개 결과와 알림 결과를 구분하며 재시도 중복 반영을 막는다
+
+**Date:** 2026-09-30
+
+**Status:** CONFIRMED — 제품 정책
+
+### Context
+
+조 편성 변경·동시 수정·실패 복구를 검토했다.
+
+### Decision
+
+확실한 저장 실패는 변경을 기기에 임시 보관하고 재시도한다. 결과 불명은 서버 반영 여부 확인 후 이미 반영됐다면 성공 처리하고 없으면 재시도한다. 공개 실패는 작업본과 이전 공개본을 유지한다. 공개 성공·알림 실패는 실패 알림만 재전송하고 공개를 재실행하지 않는다. 동일 작업 재시도로 변경·공개가 중복 반영되지 않아야 한다.
+
+### Alternatives
+
+응답 유실을 무조건 실패로 간주해 즉시 중복 요청하거나 알림 실패 때문에 공개를 다시 실행하는 방식을 채택하지 않는다.
+
+### Reason
+
+네트워크 장애가 중복 변경이나 공식 편성의 되돌림으로 이어지지 않도록 한다.
+
+### Consequence
+
+key·TTL·반영 확인·알림 추적·임시 보관 방식과 개인정보 처리 계약은 후속 설계한다. 최초 공개 실패는 공개 전 상태를 유지한다.
+
+### Evidence
+
+[이슈 #7 사용자 답변](https://github.com/BeomhyunPark/SCENE/issues/7#issuecomment-5903652283), [검토 결과](group-change-recovery-review.md).
+
+
+---
+
+## DEC-048 — 편성 변경을 기록하고 되돌리기는 현재 상태의 새로운 역변경으로 처리한다
+
+**Date:** 2026-09-30
+
+**Status:** CONFIRMED — 제품 정책
+
+### Context
+
+조 편성 변경·동시 수정·실패 복구를 검토했다.
+
+### Decision
+
+변경자·시간·대상·변경 전후를 기록한다. 되돌리기는 현재 상태에서 역변경·영향·충돌을 확인한 뒤 새로운 작업 변경으로 저장하고 필요하면 별도 공개한다.
+
+### Alternatives
+
+과거 전체 편성을 강제 복원하는 방식 대신 현재 상태의 역변경을 생성한다.
+
+### Reason
+
+후속 정상 변경을 보존하면서 되돌리기 영향도 확인한다.
+
+### Consequence
+
+현재 참가 자격·권한·동시성 검사를 유지한다. History schema·공개 기록 필드·보존 기간은 후속 설계한다.
+
+### Evidence
+
+[이슈 #7 사용자 답변](https://github.com/BeomhyunPark/SCENE/issues/7#issuecomment-5903652283), [검토 결과](group-change-recovery-review.md).
+
+
+---
+
+## DEC-049 — 행사 활성화·종료·재개는 Event Owner가 결정하고 조직 Owner의 복구 권한을 구분한다
+
+**Date:** 2026-09-30
+
+**Status:** CONFIRMED — 제품 정책
+
+### Context
+
+행사 종료·보관·재개와 상태별 허용 행동을 검토했다.
+
+### Decision
+
+활성화·종료·재개는 Event Owner가 실행한다. Organization Owner는 Owner 부재·복구 등 조직 관리 상황에서 Override할 수 있다. ENDED 보관은 Event Owner 또는 Organization Owner가 실행한다.
+
+### Alternatives
+
+모든 운영자에게 전이를 자동 허용하거나 조직 전체 조회를 일상 행사 종료 권한으로 취급하지 않는다.
+
+### Reason
+
+일상 행사 책임과 조직의 복구·관리 책임을 구분한다.
+
+### Consequence
+
+전이 Permission·Override 조건·보관 해제 권한과 API는 상세 계약에서 정한다.
+
+### Evidence
+
+[이슈 #8 사용자 답변](https://github.com/BeomhyunPark/SCENE/issues/8#issuecomment-5903987318), [검토 결과](event-lifecycle-review.md).
+
+
+---
+
+## DEC-050 — 미완료 항목은 경고와 확인 후 행사 종료를 허용한다
+
+**Date:** 2026-09-30
+
+**Status:** CONFIRMED — 제품 정책
+
+### Context
+
+행사 종료·보관·재개와 상태별 허용 행동을 검토했다.
+
+### Decision
+
+미완료 업무·미정산·미배정 등 운영상 미완료가 남아 있어도 종료 가능하다. 종료 전 현황·영향과 후속 정리 가능 안내를 제공하고 명시적 확인을 받는다.
+
+### Alternatives
+
+모든 업무 완료를 종료의 필수 조건으로 강제하지 않는다.
+
+### Reason
+
+실제 행사가 끝났어도 후속 정리 때문에 시스템에서 계속 진행 중으로 남는 상황을 줄인다.
+
+### Consequence
+
+현재 상태·인증·권한은 검사한다. 미사용 업무를 새로 시작하거나 회고를 작성하도록 강제하지 않는다.
+
+### Evidence
+
+[이슈 #8 사용자 답변](https://github.com/BeomhyunPark/SCENE/issues/8#issuecomment-5903987318), [검토 결과](event-lifecycle-review.md).
+
+
+---
+
+## DEC-051 — 종료 후 정산·후속 정리를 허용하고 현장 운영과 기록 정정을 구분한다
+
+**Date:** 2026-09-30
+
+**Status:** CONFIRMED — 제품 정책
+
+### Context
+
+행사 종료·보관·재개와 상태별 허용 행동을 검토했다.
+
+### Decision
+
+ENDED에서 조회·정산·회고·후속 업무·후속 공지·감사 가능한 기록 정리를 허용한다. 참가 신청·체크인 및 취소 등 현장 작업·새 조 편성·참가자 재공개·현장 일정 운영은 차단한다. 마지막 공개 편성은 기록으로 유지한다. 기록 오류 정정은 일반 운영 변경과 구분하고 이유·이력을 남긴다.
+
+### Alternatives
+
+ENDED를 완전 읽기 전용으로 만들거나 현장 운영을 계속 허용하지 않는다.
+
+### Reason
+
+행사 후 정산·회고·후속 소통이 이어지는 실제 업무를 지원한다.
+
+### Consequence
+
+정정 가능한 필드·권한·계약, 종료 후 참가 취소/복귀·지연 알림 범위는 후속 설계한다. 현재 접근 회수·취소자 조회 제외를 유지한다.
+
+### Evidence
+
+[이슈 #8 사용자 답변](https://github.com/BeomhyunPark/SCENE/issues/8#issuecomment-5903987318), [검토 결과](event-lifecycle-review.md).
+
+
+---
+
+## DEC-052 — 종료 행사 재개는 사유를 기록하는 새로운 상태 전이다
+
+**Date:** 2026-09-30
+
+**Status:** CONFIRMED — 제품 정책
+
+### Context
+
+행사 종료·보관·재개와 상태별 허용 행동을 검토했다.
+
+### Decision
+
+Event Owner는 ENDED → ACTIVE로 재개할 수 있다. 중단된 운영 기능의 사용 가능성을 안내하고 실행자·시간·사유를 기록한다. Organization Owner Override는 복구 등 조직 관리 상황을 따른다.
+
+### Alternatives
+
+종료 전 데이터 전체를 Rollback하지 않는다.
+
+### Reason
+
+잘못 종료하거나 일정이 연장된 행사를 재개하면서 종료 후 정상 작업을 유지한다.
+
+### Consequence
+
+전이·신청 설정·동시성·실패 계약은 후속 설계한다. 재개가 모든 접수 설정을 자동 변경하는 결정은 아니다.
+
+### Evidence
+
+[이슈 #8 사용자 답변](https://github.com/BeomhyunPark/SCENE/issues/8#issuecomment-5903987318), [검토 결과](event-lifecycle-review.md).
+
+
+---
+
+## DEC-053 — 보관은 읽기 전용 기록 전환이며 보관 해제와 재개를 분리한다
+
+**Date:** 2026-09-30
+
+**Status:** CONFIRMED — 제품 정책
+
+### Context
+
+행사 종료·보관·재개와 상태별 허용 행동을 검토했다.
+
+### Decision
+
+ENDED → ARCHIVED만 허용하고 ACTIVE 직접 보관은 차단한다. 남은 후속 업무는 강하게 경고하되 확인 후 보관 가능하다. 보관은 삭제가 아니며 기본 작업 목록에서 분리하고 보관 목록·검색으로 재진입한다. 다시 운영하려면 ARCHIVED → 보관 해제 → ENDED → 재개 → ACTIVE를 거친다.
+
+### Alternatives
+
+보관을 삭제로 처리하거나 보관 해제만으로 즉시 ACTIVE로 전환하지 않는다.
+
+### Reason
+
+과거 기록 정리와 실제 운영 재시작을 별도 의사결정으로 구분한다.
+
+### Consequence
+
+ARCHIVED는 읽기 전용이고 수정 전 해제한다. 보존·삭제·Export는 #9, 실제 재진입·해제·재개 클릭은 #10에서 검토한다.
+
+### Evidence
+
+[이슈 #8 사용자 답변](https://github.com/BeomhyunPark/SCENE/issues/8#issuecomment-5903987318), [검토 결과](event-lifecycle-review.md).
+
+
+---
+
+## DEC-054 — Export는 조회와 별도 권한이며 목적·대상·필드를 최소화한다
+
+**Date:** 2026-09-30
+
+**Status:** CONFIRMED — 제품 정책
+
+### Context
+
+Export·보존·삭제·복구를 검토했다.
+
+### Decision
+
+행사 Export는 Event Owner, 조직 관리·복구 목적의 Organization Owner, 명시적 Export 권한을 받은 운영자에게 해당 범위로 허용한다. 일반 조장은 기본 불가이며 참가자 자기 다운로드는 별도다. 목적·대상·필드를 최소화하고 민감정보 포함은 추가 확인한다.
+
+### Alternatives
+
+전체 조회가 대량 반출 권한을 자동 부여하거나 전체 컬럼 반출을 기본값으로 삼지 않는다.
+
+### Reason
+
+조회와 파일 반출의 범위를 구분한다.
+
+### Consequence
+
+기간·삭제 실행권·익명화 필드·Export 파일/다운로드·파기와 백업 상세 계약은 #12에서 정한다. 행사 전체 삭제의 조직 Owner 제한은 본문의 제안으로 남기며 최종 실행권으로 자동 확정하지 않는다. 실제 클릭 검토는 #10이다.
+
+### Evidence
+
+[사용자 #9 답변](https://github.com/BeomhyunPark/SCENE/issues/9#issuecomment-5904121761), [검토 결과](data-retention-export-review.md).
+
+
+---
+
+## DEC-055 — Export 생성과 다운로드를 구분하고 반출 범위를 기록한다
+
+**Date:** 2026-09-30
+
+**Status:** CONFIRMED — 제품 정책
+
+### Context
+
+Export·보존·삭제·복구를 검토했다.
+
+### Decision
+
+개인정보/내부정보 Export에 실행자·시각·조직/행사·목적·범위·등급·건수·성공 여부를 기록한다. 생성과 실제 다운로드를 구분하고 파일 내용을 로그에 복제하지 않는다.
+
+### Alternatives
+
+파일 내용 전체를 감사 로그에 복제하거나 생성만으로 실제 다운로드를 완료 처리하지 않는다.
+
+### Reason
+
+누가 무엇을 반출했는지 확인하면서 로그에 개인정보를 중복 축적하지 않는다.
+
+### Consequence
+
+기간·삭제 실행권·익명화 필드·Export 파일/다운로드·파기와 백업 상세 계약은 #12에서 정한다. 행사 전체 삭제의 조직 Owner 제한은 본문의 제안으로 남기며 최종 실행권으로 자동 확정하지 않는다. 실제 클릭 검토는 #10이다.
+
+### Evidence
+
+[사용자 #9 답변](https://github.com/BeomhyunPark/SCENE/issues/9#issuecomment-5904121761), [검토 결과](data-retention-export-review.md).
+
+
+---
+
+## DEC-056 — 데이터 종류별 보존 목적과 lifecycle을 구분한다
+
+**Date:** 2026-09-30
+
+**Status:** CONFIRMED — 제품 정책
+
+### Context
+
+Export·보존·삭제·복구를 검토했다.
+
+### Decision
+
+참가자 개인정보·운영 기록·정산·Audit/Security는 각각 보존 목적을 가진다. 행사 보관을 무기한 개인정보 보존 근거로 사용하지 않는다. 필요한 운영 기록은 유지하고 불필요한 개인 연결은 제거한다. 행사 삭제와 감사 기록의 lifecycle을 구분한다.
+
+### Alternatives
+
+모든 데이터에 동일 기간을 적용하거나 행사 삭제로 감사 기록까지 무조건 제거하지 않는다.
+
+### Reason
+
+운영 기록 활용과 불필요한 개인 정보 보유를 구분한다.
+
+### Consequence
+
+기간·삭제 실행권·익명화 필드·Export 파일/다운로드·파기와 백업 상세 계약은 #12에서 정한다. 행사 전체 삭제의 조직 Owner 제한은 본문의 제안으로 남기며 최종 실행권으로 자동 확정하지 않는다. 실제 클릭 검토는 #10이다.
+
+### Evidence
+
+[사용자 #9 답변](https://github.com/BeomhyunPark/SCENE/issues/9#issuecomment-5904121761), [검토 결과](data-retention-export-review.md).
+
+
+---
+
+## DEC-057 — 보관·익명화·최종 삭제는 서로 다른 처리다
+
+**Date:** 2026-09-30
+
+**Status:** CONFIRMED — 제품 정책
+
+### Context
+
+Export·보존·삭제·복구를 검토했다.
+
+### Decision
+
+보관은 읽기 전용 관리 상태다. 익명화와 최종 삭제는 원칙적으로 되돌릴 수 없다. 이름만 제거한 데이터를 실질 익명화로 단정하지 않고 soft delete를 삭제 완료로 표시하지 않는다.
+
+### Alternatives
+
+보관을 삭제로 안내하거나 논리 삭제를 최종 파기로 완료 처리하지 않는다.
+
+### Reason
+
+사용자가 데이터 상태와 복구 가능성을 정확히 이해하도록 한다.
+
+### Consequence
+
+기간·삭제 실행권·익명화 필드·Export 파일/다운로드·파기와 백업 상세 계약은 #12에서 정한다. 행사 전체 삭제의 조직 Owner 제한은 본문의 제안으로 남기며 최종 실행권으로 자동 확정하지 않는다. 실제 클릭 검토는 #10이다.
+
+### Evidence
+
+[사용자 #9 답변](https://github.com/BeomhyunPark/SCENE/issues/9#issuecomment-5904121761), [검토 결과](data-retention-export-review.md).
+
+
+---
+
+## DEC-058 — 삭제 전 영향·유지 데이터와 의존 관계를 확인한다
+
+**Date:** 2026-09-30
+
+**Status:** CONFIRMED — 제품 정책
+
+### Context
+
+Export·보존·삭제·복구를 검토했다.
+
+### Decision
+
+삭제 전 영향 데이터와 유지 데이터를 보여주고 명시적 확인을 받는다. 배정·체크인·정산·History·안내 등 의존 관계를 검사해 삭제·익명화·참조 제거·필요 보존을 구분한다.
+
+### Alternatives
+
+단순 row 삭제 또는 사용자가 감사/예외 보존 데이터를 임의 청소하는 흐름을 제공하지 않는다.
+
+### Reason
+
+연결된 업무 기록과 보존 근거를 함께 처리한다.
+
+### Consequence
+
+기간·삭제 실행권·익명화 필드·Export 파일/다운로드·파기와 백업 상세 계약은 #12에서 정한다. 행사 전체 삭제의 조직 Owner 제한은 본문의 제안으로 남기며 최종 실행권으로 자동 확정하지 않는다. 실제 클릭 검토는 #10이다.
+
+### Evidence
+
+[사용자 #9 답변](https://github.com/BeomhyunPark/SCENE/issues/9#issuecomment-5904121761), [검토 결과](data-retention-export-review.md).
+
+
+---
+
+## DEC-059 — 최종 삭제의 일반 복구를 제공하지 않으며 보존·유예·백업 기간은 근거로 정한다
+
+**Date:** 2026-09-30
+
+**Status:** CONFIRMED — 제품 정책
+
+### Context
+
+Export·보존·삭제·복구를 검토했다.
+
+### Decision
+
+최종 삭제 후 일반 복구를 제공하지 않는다. 유예 상태를 도입하면 최종 삭제와 구분한다. 백업 재해복구와 사용자 복구를 구분한다. 보존·유예·백업 소멸 기간은 실제 목적·적용 법령·계약·운영 필요에 따라 데이터별 근거로 정한다.
+
+### Alternatives
+
+7일/30일/5년/7년 또는 백업 기반 휴지통 복원을 임의 약속하지 않는다.
+
+### Reason
+
+복구 약속과 파기 요구가 충돌하지 않게 한다.
+
+### Consequence
+
+기간·삭제 실행권·익명화 필드·Export 파일/다운로드·파기와 백업 상세 계약은 #12에서 정한다. 행사 전체 삭제의 조직 Owner 제한은 본문의 제안으로 남기며 최종 실행권으로 자동 확정하지 않는다. 실제 클릭 검토는 #10이다.
+
+### Evidence
+
+[사용자 #9 답변](https://github.com/BeomhyunPark/SCENE/issues/9#issuecomment-5904121761), [검토 결과](data-retention-export-review.md).
