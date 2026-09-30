@@ -1,0 +1,135 @@
+{
+  "verification": "Read-back prototype reaction evaluation; not actual Present clicks or backend tests",
+  "passed": 25,
+  "total": 25,
+  "cases": [
+    {
+      "name": "request creates PENDING without Owner grant",
+      "pass": true
+    },
+    {
+      "name": "pending last Owner cannot leave",
+      "pass": true
+    },
+    {
+      "name": "direct final leave also blocked before acceptance",
+      "pass": true
+    },
+    {
+      "name": "14-day fixture cannot complete pending request",
+      "pass": true
+    },
+    {
+      "name": "requester cancellation preserves original Owner",
+      "pass": true
+    },
+    {
+      "name": "requester cannot accept recipient request",
+      "pass": true
+    },
+    {
+      "name": "QA recipient remains non-Owner before acceptance",
+      "pass": true
+    },
+    {
+      "name": "recipient acceptance grants Owner at T0",
+      "pass": true
+    },
+    {
+      "name": "new last Owner cannot leave while predecessor only hands over",
+      "pass": true
+    },
+    {
+      "name": "requester cannot leave with unaccepted responsibilities",
+      "pass": true
+    },
+    {
+      "name": "direct final leave blocked with residual responsibilities",
+      "pass": true
+    },
+    {
+      "name": "recipient separately accepts residual responsibilities",
+      "pass": true
+    },
+    {
+      "name": "responsibility acceptance opens separate leave confirmation",
+      "pass": true
+    },
+    {
+      "name": "separate membership leave retains successor Owner",
+      "pass": true
+    },
+    {
+      "name": "departed requester cannot cancel handover",
+      "pass": true
+    },
+    {
+      "name": "recipient rejects pending request without Owner grant",
+      "pass": true
+    },
+    {
+      "name": "이서연 handover cancellation restores transfer roles",
+      "pass": true
+    },
+    {
+      "name": "김하늘 handover cancellation restores transfer roles",
+      "pass": true
+    },
+    {
+      "name": "14-day fixture removes only predecessor handover authority",
+      "pass": true
+    },
+    {
+      "name": "completed transfer cannot be cancelled",
+      "pass": true
+    },
+    {
+      "name": "late responsibility acceptance remains reachable",
+      "pass": true
+    },
+    {
+      "name": "successor can accept residual responsibility after 14 days",
+      "pass": true
+    },
+    {
+      "name": "ordinary Member leave does not replace unrelated Owner",
+      "pass": true
+    },
+    {
+      "name": "unprivileged request is rejected",
+      "pass": true
+    },
+    {
+      "name": "inactive recipient cannot be nominated",
+      "pass": true
+    }
+  ],
+  "inspectedNodeIds": [
+    "638:36881",
+    "638:36899",
+    "638:36917",
+    "791:43344",
+    "791:43279",
+    "791:43177",
+    "791:43337",
+    "638:35876",
+    "791:43378",
+    "791:43193",
+    "791:43433",
+    "791:43241",
+    "791:43192",
+    "791:43176",
+    "791:43392",
+    "791:43481",
+    "791:43257"
+  ],
+  "fileKey": "RreFdEVMiwgHrV7teaCEOm",
+  "sectionId": "791:43169",
+  "issue": "https://github.com/BeomhyunPark/SCENE/issues/13",
+  "status": "REVIEW",
+  "limitations": [
+    "Actual Figma Present interactions have not been replayed.",
+    "14-day elapsed control is a QA fixture, not a timer or backend test.",
+    "The original audit remains unchanged."
+  ]
+}

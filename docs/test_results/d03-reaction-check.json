@@ -1,0 +1,71 @@
+{
+  "verification": "Read-back prototype navigation and structural checks; not actual Present clicks or backend tests",
+  "passed": 15,
+  "total": 15,
+  "cases": [
+    {
+      "name": "657:45579 group navigation opens saved board",
+      "pass": true
+    },
+    {
+      "name": "657:47325 group navigation opens saved board",
+      "pass": true
+    },
+    {
+      "name": "657:47360 group navigation opens saved board",
+      "pass": true
+    },
+    {
+      "name": "657:45764 group detail remains overlay",
+      "pass": true
+    },
+    {
+      "name": "657:47354 group detail remains overlay",
+      "pass": true
+    },
+    {
+      "name": "809:44413 group detail remains overlay",
+      "pass": true
+    },
+    {
+      "name": "809:44385 returns to matching participant state",
+      "pass": true
+    },
+    {
+      "name": "809:44409 returns to matching participant state",
+      "pass": true
+    },
+    {
+      "name": "saved board returns to matching event home",
+      "pass": true
+    },
+    {
+      "name": "saved board retains 1 assigned and 103 unassigned",
+      "pass": true
+    },
+    {
+      "name": "saved board retains Kim Minsu in group one",
+      "pass": true
+    },
+    {
+      "name": "saved board has no unsaved status",
+      "pass": true
+    },
+    {
+      "name": "saved board contains only first created group",
+      "pass": true
+    },
+    {
+      "name": "saved board is a prototype-compatible section child",
+      "pass": true
+    },
+    {
+      "name": "new board preserves source font families",
+      "pass": true
+    }
+  ],
+  "boardId": "809:44362",
+  "sectionId": "809:44361",
+  "issue": "https://github.com/BeomhyunPark/SCENE/issues/15",
+  "status": "REVIEW"
+}

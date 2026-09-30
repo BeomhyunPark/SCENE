@@ -1,0 +1,382 @@
+{
+  "verification": "Read-back prototype reaction and variable-binding evaluation; not actual Present clicks or backend tests",
+  "passed": 82,
+  "total": 82,
+  "cases": [
+    {
+      "name": "민서윤 opens named chooser",
+      "pass": true
+    },
+    {
+      "name": "민서윤 1조 selection only creates review",
+      "pass": true
+    },
+    {
+      "name": "민서윤 1조 save updates counts and membership",
+      "pass": true
+    },
+    {
+      "name": "민서윤 duplicate save does not double count",
+      "pass": true
+    },
+    {
+      "name": "민서윤 opens named chooser",
+      "pass": true
+    },
+    {
+      "name": "민서윤 2조 selection only creates review",
+      "pass": true
+    },
+    {
+      "name": "민서윤 2조 save updates counts and membership",
+      "pass": true
+    },
+    {
+      "name": "민서윤 duplicate save does not double count",
+      "pass": true
+    },
+    {
+      "name": "정예린 opens named chooser",
+      "pass": true
+    },
+    {
+      "name": "정예린 1조 selection only creates review",
+      "pass": true
+    },
+    {
+      "name": "정예린 1조 save updates counts and membership",
+      "pass": true
+    },
+    {
+      "name": "정예린 duplicate save does not double count",
+      "pass": true
+    },
+    {
+      "name": "정예린 opens named chooser",
+      "pass": true
+    },
+    {
+      "name": "정예린 2조 selection only creates review",
+      "pass": true
+    },
+    {
+      "name": "정예린 2조 save updates counts and membership",
+      "pass": true
+    },
+    {
+      "name": "정예린 duplicate save does not double count",
+      "pass": true
+    },
+    {
+      "name": "송태훈 opens named chooser",
+      "pass": true
+    },
+    {
+      "name": "송태훈 1조 selection only creates review",
+      "pass": true
+    },
+    {
+      "name": "송태훈 1조 save updates counts and membership",
+      "pass": true
+    },
+    {
+      "name": "송태훈 duplicate save does not double count",
+      "pass": true
+    },
+    {
+      "name": "송태훈 opens named chooser",
+      "pass": true
+    },
+    {
+      "name": "송태훈 2조 selection only creates review",
+      "pass": true
+    },
+    {
+      "name": "송태훈 2조 save updates counts and membership",
+      "pass": true
+    },
+    {
+      "name": "송태훈 duplicate save does not double count",
+      "pass": true
+    },
+    {
+      "name": "이주원 opens named chooser",
+      "pass": true
+    },
+    {
+      "name": "이주원 1조 selection only creates review",
+      "pass": true
+    },
+    {
+      "name": "이주원 1조 save updates counts and membership",
+      "pass": true
+    },
+    {
+      "name": "이주원 duplicate save does not double count",
+      "pass": true
+    },
+    {
+      "name": "이주원 opens named chooser",
+      "pass": true
+    },
+    {
+      "name": "이주원 2조 selection only creates review",
+      "pass": true
+    },
+    {
+      "name": "이주원 2조 save updates counts and membership",
+      "pass": true
+    },
+    {
+      "name": "이주원 duplicate save does not double count",
+      "pass": true
+    },
+    {
+      "name": "박다은 opens named chooser",
+      "pass": true
+    },
+    {
+      "name": "박다은 1조 selection only creates review",
+      "pass": true
+    },
+    {
+      "name": "박다은 1조 save updates counts and membership",
+      "pass": true
+    },
+    {
+      "name": "박다은 duplicate save does not double count",
+      "pass": true
+    },
+    {
+      "name": "박다은 opens named chooser",
+      "pass": true
+    },
+    {
+      "name": "박다은 2조 selection only creates review",
+      "pass": true
+    },
+    {
+      "name": "박다은 2조 save updates counts and membership",
+      "pass": true
+    },
+    {
+      "name": "박다은 duplicate save does not double count",
+      "pass": true
+    },
+    {
+      "name": "정지후 opens named chooser",
+      "pass": true
+    },
+    {
+      "name": "정지후 1조 selection only creates review",
+      "pass": true
+    },
+    {
+      "name": "정지후 1조 save updates counts and membership",
+      "pass": true
+    },
+    {
+      "name": "정지후 duplicate save does not double count",
+      "pass": true
+    },
+    {
+      "name": "정지후 opens named chooser",
+      "pass": true
+    },
+    {
+      "name": "정지후 2조 selection only creates review",
+      "pass": true
+    },
+    {
+      "name": "정지후 2조 save updates counts and membership",
+      "pass": true
+    },
+    {
+      "name": "정지후 duplicate save does not double count",
+      "pass": true
+    },
+    {
+      "name": "chooser cancel preserves initial assignment",
+      "pass": true
+    },
+    {
+      "name": "review cancel preserves initial assignment",
+      "pass": true
+    },
+    {
+      "name": "changing selected group before save commits only final choice",
+      "pass": true
+    },
+    {
+      "name": "sequential save 1 keeps earlier assignments",
+      "pass": true
+    },
+    {
+      "name": "sequential save 2 keeps earlier assignments",
+      "pass": true
+    },
+    {
+      "name": "sequential save 3 keeps earlier assignments",
+      "pass": true
+    },
+    {
+      "name": "sequential save 4 keeps earlier assignments",
+      "pass": true
+    },
+    {
+      "name": "sequential save 5 keeps earlier assignments",
+      "pass": true
+    },
+    {
+      "name": "sequential save 6 keeps earlier assignments",
+      "pass": true
+    },
+    {
+      "name": "six saves keep total 104 and split group counts",
+      "pass": true
+    },
+    {
+      "name": "all six can be added to 1조",
+      "pass": true
+    },
+    {
+      "name": "all six can be added to 2조",
+      "pass": true
+    },
+    {
+      "name": "민서윤 unassigned card visibility follows saved state",
+      "pass": true
+    },
+    {
+      "name": "민서윤 appears in only selected group",
+      "pass": true
+    },
+    {
+      "name": "정예린 unassigned card visibility follows saved state",
+      "pass": true
+    },
+    {
+      "name": "정예린 appears in only selected group",
+      "pass": true
+    },
+    {
+      "name": "송태훈 unassigned card visibility follows saved state",
+      "pass": true
+    },
+    {
+      "name": "송태훈 appears in only selected group",
+      "pass": true
+    },
+    {
+      "name": "이주원 unassigned card visibility follows saved state",
+      "pass": true
+    },
+    {
+      "name": "이주원 appears in only selected group",
+      "pass": true
+    },
+    {
+      "name": "박다은 unassigned card visibility follows saved state",
+      "pass": true
+    },
+    {
+      "name": "박다은 appears in only selected group",
+      "pass": true
+    },
+    {
+      "name": "정지후 unassigned card visibility follows saved state",
+      "pass": true
+    },
+    {
+      "name": "정지후 appears in only selected group",
+      "pass": true
+    },
+    {
+      "name": "민서윤 participant row follows saved group",
+      "pass": true
+    },
+    {
+      "name": "정예린 participant row follows saved group",
+      "pass": true
+    },
+    {
+      "name": "송태훈 participant row follows saved group",
+      "pass": true
+    },
+    {
+      "name": "이주원 participant row follows saved group",
+      "pass": true
+    },
+    {
+      "name": "박다은 participant row follows saved group",
+      "pass": true
+    },
+    {
+      "name": "saved board returns to updated participant view",
+      "pass": true
+    },
+    {
+      "name": "participant view returns to updated board",
+      "pass": true
+    },
+    {
+      "name": "saved board returns to updated home",
+      "pass": true
+    },
+    {
+      "name": "updated home returns to updated board",
+      "pass": true
+    },
+    {
+      "name": "old participant route avoids stale board after save",
+      "pass": true
+    }
+  ],
+  "inspectedNodeIds": [
+    "657:39787",
+    "816:44647",
+    "816:44666",
+    "816:44871",
+    "657:39788",
+    "657:39789",
+    "657:39790",
+    "657:39791",
+    "657:39792",
+    "816:44646",
+    "816:44887",
+    "816:44665",
+    "816:43673",
+    "816:43674",
+    "816:43675",
+    "816:43676",
+    "816:43677",
+    "816:43672",
+    "816:43538",
+    "816:44308",
+    "816:43537",
+    "816:44114",
+    "657:46346"
+  ],
+  "frames": {
+    "board": "816:43491",
+    "home": "816:44063",
+    "participants": "816:44263",
+    "chooser": "816:44637",
+    "review": "816:44654",
+    "detail1": "816:44673",
+    "detail2": "816:44696"
+  },
+  "scope": "Six displayed unassigned participants; target groups 1 and 2; existing 86/104 saved board",
+  "issue": "https://github.com/BeomhyunPark/SCENE/issues/16",
+  "status": "REVIEW",
+  "layoutChecks": {
+    "buttonBoundsPassed": 6,
+    "buttonBoundsTotal": 6,
+    "boardBodyOverflow": "VERTICAL"
+  },
+  "limitations": [
+    "Actual Present clicks and backend persistence/permissions/concurrency were not tested.",
+    "Only six displayed unassigned participants and groups 1/2 are interactive in this repair.",
+    "The D03 first-assignment board and other participants/groups remain outside this repair scope."
+  ]
+}
