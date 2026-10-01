@@ -1,6 +1,6 @@
 # Church Event Operations Platform — Product Decisions
 
-> **2026-09-30 baseline:** DEC-001~027의 기존 본문·Status 보존. 새 DEC 생성 없음. 최신 요청의 제품명 SCENE 및 Technical Design / implementation 전 상태가 현재 기준이다. DEC-024/027의 단계와 §17 Product Name OPEN은 이전 이력이며 기술 기준은 [Architecture](../architecture/architecture-v0.1.md)를 따른다. 공식 Decision Log 정합화는 검토 필요.
+> **2026-09-30 baseline:** DEC-001~027의 기존 본문·Status 보존. 최초 정리 당시에는 새 DEC를 만들지 않았고, 이후 검토에서 DEC-028~059를 추가했다(현재 마지막 번호 DEC-059). 최신 요청의 제품명 SCENE 및 Technical Design / implementation 전 상태가 현재 기준이다. DEC-024/027의 단계와 §17 Product Name OPEN은 이전 이력이며 기술 기준은 [Architecture](../architecture/architecture-v0.1.md)를 따른다. 공식 Decision Log 정합화는 검토 필요.
 >
 > DEC-027은 단계 설명에 한해 DEC-024를 대체한다고 기록하지만 DEC-024의 원래 CONFIRMED 표기는 보존한다. Evidence Type의 HYPOTHESIS 용어 충돌도 [검토 기록](../architecture/architecture-v0.1.md)에 남긴다.
 > [Product Definition](PRODUCT_DEFINITION.md) · [Research](RESEARCH.md)
