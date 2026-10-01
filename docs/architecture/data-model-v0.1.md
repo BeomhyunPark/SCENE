@@ -25,7 +25,7 @@ Flight/Class 배정은 Mission/Child 업무에서 관리한다. 지도는 해당
 - `users != participants`.
 - `users`는 운영계정 Login Identity. `space_id`, `event_id`, `role`, `participant_id`를 포함하지 않는다.
 - `members`는 users ↔ spaces 소속 관계. Space role은 `OWNER / ADMIN / MEMBER`.
-- `event_users`는 특정 Event 운영자. Event role은 `OWNER / MANAGER / STAFF`. 최초 기준은 `user → member → event_user`였으나 DEC-039에 따라 조직 소속 없이 해당 행사만 운영하는 사용자도 지원해야 한다. Membership 필수 관계를 모든 운영자에게 강제하지 않으며 상세 identity 연결·FK는 후속 설계에서 정한다.
+- `event_users`는 특정 Event 운영자. Event role은 `OWNER / MANAGER / STAFF`. 최초 기준은 `user → member → event_user`였으나 DEC-039에 따라 조직 소속 없이 해당 행사만 운영하는 사용자도 지원해야 한다. Membership 필수 관계를 모든 운영자에게 강제하지 않는다. 2026-10-01 DEC-060으로 `event_users.user_id` 직접 참조를 확정했다(아래 절).
 - `events`는 제품 중심 Entity. 기존 상태 후보는 `DRAFT / ACTIVE / ENDED / ARCHIVED`. #8에서 활성화·종료·재개·보관·해제의 제품 전이를 확정했다. 상세 저장·전이 계약은 후속이다.
 - Application = submitted source information / Participant = operational subject.
 - Participant 최소 Identity: `id`, `space_id`, `event_id`, `name`, `phone`, `phone_hash`, `phone_last4`, `status`, `created_at`, `updated_at`. Participant status 값은 제공 원문에 없어 추가 확정하지 않는다.
@@ -148,3 +148,22 @@ ENDED는 조회·정산·회고·후속 업무·후속 공지·감사 가능한 
 개인정보·운영 기록·정산·Audit/Security는 별도 보존 목적/lifecycle을 가진다. ARCHIVED는 무기한 보존 근거가 아니며 과거 배정/History도 불필요한 개인 연결을 정리한다. Archive·Anonymize·Delete를 구분하고 soft delete를 최종 파기로 표시하지 않는다. 삭제 전 영향/유지 데이터와 의존 관계를 확인해 삭제·익명화·참조 제거·필요 보존을 처리한다. 최종 삭제/실질 익명화는 일반 복구를 제공하지 않는다.
 
 구체적 보존/유예/백업 기간, 유예 도입 여부, 전체 행사 삭제의 조직 Owner 제한 제안·정리/익명화 실행권, 만료 다운로드/확인 수단·현재 권한 검사·파일 수명·파기 job/실패·FK/CASCADE·재식별 검증은 #12에서 근거와 계약을 정한다. Event 삭제가 Audit를 무조건 삭제하거나 보관 읽기 전용이 파기 정책을 면제하지 않는다. 새 수집 필드·DB enum·endpoint·기간 상수를 확정하지 않는다. 실제 클릭 검토는 #10이다.
+
+## 2026-10-01 행사 전용 협력자·초대 기술 계약 (DEC-060)
+
+- `event_users`: `space_id`, `event_id`, `user_id`, `role`. `member_id` 필수 참조 없음. 조직 소속 여부는 `members` 조인으로 계산하고 저장하지 않는다. `UNIQUE(event_id, user_id)`, composite FK `(event_id, space_id) → events(id, space_id)`.
+- Event OWNER의 활성 Membership 조건은 DB가 아니라 서비스에서 지정·위임·Membership 종료 시점에 검사한다.
+- `event_invitations`: `space_id`, `event_id`, `email_normalized`, `role`, `token_hash`, `status`, `expires_at`, `invited_by`, `accepted_user_id`, 생성·변경 시각.
+  - `status`: `PENDING / ACCEPTED / REVOKED / SUPERSEDED` (`varchar + CHECK`). 만료는 `status = 'PENDING' AND expires_at <= now()`로 계산하며 `EXPIRED`를 저장하지 않는다.
+  - `UNIQUE(event_id, email_normalized) WHERE status = 'PENDING'`.
+  - 새 초대·재전송은 한 transaction에서 기존 PENDING 행(만료 포함)을 SUPERSEDED로 바꾸고 새 행을 INSERT한다.
+  - 수락은 `UPDATE … WHERE status = 'PENDING' AND expires_at > now()` 한 행 성공으로 판정하고 같은 transaction에서 `event_users`를 생성한다.
+- 아직 코드가 없으므로 위 구조는 마이그레이션이 아니라 Flyway V1 초기 스키마에 반영한다.
+
+## 2026-10-01 보존·삭제·Export 처리 계약 (DEC-061)
+
+- 보존 정책표 키: 참가자 식별정보 / 신청 응답 / 고위험 필드 / 운영 기록 / 정산 상태 / 결제 증빙 / privacy·audit 로그 / Export 파일 / 기기 임시 데이터. 기간 값은 미정이며 상수로 넣지 않는다.
+- 개인정보 정리 작업: 상태 `PENDING / RUNNING / COMPLETED / PARTIAL_FAILED`, 도메인 단계별 진행 기록, 단계별 멱등 재시도.
+- 행사 삭제: Event lifecycle enum에 넣지 않고 별도 삭제 요청·작업 레코드로 관리한다. `scheduled_at`을 둬서 유예기간 도입 시 스키마를 바꾸지 않는다.
+- `export_jobs`: 행사·대상·필드 범위, `created_by`, `status`, `expires_at`, 파일 참조. 파일 내용은 로그에 복제하지 않는다.
+- 삭제 원장: 삭제·익명화 대상 ID와 처리 시각만 저장(개인정보 없음), 운영 백업과 분리 보관.

@@ -1,6 +1,6 @@
 # Church Event Operations Platform — Product Decisions
 
-> **2026-09-30 baseline:** DEC-001~027의 기존 본문·Status 보존. 최초 정리 당시에는 새 DEC를 만들지 않았고, 이후 검토에서 DEC-028~059를 추가했다(현재 마지막 번호 DEC-059). 최신 요청의 제품명 SCENE 및 Technical Design / implementation 전 상태가 현재 기준이다. DEC-024/027의 단계와 §17 Product Name OPEN은 이전 이력이며 기술 기준은 [Architecture](../architecture/architecture-v0.1.md)를 따른다. 공식 Decision Log 정합화는 검토 필요.
+> **2026-09-30 baseline:** DEC-001~027의 기존 본문·Status 보존. 최초 정리 당시에는 새 DEC를 만들지 않았고, 이후 검토에서 DEC-028~059를 추가했다. 2026-10-01 #11·#12 기술 계약으로 DEC-060~061을 추가했다(현재 마지막 번호 DEC-061). 최신 요청의 제품명 SCENE 및 Technical Design / implementation 전 상태가 현재 기준이다. DEC-024/027의 단계와 §17 Product Name OPEN은 이전 이력이며 기술 기준은 [Architecture](../architecture/architecture-v0.1.md)를 따른다. 공식 Decision Log 정합화는 검토 필요.
 >
 > DEC-027은 단계 설명에 한해 DEC-024를 대체한다고 기록하지만 DEC-024의 원래 CONFIRMED 표기는 보존한다. Evidence Type의 HYPOTHESIS 용어 충돌도 [검토 기록](../architecture/architecture-v0.1.md)에 남긴다.
 > [Product Definition](PRODUCT_DEFINITION.md) · [Research](RESEARCH.md)
@@ -1033,7 +1033,7 @@ Operational Structure Research와 Product Definition Gate를 거치며 확정 �
 
 ### Consequence
 
-사용자 대기 요청 취소·거절 후 재신청, 초대 수락 전 취소·만료·재초대를 지원한다. 정확한 TTL과 재전송 계약은 후속 상세다. 7일은 사용자 제안값이다.
+사용자 대기 요청 취소·거절 후 재신청, 초대 수락 전 취소·만료·재초대를 지원한다. 정확한 TTL과 재전송 계약은 후속 상세다. 7일은 사용자 제안값이다. (2026-10-01 DEC-060에서 초대 TTL 7일과 재전송 계약을 확정했다.)
 
 ### Evidence
 
@@ -1764,3 +1764,79 @@ Export·보존·삭제·복구를 검토했다.
 ### Evidence
 
 [사용자 #9 답변](https://github.com/BeomhyunPark/SCENE/issues/9#issuecomment-5904121761), [검토 결과](data-retention-export-review.md).
+
+---
+
+## DEC-060 — 행사 전용 협력자는 Event 운영자 관계로 접근하고 초대는 1회 소비 토큰으로 처리한다
+
+**Date:** 2026-10-01
+
+**Status:** CONFIRMED — 기술 계약
+
+### Context
+
+DEC-039로 조직 Membership 없이 특정 행사만 운영하는 협력자를 허용했다. 최초 기술 기준은 `user → member → event_user` 필수 경로와 memberId 기반 운영자 추가였다. [#11 사용자 답변](https://github.com/BeomhyunPark/SCENE/issues/11#issuecomment-5906372340)에서 외부 협력자는 운영자·팀/조 리더까지, Event Owner는 활성 조직 멤버만 맡도록 정했다.
+
+### Decision
+
+- `event_users`는 `user_id`를 직접 참조한다(`space_id`, `event_id`, `user_id`, `role`). `member_id` 필수 참조는 두지 않는다. 조직 소속 여부는 저장하지 않고 `members` 조인으로 계산한다. `UNIQUE(event_id, user_id)`와 composite FK `(event_id, space_id) → events`를 유지한다.
+- Event 권한은 `event_users` role과 개인별 업무 권한에서만 나온다. 조직 설정·구성원 목록·다른 행사 등 Space 범위 API는 활성 Membership이 필요하다. 행사 전용 협력자에게 다른 운영자는 이름·역할만 보이고 연락처는 숨긴다.
+- 외부 협력자는 MANAGER/STAFF와 리더만 맡는다. OWNER 지정·위임 시 활성 Membership을 서비스에서 검사한다.
+- 자진 조직 탈퇴 시 행사별 접근 유지/회수를 묻고 유지하면 행사 전용 협력자로 전환한다. 관리자 제거 시 기본값은 해당 Space 행사 접근 전체 회수이며 유지할 행사만 명시 선택하고 남는 접근권을 표시한다. Event Owner는 #4 인수인계 완료 전 탈퇴·제거를 차단한다.
+- 기존 멤버는 userId로 바로 추가한다. 비멤버는 `event_invitations`로 초대한다. 저장 상태는 `PENDING / ACCEPTED / REVOKED / SUPERSEDED`이며 만료는 `expires_at`으로 계산하고 저장하지 않는다. 같은 행사·이메일의 PENDING은 하나만 허용한다. 재전송은 새 행을 만들고 이전 행을 SUPERSEDED로 남긴다. 초대 TTL은 7일 서버 상수다.
+- 수락은 대상 이메일로 로그인한 사용자만 가능하며 결과를 성공과 6가지 오류 코드(토큰 없음·이메일 불일치·만료·회수·재전송 무효·타인 수락)로 구분한다. 로그인 전에는 서버를 호출하지 않고 단일 안내 화면을 보여 토큰 존재 여부를 드러내지 않는다.
+- 행사 전용 협력자도 조회 권한만으로 Export하지 않는다(DEC-054, DEC-061). Space OWNER는 행사 운영자가 아니어도 자기 Space 행사의 협력자를 조회·회수할 수 있다.
+
+### Alternatives
+
+비멤버를 '게스트 Membership'으로 `members`에 넣는 안은 Space 범위 접근이 새기 쉽고 DEC-039와 어긋나 채택하지 않는다. memberId를 userId로 단순 치환하는 안은 #11에서 금지했다. 재전송 시 같은 행의 `token_hash`만 교체하는 안은 재전송 무효와 없는 토큰을 구분할 수 없어 채택하지 않는다.
+
+### Reason
+
+조직 소속과 행사 접근을 분리하면서도 Event Owner 책임과 조직 내부 정보 경계를 지킨다.
+
+### Consequence
+
+상세 계약은 [Data Model](../architecture/data-model-v0.1.md), [Security / Privacy](../architecture/security-privacy-v0.1.md), [API Architecture](../architecture/api-architecture-v0.1.md)의 2026-10-01 절에 둔다. 아직 코드가 없으므로 `event_users.user_id` 직접 참조는 Flyway V1 초기 스키마에 반영한다. 초대 랜딩 화면 누락은 #27에서 다룬다.
+
+### Evidence
+
+[#11 기술 계약](https://github.com/BeomhyunPark/SCENE/issues/11#issuecomment-5922367345), [#11 결정 (10/1 현)](https://github.com/BeomhyunPark/SCENE/issues/11#issuecomment-5922384963).
+
+---
+
+## DEC-061 — 보존은 정책표로, 정리·삭제·Export는 미리보기와 별도 작업으로 처리한다
+
+**Date:** 2026-10-01
+
+**Status:** CONFIRMED — 기술 계약 (기간 값은 미정)
+
+### Context
+
+DEC-054~059와 [#12 사용자 답변](https://github.com/BeomhyunPark/SCENE/issues/12#issuecomment-5906461328)으로 행사 최종 삭제는 조직 Owner만 실행하고 Event Owner는 요청하며, 참가자 개인정보 정리는 Event Owner·조직 Owner가 실행하고, Export는 다운로드 시점에도 현재 권한을 확인하도록 정했다. 교회와 SCENE의 책임 구분, 백업 복원 시 재노출 방지도 검토 요청됐다.
+
+### Decision
+
+- 보존 기간은 상수가 아니라 데이터 종류별 정책표(목적·종료 시점·기간·근거·종료 처리)로 관리하고 구현은 정책 키로만 참조한다.
+- 참가자 데이터는 교회(조직)가 개인정보처리자, SCENE은 수탁자다. 운영자 계정 데이터는 SCENE이 처리자다. 법률 검토 결과에 따라 이 항목만 다시 열 수 있다.
+- 개인정보 정리는 미리보기와 비동기 실행 작업으로 나누고 도메인 단계별 멱등 재시도를 보장한다. 범위는 식별값·개인정보 응답·자유서술·첨부·과거 revision이며 비식별 운영 기록은 유지한다.
+- 행사 최종 삭제는 Event lifecycle 상태가 아니라 별도 삭제 요청·작업 레코드로 관리한다. 실행 시 재인증과 행사명 입력 확인을 받는다.
+- Export는 생성 작업과 다운로드를 분리하고 다운로드마다 현재 권한·범위를 재검사한다. 민감 필드가 포함된 Export는 생성 시 재인증이 필요하다.
+- 백업 복원 재노출은 삭제·익명화 대상 ID와 시각만 담은 삭제 원장을 운영 백업과 따로 보관하고 복원 후 서비스 재개 전에 다시 적용해 막는다.
+- ARCHIVED에서도 개인정보 정리와 허용된 Export는 가능하다.
+
+### Alternatives
+
+삭제 유예를 Event 상태(DELETING 등)로 추가하는 안은 #12에서 금지했다. 백업에서 개별 레코드를 삭제하는 안은 실행·검증이 어려워 채택하지 않는다.
+
+### Reason
+
+기간이 정해지기 전에도 처리 구조를 고정해 구현을 시작할 수 있게 하고, DEC-059의 최종 삭제 비복구 원칙을 백업 복원에서도 지킨다.
+
+### Consequence
+
+데이터 종류별 보존기간, 삭제 유예기간, 백업 소멸기간, Export 파일 수명, 기기 임시 데이터 최대 보관기간과 미성년·보호자 처리 기준은 계속 미정이다. 구현 차단 범위는 실제 기간 상수와 자동 파기 스케줄러뿐이다. 상세 계약은 아키텍처 문서의 2026-10-01 절에 둔다.
+
+### Evidence
+
+[#12 기술 계약](https://github.com/BeomhyunPark/SCENE/issues/12#issuecomment-5922404543), [#12 사용자 답변](https://github.com/BeomhyunPark/SCENE/issues/12#issuecomment-5906461328).

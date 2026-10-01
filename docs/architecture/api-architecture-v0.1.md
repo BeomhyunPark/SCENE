@@ -197,7 +197,7 @@ PATCH  /api/v1/operator/events/{eventId}/operators/{operatorId}
 DELETE /api/v1/operator/events/{eventId}/operators/{operatorId}
 ```
 
-Event 생성 + creator를 `event_users.OWNER`로 생성하는 작업은 하나의 transaction. API 이름은 DB `event_users` 대신 `operators`. 최초 기준의 memberId 기반 추가는 조직 Member 경로로 남길 수 있으나 DEC-039의 행사 전용 협력자 경로도 필요하다. 모든 운영자에게 user → member → event operator를 강제하지 않는다. 행사 전용 초대·사용자 참조·DTO 계약은 후속 설계에서 정한다.
+Event 생성 + creator를 `event_users.OWNER`로 생성하는 작업은 하나의 transaction. API 이름은 DB `event_users` 대신 `operators`. 최초 기준의 memberId 기반 추가는 조직 Member 경로로 남길 수 있으나 DEC-039의 행사 전용 협력자 경로도 필요하다. 모든 운영자에게 user → member → event operator를 강제하지 않는다. 행사 전용 초대·사용자 참조 계약은 2026-10-01 DEC-060으로 확정했다(아래 절).
 
 Event 종료·재개·보관/해제·Owner 이전은 중요한 command 경계다. 제품 정책은 #4·#8에 확정했고 endpoint/DTO·세부 판정·동시성 계약은 후속이다.
 
@@ -608,7 +608,7 @@ AUDIT_LOG_READ
 
 ### 기존 OPEN
 
-1. Organization 최초 가입 / Space 생성 / Invitation 제품 흐름은 DEC-036~039로 확정. 상세 계약과 정확한 초대 TTL·재전송·행사 전용 협력자 경로는 후속 설계.
+1. Organization 최초 가입 / Space 생성 / Invitation 제품 흐름은 DEC-036~039로 확정. 행사 전용 협력자 경로·초대 TTL(7일)·재전송은 DEC-060으로 확정. 조직 초대의 endpoint 상세는 후속 설계.
 2. Space OWNER와 Event OWNER cardinality / transfer policy.
 3. Event lifecycle: #8에서 제품 전이·상태별 행동을 확정했다. 세부 Permission·Override·정정·request/DTO·동시성 계약은 OPEN.
 4. Participant Access recovery 및 Session TTL. 정확한 session store도 OPEN.
@@ -626,7 +626,7 @@ AUDIT_LOG_READ
 - Role → Permission Set의 상세 mapping과 표에 미명시된 읽기/취소 Permission.
 - 2026-09-30 [DEC-028~030](../product/PRODUCT_DECISIONS.md#dec-028--조직-관리자의-행사-조회와-행사-수정-권한을-구분한다): 조직 관리자의 행사 조회·수정 분리, 운영자별 업무 권한, 조직 관리자의 행사 전체 조회와 리더의 자기 그룹원 전체 조회를 반영해야 한다. 연락처·신청 답변과 조직 관리자의 정산 상세 조회를 포함한다. 화면과 서버의 권한 판단은 DEC-031에 따라 일치시킨다. 개별 권한 저장·판정 방식과 조직·그룹 조회의 endpoint/DTO 경계는 OPEN. 고정 Role mapping만으로 개별 권한 요구가 해결됐다고 해석하지 않는다.
 - QR credential, Notice targeting, idempotency key scope/TTL/response replay와 raw Access Key 1회 전달의 결합.
-- Field별 보존기간·익명화 범위, Export 파일·비동기 job 계약.
+- Field별 보존기간 값. 정리·삭제·Export 작업 구조는 DEC-061로 확정했고 기간 값만 OPEN.
 - logs/history의 Domain별 cursor 채택과 request/tracing context의 상세 연결.
 - `APPLICATION_CLOSED`와 `FORM_CLOSED`의 의미·매핑·통합 여부.
 
@@ -646,7 +646,7 @@ AUDIT_LOG_READ
 
 ## 2026-09-30 조직 가입·행사 전용 협력자 후속 정책
 
-[DEC-036~039](../product/PRODUCT_DECISIONS.md#dec-036--검증된-조직-생성자가-최초-owner가-된다)와 [검토 결과](../product/organization-entry-review.md)를 적용한다. 검증된 생성자가 최초 Owner가 되고, 조직 검색 가입 요청은 조직 Owner 승인, 대상자 조직 초대는 수락만으로 MEMBER가 된다. 대기 사용자는 조직 내부 정보를 보지 못한다. 초대는 대상 계정·범위·만료·1회 소비를 검증한다. 7일은 제안값이며 정확한 TTL은 상세 계약에서 정한다.
+[DEC-036~039](../product/PRODUCT_DECISIONS.md#dec-036--검증된-조직-생성자가-최초-owner가-된다)와 [검토 결과](../product/organization-entry-review.md)를 적용한다. 검증된 생성자가 최초 Owner가 되고, 조직 검색 가입 요청은 조직 Owner 승인, 대상자 조직 초대는 수락만으로 MEMBER가 된다. 대기 사용자는 조직 내부 정보를 보지 못한다. 초대는 대상 계정·범위·만료·1회 소비를 검증한다. 초대 TTL은 7일로 확정했다(2026-10-01 현, DEC-060).
 
 조직 Membership과 행사 접근은 별개다. 조직 소속 없이 해당 행사만 운영하는 협력자는 운영계정 ↔ Event 운영자 관계와 Permission으로 접근을 판정하고 조직 내부·다른 행사 접근을 자동 허용하지 않는다. 모든 행사 운영자에게 memberId와 Membership을 요구하던 최초 기준은 갱신한다. DB 관계·FK·DTO·endpoint·초대 재전송·동시성·소속 제거 시 독립 행사 접근 처리의 상세 계약은 후속 기술 검토에서 정한다.
 
@@ -691,3 +691,47 @@ ENDED는 조회·정산·회고·후속 업무·후속 공지·감사 가능한 
 개인정보·운영 기록·정산·Audit/Security는 별도 보존 목적/lifecycle을 가진다. ARCHIVED는 무기한 보존 근거가 아니며 과거 배정/History도 불필요한 개인 연결을 정리한다. Archive·Anonymize·Delete를 구분하고 soft delete를 최종 파기로 표시하지 않는다. 삭제 전 영향/유지 데이터와 의존 관계를 확인해 삭제·익명화·참조 제거·필요 보존을 처리한다. 최종 삭제/실질 익명화는 일반 복구를 제공하지 않는다.
 
 구체적 보존/유예/백업 기간, 유예 도입 여부, 전체 행사 삭제의 조직 Owner 제한 제안·정리/익명화 실행권, 만료 다운로드/확인 수단·현재 권한 검사·파일 수명·파기 job/실패·FK/CASCADE·재식별 검증은 #12에서 근거와 계약을 정한다. Event 삭제가 Audit를 무조건 삭제하거나 보관 읽기 전용이 파기 정책을 면제하지 않는다. 새 수집 필드·DB enum·endpoint·기간 상수를 확정하지 않는다. 실제 클릭 검토는 #10이다.
+
+## 2026-10-01 행사 전용 협력자·초대 기술 계약 (DEC-060)
+
+```
+POST   /api/v1/operator/events/{eventId}/operators                      # 기존 멤버 직접 추가 {userId, role}
+POST   /api/v1/operator/events/{eventId}/invitations                    # 비멤버 초대 {email, role}
+POST   /api/v1/operator/events/{eventId}/invitations/{invitationId}/resend
+DELETE /api/v1/operator/events/{eventId}/invitations/{invitationId}     # 회수 → REVOKED
+POST   /api/v1/operator/invitations/accept                              # {token}, 로그인 필수
+```
+
+- 초대 TTL 7일, 서버 상수 하나로 관리(조직별 설정 없음).
+- 외부 협력자에게 부여 가능한 role은 `MANAGER / STAFF`와 리더. `OWNER` 지정·위임은 활성 Membership 검사 후 허용.
+
+수락 결과
+
+| 결과 | HTTP | code |
+|---|---|---|
+| 성공 | 200 | — (같은 사용자가 이미 수락한 경우도 200, 멱등) |
+| 다른 이메일로 로그인됨 | 403 | `INVITATION_EMAIL_MISMATCH` |
+| 만료 | 410 | `INVITATION_EXPIRED` |
+| 회수됨 | 410 | `INVITATION_REVOKED` |
+| 재전송으로 무효 | 410 | `INVITATION_SUPERSEDED` |
+| 다른 사용자가 이미 수락 | 409 | `INVITATION_ALREADY_ACCEPTED` |
+| 토큰 없음·위조 | 404 | `INVITATION_NOT_FOUND` |
+
+판정 순서는 토큰 조회 → 이메일 일치 → 상태다. 이메일이 다르면 상태를 노출하지 않는다.
+
+## 2026-10-01 보존·삭제·Export 처리 계약 (DEC-061)
+
+```
+POST /api/v1/operator/events/{eventId}/privacy-cleanups/preview         # 도메인별 영향 건수
+POST /api/v1/operator/events/{eventId}/privacy-cleanups                 # 비동기 작업 생성
+GET  /api/v1/operator/events/{eventId}/privacy-cleanups/{cleanupId}
+POST /api/v1/operator/events/{eventId}/deletion-requests                # Event Owner 삭제 요청
+POST /api/v1/operator/spaces/{spaceId}/events/{eventId}/deletion        # Space OWNER 실행, 재인증 + 행사명 확인
+POST /api/v1/operator/events/{eventId}/exports                          # export job 생성
+GET  /api/v1/operator/events/{eventId}/exports/{exportId}/download      # 매번 현재 권한 재검사, 단기 URL 발급
+```
+
+- 개인정보 정리 작업 상태: `PENDING / RUNNING / COMPLETED / PARTIAL_FAILED`, 도메인 단계별 멱등 재시도.
+- 개인정보 정리 권한은 Event OWNER·Space OWNER. 일반 운영자·외부 협력자는 기본 불가.
+- 민감 필드 포함 Export는 생성 시 재인증. Export 생성과 다운로드를 각각 privacy log로 남긴다.
+- 정확한 request/response DTO 필드와 Permission 이름은 구현 단계에서 이 계약 안에서 정한다. 기간 값은 OPEN.
