@@ -1,0 +1,281 @@
+{
+  "verification": "Saved prototype reactions, variable guards, text bindings and static structure evaluated. No actual Present clicks or server calls.",
+  "passed": 48,
+  "total": 48,
+  "cases": [
+    {
+      "defect": "D06",
+      "name": "label matches application page destination",
+      "pass": true
+    },
+    {
+      "defect": "D07",
+      "name": "pending request opens cancel confirmation",
+      "pass": true
+    },
+    {
+      "defect": "D07",
+      "name": "keep waiting preserves pending state",
+      "pass": true
+    },
+    {
+      "defect": "D07",
+      "name": "confirm cancels pending request",
+      "pass": true
+    },
+    {
+      "defect": "D07",
+      "name": "status check cannot restore cancelled pending UI",
+      "pass": true
+    },
+    {
+      "defect": "D07",
+      "name": "resubmission explicitly resets request to pending",
+      "pass": true
+    },
+    {
+      "defect": "D07",
+      "name": "approved request cannot be cancelled",
+      "pass": true
+    },
+    {
+      "defect": "D08",
+      "name": "create entry requests declaration before granting Owner",
+      "pass": true
+    },
+    {
+      "defect": "D08",
+      "name": "direct final create without declaration is blocked",
+      "pass": true
+    },
+    {
+      "defect": "D08",
+      "name": "declaration proceeds to review without creating organization",
+      "pass": true
+    },
+    {
+      "defect": "D08",
+      "name": "return clears declaration",
+      "pass": true
+    },
+    {
+      "defect": "D08",
+      "name": "declared final confirmation grants existing Owner fixture",
+      "pass": true
+    },
+    {
+      "defect": "D09",
+      "name": "Owner can review pending invite cancellation",
+      "pass": true
+    },
+    {
+      "defect": "D09",
+      "name": "back preserves pending invite and link",
+      "pass": true
+    },
+    {
+      "defect": "D09",
+      "name": "cancel invalidates original link and updates status",
+      "pass": true
+    },
+    {
+      "defect": "D09",
+      "name": "old invite acceptance is blocked after cancellation",
+      "pass": true
+    },
+    {
+      "defect": "D09",
+      "name": "reinvite creates new generation preserving old link invalidity",
+      "pass": true
+    },
+    {
+      "defect": "D09",
+      "name": "old link remains rejected after reinvite",
+      "pass": true
+    },
+    {
+      "defect": "D09",
+      "name": "new invitation can be accepted once",
+      "pass": true
+    },
+    {
+      "defect": "D09",
+      "name": "repeat new acceptance is blocked",
+      "pass": true
+    },
+    {
+      "defect": "D09",
+      "name": "accepted invite cannot be cancelled",
+      "pass": true
+    },
+    {
+      "defect": "D09",
+      "name": "non Owner cannot cancel",
+      "pass": true
+    },
+    {
+      "defect": "D09",
+      "name": "non Owner cannot reinvite",
+      "pass": true
+    },
+    {
+      "defect": "D10",
+      "name": "entry starts purpose selection",
+      "pass": true
+    },
+    {
+      "defect": "D10",
+      "name": "missing purpose cannot reach final confirmation",
+      "pass": true
+    },
+    {
+      "defect": "D10",
+      "name": "운영 현황 확인 retained through final confirmation",
+      "pass": true
+    },
+    {
+      "defect": "D10",
+      "name": "회고 자료 정리 retained through final confirmation",
+      "pass": true
+    },
+    {
+      "defect": "D10",
+      "name": "purpose row 839:44426 has live binding",
+      "pass": true
+    },
+    {
+      "defect": "D10",
+      "name": "purpose row 839:44429 has live binding",
+      "pass": true
+    },
+    {
+      "defect": "D10",
+      "name": "zero record fixture keeps file generation disabled",
+      "pass": true
+    },
+    {
+      "defect": "D11",
+      "name": "ONE schedule detail returns to schedule",
+      "pass": true
+    },
+    {
+      "defect": "D11",
+      "name": "ONE my work detail returns to matching state list",
+      "pass": true
+    },
+    {
+      "defect": "D11",
+      "name": "CHECKED schedule detail returns to schedule",
+      "pass": true
+    },
+    {
+      "defect": "D11",
+      "name": "CHECKED my work detail returns to matching state list",
+      "pass": true
+    },
+    {
+      "defect": "D11",
+      "name": "DONE schedule detail returns to schedule",
+      "pass": true
+    },
+    {
+      "defect": "D11",
+      "name": "DONE my work detail returns to matching state list",
+      "pass": true
+    },
+    {
+      "defect": "D12",
+      "name": "unfinished MT settings is connected",
+      "pass": true
+    },
+    {
+      "defect": "D12",
+      "name": "Owner sees unfinished task warning",
+      "pass": true
+    },
+    {
+      "defect": "D12",
+      "name": "warning cancellation preserves event",
+      "pass": true
+    },
+    {
+      "defect": "D12",
+      "name": "final without warning acknowledgement cannot end",
+      "pass": true
+    },
+    {
+      "defect": "D12",
+      "name": "final cancellation clears acknowledgement",
+      "pass": true
+    },
+    {
+      "defect": "D12",
+      "name": "explicit end navigates to ended home",
+      "pass": true
+    },
+    {
+      "defect": "D12",
+      "name": "ended home opens preserved unfinished record",
+      "pass": true
+    },
+    {
+      "defect": "D12",
+      "name": "record retains checklist 0/2",
+      "pass": true
+    },
+    {
+      "defect": "D12",
+      "name": "record mutating checklist reactions removed",
+      "pass": true
+    },
+    {
+      "defect": "D12",
+      "name": "reentry after ending stays ended",
+      "pass": true
+    },
+    {
+      "defect": "D12",
+      "name": "non EventOwner gets permission guidance",
+      "pass": true
+    },
+    {
+      "defect": "D12",
+      "name": "non EventOwner cannot bypass final guard",
+      "pass": true
+    }
+  ],
+  "inspectedNodeIds": [
+    "578:31478",
+    "833:44603",
+    "833:44499",
+    "833:44500",
+    "638:36472",
+    "I264:25217;30:5405",
+    "264:125",
+    "833:44548",
+    "833:44532",
+    "833:44547",
+    "833:44626",
+    "833:44563",
+    "833:44564",
+    "638:36658",
+    "638:36628",
+    "833:44655",
+    "651:42366",
+    "651:42700",
+    "839:44395",
+    "839:44396",
+    "622:274",
+    "I664:43440;664:42461",
+    "664:43396",
+    "I664:43480;664:42461",
+    "I664:43523;664:42461",
+    "374:29448",
+    "840:44411",
+    "840:44426",
+    "840:44443",
+    "840:44427",
+    "840:44442",
+    "840:44522"
+  ]
+}

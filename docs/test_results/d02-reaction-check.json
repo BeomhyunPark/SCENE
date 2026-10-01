@@ -1,0 +1,128 @@
+{
+  "verification": "Read-back prototype reaction evaluation; not actual Present clicks or backend tests",
+  "passed": 24,
+  "total": 24,
+  "cases": [
+    {
+      "name": "initial task opens 1/2 detail",
+      "pass": true
+    },
+    {
+      "name": "checking second item persists 2/2",
+      "pass": true
+    },
+    {
+      "name": "schedule preserves checked but incomplete task",
+      "pass": true
+    },
+    {
+      "name": "completion persists DONE and 2/2 label",
+      "pass": true
+    },
+    {
+      "name": "completed task returns to completed list",
+      "pass": true
+    },
+    {
+      "name": "field navigation preserves task state",
+      "pass": true
+    },
+    {
+      "name": "622:17 schedule entry preserves completion",
+      "pass": true
+    },
+    {
+      "name": "622:17 schedule task opens completed 2/2 detail",
+      "pass": true
+    },
+    {
+      "name": "661:41711 schedule entry preserves completion",
+      "pass": true
+    },
+    {
+      "name": "661:41711 schedule task opens completed 2/2 detail",
+      "pass": true
+    },
+    {
+      "name": "661:41858 schedule entry preserves completion",
+      "pass": true
+    },
+    {
+      "name": "661:41858 schedule task opens completed 2/2 detail",
+      "pass": true
+    },
+    {
+      "name": "661:41897 schedule entry preserves completion",
+      "pass": true
+    },
+    {
+      "name": "661:41897 schedule task opens completed 2/2 detail",
+      "pass": true
+    },
+    {
+      "name": "661:43185 schedule entry preserves completion",
+      "pass": true
+    },
+    {
+      "name": "661:43185 schedule task opens completed 2/2 detail",
+      "pass": true
+    },
+    {
+      "name": "attachment navigation preserves completion",
+      "pass": true
+    },
+    {
+      "name": "attachment return opens completed detail",
+      "pass": true
+    },
+    {
+      "name": "completed checklist does not silently reopen task",
+      "pass": true
+    },
+    {
+      "name": "explicit reopen preserves both checked items",
+      "pass": true
+    },
+    {
+      "name": "schedule reflects explicit reopen",
+      "pass": true
+    },
+    {
+      "name": "explicit uncheck returns task to 1/2",
+      "pass": true
+    },
+    {
+      "name": "schedule reflects explicit uncheck",
+      "pass": true
+    },
+    {
+      "name": "schedule status is bound to persisted label",
+      "pass": true
+    }
+  ],
+  "inspectedNodeIds": [
+    "664:43396",
+    "664:43462",
+    "622:274",
+    "664:43516",
+    "664:43566",
+    "664:43774",
+    "622:17",
+    "661:41711",
+    "661:41858",
+    "661:41897",
+    "661:43185",
+    "664:43553",
+    "664:43590",
+    "664:43545",
+    "664:43560",
+    "664:43502"
+  ],
+  "issue": "https://github.com/BeomhyunPark/SCENE/issues/14",
+  "status": "REVIEW",
+  "limitations": [
+    "Actual Present clicks and backend persistence were not tested.",
+    "D11 origin-aware back navigation remains separate.",
+    "Mobile lobby task flow only; tablet fixtures are separate."
+  ]
+}

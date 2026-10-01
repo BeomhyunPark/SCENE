@@ -1,0 +1,114 @@
+{
+  "verification": "Read-back prototype reaction and copy-binding evaluation; not actual Present clicks or backend tests",
+  "passed": 22,
+  "total": 22,
+  "cases": [
+    {
+      "name": "contact-only entry carries direct edit restriction",
+      "pass": true
+    },
+    {
+      "name": "OTP request keeps restriction",
+      "pass": true
+    },
+    {
+      "name": "authentication permits read-only application lookup",
+      "pass": true
+    },
+    {
+      "name": "authenticated application copy matches contact-only state",
+      "pass": true
+    },
+    {
+      "name": "closed-entry edit action opens contact guidance",
+      "pass": true
+    },
+    {
+      "name": "direct save is blocked without attendance mutation",
+      "pass": true
+    },
+    {
+      "name": "edit-period guidance respects contact-only entry",
+      "pass": true
+    },
+    {
+      "name": "guidance returns to application without lifting restriction",
+      "pass": true
+    },
+    {
+      "name": "back returns to matching closed entry",
+      "pass": true
+    },
+    {
+      "name": "changing authentication phone preserves edit restriction",
+      "pass": true
+    },
+    {
+      "name": "478:31022 editable entry explicitly restores editable fixture",
+      "pass": true
+    },
+    {
+      "name": "478:31022 normal edit remains reachable",
+      "pass": true
+    },
+    {
+      "name": "478:31022 allowed save still updates attendance",
+      "pass": true
+    },
+    {
+      "name": "I443:30828;476:3877 editable entry explicitly restores editable fixture",
+      "pass": true
+    },
+    {
+      "name": "I443:30828;476:3877 normal edit remains reachable",
+      "pass": true
+    },
+    {
+      "name": "I443:30828;476:3877 allowed save still updates attendance",
+      "pass": true
+    },
+    {
+      "name": "I443:30843;476:3877 editable entry explicitly restores editable fixture",
+      "pass": true
+    },
+    {
+      "name": "I443:30843;476:3877 normal edit remains reachable",
+      "pass": true
+    },
+    {
+      "name": "I443:30843;476:3877 allowed save still updates attendance",
+      "pass": true
+    },
+    {
+      "name": "cancelled application lookup remains on existing cancelled flow",
+      "pass": true
+    },
+    {
+      "name": "I478:31044;476:3869 copy is bound to edit state",
+      "pass": true
+    },
+    {
+      "name": "395:30865 copy is bound to edit state",
+      "pass": true
+    }
+  ],
+  "inspectedNodeIds": [
+    "I445:30901;476:3877",
+    "I444:30814;476:3877",
+    "I444:30839;476:3877",
+    "478:31044",
+    "I444:30872;476:3877",
+    "588:34668",
+    "I826:44326;476:3877",
+    "I444:30850;416:3852",
+    "574:31156",
+    "478:31022",
+    "I443:30828;476:3877",
+    "I443:30843;476:3877"
+  ],
+  "blockedFrameId": "826:44314",
+  "policyOpen": "O01: application deadline versus edit deadline and allowed fields remain unresolved",
+  "issue": "https://github.com/BeomhyunPark/SCENE/issues/17",
+  "status": "REVIEW",
+  "scope": "Existing contact-only entry fixture; editable entry fixtures retain edit/save access."
+}
