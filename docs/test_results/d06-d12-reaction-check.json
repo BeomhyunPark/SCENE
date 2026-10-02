@@ -1,7 +1,18 @@
 {
+  "run": {
+    "script": "docs/test_results/d06-d12-reaction-check.figma.js",
+    "repo": "BeomhyunPark/SCENE",
+    "pr": 36,
+    "commit": "0c7b86686c20060fe884efb73a33922568127d2b",
+    "blob_sha": "562d1e095ef7d67946818484c6d9eec9d1dd0a65",
+    "figma_file": "RreFdEVMiwgHrV7teaCEOm",
+    "ran_at": "2026-10-02T13:47+09:00",
+    "runner": "Figma MCP use_figma (Plugin API, read-only)",
+    "note": "Script executed unchanged except the unused createdNodeIds/mutatedNodeIds/createdVariableIds metadata arrays were stripped to fit the call (never referenced by any check). Run after option B: 833:44655 now has 8 separate IFs mirroring 638:36658 (blocks 1-6 identical; blocks 7/8 key on D09/generation instead of D09/originalLinkValid)."
+  },
   "verification": "Saved prototype reactions, variable guards, text bindings and static structure evaluated. No actual Present clicks or server calls.",
-  "passed": 48,
-  "total": 48,
+  "passed": 66,
+  "total": 66,
   "cases": [
     {
       "defect": "D06",
@@ -80,7 +91,7 @@
     },
     {
       "defect": "D09",
-      "name": "old invite acceptance is blocked after cancellation",
+      "name": "old invite acceptance after cancellation lands on revoked 35",
       "pass": true
     },
     {
@@ -90,7 +101,7 @@
     },
     {
       "defect": "D09",
-      "name": "old link remains rejected after reinvite",
+      "name": "old link after reinvite lands on revoked 35",
       "pass": true
     },
     {
@@ -100,12 +111,17 @@
     },
     {
       "defect": "D09",
-      "name": "repeat new acceptance is blocked",
+      "name": "repeat new acceptance lands on already accepted 37",
       "pass": true
     },
     {
       "defect": "D09",
       "name": "accepted invite cannot be cancelled",
+      "pass": true
+    },
+    {
+      "defect": "D09",
+      "name": "sequence runs with matching email fixture (never MISMATCH or 15)",
       "pass": true
     },
     {
@@ -116,6 +132,91 @@
     {
       "defect": "D09",
       "name": "non Owner cannot reinvite",
+      "pass": true
+    },
+    {
+      "defect": "D14",
+      "name": "13 accept MISMATCH lands on 638:36676 with one navigation",
+      "pass": true
+    },
+    {
+      "defect": "D14",
+      "name": "13 accept EXPIRED lands on 638:36694 with one navigation",
+      "pass": true
+    },
+    {
+      "defect": "D14",
+      "name": "13 accept INVALID lands on 638:36706 with one navigation",
+      "pass": true
+    },
+    {
+      "defect": "D14",
+      "name": "13 accept CANCELLED lands on 1106:44664 with one navigation",
+      "pass": true
+    },
+    {
+      "defect": "D14",
+      "name": "13 accept SUPERSEDED lands on 1106:44669 with one navigation",
+      "pass": true
+    },
+    {
+      "defect": "D14",
+      "name": "13 accept ACCEPTED lands on 1106:44674 with one navigation",
+      "pass": true
+    },
+    {
+      "defect": "D14",
+      "name": "13 accept PENDING with invalid link lands on 1106:44664 with one navigation",
+      "pass": true
+    },
+    {
+      "defect": "D14",
+      "name": "13 accept PENDING with valid link lands on 638:36664 with one navigation",
+      "pass": true
+    },
+    {
+      "defect": "D14",
+      "name": "17 stays reachable through INVALID",
+      "pass": true
+    },
+    {
+      "defect": "D09",
+      "name": "parity MISMATCH: 13 accept and new invite accept both land on 638:36676 with one navigation",
+      "pass": true
+    },
+    {
+      "defect": "D09",
+      "name": "parity EXPIRED: 13 accept and new invite accept both land on 638:36694 with one navigation",
+      "pass": true
+    },
+    {
+      "defect": "D09",
+      "name": "parity INVALID: 13 accept and new invite accept both land on 638:36706 with one navigation",
+      "pass": true
+    },
+    {
+      "defect": "D09",
+      "name": "parity CANCELLED: 13 accept and new invite accept both land on 1106:44664 with one navigation",
+      "pass": true
+    },
+    {
+      "defect": "D09",
+      "name": "parity SUPERSEDED: 13 accept and new invite accept both land on 1106:44669 with one navigation",
+      "pass": true
+    },
+    {
+      "defect": "D09",
+      "name": "parity ACCEPTED: 13 accept and new invite accept both land on 1106:44674 with one navigation",
+      "pass": true
+    },
+    {
+      "defect": "D09",
+      "name": "parity PENDING invalid: 13 accept and new invite accept both land on 1106:44664 with one navigation",
+      "pass": true
+    },
+    {
+      "defect": "D09",
+      "name": "parity PENDING valid: 13 accept and new invite accept both land on 638:36664 with one navigation",
       "pass": true
     },
     {
