@@ -1,0 +1,69 @@
+package app.scene;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import app.scene.common.mybatis.UuidProbeMapper;
+import app.scene.common.mybatis.UuidTypeHandler;
+import app.scene.support.PostgresTestcontainer;
+import java.time.Clock;
+import java.time.ZoneOffset;
+import java.util.UUID;
+import org.apache.ibatis.session.SqlSessionFactory;
+import org.flywaydb.core.Flyway;
+import org.flywaydb.core.api.MigrationInfo;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.jdbc.core.JdbcTemplate;
+
+/** Boots the full application against a Testcontainers PostgreSQL (postgres:17). */
+@SpringBootTest
+@Import(PostgresTestcontainer.class)
+class ApplicationContextIT {
+
+  @Autowired Flyway flyway;
+  @Autowired JdbcTemplate jdbcTemplate;
+  @Autowired SqlSessionFactory sqlSessionFactory;
+  @Autowired UuidProbeMapper uuidProbeMapper;
+  @Autowired Clock clock;
+
+  @Test
+  void connectsToPostgres17() {
+    String version = jdbcTemplate.queryForObject("SHOW server_version", String.class);
+    assertThat(version).startsWith("17.");
+  }
+
+  @Test
+  void flywayAppliedBaselineMigration() {
+    MigrationInfo current = flyway.info().current();
+    assertThat(current).isNotNull();
+    assertThat(current.getVersion().getVersion()).isEqualTo("1");
+
+    Integer applied =
+        jdbcTemplate.queryForObject(
+            "SELECT count(*) FROM flyway_schema_history WHERE version = '1' AND success",
+            Integer.class);
+    assertThat(applied).isEqualTo(1);
+  }
+
+  @Test
+  void myBatisIsConfigured() {
+    var configuration = sqlSessionFactory.getConfiguration();
+    assertThat(configuration.isMapUnderscoreToCamelCase()).isTrue();
+    assertThat(configuration.getTypeHandlerRegistry().getTypeHandler(UUID.class))
+        .isInstanceOf(UuidTypeHandler.class);
+  }
+
+  @Test
+  void uuidRoundTripsThroughMyBatis() {
+    UUID id = UUID.randomUUID();
+    assertThat(uuidProbeMapper.echo(id)).isEqualTo(id);
+    assertThat(uuidProbeMapper.boundType(id)).isEqualTo("uuid");
+  }
+
+  @Test
+  void clockIsUtc() {
+    assertThat(clock.getZone()).isEqualTo(ZoneOffset.UTC);
+  }
+}

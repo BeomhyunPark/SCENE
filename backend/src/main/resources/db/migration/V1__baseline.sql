@@ -1,0 +1,2 @@
+-- V1 baseline schema placeholder (P0-01).
+-- Tables for Phase 0 and DEC-060 are added in P0-04 before V1 is applied to any shared database.
