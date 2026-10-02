@@ -17,14 +17,14 @@
 - Space role: `OWNER / ADMIN / MEMBER`.
 - Event role: `OWNER / MANAGER / STAFF`.
 - Server-side authorization은 Permission 기반.
-- 초기 구현 방향: Java enum + Role → Permission Set mapping. DB `permissions / role_permissions` 테이블은 만들지 않는다.
+- 초기 구현 방향: Java enum + Role → Permission Set mapping. DB `permissions / role_permissions` 테이블은 만들지 않는다. (2026-10-02 현 결정: role 기본 집합은 그대로 enum mapping이고 위 두 테이블도 만들지 않는다. 다만 Role만으로 권한이 정해진다는 해석은 대체한다. 사람별 GRANT/REVOKE를 `event_user_permissions`에 저장하고 effective 집합으로 판정한다. [아래 절](#2026-10-02-개인별-권한-현-결정-dec-029-정합))
 - [Permission 후보 목록](api-architecture-v0.1.md#permissions)과 실제 role mapping은 구분한다. 미제공 Role별 세부 허용 집합을 추가 확정하지 않는다.
 
 ### 2026-09-30 사용자 답변 반영
 
 [DEC-028~030](../product/PRODUCT_DECISIONS.md#dec-028--조직-관리자의-행사-조회와-행사-수정-권한을-구분한다)에 따라 조직 관리자에게 행사 운영진 지정 없이도 같은 조직 행사의 개인별 정보·정산 상세를 포함한 전체 조회를 허용하지만, 행사 수정은 별도 권한이다. 행사 운영진은 담당 업무에 따라 사람별 권한을 달리 부여한다. 그룹 리더는 자기 그룹원의 연락처·신청 정보를 포함한 전체 정보·리더용 정보, 참가자는 자기 정보·참가자용 안내를 본다.
 
-기존 Role → Permission Set 기준만으로 개별 운영자 권한을 표현할 수 있는지 재검토해야 한다. 개별 권한 저장 구조·기본값·부여자·회수 방식은 OPEN이며 새 권한 테이블을 확정하지 않는다. 조직 관리자 전체 조회와 리더의 자기 그룹원 전체 조회 범위는 사용자 추가 답변으로 확정했다. 정보 분류와 권한 없음 화면·서버 일치 기준은 DEC-031 및 [확정 정책](../product/access-policy-review.md)을 따른다. 서버 Permission·tenant·resource 소속 검사는 계속 적용한다.
+기존 Role → Permission Set 기준만으로 개별 운영자 권한을 표현할 수 있는지 재검토해야 한다. 개별 권한 저장 구조·기본값·부여자·회수 방식은 OPEN이며 새 권한 테이블을 확정하지 않는다. (2026-10-02 현 결정으로 저장 구조(`event_user_permissions`)·부여자(Event Owner)·회수 방식(운영자 제거·role 변경 시 삭제)을 확정했다. role별 기본 집합은 계속 OPEN. [아래 절](#2026-10-02-개인별-권한-현-결정-dec-029-정합)) 조직 관리자 전체 조회와 리더의 자기 그룹원 전체 조회 범위는 사용자 추가 답변으로 확정했다. 정보 분류와 권한 없음 화면·서버 일치 기준은 DEC-031 및 [확정 정책](../product/access-policy-review.md)을 따른다. 서버 Permission·tenant·resource 소속 검사는 계속 적용한다.
 
 ## 2. 인증 영역과 Session
 
@@ -95,7 +95,7 @@ Event API는 `eventId`를 tenant anchor로 사용하고 서버가 `spaceId`를 r
 
 ## 8. OPEN
 
-Session store/TTL/복구, Access 재발급, OWNER cardinality/transfer, Role별 Permission mapping과 개별 권한 판정 상세, 일반 운영진의 민감 필드 접근, 보존기간·익명화 필드, Export infrastructure, QR credential 구조는 OPEN 또는 원문 대조 필요. 조직 관리자와 그룹 리더의 전체 조회 범위는 위 후속 결정으로 확정했다.
+Session store/TTL/복구, Access 재발급, OWNER cardinality/transfer, Role별 Permission mapping과 개별 권한 판정 상세(2026-10-02: 개별 권한 판정은 [아래 절](#2026-10-02-개인별-권한-현-결정-dec-029-정합)로 확정, Role별 기본 mapping은 OPEN), 일반 운영진의 민감 필드 접근, 보존기간·익명화 필드, Export infrastructure, QR credential 구조는 OPEN 또는 원문 대조 필요. 조직 관리자와 그룹 리더의 전체 조회 범위는 위 후속 결정으로 확정했다.
 
 전체 업무 OPEN 목록: [API Architecture](api-architecture-v0.1.md#open-items).
 
@@ -161,7 +161,7 @@ ENDED는 조회·정산·회고·후속 업무·후속 공지·감사 가능한 
 
 ## 2026-10-01 행사 전용 협력자·초대 기술 계약 (DEC-060)
 
-- Event 권한은 `event_users` role과 개인별 업무 권한에서만 판정한다. Space 범위 API(조직 설정·구성원 목록·다른 행사)는 활성 Membership을 요구한다.
+- Event 권한은 `event_users` role과 개인별 업무 권한에서만 판정한다. (2026-10-02: 개인별 업무 권한 = `event_user_permissions`, [아래 절](#2026-10-02-개인별-권한-현-결정-dec-029-정합)) Space 범위 API(조직 설정·구성원 목록·다른 행사)는 활성 Membership을 요구한다.
 - 행사 전용 협력자에게 다른 운영자는 이름·역할만 노출하고 연락처는 숨긴다.
 - 관리자에 의한 멤버 제거 시 해당 Space 행사 접근을 기본으로 전체 회수하고, 유지할 행사만 명시 선택하며 남는 접근권을 표시한다.
 - 초대 토큰: 128비트 이상 CSPRNG 난수, DB에는 `token_hash`만 저장. 링크의 fragment(#)로 전달하고 POST body로 검증해 서버 로그·Referer 노출을 막는다.
@@ -179,3 +179,15 @@ ENDED는 조회·정산·회고·후속 업무·후속 공지·감사 가능한 
 - ARCHIVED는 운영 편집 읽기 전용이지만 개인정보 정리와 허용된 Export는 가능하다.
 - 기기 임시 변경은 계정+기기 범위로 두고 로그아웃·권한 회수 시 삭제한다.
 - 미정: 데이터 종류별 보존기간, 삭제 유예기간, 백업 소멸기간, Export 파일 수명, 기기 임시 데이터 최대 보관기간, 미성년·보호자 처리 기준.
+
+## 2026-10-02 개인별 권한 (현 결정, DEC-029 정합)
+
+2026-10-02 현 결정(SCENE 개발 리드 전달)으로 DEC-029의 사람별 권한을 role 기본값 + `event_user_permissions` GRANT/REVOKE로 구현한다. 저장 구조는 [Data Model](data-model-v0.1.md#2026-10-02-개인별-권한-현-결정-dec-029-정합), endpoint·오류 코드·회귀 표는 [API Architecture](api-architecture-v0.1.md#2026-10-02-개인별-권한-현-결정-dec-029-정합)의 같은 이름 절에 둔다.
+
+- 판정: Event Authorization은 effective 집합(role 기본 + GRANT − REVOKE)으로 한다. 모든 Event API 요청마다 서버가 다시 계산해 검사하고, 화면의 숨김·읽기 전용·비활성화도 같은 집합을 따른다(DEC-031). 클라이언트가 보낸 권한 목록이나 화면 상태를 믿지 않는다. 권한을 세션에 고정하지 않으며 캐시를 두더라도 override·role 변경·운영자 제거 시 즉시 무효화한다.
+- role 기본 집합은 계속 Java enum mapping이고 DB `permissions / role_permissions` 테이블은 만들지 않는다. 사람별 차이만 저장한다.
+- 부여자: 해당 행사의 Event OWNER만 override를 바꾼다. MANAGER·STAFF와 행사 운영자가 아닌 Space OWNER/ADMIN은 바꿀 수 없다(403 `FORBIDDEN`). 조직 관리자의 전체 조회(DEC-028)는 수정 권한을 주지 않는다.
+- OWNER 경계: OWNER role의 권한은 override하지 않는다(OWNER 대상 GRANT·REVOKE 거절). OWNER 전용 키(Owner 위임, 행사 삭제 요청, 개인정보 정리, 행사 lifecycle 전이, 운영자·권한 관리)는 OWNER가 아닌 운영자에게 GRANT하지 않는다(422). 외부 협력자는 OWNER가 될 수 없으므로(DEC-060) OWNER 전용 권한을 얻는 경로가 없다.
+- GRANT는 업무 범위를 넓힐 뿐 정보 분류·tenant·resource 소속 검사, 민감 Export 재인증(DEC-061), privacy log 기록을 생략하지 않는다. `DATA_EXPORT` GRANT도 Export 다운로드마다 현재 effective 집합으로 다시 검사하며 REVOKE 후 추가 다운로드를 막는다.
+- Audit: override가 실제로 바뀔 때마다 `audit_logs`에 실행자·행사·대상 운영자·변경 전후 grants/revokes를 남긴다. role 변경에 따른 override 삭제와 운영자 제거(CASCADE)로 사라진 override도 해당 audit 항목에 목록으로 남긴다. 권한 키는 개인정보가 아니므로 `privacy_logs` 대상이 아니다.
+- 회수: 운영자 제거, DEC-060의 관리자 제거 시 행사 접근 회수, 자진 탈퇴 시 회수 선택은 `event_users` 행 삭제이며 CASCADE로 override도 지운다. 다시 추가된 운영자에게 예전 override가 되살아나지 않는다. 자진 탈퇴 후 행사 전용 협력자로 접근을 유지하면 override도 유지된다. role 변경은 같은 transaction에서 override를 초기화한다. REVOKE와 회수는 다음 요청부터 적용하고, DEC-061의 기기 임시 데이터도 권한 회수 시 삭제한다.
