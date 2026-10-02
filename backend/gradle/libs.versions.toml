@@ -6,6 +6,8 @@ mybatis-spring-boot = "4.0.1"
 archunit = "1.5.1"
 spotless = "8.10.3"
 # 1.37.0 fails inside Spotless 8.10.3 (InvocationTargetException on every file); pinned to 1.36.1 (verified locally).
+# TODO: bump to 1.37.0+ once Spotless supports it. Upstream: https://github.com/diffplug/spotless/issues/3126
+#   (gjf 1.37.0 turned JavaFormatterOptions$Style from an enum into a record; Spotless calls Style.valueOf(String)).
 google-java-format = "1.36.1"
 
 [libraries]
