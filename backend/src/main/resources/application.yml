@@ -1,4 +1,6 @@
-# Common settings only. Profile files (local/dev/stg/prod) and datasource settings come in P0-03.
+# Shared settings. Datasource lives in a profile file.
+# local talks to backend/compose.yaml. dev, stg, and prod read SCENE_DB_* from the environment.
+# Hosting for those environments is not decided, so those files have no host or password.
 spring:
   application:
     name: scene

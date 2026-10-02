@@ -1,0 +1,6 @@
+# Local only. Matches backend/compose.yaml. Do not use this password outside a laptop.
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/scene
+    username: scene
+    password: scene

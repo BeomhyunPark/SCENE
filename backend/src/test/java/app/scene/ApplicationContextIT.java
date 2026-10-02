@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.core.env.Environment;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 /** Boots the full application against a Testcontainers PostgreSQL (postgres:17). */
@@ -27,6 +28,7 @@ class ApplicationContextIT {
   @Autowired SqlSessionFactory sqlSessionFactory;
   @Autowired UuidProbeMapper uuidProbeMapper;
   @Autowired Clock clock;
+  @Autowired Environment environment;
 
   @Test
   void connectsToPostgres17() {
@@ -65,5 +67,10 @@ class ApplicationContextIT {
   @Test
   void clockIsUtc() {
     assertThat(clock.getZone()).isEqualTo(ZoneOffset.UTC);
+  }
+
+  @Test
+  void testsDoNotActivateDeployProfiles() {
+    assertThat(environment.getActiveProfiles()).doesNotContain("local", "dev", "stg", "prod");
   }
 }

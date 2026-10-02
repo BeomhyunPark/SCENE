@@ -1,0 +1,22 @@
+# Local PostgreSQL for the `local` profile. Not a deploy target.
+name: scene-local
+
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: scene
+      POSTGRES_USER: scene
+      POSTGRES_PASSWORD: scene
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U scene -d scene"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    volumes:
+      - scene-pg:/var/lib/postgresql/data
+
+volumes:
+  scene-pg:
