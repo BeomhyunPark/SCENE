@@ -1,0 +1,149 @@
+# SCENE app CI. Single workflow so the aggregate required check `ci-ok` stays stable.
+#
+# Backend (confirmed by Backend Lead, 2026-10-02):
+#   backend/ at repo root, wrapper backend/gradlew (Gradle 9.x, pinned by wrapper), Kotlin DSL,
+#   Java 25 Temurin, Spring Boot 4.x, MyBatis, PostgreSQL, Flyway.
+#   Tests: Testcontainers postgres:17 using the runner's Docker (no service container).
+#   `./gradlew check` = Spotless (google-java-format) + tests.
+# Frontend: still UNDECIDED (dir/package manager/Node version) -> guarded job, skips until frontend/package.json exists.
+#
+# Jobs are skipped (not failed) when the project files don't exist yet or nothing relevant changed,
+# so `ci-ok` stays green on docs-only PRs and can be made a required check.
+name: ci
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  # Cancel superseded PR runs; let every push-to-main run finish.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  changes:
+    name: changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read   # paths-filter reads the PR file list via API
+    outputs:
+      backend: ${{ steps.exists.outputs.backend == 'true' && (github.event_name == 'workflow_dispatch' || steps.filter.outputs.backend == 'true') }}
+      frontend: ${{ steps.exists.outputs.frontend == 'true' && (github.event_name == 'workflow_dispatch' || steps.filter.outputs.frontend == 'true') }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: exists
+        run: |
+          echo "backend=$([ -f backend/gradlew ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "frontend=$([ -f frontend/package.json ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+      - uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - '.github/workflows/ci.yml'
+            frontend:
+              - 'frontend/**'
+              - '.github/workflows/ci.yml'
+
+  backend:
+    name: backend
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest   # has Docker -> Testcontainers postgres:17
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "25"
+          # no `cache:` here on purpose; caching is done by setup-gradle
+
+      # Caches Gradle User Home (cache written only on default branch by default; PRs read it)
+      # and validates gradle-wrapper.jar checksums (validate-wrappers defaults to true in v6).
+      - uses: gradle/actions/setup-gradle@v6
+
+      - name: Ensure gradlew is executable
+        run: chmod +x gradlew
+
+      # Spotless check + compile + unit/integration tests (Testcontainers).
+      - name: Check (spotless + tests)
+        run: ./gradlew check
+
+      # Produces jars (incl. Spring Boot bootJar). `assemble` does not depend on `test`,
+      # so tests are not run twice; already-built tasks are UP-TO-DATE.
+      - name: Assemble
+        run: ./gradlew assemble
+
+      - name: Upload test reports
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: backend-test-reports
+          path: |
+            backend/**/build/reports/tests/
+            backend/**/build/test-results/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  frontend:
+    name: frontend
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+      # DECISION pending: package manager (pnpm assumed; needs frontend/pnpm-lock.yaml and
+      # "packageManager" in frontend/package.json) and Node version (needs frontend/.nvmrc).
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: frontend/package.json
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      # --if-present: no script names invented.
+      - run: pnpm run --if-present lint
+      - run: pnpm run --if-present typecheck
+      - run: pnpm run --if-present test
+      - run: pnpm run build
+
+  # Stable aggregate check for branch protection. Passes when every job succeeded or was skipped.
+  ci-ok:
+    name: ci-ok
+    if: always()
+    needs: [changes, backend, frontend]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Verify job results
+        env:
+          RESULTS: ${{ needs.changes.result }} ${{ needs.backend.result }} ${{ needs.frontend.result }}
+        run: |
+          echo "results: $RESULTS"
+          for r in $RESULTS; do
+            case "$r" in success|skipped) ;; *) echo "::error::a CI job ended with: $r"; exit 1;; esac
+          done

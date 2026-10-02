@@ -1,0 +1,61 @@
+# REFERENCE ONLY - lives under docs/devops so GitHub never runs it. Copy to .github/workflows only after the hosting decision.
+# SCENE CD — SKELETON ONLY. Do NOT place in .github/workflows until hosting is decided.
+# Nothing in the repo defines a deploy target, Dockerfile, IaC, or environments;
+# docs/architecture/architecture-v0.1.md §3 explicitly says deployment topology/infra is NOT decided.
+# Env mapping below is a PROPOSAL to confirm with the tech architect's dev/stg/prod draft:
+#   push to main          -> dev  (automatic)
+#   tag vX.Y.Z-rc.N       -> stg  (automatic, then QA release guard sign-off)
+#   tag vX.Y.Z            -> prod (GitHub Environment "prod" with required reviewer)
+name: cd
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: choice
+        options: [dev, stg, prod]
+
+permissions:
+  contents: read
+  packages: write        # only if images go to GHCR
+  id-token: write        # only if the cloud supports OIDC (preferred over long-lived keys)
+
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: false   # never cancel an in-flight deploy
+
+jobs:
+  resolve-env:
+    runs-on: ubuntu-latest
+    outputs:
+      env: ${{ steps.e.outputs.env }}
+    steps:
+      - id: e
+        run: |
+          if [ -n "${{ inputs.environment }}" ]; then e="${{ inputs.environment }}"
+          elif [[ "$GITHUB_REF" == refs/heads/main ]]; then e=dev
+          elif [[ "$GITHUB_REF_NAME" == *-rc.* ]]; then e=stg
+          else e=prod; fi
+          echo "env=$e" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: resolve-env
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # TODO(decision): artifact form — backend container image (Dockerfile or `./gradlew bootBuildImage`)
+      #                 and frontend static bundle (`pnpm run build` -> dist/).
+      - run: echo "build artifacts here" && exit 1
+
+  deploy:
+    needs: [resolve-env, build]
+    runs-on: ubuntu-latest
+    environment: ${{ needs.resolve-env.outputs.env }}   # create dev/stg/prod Environments in repo settings
+    steps:
+      # 1. Run Flyway migrations against the env's PostgreSQL (before app rollout).
+      # 2. Roll out backend image.  3. Publish frontend bundle.  4. Smoke test.
+      # TODO(decision): hosting target determines these steps.
+      - run: echo "deploy to ${{ needs.resolve-env.outputs.env }}" && exit 1
