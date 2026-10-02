@@ -764,7 +764,7 @@ Operational Structure Research와 Product Definition Gate를 거치며 확정 �
 
 ### Alternatives
 
-모든 행사 운영진에게 같은 정보와 작업 권한을 주는 방식은 사용자 답변의 방향으로 선택되지 않았다. 구체적인 권한 설정 UI와 기술 대안은 아직 비교·확정하지 않았다.
+모든 행사 운영진에게 같은 정보와 작업 권한을 주는 방식은 사용자 답변의 방향으로 선택되지 않았다. 구체적인 권한 설정 UI와 기술 대안은 아직 비교·확정하지 않았다. (2026-10-02 기술 방식은 아래 Consequence 보강으로 정했다. 권한 설정 UI는 미정.)
 
 ### Reason
 
@@ -774,9 +774,13 @@ Operational Structure Research와 Product Definition Gate를 거치며 확정 �
 
 기존 고정 Role → Permission Set 기준이 개별 권한 요구를 표현할 수 있는지 재검토한다. 개별 권한 저장 구조·부여자·기본값·회수 방식과 업무별 정확한 허용 집합은 OPEN이다.
 
+- (2026-10-02 보강, 현 결정, SCENE 개발 리드 전달) Event 권한은 `event_users` role의 기본 Permission Set에 사람별 `event_user_permissions` GRANT/REVOKE를 더하고 뺀 effective 집합이다. role 기본 집합은 Java enum mapping으로 두고, 고정 Role만으로 권한이 정해진다는 기존 기준을 대체한다.
+- (2026-10-02 보강) 부여·회수는 Event Owner만 한다. OWNER 권한은 override하지 않고, Owner 위임·행사 삭제 요청·개인정보 정리·권한 관리 등 OWNER 전용 권한은 다른 운영자(행사 전용 협력자 포함)에게 부여하지 않는다. role 변경과 운영자 제거 시 해당 운영자의 override는 사라진다. 서버가 모든 요청에서 effective 집합으로 판정하고 변경마다 audit을 남긴다.
+- (2026-10-02 보강) 위 OPEN 중 저장 구조·부여자·회수 방식은 해소했다. role별 기본 집합과 업무별 정확한 허용 집합(Permission 키 목록 초안)은 계속 확인이 필요하다. 테이블은 Flyway V1 초기 스키마에 포함하며(SCENE Backend Lead) 상세 계약은 아키텍처 문서의 2026-10-02 절에 둔다.
+
 ### Evidence
 
-[이슈 #3 사용자 답변의 두 번째 항목](https://github.com/BeomhyunPark/SCENE/issues/3#issuecomment-5902388629).
+[이슈 #3 사용자 답변의 두 번째 항목](https://github.com/BeomhyunPark/SCENE/issues/3#issuecomment-5902388629), 2026-10-02 현 결정(SCENE 개발 리드 전달, 테이블 형태는 SCENE Backend Lead와 합의).
 
 ---
 
@@ -1780,7 +1784,7 @@ DEC-039로 조직 Membership 없이 특정 행사만 운영하는 협력자를 �
 ### Decision
 
 - `event_users`는 `user_id`를 직접 참조한다(`space_id`, `event_id`, `user_id`, `role`). `member_id` 필수 참조는 두지 않는다. 조직 소속 여부는 저장하지 않고 `members` 조인으로 계산한다. `UNIQUE(event_id, user_id)`와 composite FK `(event_id, space_id) → events`를 유지한다.
-- Event 권한은 `event_users` role과 개인별 업무 권한에서만 나온다. 조직 설정·구성원 목록·다른 행사 등 Space 범위 API는 활성 Membership이 필요하다. 행사 전용 협력자에게 다른 운영자는 이름·역할만 보이고 연락처는 숨긴다.
+- Event 권한은 `event_users` role과 개인별 업무 권한에서만 나온다. (2026-10-02: 개인별 업무 권한은 `event_user_permissions`, DEC-029 보강) 조직 설정·구성원 목록·다른 행사 등 Space 범위 API는 활성 Membership이 필요하다. 행사 전용 협력자에게 다른 운영자는 이름·역할만 보이고 연락처는 숨긴다.
 - 외부 협력자는 MANAGER/STAFF와 리더만 맡는다. OWNER 지정·위임 시 활성 Membership을 서비스에서 검사한다.
 - 자진 조직 탈퇴 시 행사별 접근 유지/회수를 묻고 유지하면 행사 전용 협력자로 전환한다. 관리자 제거 시 기본값은 해당 Space 행사 접근 전체 회수이며 유지할 행사만 명시 선택하고 남는 접근권을 표시한다. Event Owner는 #4 인수인계 완료 전 탈퇴·제거를 차단한다.
 - 기존 멤버는 userId로 바로 추가한다. 비멤버는 `event_invitations`로 초대한다. 저장 상태는 `PENDING / ACCEPTED / REVOKED / SUPERSEDED`이며 만료는 `expires_at`으로 계산하고 저장하지 않는다. 같은 행사·이메일의 PENDING은 하나만 허용한다. 재전송은 새 행을 만들고 이전 행을 SUPERSEDED로 남긴다. 초대 TTL은 7일 서버 상수다.

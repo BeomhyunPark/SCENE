@@ -4,11 +4,11 @@
 
 ## 1. Domain map
 
-아래는 추가 원문에서 제공된 Domain / table map이다. 새로운 테이블을 추가하지 않는다. Participant Access는 Application Domain에 두고 보안 규칙은 Security 문서에서 다룬다.
+아래는 추가 원문에서 제공된 Domain / table map이다. 새로운 테이블을 추가하지 않는다. (2026-10-02 현 결정으로 Core에 개인별 권한 `event_user_permissions`를 추가했다. [아래 절](#2026-10-02-개인별-권한-현-결정-dec-029-정합)) Participant Access는 Application Domain에 두고 보안 규칙은 Security 문서에서 다룬다.
 
 | Domain | 책임 / 확인된 개념 | 경계 |
 |---|---|---|
-| Core | `users`, `spaces`, `members`, `events`, `event_users`, `participants` | identity, tenant, 참가 운영 주체. User와 Participant 구분 |
+| Core | `users`, `spaces`, `members`, `events`, `event_users`, `event_user_permissions`(2026-10-02), `participants` | identity, tenant, 참가 운영 주체. User와 Participant 구분 |
 | Common | `tasks`, `schedules`, `notices` | 업무, 현재 일정, 변경 안내. 범용 Workflow Engine 아님 |
 | Application | `forms`, `fields`, `applications`, `answers`, `participant_access` | 제출 원본·revision, 참가자 접근키. 운영 상태 저장소 아님 |
 | Finance | Fee, Payment (`fees`, `payments`) | 부과와 실제 금전 흐름 구분 |
@@ -35,7 +35,7 @@ Flight/Class 배정은 Mission/Child 업무에서 관리한다. 지도는 해당
 - Ride mode: `BUS / VAN / CAR / SHUTTLE / OTHER`.
 - Group Leader와 Class Staff의 identity reference는 OPEN. Guardian이나 Partner를 자동으로 `users` 또는 외부 계정으로 모델링하지 않는다.
 
-2026-09-30 [역할·권한 후속 결정](../product/PRODUCT_DECISIONS.md#dec-028--조직-관리자의-행사-조회와-행사-수정-권한을-구분한다)은 행사 운영진별 업무 권한 차등 부여를 요구한다. 기존 `event_users`의 역할만으로 표현 가능한지 검토하며 개별 권한 저장 schema는 OPEN이다. 조직 관리자에게 조회를 허용하기 위해 행사 운영자 관계를 자동 생성하는 것으로 정하지 않는다. 조직 관리자에게는 같은 조직 행사의 전체 정보, 그룹 리더에게는 자기 그룹원 전체 정보를 조회하도록 허용하는 제품 기준을 반영한다. 그룹 리더의 identity reference와 조회 계약은 계속 OPEN이다.
+2026-09-30 [역할·권한 후속 결정](../product/PRODUCT_DECISIONS.md#dec-028--조직-관리자의-행사-조회와-행사-수정-권한을-구분한다)은 행사 운영진별 업무 권한 차등 부여를 요구한다. 기존 `event_users`의 역할만으로 표현 가능한지 검토하며 개별 권한 저장 schema는 OPEN이다. (2026-10-02 현 결정으로 해소: Event role 기본값 + 사람별 `event_user_permissions` GRANT/REVOKE. [아래 절](#2026-10-02-개인별-권한-현-결정-dec-029-정합)) 조직 관리자에게 조회를 허용하기 위해 행사 운영자 관계를 자동 생성하는 것으로 정하지 않는다. 조직 관리자에게는 같은 조직 행사의 전체 정보, 그룹 리더에게는 자기 그룹원 전체 정보를 조회하도록 허용하는 제품 기준을 반영한다. 그룹 리더의 identity reference와 조회 계약은 계속 OPEN이다.
 
 ## 3. Source와 revision
 
@@ -52,14 +52,14 @@ Flight/Class 배정은 Mission/Child 업무에서 관리한다. 지도는 해당
 
 - Event-scoped 요청은 `eventId`로 서버가 `spaceId`를 resolve한다.
 - `space_id + event_id` tenant isolation과 composite FK로 잘못된 tenant 간 관계를 방지한다.
-- PK는 UUID. Composite FK 예: `(event_id, space_id) → events(id, space_id)`. 가능한 하위 관계도 `(participant_id, event_id, space_id)`, `(group_id, event_id, space_id)`로 tenant consistency 보장.
+- PK는 UUID(예외: 2026-10-02 `event_user_permissions`는 외부 식별자가 없는 연결 행이라 `(event_id, user_id, permission)` 복합 PK). Composite FK 예: `(event_id, space_id) → events(id, space_id)`. 가능한 하위 관계도 `(participant_id, event_id, space_id)`, `(group_id, event_id, space_id)`로 tenant consistency 보장.
 - Security / Service / MyBatis tenant condition / DB composite FK를 함께 적용한다.
 - UUID 외부 노출은 조회 권한이나 tenant 검사를 대체하지 않는다.
 - DB 이름은 `snake_case`, API JSON은 `camelCase`.
 - Mapper는 `findById(spaceId, eventId, id)` 형태 우선. `findById(id)` 후 Service에서 tenant 비교하는 구조를 기본으로 하지 않는다.
 - Timestamp 의미는 `timestamptz`, 날짜만 의미하면 `date`. Event/Schedule/Flight timezone model은 별도 OPEN.
 - DB enum을 남발하지 않고 기본은 `varchar + CHECK constraint`, Java에서는 enum 사용.
-- 위 예시 밖의 UNIQUE/FK DDL, index, nullable, cardinality는 새로 확정하지 않는다.
+- 위 예시 밖의 UNIQUE/FK DDL, index, nullable, cardinality는 새로 확정하지 않는다. (DEC-060 `event_users`·`event_invitations`와 2026-10-02 `event_user_permissions`의 PK/FK는 각 절에서 확정했다.)
 
 ## 5. 업무별 변경 경계
 
@@ -167,3 +167,28 @@ ENDED는 조회·정산·회고·후속 업무·후속 공지·감사 가능한 
 - 행사 삭제: Event lifecycle enum에 넣지 않고 별도 삭제 요청·작업 레코드로 관리한다. `scheduled_at`을 둬서 유예기간 도입 시 스키마를 바꾸지 않는다.
 - `export_jobs`: 행사·대상·필드 범위, `created_by`, `status`, `expires_at`, 파일 참조. 파일 내용은 로그에 복제하지 않는다.
 - 삭제 원장: 삭제·익명화 대상 ID와 처리 시각만 저장(개인정보 없음), 운영 백업과 분리 보관.
+
+## 2026-10-02 개인별 권한 (현 결정, DEC-029 정합)
+
+2026-10-02 현 결정(SCENE 개발 리드 전달, 테이블 형태는 SCENE Backend Lead와 합의)으로 [DEC-029](../product/PRODUCT_DECISIONS.md#dec-029--행사-운영진의-업무-권한을-사람별로-달리-부여한다)의 사람별 업무 권한과 enum 기반 Role 모델의 충돌을 정리한다. Event 권한 = Event role 기본 Permission Set + 사람별 GRANT − 사람별 REVOKE다. 부여·회수는 Event Owner만 한다. role 기본 집합은 계속 Java enum mapping이며 DB `permissions / role_permissions` 테이블은 만들지 않는다. 사람별 차이만 아래 테이블에 저장한다. API는 [API Architecture](api-architecture-v0.1.md#2026-10-02-개인별-권한-현-결정-dec-029-정합), 보안 규칙은 [Security / Privacy](security-privacy-v0.1.md#2026-10-02-개인별-권한-현-결정-dec-029-정합)의 같은 이름 절을 따른다.
+
+`event_user_permissions`
+
+| 컬럼 | 의미 |
+|---|---|
+| `event_id` | uuid. 대상 행사 |
+| `user_id` | uuid. 대상 운영자(`event_users.user_id`) |
+| `permission` | varchar. 서버 Permission enum의 Event 범위 키([키 목록 초안](api-architecture-v0.1.md#2026-10-02-개인별-권한-현-결정-dec-029-정합)) |
+| `effect` | varchar + CHECK `GRANT / REVOKE` |
+| `granted_by` | uuid → `users(id)`. 변경한 Event Owner |
+| `granted_at` | timestamptz |
+
+- PK `(event_id, user_id, permission)`. 한 운영자·한 키에 override는 하나이며 같은 키의 GRANT와 REVOKE를 함께 저장할 수 없다. §4 "PK는 UUID" 기본 규칙의 예외다. 외부 식별자로 노출하지 않는 연결 행이고 API가 `(eventId, userId)` 단위 전체 목록으로만 다루므로 surrogate id를 두지 않는다.
+- FK `(event_id, user_id) → event_users(event_id, user_id) ON DELETE CASCADE`. DEC-060의 `event_users` `UNIQUE(event_id, user_id)`를 참조 대상으로 쓴다. 운영자 제거(`event_users` 행 삭제)는 override를 함께 지운다.
+- `space_id` 컬럼과 composite FK `(event_id, space_id)`는 두지 않는다. FK 대상인 `event_users`가 이미 `(event_id, space_id) → events(id, space_id)`로 tenant를 고정하므로 이 테이블에서 다른 tenant의 행사·운영자를 잘못 연결할 수 없다. 조회는 서버가 `eventId`로 resolve한 `spaceId`와 `event_users` 조인으로 tenant 조건을 건다. MyBatis tenant 조건을 위해 `space_id`를 직접 둬야 한다면 `event_users`에 `UNIQUE(event_id, user_id, space_id)`를 추가하고 FK를 `(event_id, user_id, space_id)`로 넓힌다(Backend Lead 판단).
+- `permission` 값은 서비스에서 Java enum으로 검증한다. 키 목록이 초안이므로 DB CHECK는 목록 확정 후 추가 여부를 정한다.
+- Effective = role 기본 집합 ∪ GRANT − REVOKE. 저장하지 않고 요청마다 계산한다.
+- OWNER role 운영자에게는 override 행을 두지 않는다(OWNER 권한은 override 불가). OWNER 전용 키는 OWNER가 아닌 운영자에게 GRANT로 저장하지 않는다. 둘 다 서비스에서 검사한다.
+- role 변경(`event_users.role` UPDATE)은 같은 transaction에서 해당 운영자의 override를 모두 삭제하고 audit에 남긴다. Owner 위임 수락으로 OWNER가 되는 것도 role 변경이다.
+- 운영자 제거와 DEC-060의 조직 탈퇴·관리자 제거에 따른 행사 접근 회수는 `event_users` 행 삭제이므로 CASCADE로 override가 사라진다. CASCADE 삭제 자체는 audit에 남지 않으므로 운영자 제거 audit 항목에 삭제된 override 목록을 함께 기록한다. 행사 전용 협력자로 전환해 `event_users` 행이 유지되면 override도 유지된다.
+- 아직 코드가 없으므로 마이그레이션이 아니라 Flyway V1 초기 스키마에 포함한다(SCENE Backend Lead).
