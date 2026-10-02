@@ -1864,7 +1864,8 @@ DEC-054~059와 [#12 사용자 답변](https://github.com/BeomhyunPark/SCENE/issu
 - 체크는 `PUT /tasks/{taskId}/items/{itemId}` `{checked}`로 설정(SET)한다. 같은 값 재요청은 변경 없이 200이다. 완료는 `POST /tasks/{taskId}/complete`, 다시 진행은 `POST /tasks/{taskId}/reopen`이며 두 command는 요청 본문의 `version`을 검사한다.
 - 담당자 본인은 `TASK_WRITE` 없이 자기 업무를 체크·완료·다시 진행할 수 있다. 그 밖의 운영자는 유효 `TASK_WRITE`가 필요하다. Event OWNER·MANAGER는 기본 `TASK_WRITE`를 갖고 STAFF는 갖지 않는다. 업무당 담당자는 1명이다.
 - 완료는 모든 항목이 체크됐을 때만 가능하고 자동 완료는 없다. 첫 체크에서 TODO → DOING으로 바뀌고 TODO로 돌아가지 않는다. 다시 진행은 체크를 유지한 채 DOING으로 돌린다.
-- PATCH로는 `status: DONE`을 설정할 수 없다. `CANCELLED`는 PATCH에 남긴다.
+- PATCH로는 DONE·DOING 전환을 할 수 없다(400). DOING은 첫 체크로만, 완료·다시 진행은 command로만 한다. `CANCELLED`와 status가 아닌 필드는 PATCH에 남긴다(10/2 현, 초안 D3 추천 A 승인).
+- 운영자는 #39와 같이 `event_users.user_id`로 참조한다(`assignee_user_id`, `checked_by_user_id`, `completed_by_user_id`). 운영자 제거 시 같은 transaction에서 그 사람의 담당 업무를 미배정으로 바꾸고 audit을 남기며 업무는 삭제하지 않는다. 체크·완료 기록은 `users` 기록 참조라 남는다.
 - 업무 409는 `TASK_VERSION_CONFLICT`, `INVALID_TASK_STATE`이며 업무에서는 공통 `CONCURRENT_MODIFICATION`을 쓰지 않는다. 다른 도메인은 그대로다.
 - 지금은 행사 ARCHIVED만 업무 쓰기를 막는다. 차단 코드는 #30 결정 후 맞추며 제안값은 `EVENT_ARCHIVED`다.
 - v1에는 일괄 체크(전체 체크) endpoint가 없다.

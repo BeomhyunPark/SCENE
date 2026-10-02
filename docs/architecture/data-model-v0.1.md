@@ -77,14 +77,21 @@ Flight/Class 배정은 Mission/Child 업무에서 관리한다. 지도는 해당
 
 [#31 현 결정 기록 (10/2)](https://github.com/BeomhyunPark/SCENE/issues/31#issuecomment-5946079736)으로 새 테이블 `task_checklist_items`를 §1 "새로운 테이블을 추가하지 않는다"의 예외로 승인했다. 업무당 담당자는 1명이다. 상태 전이·동시성·오류 계약은 [API Architecture](api-architecture-v0.1.md#2026-10-02-업무-체크리스트-저장-계약-31-dec-062) §8의 같은 날짜 절을 따른다.
 
-`tasks` 추가 컬럼
+`tasks` tenant 컬럼과 추가 컬럼
 
 | 컬럼 | 의미 |
 |---|---|
-| `assignee_event_user_id` | uuid, nullable. 담당자 1명 |
+| `id` | uuid. PK |
+| `space_id`, `event_id` | tenant. FK `(event_id, space_id) → events(id, space_id)` (§4) |
+| `assignee_user_id` | uuid, nullable. 담당자 1명(`event_users.user_id`, #39와 같은 운영자 식별자). NULL = 미배정 |
 | `version` | int. 업무 상태가 바뀌는 모든 쓰기(항목 설정 포함)마다 +1. complete·reopen(과 제안된 구조 편집)에서만 검사 |
-| `completed_by_event_user_id` | uuid, nullable. complete 실행자. reopen 시 null |
+| `completed_by_user_id` | uuid, nullable → `users(id)`. complete 실행자 기록. reopen 시 null |
 | `completed_at` | timestamptz, nullable. reopen 시 null |
+
+- `UNIQUE(space_id, event_id, id)`: 아래 `task_checklist_items` composite FK의 참조 대상.
+- 담당자 FK `(space_id, event_id, assignee_user_id) → event_users(space_id, event_id, user_id)`. 다른 행사 사람이나 운영자가 아닌 사람을 담당자로 둘 수 없다. 참조 대상이 되도록 `event_users`에 `UNIQUE(space_id, event_id, user_id)`를 둔다(DEC-060의 `UNIQUE(event_id, user_id)`와 같은 행 집합이며 `space_id`만 더한 키). 이 FK에는 cascade를 두지 않는다.
+- 운영자 제거(`event_users` 행 삭제)는 같은 transaction에서 먼저 그 사람이 담당인 업무의 `assignee_user_id`를 NULL로 바꾸고 업무마다 audit을 남긴 뒤 행을 지운다. 업무는 삭제하지 않는다. 미완료(TODO·DOING) 업무는 미배정이 된다. DONE·CANCELLED 업무도 FK 때문에 함께 NULL이 되며 처리 기록은 `completed_by_user_id`·audit로 남는다 **(제안)**.
+- `completed_by_user_id`와 아래 `checked_by_user_id`는 `users(id)`를 가리키는 기록 참조이며 `event_users`에 FK를 두지 않는다. 그래서 운영자 제거 후에도 남는다.
 
 `task_checklist_items` (신규)
 
@@ -95,10 +102,10 @@ Flight/Class 배정은 Mission/Child 업무에서 관리한다. 지도는 해당
 | `label` | 항목 이름 |
 | `position` | 표시 순서 |
 | `checked` | boolean |
-| `checked_by_event_user_id` | uuid, nullable. 마지막으로 체크한 운영자. 해제 시 null |
+| `checked_by_user_id` | uuid, nullable → `users(id)`. 마지막으로 체크한 사람 기록. 해제 시 null |
 | `checked_at` | timestamptz, nullable. 해제 시 null |
 
-- composite FK `(task_id, event_id, space_id) → tasks`. §4의 `(event_id, space_id) → events(id, space_id)`와 같은 방식으로 다른 행사·tenant 업무에 항목이 붙지 않게 한다.
+- composite FK `(space_id, event_id, task_id) → tasks(space_id, event_id, id)`(위 `UNIQUE(space_id, event_id, id)` 참조). §4의 `(event_id, space_id) → events(id, space_id)`와 같은 방식으로 다른 행사·tenant 업무에 항목이 붙지 않게 한다.
 - 체크 상태를 `tasks`의 JSONB 컬럼에 넣지 않는다(위 JSONB 제한). 항목별 동시 갱신과 audit를 위해 행으로 둔다.
 - `done / total`, '체크리스트 완료'(#14 CHECKED)는 저장하지 않고 항목 행에서 계산한다.
 - 해제된 항목의 과거 `checked_by`·`checked_at`은 `audit_logs`에 남기고 이 테이블에는 현재 상태만 둔다.

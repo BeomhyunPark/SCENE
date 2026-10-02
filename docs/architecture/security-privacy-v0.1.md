@@ -18,13 +18,13 @@
 - Event role: `OWNER / MANAGER / STAFF`.
 - Server-side authorization은 Permission 기반.
 - 초기 구현 방향: Java enum + Role → Permission Set mapping. DB `permissions / role_permissions` 테이블은 만들지 않는다. (2026-10-02 현 결정: role 기본 집합은 그대로 enum mapping이고 위 두 테이블도 만들지 않는다. 다만 Role만으로 권한이 정해진다는 해석은 대체한다. 사람별 GRANT/REVOKE를 `event_user_permissions`에 저장하고 effective 집합으로 판정한다. [아래 절](#2026-10-02-개인별-권한-현-결정-dec-029-정합))
-- [Permission 후보 목록](api-architecture-v0.1.md#permissions)과 실제 role mapping은 구분한다. 미제공 Role별 세부 허용 집합을 추가 확정하지 않는다.
+- [Permission 후보 목록](api-architecture-v0.1.md#permissions)과 실제 role mapping은 구분한다. 미제공 Role별 세부 허용 집합을 추가 확정하지 않는다(role 기본값은 계속 OPEN이다. 예외: `TASK_WRITE` 기본값은 2026-10-02 DEC-062로 확정([아래 절](#2026-10-02-업무-처리-권한-31-dec-062)), 사람별 GRANT/REVOKE는 #39로 확정([아래 절](#2026-10-02-개인별-권한-현-결정-dec-029-정합))).
 
 ### 2026-09-30 사용자 답변 반영
 
 [DEC-028~030](../product/PRODUCT_DECISIONS.md#dec-028--조직-관리자의-행사-조회와-행사-수정-권한을-구분한다)에 따라 조직 관리자에게 행사 운영진 지정 없이도 같은 조직 행사의 개인별 정보·정산 상세를 포함한 전체 조회를 허용하지만, 행사 수정은 별도 권한이다. 행사 운영진은 담당 업무에 따라 사람별 권한을 달리 부여한다. 그룹 리더는 자기 그룹원의 연락처·신청 정보를 포함한 전체 정보·리더용 정보, 참가자는 자기 정보·참가자용 안내를 본다.
 
-기존 Role → Permission Set 기준만으로 개별 운영자 권한을 표현할 수 있는지 재검토해야 한다. 개별 권한 저장 구조·기본값·부여자·회수 방식은 OPEN이며 새 권한 테이블을 확정하지 않는다. (2026-10-02 현 결정으로 저장 구조(`event_user_permissions`)·부여자(Event Owner)·회수 방식(운영자 제거·role 변경 시 삭제)을 확정했다. role별 기본 집합은 계속 OPEN. [아래 절](#2026-10-02-개인별-권한-현-결정-dec-029-정합)) 조직 관리자 전체 조회와 리더의 자기 그룹원 전체 조회 범위는 사용자 추가 답변으로 확정했다. 정보 분류와 권한 없음 화면·서버 일치 기준은 DEC-031 및 [확정 정책](../product/access-policy-review.md)을 따른다. 서버 Permission·tenant·resource 소속 검사는 계속 적용한다.
+기존 Role → Permission Set 기준만으로 개별 운영자 권한을 표현할 수 있는지 재검토해야 한다. 개별 권한 저장 구조·기본값·부여자·회수 방식은 OPEN이며 새 권한 테이블을 확정하지 않는다. (2026-10-02 현 결정으로 저장 구조(`event_user_permissions`)·부여자(Event Owner)·회수 방식(운영자 제거·role 변경 시 삭제)을 확정했다. role별 기본 집합은 계속 OPEN이다. 예외: `TASK_WRITE` 기본값은 DEC-062로 확정. [아래 절](#2026-10-02-개인별-권한-현-결정-dec-029-정합)) 조직 관리자 전체 조회와 리더의 자기 그룹원 전체 조회 범위는 사용자 추가 답변으로 확정했다. 정보 분류와 권한 없음 화면·서버 일치 기준은 DEC-031 및 [확정 정책](../product/access-policy-review.md)을 따른다. 서버 Permission·tenant·resource 소속 검사는 계속 적용한다.
 
 ### 2026-10-02 업무 처리 권한 (#31, DEC-062)
 
@@ -36,7 +36,8 @@
 - 담당자가 아닌 운영자는 유효 `TASK_WRITE`가 있어야 남의 업무를 체크·완료·다시 진행할 수 있다. 없으면 403 `FORBIDDEN`이다.
 - 조직 관리자(Space OWNER/ADMIN)는 행사 운영자가 아니어도 업무를 조회할 수 있지만 쓰기는 403이다(DEC-028). 그룹 리더 역할만으로는 업무 쓰기 권한이 생기지 않는다(DEC-030).
 - 서버는 매 요청 현재 권한·담당 여부로 다시 판정하고 화면 버튼 상태도 같은 판정을 따른다(DEC-031). 행사 접근이 회수된 세션은 403 `NOT_A_MEMBER`(#30 코멘트 기준, 제안)를 받는다.
-- 응답의 `checkedBy`·`assignee`·`completedBy`는 `eventUserId`·`displayName`만 담고 연락처를 넣지 않는다(DEC-060).
+- 응답의 운영자 참조는 `assigneeUserId`·`checkedByUserId`·`completedByUserId`(= `event_users.user_id`, #39와 같은 식별자)와 각 `…DisplayName`만 담고 연락처를 넣지 않는다(DEC-060).
+- 운영자 제거(행사 접근 회수 포함) 시 같은 transaction에서 그 사람이 담당인 업무를 미배정(`assignee_user_id` = NULL)으로 바꾸고 audit을 남긴다. 업무는 삭제하지 않는다. 체크·완료 기록(`checked_by_user_id`·`completed_by_user_id`)은 남으며, 제거된 사람은 이후 요청부터 담당자 규칙으로 업무를 처리할 수 없다.
 - 상태가 바뀐 업무 쓰기만 `audit_logs`에 남긴다.
 
 ## 2. 인증 영역과 Session
