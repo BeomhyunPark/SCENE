@@ -4,8 +4,17 @@
 spring:
   application:
     name: scene
+  mvc:
+    problemdetails:
+      enabled: true
   flyway:
     locations: classpath:db/migration
+
+server:
+  error:
+    include-message: never
+    include-stacktrace: never
+    include-binding-errors: never
 
 mybatis:
   mapper-locations: classpath*:mapper/**/*.xml

@@ -26,6 +26,8 @@ docker compose up -d --wait
 
 시드는 로그인 계정이 아니다. 권한 override도 없다. MANAGER/STAFF 기본 권한은 아직 승인되지 않았다.
 
+오류 응답은 `application/problem+json`이다. 분기 값은 `code`다. `detail` 문장으로 분기하지 않는다. `traceId`는 올바른 `X-Request-Id`가 있으면 그 값이고, 없으면 서버가 만든다.
+
 | id | 행 |
 | --- | --- |
 | `00000000-0000-4000-8000-000000000001` | Local owner. Space OWNER, Event OWNER |
