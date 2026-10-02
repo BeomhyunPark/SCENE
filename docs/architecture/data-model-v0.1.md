@@ -4,12 +4,12 @@
 
 ## 1. Domain map
 
-아래는 추가 원문에서 제공된 Domain / table map이다. 새로운 테이블을 추가하지 않는다. (2026-10-02 현 결정으로 Core에 개인별 권한 `event_user_permissions`를 추가했다. [아래 절](#2026-10-02-개인별-권한-현-결정-dec-029-정합)) Participant Access는 Application Domain에 두고 보안 규칙은 Security 문서에서 다룬다.
+아래는 추가 원문에서 제공된 Domain / table map이다. 새로운 테이블을 추가하지 않는다. (2026-10-02 현 결정으로 Core에 개인별 권한 `event_user_permissions`를 추가했다. [아래 절](#2026-10-02-개인별-권한-현-결정-dec-029-정합). 2026-10-02 #31 현 결정으로 Common에 업무 체크 항목 `task_checklist_items`를 예외로 추가했다. [§5 절](#2026-10-02-업무-체크리스트-31-dec-062)) Participant Access는 Application Domain에 두고 보안 규칙은 Security 문서에서 다룬다.
 
 | Domain | 책임 / 확인된 개념 | 경계 |
 |---|---|---|
 | Core | `users`, `spaces`, `members`, `events`, `event_users`, `event_user_permissions`(2026-10-02), `participants` | identity, tenant, 참가 운영 주체. User와 Participant 구분 |
-| Common | `tasks`, `schedules`, `notices` | 업무, 현재 일정, 변경 안내. 범용 Workflow Engine 아님 |
+| Common | `tasks`, `task_checklist_items`(2026-10-02), `schedules`, `notices` | 업무, 현재 일정, 변경 안내. 범용 Workflow Engine 아님 |
 | Application | `forms`, `fields`, `applications`, `answers`, `participant_access` | 제출 원본·revision, 참가자 접근키. 운영 상태 저장소 아님 |
 | Finance | Fee, Payment (`fees`, `payments`) | 부과와 실제 금전 흐름 구분 |
 | Assignment | `groups`, `group_members`, `group_leaders`, `rooms`, `room_members`, `rides`, `ride_members` | 각 업무가 배정 상태 직접 소유. 범용 `assignments` 테이블 없음 |
@@ -59,7 +59,7 @@ Flight/Class 배정은 Mission/Child 업무에서 관리한다. 지도는 해당
 - Mapper는 `findById(spaceId, eventId, id)` 형태 우선. `findById(id)` 후 Service에서 tenant 비교하는 구조를 기본으로 하지 않는다.
 - Timestamp 의미는 `timestamptz`, 날짜만 의미하면 `date`. Event/Schedule/Flight timezone model은 별도 OPEN.
 - DB enum을 남발하지 않고 기본은 `varchar + CHECK constraint`, Java에서는 enum 사용.
-- 위 예시 밖의 UNIQUE/FK DDL, index, nullable, cardinality는 새로 확정하지 않는다. (DEC-060 `event_users`·`event_invitations`와 2026-10-02 `event_user_permissions`의 PK/FK는 각 절에서 확정했다.)
+- 위 예시 밖의 UNIQUE/FK DDL, index, nullable, cardinality는 새로 확정하지 않는다. (DEC-060 `event_users`·`event_invitations`와 2026-10-02 `event_user_permissions`·`task_checklist_items`의 PK/FK는 각 절에서 확정했다.)
 
 ## 5. 업무별 변경 경계
 
@@ -75,7 +75,7 @@ Flight/Class 배정은 Mission/Child 업무에서 관리한다. 지도는 해당
 
 ### 2026-10-02 업무 체크리스트 (#31, DEC-062)
 
-[#31 현 결정 기록 (10/2)](https://github.com/BeomhyunPark/SCENE/issues/31#issuecomment-5946079736)으로 새 테이블 `task_checklist_items`를 §1 "새로운 테이블을 추가하지 않는다"의 예외로 승인했다. 업무당 담당자는 1명이다. 상태 전이·동시성·오류 계약은 [API Architecture](api-architecture-v0.1.md) §8의 같은 날짜 절을 따른다.
+[#31 현 결정 기록 (10/2)](https://github.com/BeomhyunPark/SCENE/issues/31#issuecomment-5946079736)으로 새 테이블 `task_checklist_items`를 §1 "새로운 테이블을 추가하지 않는다"의 예외로 승인했다. 업무당 담당자는 1명이다. 상태 전이·동시성·오류 계약은 [API Architecture](api-architecture-v0.1.md#2026-10-02-업무-체크리스트-저장-계약-31-dec-062) §8의 같은 날짜 절을 따른다.
 
 `tasks` 추가 컬럼
 

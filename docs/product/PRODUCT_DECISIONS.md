@@ -776,7 +776,7 @@ Operational Structure Research와 Product Definition Gate를 거치며 확정 �
 
 - (2026-10-02 보강, 현 결정, SCENE 개발 리드 전달) Event 권한은 `event_users` role의 기본 Permission Set에 사람별 `event_user_permissions` GRANT/REVOKE를 더하고 뺀 effective 집합이다. role 기본 집합은 Java enum mapping으로 두고, 고정 Role만으로 권한이 정해진다는 기존 기준을 대체한다.
 - (2026-10-02 보강) 부여·회수는 Event Owner만 한다. OWNER 권한은 override하지 않고, Owner 위임·행사 삭제 요청·개인정보 정리·권한 관리 등 OWNER 전용 권한은 다른 운영자(행사 전용 협력자 포함)에게 부여하지 않는다. role 변경과 운영자 제거 시 해당 운영자의 override는 사라진다. 서버가 모든 요청에서 effective 집합으로 판정하고 변경마다 audit을 남긴다.
-- (2026-10-02 보강) 위 OPEN 중 저장 구조·부여자·회수 방식은 해소했다. role별 기본 집합과 업무별 정확한 허용 집합(Permission 키 목록 초안)은 계속 확인이 필요하다. 테이블은 Flyway V1 초기 스키마에 포함하며(SCENE Backend Lead) 상세 계약은 아키텍처 문서의 2026-10-02 절에 둔다.
+- (2026-10-02 보강) 위 OPEN 중 저장 구조·부여자·회수 방식은 해소했다. role별 기본 집합과 업무별 정확한 허용 집합(Permission 키 목록 초안)은 계속 확인이 필요하다(`TASK_WRITE` 기본값은 DEC-062에서 확정: OWNER·MANAGER 포함, STAFF 미포함). 테이블은 Flyway V1 초기 스키마에 포함하며(SCENE Backend Lead) 상세 계약은 아키텍처 문서의 2026-10-02 절에 둔다.
 
 ### Evidence
 
@@ -1880,7 +1880,7 @@ DEC-054~059와 [#12 사용자 답변](https://github.com/BeomhyunPark/SCENE/issu
 
 ### Consequence
 
-상세 계약(endpoint·DTO·상태 전이·판정 순서·오류·회귀 테스트)은 [API Architecture](../architecture/api-architecture-v0.1.md) §8, 저장 구조는 [Data Model](../architecture/data-model-v0.1.md) §5, 권한은 [Security / Privacy](../architecture/security-privacy-v0.1.md) §1의 2026-10-02 절에 둔다. ARCHIVED 차단 코드(`EVENT_ARCHIVED`)와 접근 회수 코드(`NOT_A_MEMBER`)는 #30 현 결정 후 맞춘다. ENDED 행사의 동결 대상 업무 구분은 #30에서 정한다. 체크리스트 구조 편집은 #31 범위 밖이다. 서버 구현·검증은 후속이다.
+상세 계약(endpoint·DTO·상태 전이·판정 순서·오류·회귀 테스트)은 [API Architecture](../architecture/api-architecture-v0.1.md#2026-10-02-업무-체크리스트-저장-계약-31-dec-062) §8, 저장 구조는 [Data Model](../architecture/data-model-v0.1.md#2026-10-02-업무-체크리스트-31-dec-062) §5, 권한은 [Security / Privacy](../architecture/security-privacy-v0.1.md#2026-10-02-업무-처리-권한-31-dec-062) §1의 2026-10-02 절에 둔다. 유효 `TASK_WRITE`는 DEC-029 보강의 role 기본값 + 사람별 GRANT − REVOKE로 판정한다. ARCHIVED 차단 코드(`EVENT_ARCHIVED`)와 접근 회수 코드(`NOT_A_MEMBER`)는 #30 현 결정 후 맞춘다. ENDED 행사의 동결 대상 업무 구분은 #30에서 정한다. 체크리스트 구조 편집은 #31 범위 밖이다. 서버 구현·검증은 후속이다.
 
 ### Evidence
 

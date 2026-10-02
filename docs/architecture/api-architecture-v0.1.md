@@ -290,7 +290,7 @@ Form OPEN/CLOSE의 실제 schema는 OPEN. 오류 경계가 있다는 이유로 �
 
 ### 2026-10-02 업무 체크리스트 저장 계약 (#31, DEC-062)
 
-[#31 계약 초안](https://github.com/BeomhyunPark/SCENE/issues/31#issuecomment-5946042935), [#31 현 결정 기록 (10/2)](https://github.com/BeomhyunPark/SCENE/issues/31#issuecomment-5946079736), [#30 정합 메모](https://github.com/BeomhyunPark/SCENE/issues/31#issuecomment-5946074503)를 반영한다. #14(D02) 화면 규칙(완료 후 체크 읽기 전용, 명시적 '다시 진행'에서만 재개, 다시 진행 → 진행 중 2/2 체크 유지, 다시 진행 뒤 모든 항목 해제 가능)의 서버 저장 계약이다. 저장 구조는 [Data Model](data-model-v0.1.md) §5, 권한 규칙은 [Security / Privacy](security-privacy-v0.1.md) §1의 같은 날짜 절을 따른다. 초안에서 문서에 없던 이름·필드·규칙 중 현 결정에 포함되지 않은 것은 **(제안)**으로 남긴다.
+[#31 계약 초안](https://github.com/BeomhyunPark/SCENE/issues/31#issuecomment-5946042935), [#31 현 결정 기록 (10/2)](https://github.com/BeomhyunPark/SCENE/issues/31#issuecomment-5946079736), [#30 정합 메모](https://github.com/BeomhyunPark/SCENE/issues/31#issuecomment-5946074503)를 반영한다. #14(D02) 화면 규칙(완료 후 체크 읽기 전용, 명시적 '다시 진행'에서만 재개, 다시 진행 → 진행 중 2/2 체크 유지, 다시 진행 뒤 모든 항목 해제 가능)의 서버 저장 계약이다. 저장 구조는 [Data Model](data-model-v0.1.md#2026-10-02-업무-체크리스트-31-dec-062) §5, 권한 규칙은 [Security / Privacy](security-privacy-v0.1.md#2026-10-02-업무-처리-권한-31-dec-062) §1의 같은 날짜 절을 따른다. 초안에서 문서에 없던 이름·필드·규칙 중 현 결정에 포함되지 않은 것은 **(제안)**으로 남긴다.
 
 현 결정 (10/2)
 
@@ -390,7 +390,7 @@ POST /api/v1/operator/events/{eventId}/tasks/{taskId}/reopen
 
 - 조회(목록·상세): 유효 `EVENT_READ`. 조직 관리자(Space OWNER/ADMIN)는 행사 운영자가 아니어도 조회할 수 있고 쓰기는 403이다(DEC-028: 조회 ≠ 수정).
 - 항목 설정·완료·다시 진행: **업무 담당자 본인** 또는 **유효 `TASK_WRITE`** (D1). 담당 지정 자체가 그 업무 처리 권한이며, 빼려면 담당을 바꾼다.
-- role 기본값: OWNER·MANAGER는 `TASK_WRITE` 포함, STAFF는 미포함(담당 업무만). 유효 권한 = role 기본값 + 사람별 GRANT − REVOKE(현 결정 10/2, DEC-029 보강). 사람별 GRANT/REVOKE는 Event Owner만 한다.
+- role 기본값: OWNER·MANAGER는 `TASK_WRITE` 포함, STAFF는 미포함(담당 업무만). 유효 권한 = role 기본값 + 사람별 GRANT − REVOKE([개인별 권한](#2026-10-02-개인별-권한-현-결정-dec-029-정합), 현 결정 10/2). 사람별 GRANT/REVOKE는 Event Owner만 한다.
 - 그룹 리더 역할만으로는 업무를 쓸 수 없다(DEC-030: 수정 권한 자동 부여 안 함).
 - 권한 회수·이탈 직후 기존 세션: 매 요청 현재 권한으로 다시 판정한다(DEC-031). 행사 접근이 회수되면 403 `NOT_A_MEMBER`(#30 코멘트 기준, 제안), 역할·권한 부족은 403 `FORBIDDEN`.
 
@@ -1042,7 +1042,7 @@ Permission 키 목록 (초안)
 | OWNER 전용, 신규 | `EVENT_DELETION_REQUEST` | DEC-061 행사 삭제는 Event Owner 요청 → Space OWNER 실행 |
 | 대상 아님 (Space 범위) | `SPACE_READ`, `SPACE_UPDATE`, `MEMBER_READ`, `MEMBER_MANAGE`, `EVENT_CREATE` | Membership·Space role로 판정. override 시 400 `UNKNOWN_PERMISSION` |
 
-- OWNER 기본 집합은 Event 범위 키 전체다. MANAGER/STAFF 기본 집합은 기존대로 Java enum mapping에서 정하며 아직 OPEN이다. 단 `DATA_EXPORT`와 OWNER 전용 키는 MANAGER/STAFF 기본값에 넣지 않는다.
+- OWNER 기본 집합은 Event 범위 키 전체다. MANAGER/STAFF 기본 집합은 기존대로 Java enum mapping에서 정하며 아직 OPEN이다(`TASK_WRITE`만 2026-10-02 #31 DEC-062로 확정: MANAGER 포함, STAFF 미포함. [§8](#2026-10-02-업무-체크리스트-저장-계약-31-dec-062)). 단 `DATA_EXPORT`와 OWNER 전용 키는 MANAGER/STAFF 기본값에 넣지 않는다.
 - Space OWNER의 조직 관리·복구 권한(DEC-028·DEC-035·DEC-049·DEC-061)은 이 테이블과 별개이며 override 대상이 아니다.
 
 회귀 테스트
