@@ -1,0 +1,6 @@
+# Placeholder. No host is chosen yet. The process fails until the environment supplies the database.
+spring:
+  datasource:
+    url: ${SCENE_DB_URL}
+    username: ${SCENE_DB_USER}
+    password: ${SCENE_DB_PASSWORD}
