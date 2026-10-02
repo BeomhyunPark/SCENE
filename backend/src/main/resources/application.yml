@@ -1,0 +1,21 @@
+# Common settings only. Profile files (local/dev/stg/prod) and datasource settings come in P0-03.
+spring:
+  application:
+    name: scene
+  flyway:
+    locations: classpath:db/migration
+
+mybatis:
+  mapper-locations: classpath*:mapper/**/*.xml
+  type-handlers-package: app.scene.common.mybatis
+  configuration:
+    map-underscore-to-camel-case: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
