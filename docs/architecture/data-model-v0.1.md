@@ -4,12 +4,12 @@
 
 ## 1. Domain map
 
-아래는 추가 원문에서 제공된 Domain / table map이다. 새로운 테이블을 추가하지 않는다. (2026-10-02 현 결정으로 Core에 개인별 권한 `event_user_permissions`를 추가했다. [아래 절](#2026-10-02-개인별-권한-현-결정-dec-029-정합)) Participant Access는 Application Domain에 두고 보안 규칙은 Security 문서에서 다룬다.
+아래는 추가 원문에서 제공된 Domain / table map이다. 새로운 테이블을 추가하지 않는다. (2026-10-02 현 결정으로 Core에 개인별 권한 `event_user_permissions`를 추가했다. [아래 절](#2026-10-02-개인별-권한-현-결정-dec-029-정합). 2026-10-02 #31 현 결정으로 Common에 업무 체크 항목 `task_checklist_items`를 예외로 추가했다. [§5 절](#2026-10-02-업무-체크리스트-31-dec-062)) Participant Access는 Application Domain에 두고 보안 규칙은 Security 문서에서 다룬다.
 
 | Domain | 책임 / 확인된 개념 | 경계 |
 |---|---|---|
 | Core | `users`, `spaces`, `members`, `events`, `event_users`, `event_user_permissions`(2026-10-02), `participants` | identity, tenant, 참가 운영 주체. User와 Participant 구분 |
-| Common | `tasks`, `schedules`, `notices` | 업무, 현재 일정, 변경 안내. 범용 Workflow Engine 아님 |
+| Common | `tasks`, `task_checklist_items`(2026-10-02), `schedules`, `notices` | 업무, 현재 일정, 변경 안내. 범용 Workflow Engine 아님 |
 | Application | `forms`, `fields`, `applications`, `answers`, `participant_access` | 제출 원본·revision, 참가자 접근키. 운영 상태 저장소 아님 |
 | Finance | Fee, Payment (`fees`, `payments`) | 부과와 실제 금전 흐름 구분 |
 | Assignment | `groups`, `group_members`, `group_leaders`, `rooms`, `room_members`, `rides`, `ride_members` | 각 업무가 배정 상태 직접 소유. 범용 `assignments` 테이블 없음 |
@@ -59,7 +59,7 @@ Flight/Class 배정은 Mission/Child 업무에서 관리한다. 지도는 해당
 - Mapper는 `findById(spaceId, eventId, id)` 형태 우선. `findById(id)` 후 Service에서 tenant 비교하는 구조를 기본으로 하지 않는다.
 - Timestamp 의미는 `timestamptz`, 날짜만 의미하면 `date`. Event/Schedule/Flight timezone model은 별도 OPEN.
 - DB enum을 남발하지 않고 기본은 `varchar + CHECK constraint`, Java에서는 enum 사용.
-- 위 예시 밖의 UNIQUE/FK DDL, index, nullable, cardinality는 새로 확정하지 않는다. (DEC-060 `event_users`·`event_invitations`와 2026-10-02 `event_user_permissions`의 PK/FK는 각 절에서 확정했다.)
+- 위 예시 밖의 UNIQUE/FK DDL, index, nullable, cardinality는 새로 확정하지 않는다. (DEC-060 `event_users`·`event_invitations`와 2026-10-02 `event_user_permissions`·`task_checklist_items`의 PK/FK는 각 절에서 확정했다.)
 
 ## 5. 업무별 변경 경계
 
@@ -69,9 +69,46 @@ Flight/Class 배정은 Mission/Child 업무에서 관리한다. 지도는 해당
 - Fee 상태: `OPEN / WAIVED / CANCELLED`. `PAID boolean`으로 모델링하지 않는다.
 - Payment `kind`: `PAYMENT / REFUND`; `source`: `MANUAL / IMPORT / BANK`; `method`: `TRANSFER / CASH / CARD / OTHER`; `status`: `POSTED / VOID`. 이 값만으로 외부 은행·카드 연동 구현을 확정하지 않는다.
 - Check-in current state 변경과 check-in history를 같은 transaction으로 남긴다.
-- Task는 `TODO / DOING / DONE / CANCELLED`. 모든 Task에 optimistic version을 강제하지 않는다.
+- Task는 `TODO / DOING / DONE / CANCELLED` (`varchar + CHECK`). (2026-10-02 #31, DEC-062) `tasks.version`을 두되 complete·reopen에서만 검사한다. 체크 항목은 아래 `task_checklist_items`에 둔다.
 - Schedule `mode`: `DATE / TIME`; `status`: `DRAFT / PUBLISHED / CANCELLED`. Notice 상태: `DRAFT / PUBLISHED / ARCHIVED`.
 - JSONB는 `fields.config`, `answers.value`에 제한적으로 사용한다. Domain 관계·상태 전체를 만능 Entity-Attribute 또는 JSONB 구조로 대체하지 않는다.
+
+### 2026-10-02 업무 체크리스트 (#31, DEC-062)
+
+[#31 현 결정 기록 (10/2)](https://github.com/BeomhyunPark/SCENE/issues/31#issuecomment-5946079736)으로 새 테이블 `task_checklist_items`를 §1 "새로운 테이블을 추가하지 않는다"의 예외로 승인했다. 업무당 담당자는 1명이다. 상태 전이·동시성·오류 계약은 [API Architecture](api-architecture-v0.1.md#2026-10-02-업무-체크리스트-저장-계약-31-dec-062) §8의 같은 날짜 절을 따른다.
+
+`tasks` tenant 컬럼과 추가 컬럼
+
+| 컬럼 | 의미 |
+|---|---|
+| `id` | uuid. PK |
+| `space_id`, `event_id` | tenant. FK `(event_id, space_id) → events(id, space_id)` (§4) |
+| `assignee_user_id` | uuid, nullable. 담당자 1명(`event_users.user_id`, #39와 같은 운영자 식별자). NULL = 미배정 |
+| `version` | int. 업무 상태가 바뀌는 모든 쓰기(항목 설정 포함)마다 +1. complete·reopen(과 제안된 구조 편집)에서만 검사 |
+| `completed_by_user_id` | uuid, nullable → `users(id)`. complete 실행자 기록. reopen 시 null |
+| `completed_at` | timestamptz, nullable. reopen 시 null |
+
+- `UNIQUE(space_id, event_id, id)`: 아래 `task_checklist_items` composite FK의 참조 대상.
+- 담당자 FK `(space_id, event_id, assignee_user_id) → event_users(space_id, event_id, user_id)`. 다른 행사 사람이나 운영자가 아닌 사람을 담당자로 둘 수 없다. 참조 대상이 되도록 `event_users`에 `UNIQUE(space_id, event_id, user_id)`를 둔다(DEC-060의 `UNIQUE(event_id, user_id)`와 같은 행 집합이며 `space_id`만 더한 키). 이 FK에는 cascade를 두지 않는다.
+- 운영자 제거(`event_users` 행 삭제)는 같은 transaction에서 먼저 그 사람이 담당인 업무의 `assignee_user_id`를 NULL로 바꾸고 업무마다 audit을 남긴 뒤 행을 지운다. 업무는 삭제하지 않는다. 미완료(TODO·DOING) 업무는 미배정이 된다. DONE·CANCELLED 업무도 FK 때문에 함께 NULL이 되며 처리 기록은 `completed_by_user_id`·audit로 남는다 **(제안)**.
+- `completed_by_user_id`와 아래 `checked_by_user_id`는 `users(id)`를 가리키는 기록 참조이며 `event_users`에 FK를 두지 않는다. 그래서 운영자 제거 후에도 남는다.
+
+`task_checklist_items` (신규)
+
+| 컬럼 | 의미 |
+|---|---|
+| `id` | uuid. PK |
+| `space_id`, `event_id`, `task_id` | tenant·소속 업무 |
+| `label` | 항목 이름 |
+| `position` | 표시 순서 |
+| `checked` | boolean |
+| `checked_by_user_id` | uuid, nullable → `users(id)`. 마지막으로 체크한 사람 기록. 해제 시 null |
+| `checked_at` | timestamptz, nullable. 해제 시 null |
+
+- composite FK `(space_id, event_id, task_id) → tasks(space_id, event_id, id)`(위 `UNIQUE(space_id, event_id, id)` 참조). §4의 `(event_id, space_id) → events(id, space_id)`와 같은 방식으로 다른 행사·tenant 업무에 항목이 붙지 않게 한다.
+- 체크 상태를 `tasks`의 JSONB 컬럼에 넣지 않는다(위 JSONB 제한). 항목별 동시 갱신과 audit를 위해 행으로 둔다.
+- `done / total`, '체크리스트 완료'(#14 CHECKED)는 저장하지 않고 항목 행에서 계산한다.
+- 해제된 항목의 과거 `checked_by`·`checked_at`은 `audit_logs`에 남기고 이 테이블에는 현재 상태만 둔다.
 
 ## 6. Security data
 

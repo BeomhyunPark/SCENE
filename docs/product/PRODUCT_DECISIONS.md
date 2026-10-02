@@ -1,6 +1,6 @@
 # Church Event Operations Platform — Product Decisions
 
-> **2026-09-30 baseline:** DEC-001~027의 기존 본문·Status 보존. 최초 정리 당시에는 새 DEC를 만들지 않았고, 이후 검토에서 DEC-028~059를 추가했다. 2026-10-01 #11·#12 기술 계약으로 DEC-060~061을 추가했다(현재 마지막 번호 DEC-061). 최신 요청의 제품명 SCENE 및 Technical Design / implementation 전 상태가 현재 기준이다. DEC-024/027의 단계와 §17 Product Name OPEN은 이전 이력이며 기술 기준은 [Architecture](../architecture/architecture-v0.1.md)를 따른다. 공식 Decision Log 정합화는 검토 필요.
+> **2026-09-30 baseline:** DEC-001~027의 기존 본문·Status 보존. 최초 정리 당시에는 새 DEC를 만들지 않았고, 이후 검토에서 DEC-028~059를 추가했다. 2026-10-01 #11·#12 기술 계약으로 DEC-060~061을, 2026-10-02 #31 업무·체크리스트 저장 계약으로 DEC-062를 추가했다(현재 마지막 번호 DEC-062). 최신 요청의 제품명 SCENE 및 Technical Design / implementation 전 상태가 현재 기준이다. DEC-024/027의 단계와 §17 Product Name OPEN은 이전 이력이며 기술 기준은 [Architecture](../architecture/architecture-v0.1.md)를 따른다. 공식 Decision Log 정합화는 검토 필요.
 >
 > DEC-027은 단계 설명에 한해 DEC-024를 대체한다고 기록하지만 DEC-024의 원래 CONFIRMED 표기는 보존한다. Evidence Type의 HYPOTHESIS 용어 충돌도 [검토 기록](../architecture/architecture-v0.1.md)에 남긴다.
 > [Product Definition](PRODUCT_DEFINITION.md) · [Research](RESEARCH.md)
@@ -777,7 +777,7 @@ Operational Structure Research와 Product Definition Gate를 거치며 확정 �
 - (2026-10-02 보강, 현 결정, SCENE 개발 리드 전달) Event 권한은 `event_users` role의 기본 Permission Set에 사람별 `event_user_permissions` GRANT/REVOKE를 더하고 뺀 effective 집합이다. role 기본 집합은 Java enum mapping으로 두고, 고정 Role만으로 권한이 정해진다는 기존 기준을 대체한다.
 - (2026-10-02 보강) 부여·회수는 Event Owner만 한다. OWNER 권한은 override하지 않고, Owner 위임·행사 삭제 요청·개인정보 정리·권한 관리 등 OWNER 전용 권한은 다른 운영자(행사 전용 협력자 포함)에게 부여하지 않는다. role 변경과 운영자 제거 시 해당 운영자의 override는 사라진다. 서버가 모든 요청에서 effective 집합으로 판정하고 변경마다 audit을 남긴다.
 - (2026-10-02 보강, 현 결정 10/2) 운영자 추가·제거·role 변경과 개인별 권한 변경은 Event Owner만 한다. 개인별 권한 조회는 Event Owner·본인·Space OWNER(조회만)만 하고 Space ADMIN은 할 수 없다. 행사 전용 협력자의 연락처 숨김(DEC-060)은 어떤 GRANT로도 풀리지 않는다. Owner 위임 수락 시 받는 사람의 override는 위임 기록에 저장 후 지우고 취소 시 되살린다. ENDED에서는 권한 변경을 허용하고 ARCHIVED에서는 줄이는 변경만 허용한다(#30 L5).
-- (2026-10-02 보강) 위 OPEN 중 저장 구조·부여자·회수 방식은 해소했다. MANAGER/STAFF 기본 집합은 Backend Lead가 초안을 쓰고 현이 승인한다(현 결정 10/2). 미확정, 백엔드 리드 초안 대기. 업무별 정확한 허용 집합(Permission 키 목록 초안)도 계속 확인이 필요하다. 테이블은 Flyway V1 초기 스키마에 포함하며(SCENE Backend Lead) 상세 계약은 아키텍처 문서의 2026-10-02 절에 둔다.
+- (2026-10-02 보강) 위 OPEN 중 저장 구조·부여자·회수 방식은 해소했다. MANAGER/STAFF 기본 집합은 Backend Lead가 초안을 쓰고 현이 승인한다(현 결정 10/2). 미확정, 백엔드 리드 초안 대기. 예외로 `TASK_WRITE` 기본값은 DEC-062에서 확정한다. OWNER·MANAGER 포함, STAFF 미포함. 업무별 정확한 허용 집합(Permission 키 목록 초안)도 계속 확인이 필요하다. 테이블은 Flyway V1 초기 스키마에 포함하며(SCENE Backend Lead) 상세 계약은 아키텍처 문서의 2026-10-02 절에 둔다.
 
 ### Evidence
 
@@ -1847,3 +1847,43 @@ DEC-054~059와 [#12 사용자 답변](https://github.com/BeomhyunPark/SCENE/issu
 ### Evidence
 
 [#12 기술 계약](https://github.com/BeomhyunPark/SCENE/issues/12#issuecomment-5922404543), [#12 사용자 답변](https://github.com/BeomhyunPark/SCENE/issues/12#issuecomment-5906461328).
+
+---
+
+## DEC-062 — 업무 체크는 항목별 SET으로 저장하고 완료·다시 진행은 별도 command로 처리한다
+
+**Date:** 2026-10-02
+
+**Status:** CONFIRMED — 기술 계약 (ARCHIVED 쓰기 차단 코드는 #30 결정 대기)
+
+### Context
+
+#14(D02) 화면은 완료 후 체크 읽기 전용, 명시적 '다시 진행'에서만 재개, 다시 진행 → 진행 중 2/2(체크 유지), 다시 진행 뒤 모든 항목 해제 가능(10/1 현 결정)으로 Present를 통과했지만 서버 저장은 미검증이었다. 기존 문서는 Task 상태 `TODO / DOING / DONE / CANCELLED`와 `PATCH {"status":"DONE"}` 허용만 있고 체크리스트·담당자 필드는 없었다. #31에서 업무·체크리스트 저장 계약을 정했다.
+
+### Decision
+
+- 체크는 `PUT /tasks/{taskId}/items/{itemId}` `{checked}`로 설정(SET)한다. 같은 값 재요청은 변경 없이 200이다. 완료는 `POST /tasks/{taskId}/complete`, 다시 진행은 `POST /tasks/{taskId}/reopen`이며 두 command는 요청 본문의 `version`을 검사한다.
+- 담당자 본인은 `TASK_WRITE` 없이 자기 업무를 체크·완료·다시 진행할 수 있다. 그 밖의 운영자는 유효 `TASK_WRITE`가 필요하다. Event OWNER·MANAGER는 기본 `TASK_WRITE`를 갖고 STAFF는 갖지 않는다. 업무당 담당자는 1명이다.
+- 완료는 모든 항목이 체크됐을 때만 가능하고 자동 완료는 없다. 첫 체크에서 TODO → DOING으로 바뀌고 TODO로 돌아가지 않는다. 다시 진행은 체크를 유지한 채 DOING으로 돌린다.
+- PATCH로는 DONE·DOING 전환을 할 수 없다(400). DOING은 첫 체크로만, 완료·다시 진행은 command로만 한다. `CANCELLED`와 status가 아닌 필드는 PATCH에 남긴다(10/2 현, 초안 D3 추천 A 승인).
+- 운영자는 #39와 같이 `event_users.user_id`로 참조한다(`assignee_user_id`, `checked_by_user_id`, `completed_by_user_id`). 운영자 제거 시 같은 transaction에서 그 사람의 담당 업무를 미배정으로 바꾸고 audit을 남기며 업무는 삭제하지 않는다. 체크·완료 기록은 `users` 기록 참조라 남는다.
+- 업무 409는 `TASK_VERSION_CONFLICT`, `INVALID_TASK_STATE`이며 업무에서는 공통 `CONCURRENT_MODIFICATION`을 쓰지 않는다. 다른 도메인은 그대로다.
+- 지금은 행사 ARCHIVED만 업무 쓰기를 막는다. 차단 코드는 #30 결정 후 맞추며 제안값은 `EVENT_ARCHIVED`다.
+- v1에는 일괄 체크(전체 체크) endpoint가 없다.
+- 체크 항목은 새 테이블 `task_checklist_items`에 둔다(새 테이블 추가 금지 원칙의 예외로 승인). `tasks`에 담당자·`version`·완료자·완료 시각을 추가한다.
+
+### Alternatives
+
+뒤집기(toggle) API는 동시 체크 시 서로 상쇄돼 제외했다. 항목 설정에도 version을 요구하면 다른 항목 체크만으로 409가 잦아 채택하지 않았다. 체크를 `tasks` JSONB 컬럼에 두는 안은 JSONB 제한과 충돌하고 항목별 동시 갱신·audit가 어렵다. 2/2에서 자동 완료하면 #14의 '체크리스트 완료 → 업무 완료' 2단계와 어긋난다. 업무 유형 필드(`tasks.kind`)를 지금 추가하는 안은 #30 결정 전 추측이 돼 채택하지 않았다.
+
+### Reason
+
+현장에서 여러 사람이 같은 업무를 동시에 체크해도 충돌 없이 같은 결과로 끝나게 하고, 완료 조건·version·audit를 우회하는 두 번째 완료 경로를 없앤다. '내 업무' 흐름이 STAFF 담당자 중심이라 권한표를 사람마다 손대지 않아도 되게 한다.
+
+### Consequence
+
+상세 계약(endpoint·DTO·상태 전이·판정 순서·오류·회귀 테스트)은 [API Architecture](../architecture/api-architecture-v0.1.md#2026-10-02-업무-체크리스트-저장-계약-31-dec-062) §8, 저장 구조는 [Data Model](../architecture/data-model-v0.1.md#2026-10-02-업무-체크리스트-31-dec-062) §5, 권한은 [Security / Privacy](../architecture/security-privacy-v0.1.md#2026-10-02-업무-처리-권한-31-dec-062) §1의 2026-10-02 절에 둔다. 유효 `TASK_WRITE`는 DEC-029 보강의 role 기본값 + 사람별 GRANT − REVOKE로 판정한다. ARCHIVED 차단 코드(`EVENT_ARCHIVED`)와 접근 회수 코드(`NOT_A_MEMBER`)는 #30 현 결정 후 맞춘다. ENDED 행사의 동결 대상 업무 구분은 #30에서 정한다. 체크리스트 구조 편집은 #31 범위 밖이다. 서버 구현·검증은 후속이다.
+
+### Evidence
+
+[#31 계약 초안](https://github.com/BeomhyunPark/SCENE/issues/31#issuecomment-5946042935), [#31 결정 기록 (10/2 현)](https://github.com/BeomhyunPark/SCENE/issues/31#issuecomment-5946079736), [#30 정합 메모](https://github.com/BeomhyunPark/SCENE/issues/31#issuecomment-5946074503).

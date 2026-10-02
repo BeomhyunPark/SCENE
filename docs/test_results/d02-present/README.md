@@ -21,4 +21,4 @@ UX 검수 Present 클릭 결과 (2026-10-02). QA 릴리즈 가드 판정: Presen
 - 태블릿 첨부와 다시 열기 1/2 유지: `run3-tablet/B4-attachment.png`, `run3-tablet/B4-back.png`, `run3-tablet/B4-return.png`, `run3-tablet/B5.png`
 
 메모: `run4-mobile`의 A 스크린샷이 `run1/00~02`와 같은 파일인 것은 같은 화면·같은 상태라 문제 아님 (QA).
-서버 저장: 미검증, #31에서 다룸.
+서버 저장: 계약 확정 [DEC-062](../../product/PRODUCT_DECISIONS.md)·[#31 업무 체크리스트 저장 계약](../../architecture/api-architecture-v0.1.md#2026-10-02-업무-체크리스트-저장-계약-31-dec-062) (2026-10-02, [#31 결정 기록](https://github.com/BeomhyunPark/SCENE/issues/31#issuecomment-5946079736)). 서버 구현·검증은 미완.
