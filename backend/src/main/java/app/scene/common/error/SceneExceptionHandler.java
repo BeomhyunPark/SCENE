@@ -1,13 +1,12 @@
 package app.scene.common.error;
 
+import app.scene.common.web.RequestIds;
 import jakarta.servlet.http.HttpServletRequest;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
-import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.Ordered;
@@ -34,8 +33,6 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 public class SceneExceptionHandler {
 
   private static final Logger log = LoggerFactory.getLogger(SceneExceptionHandler.class);
-
-  private static final Pattern TRACE_ID = Pattern.compile("[A-Za-z0-9._\\-]{1,128}");
 
   @ExceptionHandler(SceneException.class)
   ResponseEntity<ProblemDetail> scene(SceneException exception, HttpServletRequest request) {
@@ -116,11 +113,11 @@ public class SceneExceptionHandler {
   }
 
   private static String traceId(HttpServletRequest request) {
-    String supplied = request.getHeader("X-Request-Id");
-    if (supplied != null && TRACE_ID.matcher(supplied).matches()) {
-      return supplied;
+    Object assigned = request.getAttribute(RequestIds.ATTRIBUTE);
+    if (assigned instanceof String requestId) {
+      return requestId;
     }
-    return UUID.randomUUID().toString();
+    return RequestIds.resolve(request.getHeader(RequestIds.HEADER));
   }
 
   /** Field-level code. Blank and null constraints share the contract example's REQUIRED. */
