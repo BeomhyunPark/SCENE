@@ -188,7 +188,7 @@ DELETE /api/v1/operator/spaces/{spaceId}/members/{memberId}
 - Event Operator 경계: `/api/v1/operator/events/{eventId}/operators`.
 - 후보 Permission: `EVENT_READ`, `EVENT_UPDATE`, `EVENT_LIFECYCLE`, `EVENT_USER_READ`, `EVENT_USER_MANAGE`.
 - Event role: `OWNER / MANAGER / STAFF`.
-- Event lifecycle 제품 전이는 #8/DEC-049~053을 따른다. 활성화·종료·ENDED 재개·ENDED 보관·ARCHIVED 해제를 구분한다. ACTIVE 직접 보관과 ARCHIVED 직접 재개는 허용하지 않는다. 상세 command 계약은 후속이다.
+- Event lifecycle 제품 전이는 #8/DEC-049~053을 따른다. 활성화·종료·ENDED 재개·ENDED 보관·ARCHIVED 해제를 구분한다. ACTIVE 직접 보관과 ARCHIVED 직접 재개는 허용하지 않는다. command·Owner 이전·본인 이탈 계약은 [2026-10-02 절](#2026-10-02-행사-lifecycle-command-30-dec-063)을 따른다.
 - Event OWNER cardinality / transfer, Space role과 Event role의 상세 Permission mapping은 OPEN 또는 원문 대조 필요. (2026-10-02 현 결정: Event 권한은 role 기본 집합 + 사람별 `event_user_permissions` GRANT/REVOKE. MANAGER/STAFF 기본 집합은 미확정, 백엔드 리드 초안 대기(현 결정 10/2: Backend Lead 초안, 현 승인). 예외: `TASK_WRITE` 기본값은 2026-10-02 DEC-062로 확정([§8](#2026-10-02-업무-체크리스트-저장-계약-31-dec-062)). [아래 절](#2026-10-02-개인별-권한-현-결정-dec-029-정합))
 
 ```http
@@ -301,7 +301,7 @@ Form OPEN/CLOSE의 실제 schema는 OPEN. 오류 경계가 있다는 이유로 �
 - D3 (초안 추천 A 승인): PATCH로는 DONE·DOING 전환을 할 수 없다(400 `VALIDATION_FAILED`). 완료는 `complete`, 다시 진행은 `reopen` command로만 하고, DOING은 첫 체크(D8)로만 된다. `CANCELLED`와 status가 아닌 필드는 PATCH에 남긴다.
 - D4: 업무 409는 `TASK_VERSION_CONFLICT`, `INVALID_TASK_STATE`다. 업무에서는 공통 `CONCURRENT_MODIFICATION`을 쓰지 않는다. 다른 도메인의 `CONCURRENT_MODIFICATION` 사용은 그대로다.
 - D5: version은 요청 본문(`version`)에 담는다. `If-Match` 헤더·`ETag`는 쓰지 않는다.
-- D6: 지금은 행사 ARCHIVED만 업무 쓰기를 막는다. DRAFT·ACTIVE·ENDED는 제한 없음. 차단 코드는 `EVENT_ARCHIVED` (#30 현 결정 대기, 제안).
+- D6: 지금은 행사 ARCHIVED만 업무 쓰기를 막는다. DRAFT·ACTIVE·ENDED는 제한 없음. 차단 코드는 `EVENT_ARCHIVED` (2026-10-02 #30 L5, DEC-063).
 - D7: v1에는 일괄 체크(전체 체크) endpoint가 없다. 항목별 PUT만 쓴다.
 - D8: 첫 체크에서 TODO → DOING으로 바뀌고, 이후 모든 항목을 해제해도 TODO로 돌아가지 않는다.
 - 함께 확정: OWNER·MANAGER는 기본 `TASK_WRITE`를 갖고 STAFF는 갖지 않는다. 업무당 담당자는 1명이다. 새 테이블 `task_checklist_items`는 예외로 승인했다.
@@ -412,7 +412,7 @@ POST /api/v1/operator/events/{eventId}/tasks/{taskId}/reopen
 | 담당자 아님 + 유효 `TASK_WRITE` 없음 | 403 | `FORBIDDEN` | |
 | 행사 접근 회수 | 403 | `NOT_A_MEMBER` (#30, 제안) | |
 | `checked` 누락·boolean 아님, `version` 누락 | 400 | `VALIDATION_FAILED` | `errors[]` |
-| 행사 ARCHIVED | 409 | `EVENT_ARCHIVED` (#30 현 결정 대기, 제안) | `eventStatus`, `task` |
+| 행사 ARCHIVED | 409 | `EVENT_ARCHIVED` (DEC-063) | `eventStatus`, `task` |
 | DONE 업무 항목 변경 / 미완료 체크로 complete / CANCELLED | 409 | `INVALID_TASK_STATE` | `reason`, `task` |
 | complete·reopen의 `version` ≠ 현재 | 409 | `TASK_VERSION_CONFLICT` | `task` |
 
@@ -430,7 +430,7 @@ POST /api/v1/operator/events/{eventId}/tasks/{taskId}/reopen
 }
 ```
 
-- ARCHIVED 차단 코드는 #30 초안([5946067458](https://github.com/BeomhyunPark/SCENE/issues/30#issuecomment-5946067458))의 `EVENT_ARCHIVED`를 제안값으로 쓴다. 초안의 `EVENT_ENDED`는 쓰지 않는다. #30 현 결정 후 이 행과 관련 회귀 행(23·24)만 맞춘다.
+- ARCHIVED 업무 쓰기 차단 코드는 `EVENT_ARCHIVED`다(DEC-063). 업무 쓰기에는 `EVENT_ENDED`를 쓰지 않는다.
 - ENDED 행사는 지금 업무 쓰기를 막지 않는다(D6). #30이 동결 대상 업무 구분을 정하면 서버의 행사 상태 판정 지점에서 추가한다. `tasks.kind` 같은 업무 유형 필드는 지금 만들지 않는다.
 - 이미 목표 상태면 version과 무관하게 200: complete인데 이미 DONE → `ALREADY_DONE`, reopen인데 이미 TODO/DOING → `ALREADY_OPEN`. 재시도와 '다른 사람이 먼저 같은 일을 함'을 충돌로 보지 않는다.
 
@@ -483,7 +483,7 @@ POST /api/v1/operator/events/{eventId}/tasks/{taskId}/reopen
 | 20 | 다른 행사의 taskId로 호출 | 404 `RESOURCE_NOT_FOUND` |
 | 21 | ENDED 행사의 후속 업무 체크·완료·다시 진행 | 200 |
 | 22 | ENDED 행사의 다른 유형 업무(현장 업무 등) 체크 | 200 (D6: 지금은 ENDED에서 차단하지 않음. #30이 동결 대상을 정하면 다시 정함) |
-| 23 | ARCHIVED 행사 업무 체크·complete·reopen (같은 값 재전송 포함) | 409 `EVENT_ARCHIVED` (#30 현 결정 대기, 제안), 상태 불변, 조회는 200 |
+| 23 | ARCHIVED 행사 업무 체크·complete·reopen (같은 값 재전송 포함) | 409 `EVENT_ARCHIVED` (DEC-063), 상태 불변, 조회는 200 |
 | 24 | 체크 화면을 연 뒤 행사 보관 → 체크 | 23과 같음 (요청 시점 재판정) |
 | 25 | 이탈로 행사 접근 회수 후 같은 세션에서 체크 | 403 `NOT_A_MEMBER` (#30, 제안) |
 | 26 | `checked` 누락 / complete에 `version` 누락 | 400 `VALIDATION_FAILED` |
@@ -1041,7 +1041,7 @@ PUT /api/v1/operator/events/{eventId}/operators/{userId}/permissions
 | body 형식 위반(`grants`·`revokes`가 배열이 아님, 필드 누락 등) | 400 | `VALIDATION_FAILED` |
 | Event 범위 키 목록에 없는 키(Space 범위 키 포함) | 400 | `VALIDATION_FAILED` (`errors[].code = UNKNOWN_PERMISSION`) |
 | 같은 키가 grants·revokes에 함께 있거나 중복 | 400 | `VALIDATION_FAILED` (`errors[].code = DUPLICATE_PERMISSION`) |
-| ARCHIVED 행사에서 늘리는 변경(아래 행사 상태) | 409 | `EVENT_ARCHIVED` (#30 제안 코드) |
+| ARCHIVED 행사에서 늘리는 변경(아래 행사 상태) | 409 | `EVENT_ARCHIVED` (DEC-063) |
 | 대상 운영자가 OWNER (GRANT·REVOKE 모두) | 422 | `PERMISSION_OWNER_NOT_OVERRIDABLE` |
 | OWNER 전용 키를 OWNER가 아닌 운영자에게 GRANT (행사 전용 협력자 포함) | 422 | `PERMISSION_OWNER_ONLY` |
 | `EVENT_READ` REVOKE (행사 접근 자체의 회수는 운영자 제거로 한다) | 422 | `PERMISSION_NOT_OVERRIDABLE` |
@@ -1055,7 +1055,7 @@ PUT /api/v1/operator/events/{eventId}/operators/{userId}/permissions
   - 위임이 취소되면(DEC-033) 받은 사람의 이전 role과 함께 저장한 override를 같은 transaction에서 되살린다. 취소는 이전 상태 복구이고 새 GRANT가 아니므로 ARCHIVED에서도 409 `EVENT_ARCHIVED` 대상이 아니다(#30 L5: Owner 이전은 ARCHIVED에서도 허용).
   - 넘긴 사람이 인수인계 종료 뒤 다른 role로 남으면 그 role의 기본값으로 시작하고 override는 없다. OWNER였으므로 되살릴 override도 없다.
   - 수락(저장·삭제), 취소(복원), 넘긴 사람의 role 전환을 각각 audit에 남기고 지우거나 되살린 override 목록을 함께 기록한다.
-- 행사 상태 (현 결정 10/2, #30 L5): ENDED에서는 override 변경을 허용한다. ARCHIVED에서는 줄이는 변경(REVOKE 추가, 저장된 GRANT 제거)만 허용한다. 저장된 override와 비교해 grants에 새 키가 있거나 저장된 REVOKE를 revokes에서 빼면 늘리는 변경이며 409 `EVENT_ARCHIVED`로 거절하고 아무것도 저장하지 않는다. 판정은 정규화 전 요청 기준이다. `EVENT_ARCHIVED`는 #30 초안의 제안 코드이며 #30 계약에서 확정한 이름을 따른다. ARCHIVED에서도 운영자 제거는 허용한다(#30 L5).
+- 행사 상태 (현 결정 10/2, #30 L5): ENDED에서는 override 변경을 허용한다. ARCHIVED에서는 줄이는 변경(REVOKE 추가, 저장된 GRANT 제거)만 허용한다. 저장된 override와 비교해 grants에 새 키가 있거나 저장된 REVOKE를 revokes에서 빼면 늘리는 변경이며 409 `EVENT_ARCHIVED`로 거절하고 아무것도 저장하지 않는다. 판정은 정규화 전 요청 기준이다. `EVENT_ARCHIVED`는 DEC-063에서 확정한 코드다. ARCHIVED에서도 운영자 제거는 허용한다(#30 L5).
 - Audit: PUT으로 실제 변경이 있을 때마다 `audit_logs`에 실행자·eventId·대상 userId·변경 전후 grants/revokes를 남긴다. action 이름(예: `EVENT_USER_PERMISSIONS_REPLACED`)은 구현에서 정한다.
 - 동시성: PUT·role 변경·운영자 제거·Owner 위임 수락/취소는 대상 `event_users` 행을 잠그고(`SELECT … FOR UPDATE`) 처리해 서로 섞이지 않게 한다. 마지막 PUT이 전체 목록을 정한다.
 
@@ -1121,3 +1121,61 @@ Permission 키 목록 (초안)
 | 38 | ARCHIVED 행사에서 저장된 GRANT `DATA_EXPORT` 제거(`{grants:[], revokes:[]}`) | 200, 삭제, audit 1건 (현 결정 10/2, #30 L5) |
 | 39 | ARCHIVED 행사에서 STAFF에게 `{grants:[DATA_EXPORT]}` | 409 `EVENT_ARCHIVED`, 저장 없음 (현 결정 10/2, #30 L5) |
 | 40 | ARCHIVED 행사에서 STAFF의 기본 키 K REVOKE | **보류(pending)**: K는 STAFF 기본 집합 확정 후 정한다(기대값은 K와 무관). 기대: 200, `effective`에서 K 제외 (현 결정 10/2, #30 L5) |
+
+## 2026-10-02 행사 lifecycle command (#30, DEC-063)
+
+[#30 결정 기록](https://github.com/BeomhyunPark/SCENE/issues/30#issuecomment-5946089035)의 L1~L9를 서버 계약으로 둔다. 상태 값은 그대로 `DRAFT / ACTIVE / ENDED / ARCHIVED`다. 새 전이를 만들지 않는다. `lifecycleStatus`는 `PATCH /events/{eventId}`로 바꾸지 못한다(400 `VALIDATION_FAILED`).
+
+```http
+GET  /api/v1/operator/events/{eventId}/lifecycle
+GET  /api/v1/operator/events/{eventId}/lifecycle/transitions
+POST /api/v1/operator/events/{eventId}/activate
+POST /api/v1/operator/events/{eventId}/end
+POST /api/v1/operator/events/{eventId}/reopen
+POST /api/v1/operator/events/{eventId}/archive
+POST /api/v1/operator/events/{eventId}/unarchive
+```
+
+공통 본문 필드는 `expectedLifecycleVersion`(필수 정수), 종료·보관의 `acknowledgeWarnings`, 재개의 `reason`(1~500자, 필수), Space OWNER가 대신 실행할 때의 `override.reason`(1~500자, 필수)이다. 없는 필드는 무시하지 않고 400 `VALIDATION_FAILED`다.
+
+- L1: 활성화·종료·재개·보관·보관 해제의 Event 경로 실행자는 Event OWNER다. `EVENT_LIFECYCLE`은 OWNER 기본값에만 있고 GRANT·REVOKE 대상이 아니다(422 `PERMISSION_OWNER_ONLY`).
+- L2: Space OWNER는 `event_users` 행 없이도 활성화·종료·재개를 대신 실행할 수 있다. `override.reason`이 없으면 403 `OVERRIDE_REQUIRED`. 있으면 200, `actedAs: SPACE_OWNER_OVERRIDE`, audit, Event OWNER 전원에게 알림 기록. 전달 채널은 OPEN이다. Space ADMIN은 전이를 실행하지 못한다.
+- L3: 보관과 보관 해제는 Event OWNER 또는 Space OWNER가 한다. Space OWNER의 보관·보관 해제는 Override가 아니므로 `override.reason`이 없어도 된다(`actedAs: SPACE_OWNER`).
+- L4: 종료·보관의 확인은 `acknowledgeWarnings: true`만 본다. 경고가 1건 이상인데 이 값이 아니면 409 `CONFIRMATION_REQUIRED`와 실행 시점 경고 수를 돌려주고 저장하지 않는다. 경고가 0건이면 플래그 없이 실행한다. 건수가 미리보기와 달라도 다시 확인받지 않는다. 실행 시점 건수는 전이 행의 스냅샷으로 남는다. 경고는 미완료 업무(`TODO`/`DOING`), 미정산, 미배정, 미전송 안내이며 종료를 막는 조건이 아니다(DEC-050). 종료가 업무를 완료 처리하지 않는다.
+- 전이는 `DRAFT→ACTIVE`, `ACTIVE→ENDED`, `ENDED→ACTIVE`, `ENDED→ARCHIVED`, `ARCHIVED→ENDED`만 된다. ACTIVE 직접 보관과 ARCHIVED 직접 재개는 409 `INVALID_STATE_TRANSITION`이다. 이미 목표 상태면 200 `outcome: ALREADY_IN_STATE`이고 이력·audit를 추가하지 않는다. 이 판정은 버전 비교보다 먼저다. 버전이 다르고 목표 상태도 아니면 409 `CONCURRENT_MODIFICATION`과 현재 `lifecycleVersion`, `lastTransition`을 돌려준다.
+- 판정 순서: 401 `AUTHENTICATION_REQUIRED` → 404 `RESOURCE_NOT_FOUND`(다른 tenant) → 403 `NOT_A_MEMBER`(회수된 접근) → 403 `FORBIDDEN` 또는 `OVERRIDE_REQUIRED` → 400 `VALIDATION_FAILED` → 200 `ALREADY_IN_STATE` → 409 `CONCURRENT_MODIFICATION` → 409 `INVALID_STATE_TRANSITION` → 409 `CONFIRMATION_REQUIRED` → 200 `TRANSITIONED`.
+- L5: 보관하는 transaction에서 그 행사의 PENDING 초대를 `REVOKED`로 바꾼다. 이후 예전 링크 수락은 410 `INVITATION_REVOKED`다. ARCHIVED에서 운영자 제거, 권한 회수, Owner 이전, 본인 이탈은 허용한다. 운영자 추가, 초대, GRANT, REVOKE 해제는 409 `EVENT_ARCHIVED`다.
+- L8: DRAFT를 끝내는 전이는 없다. 방치된 DRAFT는 DEC-061 삭제 요청으로 정리한다.
+- L9: ENDED·ARCHIVED에서 새 참가 신청과 재제출은 409 `EVENT_ENDED`다. 보관 여부를 이 코드로 드러내지 않는다. 종료 전에 연 신청 화면도 제출 시점에 다시 검사한다. 참가 취소·재참가는 이 계약 밖이다. ENDED에서 막는 다른 쓰기는 기존 문장(참가 신청·새 체크인·새 조 편성·현장 일정)을 따른다. 업무 쓰기는 ARCHIVED에서만 `EVENT_ARCHIVED`로 막는다(DEC-062).
+
+Owner 이전은 행사 범위 `owner_transfers`에 둔다. 상태 `PENDING / HANDOVER / DECLINED / CANCELLED / COMPLETED`. 수락 시 받는 사람에게 OWNER를 주고 이전 role은 `recipient_prior_role`에 남긴다. `handoverEndsAt`은 수락 시각+14일을 서버만 계산한다. 같은 수락을 다시 해도 그 시각은 바뀌지 않는다(200 `ALREADY_ACCEPTED`). 취소·거절된 요청의 수락과 COMPLETED 뒤 취소는 409다. PENDING 동안 받는 사람은 Owner 권한이 없다. 행사 Owner 이전은 받는 사람이 그 Space의 활성 멤버일 때만 된다. Owner 수를 1명으로 검사하지 않는다.
+
+```http
+GET  /api/v1/operator/spaces/{spaceId}/me/leave-preview
+POST /api/v1/operator/spaces/{spaceId}/me/leave
+```
+
+이탈 본문은 `{keepEventIds: [...]}`다. 빈 배열은 그 Space 행사 접근을 모두 회수한다. 목록에 없거나 다른 Space 행사가 있으면 400이다. 유지한 행사는 `event_users`와 override를 남기고 행사 전용 협력자로 둔다. 회수한 행사는 `event_users` 삭제로 override가 CASCADE된다. Membership 종료와 한 transaction이다. 이탈 뒤 회수한 행사와 Space API는 403 `NOT_A_MEMBER`다.
+
+이탈 차단은 409 하나다. 순서: `HANDOVER_NOT_ACCEPTED`(본인이 보낸 PENDING) → `LAST_OWNER` → `OWNER_ROLE_HELD`(L7, 공동 Owner가 있어도 이전 없이 이탈) → `RESPONSIBILITY`(미수락 책임). 차단되면 어떤 권한도 바꾸지 않는다. L6: 수락된 HANDOVER 14일 중에도 넘긴 사람은 떠날 수 있고, 떠나는 순간 그 인수인계 권한은 끝난다. 그 행사는 `keepEventIds`에 넣을 수 없다. Event OWNER인 행사도 유지할 수 없다.
+
+회귀는 위 판정과 같다. 대표 행만 둔다.
+
+| # | 시나리오 | 기대 |
+|---|---|---|
+| 1 | Event OWNER가 DRAFT를 활성화 | 200 `TRANSITIONED`, ACTIVE, version +1, 이력·audit 1건 |
+| 2 | MANAGER가 종료 | 403 `FORBIDDEN`, 상태 불변 |
+| 3 | Space OWNER가 `override.reason` 없이 종료 | 403 `OVERRIDE_REQUIRED` |
+| 4 | Space OWNER가 사유를 넣어 종료 | 200 `SPACE_OWNER_OVERRIDE`, Event OWNER 전원 알림 기록 |
+| 5 | Space OWNER가 사유 없이 보관 | 200 `SPACE_OWNER` |
+| 6 | 미완료 업무가 있는데 `acknowledgeWarnings` 없이 종료 | 409 `CONFIRMATION_REQUIRED`, 상태 불변 |
+| 7 | 6과 같고 플래그가 true | 200 ENDED. 업무는 TODO/DOING 그대로. 스냅샷에 실행 시점 건수 |
+| 8 | 같은 버전으로 두 Owner가 종료 | 먼저 커밋한 쪽 `TRANSITIONED`, 늦은 쪽 `ALREADY_IN_STATE`. 이력 1건 |
+| 9 | ACTIVE 보관, ARCHIVED 재개 | 둘 다 409 `INVALID_STATE_TRANSITION` |
+| 10 | ENDED·ARCHIVED에서 신청 제출 | 409 `EVENT_ENDED` |
+| 11 | 보관 | PENDING 초대 REVOKED. 예전 링크 수락 410 `INVITATION_REVOKED` |
+| 12 | 취소된 이전을 수락 | 409, HANDOVER 없음 |
+| 13 | 수락을 두 번 | 두 번째 200 `ALREADY_ACCEPTED`, `handoverEndsAt` 불변 |
+| 14 | 공동 Owner가 있는 행사 Owner가 이전 없이 이탈 | 409 `OWNER_ROLE_HELD`, 권한 불변 |
+| 15 | 수락된 HANDOVER 중 넘긴 사람이 이탈 | 200. 그 인수인계 권한은 즉시 종료. 그 행사는 유지 불가 |
+| 16 | PENDING 이전과 마지막 Owner와 남은 책임이 같이 있는 이탈 | 409 `HANDOVER_NOT_ACCEPTED` 하나만 |
