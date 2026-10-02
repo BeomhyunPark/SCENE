@@ -7,6 +7,8 @@ import java.util.Map;
 /** Domain failure that maps to one {@link ErrorCode}. Details are safe to return to the client. */
 public final class SceneException extends RuntimeException {
 
+  private static final long serialVersionUID = 1L;
+
   private final ErrorCode code;
   private final Map<String, Object> details;
 
