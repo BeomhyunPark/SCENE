@@ -22,4 +22,15 @@ docker compose up -d --wait
 ./gradlew bootRun --args='--spring.profiles.active=local'
 ```
 
-준비되면 `GET http://localhost:8080/actuator/health`가 `{"status":"UP"}`이다. Flyway가 빈 데이터베이스에 V1을 적용한다. 테스트는 이 compose를 쓰지 않고 Testcontainers를 띄운다.
+준비되면 `GET http://localhost:8080/actuator/health`가 `{"status":"UP"}`이다. Flyway가 V1을 적용한 뒤 `local`에서만 `db/seed/R__local_seed.sql`을 넣는다. 같은 행은 다시 넣지 않는다. 비울 때는 `docker compose down -v`로 볼륨을 지운다. dev, stg, prod와 테스트는 이 시드를 적용하지 않는다. 테스트는 compose 대신 Testcontainers를 띄운다.
+
+시드는 로그인 계정이 아니다. 권한 override도 없다. MANAGER/STAFF 기본 권한은 아직 승인되지 않았다.
+
+| id | 행 |
+| --- | --- |
+| `00000000-0000-4000-8000-000000000001` | Local owner. Space OWNER, Event OWNER |
+| `00000000-0000-4000-8000-000000000002` | Local manager. Space MEMBER, Event MANAGER |
+| `00000000-0000-4000-8000-000000000003` | Local staff. Space MEMBER, Event STAFF |
+| `00000000-0000-4000-8000-000000000010` | Local space |
+| `00000000-0000-4000-8000-000000000020` | Local event. DRAFT |
+| `00000000-0000-4000-8000-000000000030` | 대기 초대 `local-invite@example.com`. 토큰이 아니다 |

@@ -1,6 +1,6 @@
 # Shared settings. Datasource lives in a profile file.
-# local talks to backend/compose.yaml. dev, stg, and prod read SCENE_DB_* from the environment.
-# Hosting for those environments is not decided, so those files have no host or password.
+# local talks to backend/compose.yaml and also loads db/seed. dev, stg, and prod read SCENE_DB_*
+# from the environment. Hosting for those environments is not decided, so those files have no host or password.
 spring:
   application:
     name: scene

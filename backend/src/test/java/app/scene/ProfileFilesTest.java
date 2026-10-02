@@ -20,6 +20,7 @@ class ProfileFilesTest {
     assertThat(text).contains("jdbc:postgresql://localhost:5432/scene");
     assertThat(text).contains("username: scene");
     assertThat(text).contains("password: scene");
+    assertThat(text).contains("classpath:db/migration,classpath:db/seed");
   }
 
   @Test
@@ -31,6 +32,7 @@ class ProfileFilesTest {
       assertThat(text).contains("${SCENE_DB_PASSWORD}");
       assertThat(text).doesNotContain("jdbc:");
       assertThat(text).doesNotContain("localhost");
+      assertThat(text).doesNotContain("db/seed");
     }
   }
 

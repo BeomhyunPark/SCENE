@@ -1,6 +1,9 @@
 # Local only. Matches backend/compose.yaml. Do not use this password outside a laptop.
+# The extra Flyway folder is the local seed. Other profiles do not load it.
 spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/scene
     username: scene
     password: scene
+  flyway:
+    locations: classpath:db/migration,classpath:db/seed
