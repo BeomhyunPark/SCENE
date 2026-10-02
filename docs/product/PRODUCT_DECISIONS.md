@@ -777,6 +777,7 @@ Operational Structure Research와 Product Definition Gate를 거치며 확정 �
 - (2026-10-02 보강, 현 결정, SCENE 개발 리드 전달) Event 권한은 `event_users` role의 기본 Permission Set에 사람별 `event_user_permissions` GRANT/REVOKE를 더하고 뺀 effective 집합이다. role 기본 집합은 Java enum mapping으로 두고, 고정 Role만으로 권한이 정해진다는 기존 기준을 대체한다.
 - (2026-10-02 보강) 부여·회수는 Event Owner만 한다. OWNER 권한은 override하지 않고, Owner 위임·행사 삭제 요청·개인정보 정리·권한 관리 등 OWNER 전용 권한은 다른 운영자(행사 전용 협력자 포함)에게 부여하지 않는다. role 변경과 운영자 제거 시 해당 운영자의 override는 사라진다. 서버가 모든 요청에서 effective 집합으로 판정하고 변경마다 audit을 남긴다.
 - (2026-10-02 보강) 위 OPEN 중 저장 구조·부여자·회수 방식은 해소했다. role별 기본 집합과 업무별 정확한 허용 집합(Permission 키 목록 초안)은 계속 확인이 필요하다. 테이블은 Flyway V1 초기 스키마에 포함하며(SCENE Backend Lead) 상세 계약은 아키텍처 문서의 2026-10-02 절에 둔다.
+- (2026-10-02 후속, #39 QA) `EVENT_USER_MANAGE`는 Owner 전용이다. role 변경과 제거 후 재추가로 REVOKE를 지우지 못한다. 조회는 Event Owner·본인·Space OWNER만 하고 Space ADMIN은 조회하지 못한다. 경로 식별자는 `{userId}`다. DEC-060의 협력자 간 연락처 숨김은 GRANT로 풀리지 않는다. ARCHIVED에서는 REVOKE와 제거만 되고 GRANT·role 변경·재추가는 409 `EVENT_ARCHIVED`이다. ENDED는 이 제한이 없다. 위임 수락 때 지운 override는 위임 레코드에 스냅샷으로 남기고, HANDOVER 취소 때만 복원한다. 오류 우선순위는 401, 403, 404, 400, 422, 409이다. MANAGER/STAFF 기본 집합 구성은 OPEN이며 `DATA_EXPORT`와 OWNER 전용 키는 기본값에 넣지 않는다.
 
 ### Evidence
 
@@ -1784,7 +1785,7 @@ DEC-039로 조직 Membership 없이 특정 행사만 운영하는 협력자를 �
 ### Decision
 
 - `event_users`는 `user_id`를 직접 참조한다(`space_id`, `event_id`, `user_id`, `role`). `member_id` 필수 참조는 두지 않는다. 조직 소속 여부는 저장하지 않고 `members` 조인으로 계산한다. `UNIQUE(event_id, user_id)`와 composite FK `(event_id, space_id) → events`를 유지한다.
-- Event 권한은 `event_users` role과 개인별 업무 권한에서만 나온다. (2026-10-02: 개인별 업무 권한은 `event_user_permissions`, DEC-029 보강) 조직 설정·구성원 목록·다른 행사 등 Space 범위 API는 활성 Membership이 필요하다. 행사 전용 협력자에게 다른 운영자는 이름·역할만 보이고 연락처는 숨긴다.
+- Event 권한은 `event_users` role과 개인별 업무 권한에서만 나온다. (2026-10-02: 개인별 업무 권한은 `event_user_permissions`, DEC-029 보강) 조직 설정·구성원 목록·다른 행사 등 Space 범위 API는 활성 Membership이 필요하다. 행사 전용 협력자에게 다른 운영자는 이름·역할만 보이고 연락처는 숨긴다. (2026-10-02 후속) 이 연락처 숨김은 `EVENT_USER_READ`·`PARTICIPANT_CONTACT_READ`를 포함한 어떤 GRANT로도 풀리지 않는다.
 - 외부 협력자는 MANAGER/STAFF와 리더만 맡는다. OWNER 지정·위임 시 활성 Membership을 서비스에서 검사한다.
 - 자진 조직 탈퇴 시 행사별 접근 유지/회수를 묻고 유지하면 행사 전용 협력자로 전환한다. 관리자 제거 시 기본값은 해당 Space 행사 접근 전체 회수이며 유지할 행사만 명시 선택하고 남는 접근권을 표시한다. Event Owner는 #4 인수인계 완료 전 탈퇴·제거를 차단한다.
 - 기존 멤버는 userId로 바로 추가한다. 비멤버는 `event_invitations`로 초대한다. 저장 상태는 `PENDING / ACCEPTED / REVOKED / SUPERSEDED`이며 만료는 `expires_at`으로 계산하고 저장하지 않는다. 같은 행사·이메일의 PENDING은 하나만 허용한다. 재전송은 새 행을 만들고 이전 행을 SUPERSEDED로 남긴다. 초대 TTL은 7일 서버 상수다.
