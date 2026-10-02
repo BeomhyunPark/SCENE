@@ -55,7 +55,7 @@
 - #9: Export·보존·삭제·복구. 전체 조회와 별도의 Export·변경 권한을 구분.
 - #10: 승인된 정책을 적용한 실제 프로토타입 클릭·접근 상태 검토.
 
-사람별 권한의 저장 schema와 역할 기본값의 결합 규칙, 그룹 리더 identity, 조회 endpoint/DTO와 Notice targeting의 기술 계약은 구현 설계에서 정한다. 고정 Role → Permission Set 기준만으로 이 제품 요구가 해결됐다고 해석하지 않는다. 별도 테이블·endpoint를 이번 제품 정책 검토에서 새로 확정하지 않는다. (2026-10-02 현 결정으로 저장 schema와 결합 규칙을 정했다: role 기본값 + 사람별 `event_user_permissions` GRANT/REVOKE, Event Owner만 부여. [DEC-029](PRODUCT_DECISIONS.md#dec-029--행사-운영진의-업무-권한을-사람별로-달리-부여한다)와 [API Architecture](../architecture/api-architecture-v0.1.md#2026-10-02-개인별-권한-현-결정-dec-029-정합) 참조)
+사람별 권한의 저장 schema와 역할 기본값의 결합 규칙, 그룹 리더 identity, 조회 endpoint/DTO와 Notice targeting의 기술 계약은 구현 설계에서 정한다. 고정 Role → Permission Set 기준만으로 이 제품 요구가 해결됐다고 해석하지 않는다. 별도 테이블·endpoint를 이번 제품 정책 검토에서 새로 확정하지 않는다. (2026-10-02 현 결정으로 저장 schema와 결합 규칙을 정했다: role 기본값 + 사람별 `event_user_permissions` GRANT/REVOKE, Event Owner만 부여. 2026-10-02 후속(#44): `EVENT_USER_MANAGE`은 Owner 전용, 조회는 Event Owner·본인·Space OWNER만, Space ADMIN은 불가, 경로는 `{userId}`, DEC-060 연락처 숨김이 GRANT보다 앞선다. 위임 수락 시 받는 사람의 override는 위임 기록에 스냅샷으로 남기고 취소 때 이전 role과 함께 되돌린다. ENDED는 권한 변경을 허용하고 ARCHIVED는 줄이는 변경만 허용한다. MANAGER/STAFF 기본 집합은 미확정이다. [DEC-029](PRODUCT_DECISIONS.md#dec-029--행사-운영진의-업무-권한을-사람별로-달리-부여한다)와 [API Architecture](../architecture/api-architecture-v0.1.md#2026-10-02-개인별-권한-현-결정-dec-029-정합) 참조)
 
 Figma에는 확정 정책과 남은 질문을 주석으로 반영한다. 실제 권한 판정 구현이나 모든 화면의 클릭 QA가 완료됐다고 주장하지 않는다.
 
