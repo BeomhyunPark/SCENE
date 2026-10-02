@@ -725,7 +725,7 @@ POST   /api/v1/operator/invitations/accept                              # {token
 - 수락 200 응답에 `outcome: ACCEPTED | ALREADY_ACCEPTED`를 둔다. 같은 사용자의 재수락은 상태를 바꾸지 않고 `ALREADY_ACCEPTED`를 돌려준다.
 - 미리보기는 수락과 같은 판정 순서·같은 오류 코드를 쓴다. 성공 시 200 `{eventName, role, inviterName, expiresAt, outcome: PENDING | ALREADY_ACCEPTED}`. 상태를 바꾸지 않으며 반복 호출해도 결과가 같다. 수락은 미리보기 통과 여부와 무관하게 다시 판정한다.
 - 미리보기·수락 모두 계정별·IP별 rate limit, 초과 시 429 `RATE_LIMITED`. 로그인 안 됨은 401이며 클라이언트는 토큰을 유지한다.
-- 화면 매핑: `INVITATION_EMAIL_MISMATCH` → 15, `INVITATION_EXPIRED` → 16, `INVITATION_NOT_FOUND` → 17, `INVITATION_REVOKED` → 35(취소 후 새 초대를 받은 사용자가 예전 링크로 들어온 경우 포함), `INVITATION_SUPERSEDED` → 36, `outcome: ALREADY_ACCEPTED` → 37, PENDING → 14.
+- 화면 매핑: `INVITATION_EMAIL_MISMATCH` → 15, `INVITATION_EXPIRED` → 16, `INVITATION_NOT_FOUND` → 17, `INVITATION_REVOKED` → 35(취소 후 새 초대를 받은 사용자가 예전 링크로 들어온 경우 포함), `INVITATION_SUPERSEDED` → 36, `outcome: ALREADY_ACCEPTED` → 37, `INVITATION_ALREADY_ACCEPTED`(409, 다른 사용자가 이미 수락) → 17(누가 수락했는지 드러내지 않음), PENDING → 14.
 
 회귀 테스트
 
@@ -739,7 +739,13 @@ POST   /api/v1/operator/invitations/accept                              # {token
 | 6 | 대상이 아닌 계정으로 미리보기·수락 | `INVITATION_NOT_FOUND` 또는 `INVITATION_EMAIL_MISMATCH`만, 이메일 마스킹 |
 | 7 | 로그아웃 상태에서 미리보기 | 401, 토큰 유지 |
 | 8 | 같은 사용자가 수락 후 다시 수락 | 200 `outcome: ALREADY_ACCEPTED` |
-| 9 | 한도 초과 호출 | 429 `RATE_LIMITED` |
+| 9 | 한도 초과 호출 | 429 `RATE_LIMITED` (한도 숫자 미정, 서버 미검증) |
+| 10 | 재전송 후 예전 링크로 미리보기·수락 | 410 `INVITATION_SUPERSEDED` → 36 |
+| 11 | 초대 취소 후 새 초대, 예전 링크로 미리보기·수락 | 410 `INVITATION_REVOKED` → 35 |
+| 12 | `expiresAt` 경과 후 미리보기·수락 | 410 `INVITATION_EXPIRED` → 16 |
+| 13 | 미리보기 성공 후 저장된 토큰 확인 | 토큰 유지(수락 POST 완료 전까지) |
+| 14 | 0분 보관 → 25분에 15에서 계정 바꾸기 → 35분에 대상 계정 로그인 | 토큰 삭제, 일반 랜딩 화면(보관 시각이 갱신되지 않음) |
+| 15 | 다른 사용자가 이미 수락한 초대로 수락 | 409 `INVITATION_ALREADY_ACCEPTED` → 17 |
 
 ## 2026-10-01 보존·삭제·Export 처리 계약 (DEC-061)
 
