@@ -1,6 +1,6 @@
 # Church Event Operations Platform — Product Decisions
 
-> **2026-09-30 baseline:** DEC-001~027의 기존 본문·Status 보존. 최초 정리 당시에는 새 DEC를 만들지 않았고, 이후 검토에서 DEC-028~059를 추가했다. 2026-10-01 #11·#12 기술 계약으로 DEC-060~061을, 2026-10-02 #31 업무·체크리스트 저장 계약으로 DEC-062를 추가했다(현재 마지막 번호 DEC-062). 최신 요청의 제품명 SCENE 및 Technical Design / implementation 전 상태가 현재 기준이다. DEC-024/027의 단계와 §17 Product Name OPEN은 이전 이력이며 기술 기준은 [Architecture](../architecture/architecture-v0.1.md)를 따른다. 공식 Decision Log 정합화는 검토 필요.
+> **2026-09-30 baseline:** DEC-001~027의 기존 본문·Status 보존. 최초 정리 당시에는 새 DEC를 만들지 않았고, 이후 검토에서 DEC-028~059를 추가했다. 2026-10-01 #11·#12 기술 계약으로 DEC-060~061을, 2026-10-02 #31 업무·체크리스트 저장 계약으로 DEC-062를, #30 행사 lifecycle command 계약으로 DEC-063을 추가했다(현재 마지막 번호 DEC-063). 최신 요청의 제품명 SCENE 및 Technical Design / implementation 전 상태가 현재 기준이다. DEC-024/027의 단계와 §17 Product Name OPEN은 이전 이력이며 기술 기준은 [Architecture](../architecture/architecture-v0.1.md)를 따른다. 공식 Decision Log 정합화는 검토 필요.
 >
 > DEC-027은 단계 설명에 한해 DEC-024를 대체한다고 기록하지만 DEC-024의 원래 CONFIRMED 표기는 보존한다. Evidence Type의 HYPOTHESIS 용어 충돌도 [검토 기록](../architecture/architecture-v0.1.md)에 남긴다.
 > [Product Definition](PRODUCT_DEFINITION.md) · [Research](RESEARCH.md)
@@ -1854,7 +1854,7 @@ DEC-054~059와 [#12 사용자 답변](https://github.com/BeomhyunPark/SCENE/issu
 
 **Date:** 2026-10-02
 
-**Status:** CONFIRMED — 기술 계약 (ARCHIVED 쓰기 차단 코드는 #30 결정 대기)
+**Status:** CONFIRMED — 기술 계약 (ARCHIVED 쓰기 차단 코드 `EVENT_ARCHIVED`는 DEC-063)
 
 ### Context
 
@@ -1868,7 +1868,7 @@ DEC-054~059와 [#12 사용자 답변](https://github.com/BeomhyunPark/SCENE/issu
 - PATCH로는 DONE·DOING 전환을 할 수 없다(400). DOING은 첫 체크로만, 완료·다시 진행은 command로만 한다. `CANCELLED`와 status가 아닌 필드는 PATCH에 남긴다(10/2 현, 초안 D3 추천 A 승인).
 - 운영자는 #39와 같이 `event_users.user_id`로 참조한다(`assignee_user_id`, `checked_by_user_id`, `completed_by_user_id`). 운영자 제거 시 같은 transaction에서 그 사람의 담당 업무를 미배정으로 바꾸고 audit을 남기며 업무는 삭제하지 않는다. 체크·완료 기록은 `users` 기록 참조라 남는다.
 - 업무 409는 `TASK_VERSION_CONFLICT`, `INVALID_TASK_STATE`이며 업무에서는 공통 `CONCURRENT_MODIFICATION`을 쓰지 않는다. 다른 도메인은 그대로다.
-- 지금은 행사 ARCHIVED만 업무 쓰기를 막는다. 차단 코드는 #30 결정 후 맞추며 제안값은 `EVENT_ARCHIVED`다.
+- 지금은 행사 ARCHIVED만 업무 쓰기를 막는다. 차단 코드는 `EVENT_ARCHIVED`다(DEC-063).
 - v1에는 일괄 체크(전체 체크) endpoint가 없다.
 - 체크 항목은 새 테이블 `task_checklist_items`에 둔다(새 테이블 추가 금지 원칙의 예외로 승인). `tasks`에 담당자·`version`·완료자·완료 시각을 추가한다.
 
@@ -1882,8 +1882,44 @@ DEC-054~059와 [#12 사용자 답변](https://github.com/BeomhyunPark/SCENE/issu
 
 ### Consequence
 
-상세 계약(endpoint·DTO·상태 전이·판정 순서·오류·회귀 테스트)은 [API Architecture](../architecture/api-architecture-v0.1.md#2026-10-02-업무-체크리스트-저장-계약-31-dec-062) §8, 저장 구조는 [Data Model](../architecture/data-model-v0.1.md#2026-10-02-업무-체크리스트-31-dec-062) §5, 권한은 [Security / Privacy](../architecture/security-privacy-v0.1.md#2026-10-02-업무-처리-권한-31-dec-062) §1의 2026-10-02 절에 둔다. 유효 `TASK_WRITE`는 DEC-029 보강의 role 기본값 + 사람별 GRANT − REVOKE로 판정한다. ARCHIVED 차단 코드(`EVENT_ARCHIVED`)와 접근 회수 코드(`NOT_A_MEMBER`)는 #30 현 결정 후 맞춘다. ENDED 행사의 동결 대상 업무 구분은 #30에서 정한다. 체크리스트 구조 편집은 #31 범위 밖이다. 서버 구현·검증은 후속이다.
+상세 계약(endpoint·DTO·상태 전이·판정 순서·오류·회귀 테스트)은 [API Architecture](../architecture/api-architecture-v0.1.md#2026-10-02-업무-체크리스트-저장-계약-31-dec-062) §8, 저장 구조는 [Data Model](../architecture/data-model-v0.1.md#2026-10-02-업무-체크리스트-31-dec-062) §5, 권한은 [Security / Privacy](../architecture/security-privacy-v0.1.md#2026-10-02-업무-처리-권한-31-dec-062) §1의 2026-10-02 절에 둔다. 유효 `TASK_WRITE`는 DEC-029 보강의 role 기본값 + 사람별 GRANT − REVOKE로 판정한다. ARCHIVED 차단 코드는 `EVENT_ARCHIVED`, 접근 회수 코드는 `NOT_A_MEMBER`다(DEC-063). ENDED는 업무 쓰기를 막지 않는다. 체크리스트 구조 편집은 #31 범위 밖이다. 서버 구현·검증은 후속이다.
 
 ### Evidence
 
 [#31 계약 초안](https://github.com/BeomhyunPark/SCENE/issues/31#issuecomment-5946042935), [#31 결정 기록 (10/2 현)](https://github.com/BeomhyunPark/SCENE/issues/31#issuecomment-5946079736), [#30 정합 메모](https://github.com/BeomhyunPark/SCENE/issues/31#issuecomment-5946074503).
+
+---
+
+## DEC-063 — 행사 lifecycle command는 다섯 전이만 쓰고 보관 중 접근 추가는 막는다
+
+**Date:** 2026-10-02
+
+**Status:** CONFIRMED — 기술 계약 (QA·현 수락 전. 서버 구현은 #2 게이트 뒤)
+
+### Context
+
+종료·재개·보관의 제품 전이는 DEC-049~053에 있고, endpoint·동시성·Owner 이전·본인 이탈은 #30에 남아 있었다. L1~L9가 추천안대로 확정됐다.
+
+### Decision
+
+- 활성화·종료·재개·보관·보관 해제는 Event OWNER만 실행한다. `EVENT_LIFECYCLE`은 개인별 GRANT 대상이 아니다. Space OWNER는 사유·audit·Event OWNER 알림 기록이 있으면 활성화·종료·재개를 대신 실행할 수 있다. 보관과 보관 해제는 Event OWNER 또는 Space OWNER가 한다.
+- 종료 확인은 `acknowledgeWarnings: true`다. 경고 건수는 실행 시점 스냅샷으로 남고, 종료를 막지 않는다.
+- ARCHIVED에서는 접근을 줄이는 변경과 Owner 이전·이탈을 허용하고, 접근을 늘리는 변경은 409 `EVENT_ARCHIVED`다. 보관은 대기 초대를 회수한다. 업무 쓰기도 이 코드로 막는다.
+- 수락된 인수인계 14일 중에도 넘긴 사람은 떠날 수 있고, 떠나는 순간 인수인계 권한은 끝난다. 공동 Owner가 있어도 이전 없이 떠나면 409 `OWNER_ROLE_HELD`다.
+- 방치된 DRAFT는 새 전이를 만들지 않고 DEC-061 삭제 요청으로 정리한다. ENDED 이후 재제출은 409 `EVENT_ENDED`다. 참가 취소·재참가는 별도 이슈다.
+
+### Alternatives
+
+동시 종료의 늦은 요청에 409를 주는 안, 종료 확인을 미리보기 건수와 묶는 안, ACTIVE에서 바로 보관하는 안, DRAFT→ENDED 전이를 추가하는 안은 채택하지 않았다.
+
+### Reason
+
+종료는 신청 차단처럼 영향이 크고, 보관된 행사 때문에 Owner가 조직을 떠나지 못하는 상태를 막아야 한다. 서버는 조직 Owner의 "부재"를 판별할 수 없으므로 사유와 기록으로 대행을 구분한다.
+
+### Consequence
+
+상세 계약은 [API Architecture](../architecture/api-architecture-v0.1.md#2026-10-02-행사-lifecycle-command-30-dec-063), 저장은 [Data Model](../architecture/data-model-v0.1.md#2026-10-02-행사-lifecycle-30-dec-063), 권한은 [Security / Privacy](../architecture/security-privacy-v0.1.md#2026-10-02-개인별-권한-현-결정-dec-029-정합)의 DEC-063 항을 따른다. QA와 현이 이 계약과 DEC-062를 수락하기 전에는 lifecycle·업무 서버 코드를 시작하지 않는다. 알림 전달 채널은 OPEN이다.
+
+### Evidence
+
+[#30 결정 기록 (10/2 현)](https://github.com/BeomhyunPark/SCENE/issues/30#issuecomment-5946089035), [#30 계약 초안](https://github.com/BeomhyunPark/SCENE/issues/30#issuecomment-5946067458).

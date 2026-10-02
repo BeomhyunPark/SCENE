@@ -228,7 +228,41 @@ ENDED는 조회·정산·회고·후속 업무·후속 공지·감사 가능한 
 - Effective = role 기본 집합 ∪ GRANT − REVOKE. 저장하지 않고 요청마다 계산한다.
 - OWNER role 운영자에게는 override 행을 두지 않는다(OWNER 권한은 override 불가). OWNER 전용 키는 OWNER가 아닌 운영자에게 GRANT로 저장하지 않는다. 둘 다 서비스에서 검사한다.
 - role 변경(`event_users.role` UPDATE)은 같은 transaction에서 해당 운영자의 override를 모두 삭제하고 audit에 남긴다. 운영자 추가·제거·role 변경은 Event Owner만 한다(현 결정 10/2).
-- Owner 위임 (현 결정 10/2, DEC-033): override가 있는 운영자가 위임을 수락해 OWNER가 되면 같은 transaction에서 그 override를 위임 기록에 스냅샷으로 저장하고 이 테이블에서 지운다. 위임이 취소되면 위임 기록의 스냅샷을 이전 role과 함께 되살린다. 넘긴 사람은 인수인계 종료 뒤 남는 role의 기본값으로 시작하고 override는 없다. 단계마다 audit에 남긴다. 위임 기록의 테이블·컬럼(예: #30 초안의 `owner_transfers`)은 #30 계약에서 정한다.
+- Owner 위임 (현 결정 10/2, DEC-033): override가 있는 운영자가 위임을 수락해 OWNER가 되면 같은 transaction에서 그 override를 위임 기록에 스냅샷으로 저장하고 이 테이블에서 지운다. 위임이 취소되면 위임 기록의 스냅샷을 이전 role과 함께 되살린다. 넘긴 사람은 인수인계 종료 뒤 남는 role의 기본값으로 시작하고 override는 없다. 단계마다 audit에 남긴다. 위임 기록은 [DEC-063](api-architecture-v0.1.md#2026-10-02-행사-lifecycle-command-30-dec-063)의 `owner_transfers`를 따른다.
 - ARCHIVED 행사에서는 줄이는 변경(저장된 GRANT 행 삭제, REVOKE 추가, 운영자 제거)만 허용하고 GRANT 추가와 REVOKE 해제는 서비스에서 409 `EVENT_ARCHIVED`로 막는다(현 결정 10/2, #30 L5). ENDED는 제한 없다.
 - 운영자 제거와 DEC-060의 조직 탈퇴·관리자 제거에 따른 행사 접근 회수는 `event_users` 행 삭제이므로 CASCADE로 override가 사라진다. CASCADE 삭제 자체는 audit에 남지 않으므로 운영자 제거 audit 항목에 삭제된 override 목록을 함께 기록한다. 행사 전용 협력자로 전환해 `event_users` 행이 유지되면 override도 유지된다.
 - 아직 코드가 없으므로 마이그레이션이 아니라 Flyway V1 초기 스키마에 포함한다(SCENE Backend Lead).
+
+## 2026-10-02 행사 lifecycle (#30, DEC-063)
+
+[#30 결정](https://github.com/BeomhyunPark/SCENE/issues/30#issuecomment-5946089035) L1~L9. API는 [API Architecture](api-architecture-v0.1.md#2026-10-02-행사-lifecycle-command-30-dec-063)의 같은 날짜 절을 따른다. 상태 enum에 값을 추가하지 않는다.
+
+`events`에 `lifecycle_version`(정수, 전이가 성공할 때만 +1)을 둔다. `PATCH`로 `lifecycle_status`를 바꾸지 않는다.
+
+`event_lifecycle_transitions`
+
+| 컬럼 | 의미 |
+|---|---|
+| `id` | uuid. PK |
+| `space_id`, `event_id` | tenant. FK `(event_id, space_id) → events` |
+| `command` | `ACTIVATE / END / REOPEN / ARCHIVE / UNARCHIVE` |
+| `from_status`, `to_status` | 전이 전후 |
+| `actor_user_id` | 실행한 사용자 |
+| `acted_as` | `EVENT_OWNER / SPACE_OWNER / SPACE_OWNER_OVERRIDE` |
+| `reason` | 재개 사유 또는 Override 사유. 없으면 null |
+| `warnings_snapshot` | 실행 시점 경고 건수. 개인정보 없음 |
+| `occurred_at` | timestamptz |
+
+`owner_transfers`
+
+| 컬럼 | 의미 |
+|---|---|
+| `id` | uuid. PK |
+| `space_id`, `event_id` | 행사 Owner 이전의 tenant. 조직 Owner 이전은 `event_id` null |
+| `from_user_id`, `to_user_id` | 넘기는 사람, 받는 사람 |
+| `status` | `PENDING / HANDOVER / DECLINED / CANCELLED / COMPLETED` |
+| `recipient_prior_role` | 수락 전 role. 취소 때 복원 |
+| `accepted_at`, `handover_ends_at` | 수락 시각과 서버가 계산한 +14일 |
+| `permission_snapshot` | 수락 때 지운 받는 사람의 override. 개인정보 없음 |
+
+같은 범위·같은 `from_user_id`의 PENDING은 하나다. `handover_ends_at`이 지나면 권한 판정은 COMPLETED로 계산하고, 정리 job이 늦어도 권한이 남지 않는다. 보관은 새 상태 없이 그 행사의 PENDING `event_invitations`를 `REVOKED`로 바꾼다. 방치된 DRAFT는 이 전이를 쓰지 않고 DEC-061 삭제 요청으로 정리한다.
