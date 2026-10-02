@@ -66,6 +66,8 @@ RESOURCE_NOT_FOUND
 CONFLICT
 INVALID_STATE_TRANSITION
 CONCURRENT_MODIFICATION
+TASK_VERSION_CONFLICT
+INVALID_TASK_STATE
 DUPLICATE_APPLICATION
 APPLICATION_CLOSED
 PARTICIPANT_ACCESS_INVALID
@@ -77,6 +79,8 @@ IDEMPOTENCY_CONFLICT
 ```
 
 Form 상세의 `FORM_CLOSED`와 공통 예시의 `APPLICATION_CLOSED`는 둘 다 소스에 있다. 의미·매핑·통합 여부는 검토 필요. 이름을 임의 통합하지 않는다.
+
+`TASK_VERSION_CONFLICT`·`INVALID_TASK_STATE`는 2026-10-02 #31 업무 전용 409 코드다(§8, DEC-062). 업무에서는 `CONCURRENT_MODIFICATION`·`INVALID_STATE_TRANSITION` 대신 이 두 코드를 쓴다.
 
 ### HTTP Status
 
@@ -126,7 +130,7 @@ Tenant 밖 Resource의 존재를 숨겨야 하면 `404`. Resource를 볼 수 있
 - Important state transition은 Command endpoint.
 - 저위험 상태는 PATCH 가능. 모든 상태 변경마다 command를 만들지 않는다.
 - `Idempotency-Key`는 선택적으로 적용. DB constraints, transaction, 선택적 optimistic locking을 함께 사용한다.
-- 모든 table에 version을 넣지 않는다. 위험한 Assignment, Event configuration 일부, Operator-managed current state 일부에 선택 적용. 충돌은 `409 CONCURRENT_MODIFICATION`.
+- 모든 table에 version을 넣지 않는다. 위험한 Assignment, Event configuration 일부, Operator-managed current state 일부에 선택 적용. 충돌은 `409 CONCURRENT_MODIFICATION`. (2026-10-02 #31, DEC-062) Group의 `GROUP_MOVE_CONFLICT`처럼 도메인 전용 409 코드를 허용한다. 업무(Task)는 `tasks.version`을 두고 complete·reopen에서만 검사하며, version 충돌은 `409 TASK_VERSION_CONFLICT`, 업무 상태 위반은 `409 INVALID_TASK_STATE`를 쓴다. 다른 도메인의 `CONCURRENT_MODIFICATION` 사용은 그대로다.
 - Application 최초 제출, Payment 생성/Refund, Check-in 등 대화에 제시된 중복 위험 경계를 우선 기록한다. 모든 API에 의무화하지 않는다.
 - Export와 외부 Integration도 Idempotency-Key 후보. Idempotency와 business uniqueness는 별개다.
 - Key scope·TTL·동일 key/다른 payload·응답 재전달 세부는 OPEN.
@@ -278,8 +282,210 @@ Form OPEN/CLOSE의 실제 schema는 OPEN. 오류 경계가 있다는 이유로 �
 | GET | `/tasks/{taskId}` | `EVENT_READ` |
 | PATCH | `/tasks/{taskId}` | `TASK_WRITE` |
 | DELETE | `/tasks/{taskId}` | `TASK_WRITE` |
+| PUT | `/tasks/{taskId}/items/{itemId}` | 담당자 본인 또는 `TASK_WRITE` (2026-10-02 #31) |
+| POST | `/tasks/{taskId}/complete` | 담당자 본인 또는 `TASK_WRITE` (2026-10-02 #31) |
+| POST | `/tasks/{taskId}/reopen` | 담당자 본인 또는 `TASK_WRITE` (2026-10-02 #31) |
 
-상태: `TODO / DOING / DONE / CANCELLED`. `{"status":"DONE"}` 같은 PATCH 허용. 별도 complete/cancel command와 모든 Task의 optimistic version을 강제하지 않는다. Project Management 제품으로 확장하지 않는다.
+상태: `TODO / DOING / DONE / CANCELLED`. (2026-10-02 #31, DEC-062) PATCH로는 `status: DONE`을 설정할 수 없고(400 `VALIDATION_FAILED`) 완료는 `POST /tasks/{taskId}/complete`로만 한다. 다시 진행은 `POST /tasks/{taskId}/reopen`이다. `CANCELLED`는 계속 PATCH로 설정하며 별도 cancel command는 두지 않는다. `tasks.version`은 모든 업무에 두지만 complete·reopen에서만 검사한다. Project Management 제품으로 확장하지 않는다.
+
+### 2026-10-02 업무 체크리스트 저장 계약 (#31, DEC-062)
+
+[#31 계약 초안](https://github.com/BeomhyunPark/SCENE/issues/31#issuecomment-5946042935), [#31 현 결정 기록 (10/2)](https://github.com/BeomhyunPark/SCENE/issues/31#issuecomment-5946079736), [#30 정합 메모](https://github.com/BeomhyunPark/SCENE/issues/31#issuecomment-5946074503)를 반영한다. #14(D02) 화면 규칙(완료 후 체크 읽기 전용, 명시적 '다시 진행'에서만 재개, 다시 진행 → 진행 중 2/2 체크 유지, 다시 진행 뒤 모든 항목 해제 가능)의 서버 저장 계약이다. 저장 구조는 [Data Model](data-model-v0.1.md) §5, 권한 규칙은 [Security / Privacy](security-privacy-v0.1.md) §1의 같은 날짜 절을 따른다. 초안에서 문서에 없던 이름·필드·규칙 중 현 결정에 포함되지 않은 것은 **(제안)**으로 남긴다.
+
+현 결정 (10/2)
+
+- D1: 담당자 본인은 `TASK_WRITE` 없이 자기 업무를 체크·완료·다시 진행할 수 있다.
+- D2: 완료는 모든 항목이 체크됐을 때만 가능하다. 자동 완료는 없다(2/2는 '체크리스트 완료'일 뿐 DONE이 아니다).
+- D3: PATCH로 `status: DONE`을 설정할 수 없다. `CANCELLED`는 PATCH에 남긴다. 완료는 `complete` command로만 한다.
+- D4: 업무 409는 `TASK_VERSION_CONFLICT`, `INVALID_TASK_STATE`다. 업무에서는 공통 `CONCURRENT_MODIFICATION`을 쓰지 않는다. 다른 도메인의 `CONCURRENT_MODIFICATION` 사용은 그대로다.
+- D5: version은 요청 본문(`version`)에 담는다. `If-Match` 헤더·`ETag`는 쓰지 않는다.
+- D6: 지금은 행사 ARCHIVED만 업무 쓰기를 막는다. DRAFT·ACTIVE·ENDED는 제한 없음. 차단 코드는 `EVENT_ARCHIVED` (#30 현 결정 대기, 제안).
+- D7: v1에는 일괄 체크(전체 체크) endpoint가 없다. 항목별 PUT만 쓴다.
+- D8: 첫 체크에서 TODO → DOING으로 바뀌고, 이후 모든 항목을 해제해도 TODO로 돌아가지 않는다.
+- 함께 확정: OWNER·MANAGER는 기본 `TASK_WRITE`를 갖고 STAFF는 갖지 않는다. 업무당 담당자는 1명이다. 새 테이블 `task_checklist_items`는 예외로 승인했다.
+
+Endpoint (`/api/v1/operator/events/{eventId}` 뒤에 붙음)
+
+| Method | 경로 | Permission | 비고 |
+|---|---|---|---|
+| GET | `/tasks` | `EVENT_READ` | 기존. 목록 DTO에 체크 요약 추가 |
+| GET | `/tasks/{taskId}` | `EVENT_READ` | 기존. 상세 = `TaskStateResponse` + 기존 필드 |
+| PUT | `/tasks/{taskId}/items/{itemId}` | 담당자 본인 또는 유효 `TASK_WRITE` | 신규. 체크 항목 설정 |
+| POST | `/tasks/{taskId}/complete` | 담당자 본인 또는 유효 `TASK_WRITE` | 신규. 업무 완료 |
+| POST | `/tasks/{taskId}/reopen` | 담당자 본인 또는 유효 `TASK_WRITE` | 신규. 다시 진행 |
+
+- 체크는 뒤집기(toggle)가 아니라 SET이다. 두 사람이 같은 항목을 같은 값으로 설정해도 같은 상태로 끝나고 충돌이 없다. 같은 값 재요청은 변경 없이 200(멱등).
+- 항목 설정은 version을 받지 않는다(SET이라 안전). 완료·다시 진행은 `version`을 받는다. version은 업무 상태가 바뀌는 모든 쓰기(항목 설정 포함)마다 +1.
+- 목록 filter **(제안)**: `?assignee=me`(내 업무), `?status=TODO&status=DOING`(repeated). 정렬·pagination은 §1 공통 규칙(`items + page`, default 50, max 100, 초과 `400 PAGE_SIZE_EXCEEDED`).
+- 일괄 설정 `PUT /tasks/{taskId}/items`는 두지 않는다(D7).
+- 체크 항목 추가·삭제·이름 변경(체크리스트 구조 편집)은 #31 범위 밖이다. 하는 경우 기존 `PATCH /tasks/{taskId}` + `version` 필수로 묶는 것을 제안한다.
+- 담당 지정·변경은 기존 `PATCH /tasks/{taskId}`(`TASK_WRITE`)로 한다.
+- `Idempotency-Key`는 이 세 endpoint에 쓰지 않는다 **(제안)**. SET 의미와 목표 상태 멱등으로 재시도가 안전하다(§1 "선택 적용").
+
+Request / Response
+
+```http
+PUT /api/v1/operator/events/{eventId}/tasks/{taskId}/items/{itemId}
+{ "checked": true }
+
+POST /api/v1/operator/events/{eventId}/tasks/{taskId}/complete
+{ "version": 7 }
+
+POST /api/v1/operator/events/{eventId}/tasks/{taskId}/reopen
+{ "version": 8, "reason": "로비 표지 위치 변경" }   # reason은 선택 (제안, 최대 500자)
+```
+
+`TaskStateResponse` (쓰기 응답·상세·409 본문 공통)
+
+```json
+{
+  "taskId": "uuid",
+  "status": "DOING",
+  "version": 8,
+  "checklist": {
+    "done": 2,
+    "total": 2,
+    "items": [
+      {
+        "itemId": "uuid",
+        "label": "안내 문구 확인",
+        "position": 1,
+        "checked": true,
+        "checkedBy": { "eventUserId": "uuid", "displayName": "김OO" },
+        "checkedAt": "2026-10-02T05:10:00Z"
+      }
+    ]
+  },
+  "assignee": { "eventUserId": "uuid", "displayName": "이OO" },
+  "completedBy": null,
+  "completedAt": null,
+  "actions": { "canCheck": true, "canComplete": true, "canReopen": false, "blockedReason": null },
+  "outcome": "UPDATED"
+}
+```
+
+- 모든 쓰기 응답과 409 본문에 같은 `TaskStateResponse`를 담는다. 클라이언트는 받은 상태를 그대로 그린다. 체크 수·상태 계산은 서버만 한다.
+- `outcome`(쓰기 응답만): `UPDATED | NO_CHANGE`(항목), `COMPLETED | ALREADY_DONE`(complete), `REOPENED | ALREADY_OPEN`(reopen). #27의 `outcome: ALREADY_ACCEPTED`와 같은 방식이다.
+- `checkedBy`·`assignee`·`completedBy`는 `eventUserId`·`displayName`만 담는다(DEC-060: 행사 전용 협력자에게 다른 운영자는 이름·역할만). 해제된 항목은 `checkedBy`·`checkedAt` = null이고 과거 기록은 audit에 남는다.
+- `actions`·`blockedReason`(`EVENT_ARCHIVED | TASK_DONE | TASK_CANCELLED | CHECKLIST_INCOMPLETE | FORBIDDEN | null`) **(제안)**: DEC-031 "실행 불가하면 이유와 함께 비활성화"를 화면이 서버 판정 그대로 그리게 한다. 버튼 표시용이며 서버는 쓰기 때마다 다시 판정한다. `EVENT_ARCHIVED` 값은 #30 결정에 맞춘다.
+- `CHECKED`(#14 Figma 변수 ONE/CHECKED/DONE의 CHECKED)는 저장 상태가 아니라 `status != DONE && done == total`로 계산한다.
+- 목록 `TaskListItemResponse`: `taskId, title, status, assignee, checklist {done, total}, version` (항목 상세 제외).
+- 시각은 ISO-8601 UTC(§1 공통 규칙).
+
+상태 전이 (서버 판정)
+
+| 현재 | 동작 | 결과 |
+|---|---|---|
+| TODO | 첫 항목 체크 | DOING (D8) |
+| DOING | 항목 체크/해제 | DOING 유지. 0/n이 돼도 TODO로 돌리지 않음 (D8) |
+| DOING, 2/2에서 항목 해제 | 항목 해제 | '체크리스트 완료' 표시만 사라지고 DOING 그대로 |
+| TODO·DOING, done == total | complete | DONE, `completedBy/At` 기록 |
+| TODO·DOING, done < total | complete | 409 `INVALID_TASK_STATE` `reason: CHECKLIST_INCOMPLETE` (D2) |
+| 항목 0개 업무 | complete | DONE (체크리스트 없는 업무) |
+| DONE | 항목 변경 | 409 `INVALID_TASK_STATE` `reason: TASK_DONE` (완료 후 체크는 읽기 전용) |
+| DONE | reopen | DOING, 체크 유지, `completedBy/At` = null |
+| CANCELLED | 항목·complete·reopen | 409 `INVALID_TASK_STATE` `reason: TASK_CANCELLED` (취소 복구는 범위 밖) |
+
+권한 판정
+
+- 조회(목록·상세): 유효 `EVENT_READ`. 조직 관리자(Space OWNER/ADMIN)는 행사 운영자가 아니어도 조회할 수 있고 쓰기는 403이다(DEC-028: 조회 ≠ 수정).
+- 항목 설정·완료·다시 진행: **업무 담당자 본인** 또는 **유효 `TASK_WRITE`** (D1). 담당 지정 자체가 그 업무 처리 권한이며, 빼려면 담당을 바꾼다.
+- role 기본값: OWNER·MANAGER는 `TASK_WRITE` 포함, STAFF는 미포함(담당 업무만). 유효 권한 = role 기본값 + 사람별 GRANT − REVOKE(현 결정 10/2, DEC-029 보강). 사람별 GRANT/REVOKE는 Event Owner만 한다.
+- 그룹 리더 역할만으로는 업무를 쓸 수 없다(DEC-030: 수정 권한 자동 부여 안 함).
+- 권한 회수·이탈 직후 기존 세션: 매 요청 현재 권한으로 다시 판정한다(DEC-031). 행사 접근이 회수되면 403 `NOT_A_MEMBER`(#30 코멘트 기준, 제안), 역할·권한 부족은 403 `FORBIDDEN`.
+
+판정 순서와 오류
+
+401 인증 → 404 tenant·업무·항목 → 403 권한 → 400 요청 값 → 409 행사 상태 → 변경 없음이면 200 → 409 업무 상태 → 409 version.
+
+| 결과 | HTTP | code | 본문 |
+|---|---|---|---|
+| 성공 / 같은 값 재요청 | 200 | — | `TaskStateResponse` (`outcome`) |
+| 로그인 안 됨 | 401 | `AUTHENTICATION_REQUIRED` | |
+| 다른 행사·tenant 업무, 없는 업무 | 404 | `RESOURCE_NOT_FOUND` | 존재 숨김 |
+| 이 업무에 없는 itemId (구조 편집으로 삭제 포함) | 404 | `RESOURCE_NOT_FOUND` | 업무 조회 가능하면 `task` 첨부 **(제안)** |
+| 담당자 아님 + 유효 `TASK_WRITE` 없음 | 403 | `FORBIDDEN` | |
+| 행사 접근 회수 | 403 | `NOT_A_MEMBER` (#30, 제안) | |
+| `checked` 누락·boolean 아님, `version` 누락 | 400 | `VALIDATION_FAILED` | `errors[]` |
+| 행사 ARCHIVED | 409 | `EVENT_ARCHIVED` (#30 현 결정 대기, 제안) | `eventStatus`, `task` |
+| DONE 업무 항목 변경 / 미완료 체크로 complete / CANCELLED | 409 | `INVALID_TASK_STATE` | `reason`, `task` |
+| complete·reopen의 `version` ≠ 현재 | 409 | `TASK_VERSION_CONFLICT` | `task` |
+
+409 본문 예 (RFC 9457 + 확장):
+
+```json
+{
+  "type": "urn:scene:problem:task-version-conflict",
+  "title": "Task version conflict",
+  "status": 409,
+  "code": "TASK_VERSION_CONFLICT",
+  "detail": "다른 사람이 먼저 이 업무를 바꿨습니다.",
+  "traceId": "...",
+  "task": { "...": "TaskStateResponse" }
+}
+```
+
+- ARCHIVED 차단 코드는 #30 초안([5946067458](https://github.com/BeomhyunPark/SCENE/issues/30#issuecomment-5946067458))의 `EVENT_ARCHIVED`를 제안값으로 쓴다. 초안의 `EVENT_ENDED`는 쓰지 않는다. #30 현 결정 후 이 행과 관련 회귀 행(23·24)만 맞춘다.
+- ENDED 행사는 지금 업무 쓰기를 막지 않는다(D6). #30이 동결 대상 업무 구분을 정하면 서버의 행사 상태 판정 지점에서 추가한다. `tasks.kind` 같은 업무 유형 필드는 지금 만들지 않는다.
+- 이미 목표 상태면 version과 무관하게 200: complete인데 이미 DONE → `ALREADY_DONE`, reopen인데 이미 TODO/DOING → `ALREADY_OPEN`. 재시도와 '다른 사람이 먼저 같은 일을 함'을 충돌로 보지 않는다.
+
+동시성·멱등성 (구현 기준)
+
+- 항목 설정·완료·다시 진행 모두 한 transaction에서 **업무 행을 먼저 잠근다**(`SELECT … FOR UPDATE`, `findById(spaceId, eventId, taskId)`). '마지막 항목 해제'와 'complete'가 동시에 와도 하나가 먼저 끝나고 나중 것은 바뀐 상태로 판정한다(체크 1/2인데 DONE이 되는 경우 없음).
+- 항목 설정: 값이 같으면 아무것도 바꾸지 않는다(`checkedBy`·`checkedAt`·version 유지, audit 없음, `NO_CHANGE`). 다르면 항목 갱신 + 업무 상태 재계산 + version +1.
+- 두 사람이 동시에 같은 항목 체크: 먼저 커밋한 사람이 `checkedBy`, 두 번째는 200 `NO_CHANGE`.
+- 서로 다른 항목 동시 체크: 둘 다 성공(항목 PUT은 version 검사 없음). version은 차례로 +1.
+- 완료·다시 진행: `UPDATE tasks … WHERE id = ? AND version = ? AND status IN (…)` 한 행 성공으로 판정하고, 0행이면 다시 읽어 `ALREADY_*` / `INVALID_TASK_STATE` / `TASK_VERSION_CONFLICT`로 분류한다.
+
+클라이언트 재시도
+
+- 낙관적 표시 후 서버 응답 상태로 덮어 그린다. 409면 본문 `task`로 되돌려 그리고 새로 고침 없이 안내한다.
+- 오프라인 큐는 (taskId, itemId)별 마지막 값만 보낸다. 같은 값 재전송은 안전하다.
+- 결과 불명(시간 초과): 같은 요청을 다시 보내거나 `GET /tasks/{taskId}`로 확인한다(DEC-047 '결과 불명은 반영 여부 확인 후 재시도'와 같은 원칙).
+- complete/reopen 재전송이 409 `TASK_VERSION_CONFLICT`를 받으면 자동 재시도하지 않고 사용자에게 현재 상태를 보여 준다.
+
+기록 (audit)
+
+- 상태가 바뀐 쓰기만 `audit_logs`에 남긴다: 실행자, 시각, 업무·항목, 전후(`checked`, `status`, `version`), reopen `reason`. 변경 없음은 기록하지 않는다. action 이름 **(제안)**: `TASK_ITEM_CHECKED / TASK_ITEM_UNCHECKED / TASK_COMPLETED / TASK_REOPENED`.
+- 화면용 최신 정보는 DTO의 `checkedBy/At`, `completedBy/At`이다. 전체 이력은 기존 `GET /audit-logs`(`AUDIT_LOG_READ`)로 본다. 업무별 이력 API는 만들지 않는다.
+- 업무·체크 기록은 보존 정책표의 '운영 기록' 키를 따른다(DEC-061).
+- #30 연계 **(제안)**: 종료 경고(DEC-050)·이탈 책임 판정의 '미완료 업무'는 `TODO / DOING`이다.
+
+회귀 테스트
+
+| # | 시나리오 | 기대 |
+|---|---|---|
+| 1 | 담당자가 0/2에서 항목 1 체크 | 200 `UPDATED`, 1/2, status DOING, version +1, `checkedBy` = 본인 |
+| 2 | 1번 직후 같은 요청 재전송 | 200 `NO_CHANGE`, version·`checkedAt` 그대로, audit 추가 없음 |
+| 3 | A·B가 동시에 같은 항목 `checked: true` | 둘 다 200, 최종 checked, `checkedBy` = 먼저 커밋한 사람, 한쪽 `NO_CHANGE` |
+| 4 | A·B가 동시에 다른 항목 체크 | 둘 다 200, 최종 2/2, version 2 증가 |
+| 5 | 2/2(체크리스트 완료)에서 항목 해제 | 200, 1/2, status DOING, DONE 아님 |
+| 6 | 2/2 상태로 complete, 최신 version | 200 `COMPLETED`, DONE, `completedBy/At` 기록 |
+| 7 | 1/2 상태로 complete | 409 `INVALID_TASK_STATE` `reason: CHECKLIST_INCOMPLETE`, 본문 1/2 |
+| 8 | 항목 0개 업무 complete | 200 `COMPLETED` |
+| 9 | DONE 업무 항목 해제 | 409 `INVALID_TASK_STATE` `reason: TASK_DONE`, 본문 DONE 2/2 |
+| 10 | DONE 업무에 이미 체크된 항목 `checked: true` 재전송 | 200 `NO_CHANGE` |
+| 11 | DONE에서 reopen | 200 `REOPENED`, DOING 2/2 (체크 유지) → 이후 항목 1·2 모두 해제 가능 (#14 10/1 결정) |
+| 12 | 다른 사람이 항목 해제한 뒤 이전 version으로 complete | 409 `TASK_VERSION_CONFLICT`, 본문 1/2·새 version |
+| 13 | 마지막 항목 해제와 complete가 동시에 도착 | 최종 상태가 'DONE + 1/2'인 경우 없음. complete는 200 또는 409 중 하나 |
+| 14 | complete 응답 유실 후 같은 요청 재전송 | 200 `ALREADY_DONE` |
+| 15 | 이미 DOING인 업무 reopen | 200 `ALREADY_OPEN`, version 그대로 |
+| 16 | 담당자 아님, `TASK_WRITE` 없는 STAFF가 항목 체크 | 403 `FORBIDDEN`, 상태 불변 |
+| 17 | Event Owner가 STAFF에게 `TASK_WRITE` GRANT → 남의 업무 체크 | 200 |
+| 18 | MANAGER의 `TASK_WRITE`를 REVOKE → 남의 업무 complete / 자기 담당 업무 complete | 403 `FORBIDDEN` / 200 (담당자 규칙, D1) |
+| 19 | 조직 관리자(행사 운영자 아님)가 조회 / 항목 체크 | 200 / 403 `FORBIDDEN` |
+| 20 | 다른 행사의 taskId로 호출 | 404 `RESOURCE_NOT_FOUND` |
+| 21 | ENDED 행사의 후속 업무 체크·완료·다시 진행 | 200 |
+| 22 | ENDED 행사의 다른 유형 업무(현장 업무 등) 체크 | 200 (D6: 지금은 ENDED에서 차단하지 않음. #30이 동결 대상을 정하면 다시 정함) |
+| 23 | ARCHIVED 행사 업무 체크·complete·reopen (같은 값 재전송 포함) | 409 `EVENT_ARCHIVED` (#30 현 결정 대기, 제안), 상태 불변, 조회는 200 |
+| 24 | 체크 화면을 연 뒤 행사 보관 → 체크 | 23과 같음 (요청 시점 재판정) |
+| 25 | 이탈로 행사 접근 회수 후 같은 세션에서 체크 | 403 `NOT_A_MEMBER` (#30, 제안) |
+| 26 | `checked` 누락 / complete에 `version` 누락 | 400 `VALIDATION_FAILED` |
+| 27 | 구조 편집으로 지운 itemId에 체크 | 404 `RESOURCE_NOT_FOUND` |
+| 28 | 행사 전용 협력자가 받은 `checkedBy` | `eventUserId`, `displayName`만 (연락처 없음) |
+| 29 | 상태가 바뀐 쓰기 1건 | audit 1건, 전후 값·실행자 포함. `NO_CHANGE`는 0건 |
+| 30 | `PATCH /tasks/{taskId}` `{"status":"DONE"}` | 400 `VALIDATION_FAILED`, 상태 불변 (D3) |
+| 31 | `PATCH /tasks/{taskId}` `{"status":"CANCELLED"}` (`TASK_WRITE`) | 200, CANCELLED. 이후 항목 체크는 409 `INVALID_TASK_STATE` `reason: TASK_CANCELLED` |
 
 ## 9. Schedule / Notice
 

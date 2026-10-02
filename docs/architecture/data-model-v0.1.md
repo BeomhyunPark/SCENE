@@ -69,9 +69,39 @@ Flight/Class 배정은 Mission/Child 업무에서 관리한다. 지도는 해당
 - Fee 상태: `OPEN / WAIVED / CANCELLED`. `PAID boolean`으로 모델링하지 않는다.
 - Payment `kind`: `PAYMENT / REFUND`; `source`: `MANUAL / IMPORT / BANK`; `method`: `TRANSFER / CASH / CARD / OTHER`; `status`: `POSTED / VOID`. 이 값만으로 외부 은행·카드 연동 구현을 확정하지 않는다.
 - Check-in current state 변경과 check-in history를 같은 transaction으로 남긴다.
-- Task는 `TODO / DOING / DONE / CANCELLED`. 모든 Task에 optimistic version을 강제하지 않는다.
+- Task는 `TODO / DOING / DONE / CANCELLED` (`varchar + CHECK`). (2026-10-02 #31, DEC-062) `tasks.version`을 두되 complete·reopen에서만 검사한다. 체크 항목은 아래 `task_checklist_items`에 둔다.
 - Schedule `mode`: `DATE / TIME`; `status`: `DRAFT / PUBLISHED / CANCELLED`. Notice 상태: `DRAFT / PUBLISHED / ARCHIVED`.
 - JSONB는 `fields.config`, `answers.value`에 제한적으로 사용한다. Domain 관계·상태 전체를 만능 Entity-Attribute 또는 JSONB 구조로 대체하지 않는다.
+
+### 2026-10-02 업무 체크리스트 (#31, DEC-062)
+
+[#31 현 결정 기록 (10/2)](https://github.com/BeomhyunPark/SCENE/issues/31#issuecomment-5946079736)으로 새 테이블 `task_checklist_items`를 §1 "새로운 테이블을 추가하지 않는다"의 예외로 승인했다. 업무당 담당자는 1명이다. 상태 전이·동시성·오류 계약은 [API Architecture](api-architecture-v0.1.md) §8의 같은 날짜 절을 따른다.
+
+`tasks` 추가 컬럼
+
+| 컬럼 | 의미 |
+|---|---|
+| `assignee_event_user_id` | uuid, nullable. 담당자 1명 |
+| `version` | int. 업무 상태가 바뀌는 모든 쓰기(항목 설정 포함)마다 +1. complete·reopen(과 제안된 구조 편집)에서만 검사 |
+| `completed_by_event_user_id` | uuid, nullable. complete 실행자. reopen 시 null |
+| `completed_at` | timestamptz, nullable. reopen 시 null |
+
+`task_checklist_items` (신규)
+
+| 컬럼 | 의미 |
+|---|---|
+| `id` | uuid. PK |
+| `space_id`, `event_id`, `task_id` | tenant·소속 업무 |
+| `label` | 항목 이름 |
+| `position` | 표시 순서 |
+| `checked` | boolean |
+| `checked_by_event_user_id` | uuid, nullable. 마지막으로 체크한 운영자. 해제 시 null |
+| `checked_at` | timestamptz, nullable. 해제 시 null |
+
+- composite FK `(task_id, event_id, space_id) → tasks`. §4의 `(event_id, space_id) → events(id, space_id)`와 같은 방식으로 다른 행사·tenant 업무에 항목이 붙지 않게 한다.
+- 체크 상태를 `tasks`의 JSONB 컬럼에 넣지 않는다(위 JSONB 제한). 항목별 동시 갱신과 audit를 위해 행으로 둔다.
+- `done / total`, '체크리스트 완료'(#14 CHECKED)는 저장하지 않고 항목 행에서 계산한다.
+- 해제된 항목의 과거 `checked_by`·`checked_at`은 `audit_logs`에 남기고 이 테이블에는 현재 상태만 둔다.
 
 ## 6. Security data
 
