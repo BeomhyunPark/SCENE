@@ -699,6 +699,7 @@ POST   /api/v1/operator/events/{eventId}/operators                      # 기존
 POST   /api/v1/operator/events/{eventId}/invitations                    # 비멤버 초대 {email, role}
 POST   /api/v1/operator/events/{eventId}/invitations/{invitationId}/resend
 DELETE /api/v1/operator/events/{eventId}/invitations/{invitationId}     # 회수 → REVOKED
+POST   /api/v1/operator/invitations/preview                             # {token}, 로그인 필수, 조회 전용 (2026-10-02 #27)
 POST   /api/v1/operator/invitations/accept                              # {token}, 로그인 필수
 ```
 
@@ -718,6 +719,27 @@ POST   /api/v1/operator/invitations/accept                              # {token
 | 토큰 없음·위조 | 404 | `INVITATION_NOT_FOUND` |
 
 판정 순서는 토큰 조회 → 이메일 일치 → 상태다. 이메일이 다르면 상태를 노출하지 않는다.
+
+2026-10-02 보강 (#27, 현 승인)
+
+- 수락 200 응답에 `outcome: ACCEPTED | ALREADY_ACCEPTED`를 둔다. 같은 사용자의 재수락은 상태를 바꾸지 않고 `ALREADY_ACCEPTED`를 돌려준다.
+- 미리보기는 수락과 같은 판정 순서·같은 오류 코드를 쓴다. 성공 시 200 `{eventName, role, inviterName, expiresAt, outcome: PENDING | ALREADY_ACCEPTED}`. 상태를 바꾸지 않으며 반복 호출해도 결과가 같다. 수락은 미리보기 통과 여부와 무관하게 다시 판정한다.
+- 미리보기·수락 모두 계정별·IP별 rate limit, 초과 시 429 `RATE_LIMITED`. 로그인 안 됨은 401이며 클라이언트는 토큰을 유지한다.
+- 화면 매핑: `INVITATION_EMAIL_MISMATCH` → 15, `INVITATION_EXPIRED` → 16, `INVITATION_NOT_FOUND` → 17, `INVITATION_REVOKED` → 35(취소 후 새 초대를 받은 사용자가 예전 링크로 들어온 경우 포함), `INVITATION_SUPERSEDED` → 36, `outcome: ALREADY_ACCEPTED` → 37, PENDING → 14.
+
+회귀 테스트
+
+| # | 시나리오 | 기대 |
+|---|---|---|
+| 1 | 다른 계정 로그인 → 15에서 계정 바꾸기 → 30분 안에 대상 계정 로그인 | 미리보기 PENDING → 수락 ACCEPTED |
+| 2 | 1과 같지만 최초 보관 후 30분 경과 | 토큰 삭제, 일반 랜딩 화면 |
+| 3 | 15에서 돌아가기 | S00 이동, 토큰 삭제 |
+| 4 | 미리보기 2회 연속 호출 | 같은 응답, 초대 상태 불변 |
+| 5 | 미리보기 통과 후 초대 회수 → 수락 | 410 `INVITATION_REVOKED` |
+| 6 | 대상이 아닌 계정으로 미리보기·수락 | `INVITATION_NOT_FOUND` 또는 `INVITATION_EMAIL_MISMATCH`만, 이메일 마스킹 |
+| 7 | 로그아웃 상태에서 미리보기 | 401, 토큰 유지 |
+| 8 | 같은 사용자가 수락 후 다시 수락 | 200 `outcome: ALREADY_ACCEPTED` |
+| 9 | 한도 초과 호출 | 429 `RATE_LIMITED` |
 
 ## 2026-10-01 보존·삭제·Export 처리 계약 (DEC-061)
 

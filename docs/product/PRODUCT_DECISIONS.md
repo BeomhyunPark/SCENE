@@ -1785,6 +1785,8 @@ DEC-039로 조직 Membership 없이 특정 행사만 운영하는 협력자를 �
 - 자진 조직 탈퇴 시 행사별 접근 유지/회수를 묻고 유지하면 행사 전용 협력자로 전환한다. 관리자 제거 시 기본값은 해당 Space 행사 접근 전체 회수이며 유지할 행사만 명시 선택하고 남는 접근권을 표시한다. Event Owner는 #4 인수인계 완료 전 탈퇴·제거를 차단한다.
 - 기존 멤버는 userId로 바로 추가한다. 비멤버는 `event_invitations`로 초대한다. 저장 상태는 `PENDING / ACCEPTED / REVOKED / SUPERSEDED`이며 만료는 `expires_at`으로 계산하고 저장하지 않는다. 같은 행사·이메일의 PENDING은 하나만 허용한다. 재전송은 새 행을 만들고 이전 행을 SUPERSEDED로 남긴다. 초대 TTL은 7일 서버 상수다.
 - 수락은 대상 이메일로 로그인한 사용자만 가능하며 결과를 성공과 6가지 오류 코드(토큰 없음·이메일 불일치·만료·회수·재전송 무효·타인 수락)로 구분한다. 로그인 전에는 서버를 호출하지 않고 단일 안내 화면을 보여 토큰 존재 여부를 드러내지 않는다.
+- (2026-10-02 보강, #27) 로그인 후 수락 전에 조회 전용 미리보기(`POST /api/v1/operator/invitations/preview`)로 행사명·역할을 보여 준다. 미리보기는 수락과 같은 판정 순서·같은 오류 코드를 쓰고 상태를 바꾸지 않으며, 수락은 미리보기 결과와 무관하게 다시 판정한다. 같은 사용자의 재수락은 200 `outcome: ALREADY_ACCEPTED`로 구분한다.
+- (2026-10-02 보강, #27) 이메일 불일치 화면에서 '계정 바꾸기'는 로그아웃해도 저장된 토큰을 최초 저장 시각 기준 30분 안에서만 유지하고 시간을 연장하지 않는다. '돌아가기'는 토큰을 지우고 S00으로 간다. 그 밖의 로그아웃은 토큰을 지운다. 토큰은 128비트 이상 난수이고 해시만 저장하며, 미리보기·수락에 계정·IP별 rate limit(429)을 둔다.
 - 행사 전용 협력자도 조회 권한만으로 Export하지 않는다(DEC-054, DEC-061). Space OWNER는 행사 운영자가 아니어도 자기 Space 행사의 협력자를 조회·회수할 수 있다.
 
 ### Alternatives
@@ -1801,7 +1803,7 @@ DEC-039로 조직 Membership 없이 특정 행사만 운영하는 협력자를 �
 
 ### Evidence
 
-[#11 기술 계약](https://github.com/BeomhyunPark/SCENE/issues/11#issuecomment-5922367345), [#11 결정 (10/1 현)](https://github.com/BeomhyunPark/SCENE/issues/11#issuecomment-5922384963).
+[#11 기술 계약](https://github.com/BeomhyunPark/SCENE/issues/11#issuecomment-5922367345), [#11 결정 (10/1 현)](https://github.com/BeomhyunPark/SCENE/issues/11#issuecomment-5922384963), 2026-10-02 #27 보강(현 승인, 단톡방 5번 항목), [#27 화면 매핑](https://github.com/BeomhyunPark/SCENE/issues/27#issuecomment-5945556067).
 
 ---
 
