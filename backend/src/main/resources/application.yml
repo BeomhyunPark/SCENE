@@ -16,6 +16,11 @@ server:
     include-stacktrace: never
     include-binding-errors: never
 
+logging:
+  structured:
+    format:
+      console: logstash
+
 mybatis:
   mapper-locations: classpath*:mapper/**/*.xml
   type-handlers-package: app.scene.common.mybatis

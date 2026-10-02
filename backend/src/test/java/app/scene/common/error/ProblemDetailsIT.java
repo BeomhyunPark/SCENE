@@ -1,19 +1,25 @@
 package app.scene.common.error;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import app.scene.common.web.RequestIdFilter;
 import app.scene.support.PostgresTestcontainer;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -34,7 +40,11 @@ class ProblemDetailsIT {
 
   @BeforeEach
   void mockMvc() {
-    mvc = MockMvcBuilders.webAppContextSetup(context).build();
+    // MockMvc does not apply servlet Filter registrations. The container does.
+    mvc =
+        MockMvcBuilders.webAppContextSetup(context)
+            .addFilters(context.getBean(RequestIdFilter.class))
+            .build();
   }
 
   @Test
@@ -47,7 +57,8 @@ class ProblemDetailsIT {
         .andExpect(jsonPath("$.status").value(409))
         .andExpect(jsonPath("$.code").value("TASK_VERSION_CONFLICT"))
         .andExpect(jsonPath("$.detail").value("다른 사람이 먼저 이 업무를 바꿨습니다."))
-        .andExpect(jsonPath("$.traceId").value("req-42"));
+        .andExpect(jsonPath("$.traceId").value("req-42"))
+        .andExpect(header().string("X-Request-Id", "req-42"));
   }
 
   @Test
@@ -71,10 +82,26 @@ class ProblemDetailsIT {
 
   @Test
   void unsafeTraceIdIsReplaced() throws Exception {
-    mvc.perform(get("/__probe/conflict").header("X-Request-Id", "bad id"))
-        .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.traceId").exists())
-        .andExpect(jsonPath("$.traceId").value(org.hamcrest.Matchers.not("bad id")));
+    var result =
+        mvc.perform(get("/__probe/conflict").header("X-Request-Id", "bad id"))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.traceId").value(org.hamcrest.Matchers.not("bad id")))
+            .andReturn();
+    String traceId =
+        com.jayway.jsonpath.JsonPath.read(result.getResponse().getContentAsString(), "$.traceId");
+    assertThat(result.getResponse().getHeader("X-Request-Id")).isEqualTo(traceId);
+    assertThat(traceId).doesNotContain(" ");
+  }
+
+  @Test
+  @ExtendWith(OutputCaptureExtension.class)
+  void accessLogIsJsonAndOmitsTheQuery(CapturedOutput output) throws Exception {
+    mvc.perform(get("/__probe/conflict").header("X-Request-Id", "req-42").param("token", "secret"))
+        .andExpect(header().string("X-Request-Id", "req-42"))
+        .andExpect(jsonPath("$.traceId").value("req-42"));
+    assertThat(output).contains("\"requestId\":\"req-42\"");
+    assertThat(output).contains("\"path\":\"/__probe/conflict\"");
+    assertThat(output).doesNotContain("token=secret");
   }
 
   @Test
