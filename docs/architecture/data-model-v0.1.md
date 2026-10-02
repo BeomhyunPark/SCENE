@@ -52,7 +52,7 @@ Flight/Class 배정은 Mission/Child 업무에서 관리한다. 지도는 해당
 
 - Event-scoped 요청은 `eventId`로 서버가 `spaceId`를 resolve한다.
 - `space_id + event_id` tenant isolation과 composite FK로 잘못된 tenant 간 관계를 방지한다.
-- PK는 UUID(예외: 2026-10-02 `event_user_permissions`는 외부 식별자가 없는 연결 행이라 `(event_id, user_id, permission)` 복합 PK). Composite FK 예: `(event_id, space_id) → events(id, space_id)`. 가능한 하위 관계도 `(participant_id, event_id, space_id)`, `(group_id, event_id, space_id)`로 tenant consistency 보장.
+- PK는 UUID(예외: 2026-10-02 `event_user_permissions`는 외부 식별자가 없는 연결 행이라 `(event_id, user_id, permission)` 복합 PK. `space_id`는 tenant 규칙대로 컬럼과 FK에 둔다). Composite FK 예: `(event_id, space_id) → events(id, space_id)`. 가능한 하위 관계도 `(participant_id, event_id, space_id)`, `(group_id, event_id, space_id)`로 tenant consistency 보장.
 - Security / Service / MyBatis tenant condition / DB composite FK를 함께 적용한다.
 - UUID 외부 노출은 조회 권한이나 tenant 검사를 대체하지 않는다.
 - DB 이름은 `snake_case`, API JSON은 `camelCase`.
@@ -151,7 +151,7 @@ ENDED는 조회·정산·회고·후속 업무·후속 공지·감사 가능한 
 
 ## 2026-10-01 행사 전용 협력자·초대 기술 계약 (DEC-060)
 
-- `event_users`: `space_id`, `event_id`, `user_id`, `role`. `member_id` 필수 참조 없음. 조직 소속 여부는 `members` 조인으로 계산하고 저장하지 않는다. `UNIQUE(event_id, user_id)`, composite FK `(event_id, space_id) → events(id, space_id)`.
+- `event_users`: `space_id`, `event_id`, `user_id`, `role`. `member_id` 필수 참조 없음. 조직 소속 여부는 `members` 조인으로 계산하고 저장하지 않는다. `UNIQUE(event_id, user_id)`, composite FK `(event_id, space_id) → events(id, space_id)`. (2026-10-02 Backend Lead: `event_user_permissions` FK 대상으로 `UNIQUE(space_id, event_id, user_id)`를 Flyway V1에서 추가한다.)
 - Event OWNER의 활성 Membership 조건은 DB가 아니라 서비스에서 지정·위임·Membership 종료 시점에 검사한다.
 - `event_invitations`: `space_id`, `event_id`, `email_normalized`, `role`, `token_hash`, `status`, `expires_at`, `invited_by`, `accepted_user_id`, 생성·변경 시각.
   - `status`: `PENDING / ACCEPTED / REVOKED / SUPERSEDED` (`varchar + CHECK`). 만료는 `status = 'PENDING' AND expires_at <= now()`로 계산하며 `EXPIRED`를 저장하지 않는다.
@@ -176,6 +176,7 @@ ENDED는 조회·정산·회고·후속 업무·후속 공지·감사 가능한 
 
 | 컬럼 | 의미 |
 |---|---|
+| `space_id` | uuid. 대상 행사의 tenant (2026-10-02 Backend Lead 결정, §4 tenant 규칙) |
 | `event_id` | uuid. 대상 행사 |
 | `user_id` | uuid. 대상 운영자(`event_users.user_id`) |
 | `permission` | varchar. 서버 Permission enum의 Event 범위 키([키 목록 초안](api-architecture-v0.1.md#2026-10-02-개인별-권한-현-결정-dec-029-정합)) |
@@ -183,15 +184,14 @@ ENDED는 조회·정산·회고·후속 업무·후속 공지·감사 가능한 
 | `granted_by` | uuid → `users(id)`. 변경한 Event Owner |
 | `granted_at` | timestamptz |
 
-- PK `(event_id, user_id, permission)`. 한 운영자·한 키에 override는 하나이며 같은 키의 GRANT와 REVOKE를 함께 저장할 수 없다. §4 "PK는 UUID" 기본 규칙의 예외다. 외부 식별자로 노출하지 않는 연결 행이고 API가 `(eventId, userId)` 단위 전체 목록으로만 다루므로 surrogate id를 두지 않는다.
-- FK `(event_id, user_id) → event_users(event_id, user_id) ON DELETE CASCADE`. DEC-060의 `event_users` `UNIQUE(event_id, user_id)`를 참조 대상으로 쓴다. 운영자 제거(`event_users` 행 삭제)는 override를 함께 지운다.
-- `space_id` 컬럼과 composite FK `(event_id, space_id)`는 두지 않는다. FK 대상인 `event_users`가 이미 `(event_id, space_id) → events(id, space_id)`로 tenant를 고정하므로 이 테이블에서 다른 tenant의 행사·운영자를 잘못 연결할 수 없다. 조회는 서버가 `eventId`로 resolve한 `spaceId`와 `event_users` 조인으로 tenant 조건을 건다. MyBatis tenant 조건을 위해 `space_id`를 직접 둬야 한다면 `event_users`에 `UNIQUE(event_id, user_id, space_id)`를 추가하고 FK를 `(event_id, user_id, space_id)`로 넓힌다(Backend Lead 판단).
+- PK `(event_id, user_id, permission)`. 다른 행사 범위 테이블의 유일성 키(`event_users` `UNIQUE(event_id, user_id)`, `event_invitations` `UNIQUE(event_id, email_normalized)`)가 `space_id`를 넣지 않으므로 같은 방식을 택했다. `event_id`가 UUID라 `space_id`를 더해도 유일성은 바뀌지 않는다. 한 운영자·한 키에 override는 하나이며 같은 키의 GRANT와 REVOKE를 함께 저장할 수 없다. §4 "PK는 UUID" 기본 규칙의 예외다. 외부 식별자로 노출하지 않는 연결 행이고 API가 `(eventId, userId)` 단위 전체 목록으로만 다루므로 surrogate id를 두지 않는다.
+- `space_id` (2026-10-02 Backend Lead 결정, Flyway V1 전): §4 tenant 규칙(MyBatis tenant 조건, composite FK)에 맞춰 `space_id`를 둔다. FK `(space_id, event_id, user_id) → event_users(space_id, event_id, user_id) ON DELETE CASCADE`. 참조 대상이 될 `event_users` `UNIQUE(space_id, event_id, user_id)`는 Backend Lead가 V1에서 추가한다. `event_users`가 `(event_id, space_id) → events(id, space_id)`로 tenant를 고정하므로 이 FK로 다른 tenant의 행사·운영자를 잘못 연결할 수 없다. 운영자 제거(`event_users` 행 삭제)는 override를 함께 지운다.
+- Mapper는 tenant를 함께 받는다(§4 `findById(spaceId, eventId, id)` 형태). 예: `findByOperator(spaceId, eventId, userId)`, `replaceOverrides(spaceId, eventId, userId, …)`, `deleteByOperator(spaceId, eventId, userId)`. 이름은 구현에서 정한다. API 경로에는 `spaceId`가 없고 서버가 `eventId`로 resolve한 값을 넘긴다.
 - `permission` 값은 서비스에서 Java enum으로 검증한다. 키 목록이 초안이므로 DB CHECK는 목록 확정 후 추가 여부를 정한다.
 - Effective = role 기본 집합 ∪ GRANT − REVOKE. 저장하지 않고 요청마다 계산한다.
 - OWNER role 운영자에게는 override 행을 두지 않는다(OWNER 권한은 override 불가). OWNER 전용 키는 OWNER가 아닌 운영자에게 GRANT로 저장하지 않는다. 둘 다 서비스에서 검사한다.
-- role 변경(`event_users.role` UPDATE)은 같은 transaction에서 해당 운영자의 override를 모두 삭제하고 audit에 남긴다. 추가·role 변경·제거·재추가는 `EVENT_USER_MANAGE`이며 Event OWNER만 한다.
-- Owner 위임 수락도 받는 사람의 role을 OWNER로 바꾸는 role 변경이다. 받는 사람·넘기는 사람 양쪽의 라이브 override를 비우고, 지우기 직전 행(`user_id`, `permission`, `effect`, `granted_by`, `granted_at`)을 위임 레코드의 스냅샷으로 복사한다. 넘기는 사람의 role은 수락 시 내리지 않는다(DEC-033 HANDOVER 14일). 위임 테이블 이름과 그 외 컬럼은 위임 endpoint 계약이 OPEN이라 여기서 정하지 않는다. 스냅샷에 개인정보를 넣지 않는다.
-- HANDOVER 취소는 스냅샷을 이 테이블에 다시 넣고 role을 수락 전으로 되돌린다. 수락 이후 생긴 행은 복원하지 않고 삭제한다. COMPLETED에서는 스냅샷을 복원하지 않는다. 넘기는 사람의 effective는 위임에 기록된 후임 role 기본값이며, 그 role 값은 OPEN이다.
-- ARCHIVED에서는 REVOKE 행 추가와 운영자 제거(CASCADE)만 허용한다. GRANT, role 변경, 재추가는 저장하지 않는다(409 `EVENT_ARCHIVED`). ENDED는 이 제한이 없다.
+- role 변경(`event_users.role` UPDATE)은 같은 transaction에서 해당 운영자의 override를 모두 삭제하고 audit에 남긴다. 운영자 추가·제거·role 변경은 Event Owner만 한다(현 결정 10/2).
+- Owner 위임 (현 결정 10/2, DEC-033): override가 있는 운영자가 위임을 수락해 OWNER가 되면 같은 transaction에서 그 override를 위임 기록에 스냅샷으로 저장하고 이 테이블에서 지운다. 위임이 취소되면 위임 기록의 스냅샷을 이전 role과 함께 되살린다. 넘긴 사람은 인수인계 종료 뒤 남는 role의 기본값으로 시작하고 override는 없다. 단계마다 audit에 남긴다. 위임 기록의 테이블·컬럼(예: #30 초안의 `owner_transfers`)은 #30 계약에서 정한다.
+- ARCHIVED 행사에서는 줄이는 변경(저장된 GRANT 행 삭제, REVOKE 추가, 운영자 제거)만 허용하고 GRANT 추가와 REVOKE 해제는 서비스에서 409 `EVENT_ARCHIVED`로 막는다(현 결정 10/2, #30 L5). ENDED는 제한 없다.
 - 운영자 제거와 DEC-060의 조직 탈퇴·관리자 제거에 따른 행사 접근 회수는 `event_users` 행 삭제이므로 CASCADE로 override가 사라진다. CASCADE 삭제 자체는 audit에 남지 않으므로 운영자 제거 audit 항목에 삭제된 override 목록을 함께 기록한다. 행사 전용 협력자로 전환해 `event_users` 행이 유지되면 override도 유지된다.
 - 아직 코드가 없으므로 마이그레이션이 아니라 Flyway V1 초기 스키마에 포함한다(SCENE Backend Lead).

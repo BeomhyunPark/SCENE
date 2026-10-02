@@ -90,9 +90,9 @@ Form 상세의 `FORM_CLOSED`와 공통 예시의 `APPLICATION_CLOSED`는 둘 다
 | 403 | Authorization |
 | 404 | Resource / Tenant boundary |
 | 409 | Domain / State / Concurrency Conflict |
-| 422 | 형식은 맞지만 권한 규칙상 허용되지 않는 요청 (2026-10-02 개인별 권한 계약에서 추가, [아래 절](#2026-10-02-개인별-권한-현-결정-dec-029-정합)) |
 | 413 | Payload too large |
 | 415 | Unsupported media |
+| 422 | 형식은 맞지만 권한 규칙상 허용되지 않는 요청 (2026-10-02 개인별 권한 계약에서 추가, [아래 절](#2026-10-02-개인별-권한-현-결정-dec-029-정합)) |
 | 429 | Rate limit |
 | 500 | Unexpected server error |
 
@@ -182,10 +182,10 @@ DELETE /api/v1/operator/spaces/{spaceId}/members/{memberId}
 
 - Event 업무 anchor: `/api/v1/operator/events/{eventId}`.
 - Event Operator 경계: `/api/v1/operator/events/{eventId}/operators`.
-- 후보 Permission: `EVENT_READ`, `EVENT_UPDATE`, `EVENT_CLOSE`, `EVENT_USER_READ`, `EVENT_USER_MANAGE`.
+- 후보 Permission: `EVENT_READ`, `EVENT_UPDATE`, `EVENT_LIFECYCLE`, `EVENT_USER_READ`, `EVENT_USER_MANAGE`.
 - Event role: `OWNER / MANAGER / STAFF`.
 - Event lifecycle 제품 전이는 #8/DEC-049~053을 따른다. 활성화·종료·ENDED 재개·ENDED 보관·ARCHIVED 해제를 구분한다. ACTIVE 직접 보관과 ARCHIVED 직접 재개는 허용하지 않는다. 상세 command 계약은 후속이다.
-- Event OWNER cardinality / transfer, Space role과 Event role의 상세 Permission mapping은 OPEN 또는 원문 대조 필요. (2026-10-02 현 결정: Event 권한은 role 기본 집합 + 사람별 `event_user_permissions` GRANT/REVOKE. role별 기본 집합은 계속 OPEN. [아래 절](#2026-10-02-개인별-권한-현-결정-dec-029-정합))
+- Event OWNER cardinality / transfer, Space role과 Event role의 상세 Permission mapping은 OPEN 또는 원문 대조 필요. (2026-10-02 현 결정: Event 권한은 role 기본 집합 + 사람별 `event_user_permissions` GRANT/REVOKE. MANAGER/STAFF 기본 집합은 미확정, 백엔드 리드 초안 대기(현 결정 10/2: Backend Lead 초안, 현 승인). [아래 절](#2026-10-02-개인별-권한-현-결정-dec-029-정합))
 
 ```http
 POST   /api/v1/operator/spaces/{spaceId}/events
@@ -194,11 +194,13 @@ GET    /api/v1/operator/events/{eventId}
 PATCH  /api/v1/operator/events/{eventId}
 GET    /api/v1/operator/events/{eventId}/operators
 POST   /api/v1/operator/events/{eventId}/operators
-PATCH  /api/v1/operator/events/{eventId}/operators/{userId}
+PATCH  /api/v1/operator/events/{eventId}/operators/{userId}          # {userId} = 대상 운영자 user_id (2026-10-02 현 결정)
 DELETE /api/v1/operator/events/{eventId}/operators/{userId}
 GET    /api/v1/operator/events/{eventId}/operators/{userId}/permissions   # 2026-10-02 개인별 권한
 PUT    /api/v1/operator/events/{eventId}/operators/{userId}/permissions   # 2026-10-02 개인별 권한, Event OWNER만
 ```
+
+운영자 컬렉션의 경로 변수는 `{userId}` = 대상 운영자의 `event_users.user_id`다(2026-10-02 현 결정). 예전 표기 `{operatorId}`는 정의가 없었고 같은 값으로 맞췄다. 운영자 추가·제거·role 변경과 개인별 권한 변경은 Event OWNER만 한다(2026-10-02 현 결정, [아래 절](#2026-10-02-개인별-권한-현-결정-dec-029-정합)).
 
 Event 생성 + creator를 `event_users.OWNER`로 생성하는 작업은 하나의 transaction. API 이름은 DB `event_users` 대신 `operators`. 최초 기준의 memberId 기반 추가는 조직 Member 경로로 남길 수 있으나 DEC-039의 행사 전용 협력자 경로도 필요하다. 모든 운영자에게 user → member → event operator를 강제하지 않는다. 행사 전용 초대·사용자 참조 계약은 2026-10-01 DEC-060으로 확정했다(아래 절).
 
@@ -539,7 +541,7 @@ MEMBER_MANAGE
 EVENT_CREATE
 EVENT_READ
 EVENT_UPDATE
-EVENT_CLOSE
+EVENT_LIFECYCLE
 EVENT_USER_READ
 EVENT_USER_MANAGE
 PARTICIPANT_READ
@@ -627,7 +629,7 @@ AUDIT_LOG_READ
 
 - Endpoint별 request/response의 제공 범위 밖 세부와 상세 DDL.
 - Role → Permission Set의 상세 mapping과 표에 미명시된 읽기/취소 Permission.
-- 2026-09-30 [DEC-028~030](../product/PRODUCT_DECISIONS.md#dec-028--조직-관리자의-행사-조회와-행사-수정-권한을-구분한다): 조직 관리자의 행사 조회·수정 분리, 운영자별 업무 권한, 조직 관리자의 행사 전체 조회와 리더의 자기 그룹원 전체 조회를 반영해야 한다. 연락처·신청 답변과 조직 관리자의 정산 상세 조회를 포함한다. 화면과 서버의 권한 판단은 DEC-031에 따라 일치시킨다. 개별 권한 저장·판정 방식과 조직·그룹 조회의 endpoint/DTO 경계는 OPEN. 고정 Role mapping만으로 개별 권한 요구가 해결됐다고 해석하지 않는다. (2026-10-02 현 결정으로 개별 권한 저장·판정 방식은 확정했다([아래 절](#2026-10-02-개인별-권한-현-결정-dec-029-정합)). role별 기본 집합, 키 목록 확정, 조직·그룹 조회 endpoint/DTO는 계속 OPEN.)
+- 2026-09-30 [DEC-028~030](../product/PRODUCT_DECISIONS.md#dec-028--조직-관리자의-행사-조회와-행사-수정-권한을-구분한다): 조직 관리자의 행사 조회·수정 분리, 운영자별 업무 권한, 조직 관리자의 행사 전체 조회와 리더의 자기 그룹원 전체 조회를 반영해야 한다. 연락처·신청 답변과 조직 관리자의 정산 상세 조회를 포함한다. 화면과 서버의 권한 판단은 DEC-031에 따라 일치시킨다. 개별 권한 저장·판정 방식과 조직·그룹 조회의 endpoint/DTO 경계는 OPEN. 고정 Role mapping만으로 개별 권한 요구가 해결됐다고 해석하지 않는다. (2026-10-02 현 결정으로 개별 권한 저장·판정 방식은 확정했다([아래 절](#2026-10-02-개인별-권한-현-결정-dec-029-정합)). MANAGER/STAFF 기본 집합은 미확정, 백엔드 리드 초안 대기(현 결정 10/2). 키 목록 확정, 조직·그룹 조회 endpoint/DTO는 계속 OPEN.)
 - QR credential, Notice targeting, idempotency key scope/TTL/response replay와 raw Access Key 1회 전달의 결합.
 - Field별 보존기간 값. 정리·삭제·Export 작업 구조는 DEC-061로 확정했고 기간 값만 OPEN.
 - logs/history의 Domain별 cursor 채택과 request/tracing context의 상세 연결.
@@ -778,12 +780,14 @@ GET  /api/v1/operator/events/{eventId}/exports/{exportId}/download      # 매번
 
 2026-10-02 현 결정(SCENE 개발 리드 전달)으로 DEC-029의 사람별 업무 권한과 §18의 "Java enum + Role → Permission Set" 기준의 충돌을 정리한다. Event 권한 = role 기본 집합 + 사람별 GRANT − 사람별 REVOKE. 부여·회수는 Event Owner만 한다. 저장은 [Data Model](data-model-v0.1.md#2026-10-02-개인별-권한-현-결정-dec-029-정합)의 `event_user_permissions`, 보안 규칙은 [Security / Privacy](security-privacy-v0.1.md#2026-10-02-개인별-권한-현-결정-dec-029-정합)의 같은 이름 절을 따른다.
 
+2026-10-02 보강: 같은 날 현 결정(개발 리드 전달, 아래 "현 결정 10/2"), #30 L5, Backend Lead의 `space_id` 결정, QA 리뷰(변경 요청)를 반영했다. 아직 정하지 않은 것은 "미확정"·"보류(pending)"로 표시한다.
+
 ```
 GET /api/v1/operator/events/{eventId}/operators/{userId}/permissions
 PUT /api/v1/operator/events/{eventId}/operators/{userId}/permissions
 ```
 
-- `{userId}`는 대상 운영자의 `event_users.user_id`다. 권한 GET/PUT, role 변경 PATCH, 운영자 제거 DELETE가 이 값을 쓴다.
+- 경로 변수 (현 결정 10/2): `{userId}`는 대상 운영자의 `user_id`(`event_users.user_id`)다. 운영자 컬렉션의 `PATCH`·`DELETE /operators/{…}`도 같은 값이므로 §5 표기를 `{userId}`로 맞췄다. `event_users`가 `UNIQUE(event_id, user_id)`이고 운영자 추가 body가 `{userId, role}`이라 행사 안에서 한 사람을 한 값으로 가리킨다. 경로에 `spaceId`는 없다. 서버가 `eventId`로 `spaceId`를 resolve한다.
 - GET 200 응답:
 
 ```json
@@ -796,53 +800,63 @@ PUT /api/v1/operator/events/{eventId}/operators/{userId}/permissions
 }
 ```
 
+- 위 `roleDefaults` 값은 형태 예시다. MANAGER/STAFF 기본 집합은 미확정이다(아래 키 목록).
 - PUT body `{"grants": [...], "revokes": [...]}`는 해당 운영자의 override 전체를 대체한다(SET). 두 배열이 모두 비면 override를 모두 지운다. 응답은 200이며 GET과 같은 형태다. 같은 body를 반복하면 같은 결과·같은 응답이고, 바뀐 것이 없으면 행·`granted_at`을 갱신하지 않고 audit도 남기지 않는다. 바뀌지 않은 키는 기존 `granted_by`·`granted_at`을 유지한다.
 - 정규화: role 기본값에 이미 있는 키의 GRANT와 기본값에 없는 키의 REVOKE는 효과가 없으므로 저장하지 않고 응답 `overrides`에서 빠진다(오류 아님). 배열은 키 이름순으로 돌려준다.
-- 호출 권한 (2026-10-02 후속, 현 결정):
-  - PUT: 해당 행사의 Event OWNER만. 그 밖(MANAGER·STAFF, Space OWNER, Space ADMIN)은 403 `FORBIDDEN`. 문서에 role 전용 403 code가 없어 공통 `FORBIDDEN`을 쓴다.
-  - GET: Event OWNER(모든 운영자), 본인(자기 행), 그 행사가 속한 Space의 OWNER(조회만, DEC-028). Space ADMIN은 조회하지 못한다. 그 밖은 403 `FORBIDDEN`.
-  - 대상 사용자가 해당 행사 운영자가 아니면 404 `RESOURCE_NOT_FOUND`. 호출자가 이 행위의 주체가 아니면 대상 존재 여부보다 403을 먼저 반환한다(아래 판정 순서).
-- PUT 검증. 하나라도 어기면 전체 요청을 거절하고 아무것도 저장하지 않는다.
+- role 기본 mapping 변경은 리뷰 대상 변경이다. 정규화 때문에 기본값과 같은 GRANT는 저장되지 않으므로, mapping에서 키를 빼면 그 키를 따로 받았던 운영자도 effective에서 조용히 잃고 키를 넣으면 조용히 얻는다. 그래서 mapping 변경은 별도 PR 리뷰를 거치고, 변경 전후 mapping과 영향받는 행사·운영자 수를 담은 자체 audit 기록과 release note를 함께 낸다.
+- 호출 권한:
+  - 운영자 관리 (현 결정 10/2): 운영자 추가(기존 멤버 직접 추가·DEC-060 초대)·제거·role 변경과 override 변경(PUT)은 해당 행사의 Event OWNER만 한다. `EVENT_USER_MANAGE`는 OWNER 전용이며 다른 운영자에게 GRANT할 수 없다. MANAGER·STAFF와 행사 운영자가 아닌 Space OWNER/ADMIN은 403 `FORBIDDEN`이다. 문서에 role 전용 403 code가 없어 공통 `FORBIDDEN`을 쓴다. Space OWNER의 조직 관리·복구 경로(DEC-035, #30)는 이 규칙과 별개다.
+  - GET (현 결정 10/2): Event OWNER는 모든 운영자를 조회한다. 본인은 자기 행, Space OWNER는 행사 운영자가 아니어도 모든 운영자를 조회만 한다(DEC-028·DEC-060). Space ADMIN을 포함한 그 밖은 403 `FORBIDDEN`이다. Space ADMIN은 GET도 할 수 없다(현 결정 10/2). DEC-028의 조직 관리자 전체 조회에 운영자 권한 설정 조회는 들어가지 않는다.
+  - 대상 사용자가 해당 행사 운영자가 아니면 GET·PUT 모두 404 `RESOURCE_NOT_FOUND`.
+- 판정 순서 (QA 리뷰 반영). 앞 단계에서 걸리면 그 결과 하나만 돌려주고 뒤 단계는 보지 않는다. 같은 400 안의 위반은 `errors[]`에 모두 담는다.
+  1. 미인증 → 401 `AUTHENTICATION_REQUIRED`
+  2. 호출자 권한(위 운영자 관리·GET 규칙) → 403 `FORBIDDEN`. 행사 자체가 tenant 밖이라 보이지 않으면 §1 규칙대로 404 `RESOURCE_NOT_FOUND`다.
+  3. 대상 사용자가 해당 행사 운영자가 아님 → 404 `RESOURCE_NOT_FOUND`
+  4. PUT body 형식(배열 아님·필드 누락 등)·알 수 없는 키·중복 → 400 `VALIDATION_FAILED`
+  5. ARCHIVED 행사에서 늘리는 변경 → 409 `EVENT_ARCHIVED`
+  6. 422는 아래 표 순서대로: `PERMISSION_OWNER_NOT_OVERRIDABLE` → `PERMISSION_OWNER_ONLY` → `PERMISSION_NOT_OVERRIDABLE`
+  - 2단계가 3단계보다 앞서므로 권한 없는 호출자는 대상이 운영자인지 알 수 없다.
+- PUT 검증. 하나라도 어기면 전체 요청을 거절하고 아무것도 저장하지 않는다. 표 순서가 판정 순서다.
 
 | 조건 | HTTP | code |
 |---|---|---|
+| body 형식 위반(`grants`·`revokes`가 배열이 아님, 필드 누락 등) | 400 | `VALIDATION_FAILED` |
 | Event 범위 키 목록에 없는 키(Space 범위 키 포함) | 400 | `VALIDATION_FAILED` (`errors[].code = UNKNOWN_PERMISSION`) |
 | 같은 키가 grants·revokes에 함께 있거나 중복 | 400 | `VALIDATION_FAILED` (`errors[].code = DUPLICATE_PERMISSION`) |
+| ARCHIVED 행사에서 늘리는 변경(아래 행사 상태) | 409 | `EVENT_ARCHIVED` (#30 제안 코드) |
 | 대상 운영자가 OWNER (GRANT·REVOKE 모두) | 422 | `PERMISSION_OWNER_NOT_OVERRIDABLE` |
 | OWNER 전용 키를 OWNER가 아닌 운영자에게 GRANT (행사 전용 협력자 포함) | 422 | `PERMISSION_OWNER_ONLY` |
 | `EVENT_READ` REVOKE (행사 접근 자체의 회수는 운영자 제거로 한다) | 422 | `PERMISSION_NOT_OVERRIDABLE` |
-| ARCHIVED에서 정규화 후 `grants`가 하나라도 남음 | 409 | `EVENT_ARCHIVED` |
 
-- 판정 순서. 먼저 걸린 하나만 반환한다. 401 인증 없음 → 403 호출 주체 아님 → 404 대상이 그 행사 운영자가 아님(행사 없음도 같은 `RESOURCE_NOT_FOUND`) → 400 `VALIDATION_FAILED` → 422(대상이 OWNER이면 `PERMISSION_OWNER_NOT_OVERRIDABLE`, 아니면 OWNER 전용 키 GRANT의 `PERMISSION_OWNER_ONLY`, 아니면 `PERMISSION_NOT_OVERRIDABLE`) → 409 `EVENT_ARCHIVED` → 200. ENDED는 409 대상이 아니다.
 - 서버 판정: 모든 Event API는 요청마다 effective 집합으로 Permission을 검사한다. REVOKE된 키가 필요한 API는 403 `FORBIDDEN`이고 화면도 같은 집합으로 숨김·읽기 전용을 정한다(DEC-031).
-- DEC-060 연락처 숨김은 GRANT보다 우선한다. `EVENT_USER_READ`·`PARTICIPANT_CONTACT_READ`를 포함해 어떤 GRANT도 행사 전용 협력자에게 다른 운영자의 연락처를 보여 주지 않는다. 운영자 목록·상세에서 그 연락처 필드를 빼고, 목록 전체를 403으로 막지 않는다. 참가자 연락처는 `PARTICIPANT_CONTACT_READ`의 effective 판정을 따른다. Space OWNER의 전체 조회(DEC-028)는 이 숨김의 대상이 아니다.
+- DEC-060 연락처 숨김 우선 (현 결정 10/2): 행사 전용 협력자에게 다른 운영자의 연락처를 숨기는 DEC-060 규칙은 어떤 GRANT보다 앞선다. `EVENT_USER_READ`, `PARTICIPANT_CONTACT_READ` 등 어떤 GRANT로도 이 숨김을 풀 수 없다. 서버는 effective 집합과 관계없이 행사 전용 협력자에게 가는 운영자 응답에서 연락처를 빼고 화면도 같은 기준을 따른다(DEC-031).
 - 목록: `GET /operators?include=permissions`는 각 항목에 `effectivePermissions`를 넣는다. Event OWNER만 쓸 수 있고 그 밖은 403 `FORBIDDEN`이다. 같은 endpoint가 권한에 따라 몰래 다른 응답을 주지 않도록(§1) 명시적 parameter로 둔다. 행사 전용 협력자에게 다른 운영자의 이름·역할만 보이는 DEC-060 규칙은 유지한다.
-- `EVENT_USER_MANAGE`는 OWNER 전용이다. 운영자 추가, role 변경, 제거, 제거 후 재추가는 Event OWNER만 한다. MANAGER·STAFF가 하면 403 `FORBIDDEN`이고 기존 REVOKE는 유지된다. 이 경로로 REVOKE를 우회하지 못한다.
-- role 변경(`PATCH /operators/{userId}`)은 같은 transaction에서 대상의 override를 모두 지우고 audit에 role 전후와 지운 override를 남긴다. 이후 effective는 새 role 기본값이다. ARCHIVED에서 role 변경은 override 삭제가 접근을 넓힐 수 있으므로 409 `EVENT_ARCHIVED`이고 저장하지 않는다.
-- 운영자 제거(`DELETE /operators/{userId}`)는 CASCADE로 override를 지우고 제거 audit에 지운 override 목록을 남긴다. ARCHIVED에서도 제거(접근 축소)는 허용한다. ARCHIVED에서 재추가는 409 `EVENT_ARCHIVED`이다.
-- ENDED에서는 grant·revoke·role 변경·제거·재추가를 막지 않는다. 막는 상태는 ARCHIVED뿐이다.
+- role 변경(`PATCH /operators/{userId}`, Event OWNER만)은 같은 transaction에서 대상의 override를 모두 지우고 audit에 role 전후와 지운 override를 남긴다. 이후 effective는 새 role 기본값이다. MANAGER는 role 변경·제거·재추가를 할 수 없으므로 Owner의 REVOKE를 이 경로로 지울 수 없다.
+- 운영자 제거(`DELETE /operators/{userId}`, Event OWNER만)는 CASCADE로 override를 지우고 제거 audit에 지운 override 목록을 남긴다.
+- Owner 위임 (현 결정 10/2, DEC-033): override가 있는 운영자(예: MANAGER)가 위임을 수락해 OWNER가 되면 같은 transaction에서 그 override를 위임 기록에 저장하고 `event_user_permissions`에서 지운다. OWNER는 override를 갖지 않기 때문이다. 위임 기록의 테이블·컬럼은 #30 Owner 이전 계약(`owner_transfers`, `recipient_prior_role` 제안)을 따른다.
+  - 위임이 취소되면(DEC-033) 받은 사람의 이전 role과 함께 저장한 override를 같은 transaction에서 되살린다. 취소는 이전 상태 복구이고 새 GRANT가 아니므로 ARCHIVED에서도 409 `EVENT_ARCHIVED` 대상이 아니다(#30 L5: Owner 이전은 ARCHIVED에서도 허용).
+  - 넘긴 사람이 인수인계 종료 뒤 다른 role로 남으면 그 role의 기본값으로 시작하고 override는 없다. OWNER였으므로 되살릴 override도 없다.
+  - 수락(저장·삭제), 취소(복원), 넘긴 사람의 role 전환을 각각 audit에 남기고 지우거나 되살린 override 목록을 함께 기록한다.
+- 행사 상태 (현 결정 10/2, #30 L5): ENDED에서는 override 변경을 허용한다. ARCHIVED에서는 줄이는 변경(REVOKE 추가, 저장된 GRANT 제거)만 허용한다. 저장된 override와 비교해 grants에 새 키가 있거나 저장된 REVOKE를 revokes에서 빼면 늘리는 변경이며 409 `EVENT_ARCHIVED`로 거절하고 아무것도 저장하지 않는다. 판정은 정규화 전 요청 기준이다. `EVENT_ARCHIVED`는 #30 초안의 제안 코드이며 #30 계약에서 확정한 이름을 따른다. ARCHIVED에서도 운영자 제거는 허용한다(#30 L5).
 - Audit: PUT으로 실제 변경이 있을 때마다 `audit_logs`에 실행자·eventId·대상 userId·변경 전후 grants/revokes를 남긴다. action 이름(예: `EVENT_USER_PERMISSIONS_REPLACED`)은 구현에서 정한다.
-- 동시성: PUT·role 변경·운영자 제거는 대상 `event_users` 행을 잠그고(`SELECT … FOR UPDATE`) 처리해 서로 섞이지 않게 한다. 마지막 PUT이 전체 목록을 정한다.
-- Owner 위임 수락은 받는 사람을 OWNER로 바꾸고 그 override를 지운다. 넘기는 사람은 DEC-033대로 HANDOVER 14일 동안 Owner 권한을 유지하므로 수락 시 role을 내리지 않고 라이브 override만 비운다. 지운 양쪽 override는 위임 레코드의 스냅샷으로 남긴다. HANDOVER 취소는 스냅샷을 되돌리고, 수락 뒤에 생긴 override는 복원하지 않는다. COMPLETED에서는 스냅샷을 복원하지 않으며 넘기는 사람의 effective는 위임에 기록된 후임 role 기본값이다. 후임 role 값은 OPEN. 저장 필드는 [Data Model](data-model-v0.1.md#2026-10-02-개인별-권한-현-결정-dec-029-정합)을 따른다. QA가 적은 "수락 즉시 이전 Owner = 새 role 기본값"은 DEC-033의 14일 Owner 권한과 겹쳐 채택하지 않았다.
+- 동시성: PUT·role 변경·운영자 제거·Owner 위임 수락/취소는 대상 `event_users` 행을 잠그고(`SELECT … FOR UPDATE`) 처리해 서로 섞이지 않게 한다. 마지막 PUT이 전체 목록을 정한다.
 
 Permission 키 목록 (초안)
 
-서버 Permission enum의 Event 범위 키다. §18 후보를 바탕으로 하며 신규 키는 OWNER 전용 구분을 위해 추가한 후보다. `EVENT_USER_MANAGE`의 Owner 전용, `DATA_EXPORT`와 OWNER 전용 키를 MANAGER/STAFF 기본값에서 빼는 제약, 경로 `{userId}`는 2026-10-02 후속으로 확정했다. 나머지 키의 업무 매핑과 MANAGER/STAFF 기본 집합의 구성은 OPEN이다. 기본 집합 제안은 이 계약에 넣지 않고 현 승인 전에 둔다.
+서버 Permission enum의 Event 범위 키다. §18 후보를 바탕으로 하며 신규 키는 OWNER 전용 구분을 위해 추가한 후보다. 목록 전체가 초안이며 현·Backend Lead 확인 후 확정한다.
 
 | 구분 | 키 | 근거 |
 |---|---|---|
-| GRANT/REVOKE 가능 | `EVENT_UPDATE`, `EVENT_USER_READ`, `PARTICIPANT_READ`, `PARTICIPANT_CONTACT_READ`, `PARTICIPANT_WRITE`, `FORM_WRITE`, `APPLICATION_READ`, `APPLICATION_MANAGE`, `TASK_WRITE`, `SCHEDULE_WRITE`, `NOTICE_WRITE`, `FINANCE_READ`, `FINANCE_WRITE`, `GROUP_WRITE`, `ROOM_WRITE`, `RIDE_WRITE`, `CLASS_WRITE`, `CHECKIN_WRITE`, `MISSION_WRITE`, `GUARDIAN_WRITE`, `GUARDIAN_CONTACT_READ`, `PRIVACY_LOG_READ`, `AUDIT_LOG_READ` | §18 후보. DEC-029(조 편성·정산 등 업무별 차등), access-policy-review(참가자 수정·조 편성·일정·공지·체크인·정산). 준비 중 편성 조회는 `GROUP_WRITE`에 포함(DEC-043) |
+| GRANT/REVOKE 가능 | `EVENT_UPDATE`, `EVENT_USER_READ`, `PARTICIPANT_READ`, `PARTICIPANT_CONTACT_READ`, `PARTICIPANT_WRITE`, `FORM_WRITE`, `APPLICATION_READ`, `APPLICATION_MANAGE`, `TASK_WRITE`, `SCHEDULE_WRITE`, `NOTICE_WRITE`, `FINANCE_READ`, `FINANCE_WRITE`, `GROUP_WRITE`, `ROOM_WRITE`, `RIDE_WRITE`, `CLASS_WRITE`, `CHECKIN_WRITE`, `MISSION_WRITE`, `GUARDIAN_WRITE`, `GUARDIAN_CONTACT_READ`, `PRIVACY_LOG_READ`, `AUDIT_LOG_READ` | §18 후보. DEC-029(조 편성·정산 등 업무별 차등), access-policy-review(참가자 수정·조 편성·일정·공지·체크인·정산). 준비 중 편성 조회는 `GROUP_WRITE`에 포함(DEC-043). 행사 전용 협력자에게는 GRANT해도 DEC-060 연락처 숨김이 앞선다(현 결정 10/2) |
 | GRANT/REVOKE 가능, MANAGER/STAFF 기본값에 넣지 않음 | `DATA_EXPORT` | DEC-054 "명시적 Export 권한을 받은 운영자" |
 | 운영자 기본, REVOKE 불가 | `EVENT_READ` | 행사 접근 자체. 회수는 운영자 제거 |
-| OWNER 전용 (GRANT 불가) | `EVENT_CLOSE` | DEC-049 활성화·종료·재개는 Event Owner. 전이별 키 분리는 OPEN |
-| OWNER 전용 (GRANT 불가) | `DATA_RETENTION_MANAGE` | DEC-061 개인정보 정리는 Event OWNER·Space OWNER |
-| OWNER 전용 (GRANT 불가) | `EVENT_USER_MANAGE` | 운영자 추가·role 변경·제거·재추가. 2026-10-02 후속 확정. REVOKE 우회를 막는다 |
-| OWNER 전용, 신규 | `EVENT_USER_PERMISSION_MANAGE` | 이 계약: 부여·회수는 Event Owner만 |
-| OWNER 전용, 신규 | `EVENT_OWNER_TRANSFER` | DEC-033 Owner 위임 |
-| OWNER 전용, 신규 | `EVENT_DELETION_REQUEST` | DEC-061 행사 삭제는 Event Owner 요청 → Space OWNER 실행 |
+| OWNER 전용 (GRANT 불가) | `EVENT_LIFECYCLE` | #30 L1: 활성화·종료·재개·보관·보관 해제는 Event OWNER (role) only |
+| 보류 | `DATA_RETENTION_MANAGE` | 보류 (현 결정 D23 대기) |
+| OWNER 전용 (GRANT 불가) | `EVENT_USER_MANAGE` | 운영자 추가·제거·role 변경. 현 결정 10/2: 운영자 관리는 Event Owner만, GRANT 불가 |
 | 대상 아님 (Space 범위) | `SPACE_READ`, `SPACE_UPDATE`, `MEMBER_READ`, `MEMBER_MANAGE`, `EVENT_CREATE` | Membership·Space role로 판정. override 시 400 `UNKNOWN_PERMISSION` |
 
-- OWNER 기본 집합은 Event 범위 키 전체다. MANAGER/STAFF 기본 집합은 기존대로 Java enum mapping에서 정하며 아직 OPEN이다. 단 `DATA_EXPORT`와 OWNER 전용 키는 MANAGER/STAFF 기본값에 넣지 않는다.
+- OWNER 기본 집합은 Event 범위 키 전체다.
+- MANAGER/STAFF 기본 집합 (현 결정 10/2): Backend Lead가 초안을 쓰고 현이 승인한다. `DATA_EXPORT`와 OWNER 전용 키는 넣지 않는다. **미확정, 백엔드 리드 초안 대기.** 기본 집합의 구체 키에 기대는 회귀 행은 아래 표에 보류(pending)로 표시했다.
 - Space OWNER의 조직 관리·복구 권한(DEC-028·DEC-035·DEC-049·DEC-061)은 이 테이블과 별개이며 override 대상이 아니다.
 
 회귀 테스트
@@ -850,37 +864,42 @@ Permission 키 목록 (초안)
 | # | 시나리오 | 기대 |
 |---|---|---|
 | 1 | Owner가 STAFF에게 PUT `{grants:[DATA_EXPORT], revokes:[]}` | 200, `effective`에 `DATA_EXPORT` 포함, 그 STAFF의 `POST /exports` 권한 검사 통과, audit 1건 |
-| 2 | MANAGER가 다른 운영자에게 같은 PUT | 403 `FORBIDDEN`, override 불변, audit 없음 |
-| 3 | Owner가 MANAGER의 role 기본 키 K를 REVOKE(예: K = `FINANCE_READ`가 기본값일 때) | 200, `effective`에서 K 제외. 그 MANAGER의 K 필요 API(`GET /fees`) 호출 → 403 `FORBIDDEN`, 화면에서도 숨김 |
-| 4 | Owner가 MANAGER에게 `EVENT_OWNER_TRANSFER` GRANT | 422 `PERMISSION_OWNER_ONLY`, 저장 없음 |
-| 5 | Owner가 행사 전용 협력자(STAFF)에게 `DATA_RETENTION_MANAGE` GRANT | 422 `PERMISSION_OWNER_ONLY` |
-| 6 | override가 있는 운영자 제거 → 같은 사용자 재추가 | 제거 시 override 행 0건(CASCADE), 제거 audit에 지운 목록. 재추가 후 `effective` = role 기본값 |
+| 2 | MANAGER가 다른 운영자에게 같은 PUT | 403 `FORBIDDEN`, override 불변, audit 없음 (현 결정 10/2) |
+| 3 | Owner가 MANAGER의 role 기본 키 K를 REVOKE(예: K = `FINANCE_READ`가 기본값일 때) | **보류(pending)**: MANAGER 기본 집합 미확정. 확정 후 K와 확인 API를 정한다. 기대: 200, `effective`에서 K 제외. 그 MANAGER의 K 필요 API(`GET /fees`) 호출 → 403 `FORBIDDEN`, 화면에서도 숨김 |
+| 4 | Owner가 MANAGER에게 `EVENT_LIFECYCLE` GRANT | 422 `PERMISSION_OWNER_ONLY`, 저장 없음 |
+| 5 | Owner가 행사 전용 협력자(STAFF)에게 `EVENT_USER_MANAGE` GRANT | 422 `PERMISSION_OWNER_ONLY` |
+| 6 | override가 있는 운영자 제거 → 같은 사용자 재추가 (Owner가 실행) | 제거 시 override 행 0건(CASCADE), 제거 audit에 지운 목록. 재추가 후 `effective` = role 기본값 |
 | 7 | 같은 body로 PUT 2회 | 두 응답 동일, 두 번째는 행·`granted_at` 불변, audit 추가 없음 |
-| 8 | override가 있는 MANAGER를 STAFF로 role 변경 | 같은 transaction에서 override 전부 삭제, audit에 role 전후·지운 override. `effective` = STAFF 기본값 |
+| 8 | override가 있는 MANAGER를 STAFF로 role 변경 (Owner가 실행) | 같은 transaction에서 override 전부 삭제, audit에 role 전후·지운 override. `effective` = STAFF 기본값 |
 | 9 | OWNER 대상 PUT `{grants:[], revokes:[FINANCE_READ]}` | 422 `PERMISSION_OWNER_NOT_OVERRIDABLE`, OWNER `effective` 불변 |
-| 10 | `EVENT_READ` REVOKE | 422 `PERMISSION_NOT_OVERRIDABLE` |
+| 10 | OWNER가 아닌 운영자의 `EVENT_READ` REVOKE | 422 `PERMISSION_NOT_OVERRIDABLE` |
 | 11 | 없는 키 또는 `MEMBER_MANAGE` GRANT | 400 `VALIDATION_FAILED` (`UNKNOWN_PERMISSION`) |
 | 12 | 같은 키를 grants·revokes에 함께 지정 | 400 `VALIDATION_FAILED` (`DUPLICATE_PERMISSION`) |
-| 13 | role 기본값에 있는 키를 GRANT | 200, `overrides`에 남지 않음(정규화), `effective` 불변 |
+| 13 | role 기본값에 있는 키를 GRANT (예: `EVENT_READ`) | 200, `overrides`에 남지 않음(정규화), `effective` 불변 |
 | 14 | REVOKE 직후 직접 URL로 해당 API 호출 | 403 `FORBIDDEN` (요청마다 effective 재계산) |
-| 15 | 행사 운영자가 아닌 Space OWNER가 PUT / GET | 403 `FORBIDDEN` / 200 조회만 |
-| 16 | STAFF가 다른 운영자의 GET / 자기 GET | 403 `FORBIDDEN` / 200 |
+| 15 | 행사 운영자가 아닌 Space OWNER가 PUT / GET | PUT 403 `FORBIDDEN` / GET 200 조회만 (현 결정 10/2) |
+| 16 | STAFF가 다른 운영자의 GET / 자기 GET | 403 `FORBIDDEN` / 200 (현 결정 10/2) |
 | 17 | MANAGER가 `GET /operators?include=permissions` | 403 `FORBIDDEN` |
 | 18 | 조직 자진 탈퇴 후 행사 접근 유지(행사 전용 협력자 전환) | `event_users` 유지, override 유지 |
 | 19 | 관리자 제거로 행사 접근 회수(DEC-060) | `event_users` 삭제, override CASCADE 삭제 |
 | 20 | `DATA_EXPORT` GRANT로 Export 생성 후 REVOKE → 다운로드 | 다운로드 403 `FORBIDDEN` (DEC-061 다운로드마다 재검사) |
-| 21 | 인증 없이 PUT | 401. body가 잘못이어도 401 |
-| 22 | MANAGER가 잘못된 body로, 운영자가 아닌 userId에 PUT | 403 `FORBIDDEN` (404·400보다 앞) |
-| 23 | Owner가 운영자가 아닌 userId에 GET과 PUT | 404 `RESOURCE_NOT_FOUND`, 저장 없음. body가 `UNKNOWN_PERMISSION`이어도 404 |
-| 24 | ARCHIVED에서 REVOKE만 PUT | 200, `effective`에서 그 키 제외, audit 1건 |
-| 25 | ARCHIVED에서 `DATA_EXPORT` GRANT (REVOKE와 함께여도) | 409 `EVENT_ARCHIVED`, 저장 없음 |
-| 26 | ARCHIVED에서 OWNER 전용 키 GRANT | 422 `PERMISSION_OWNER_ONLY` (422가 409보다 앞) |
-| 27 | ENDED에서 STAFF에게 `DATA_EXPORT` GRANT | 200. ENDED는 권한 변경을 막지 않음 |
-| 28 | 행사 전용 협력자에게 `EVENT_USER_READ`와 `PARTICIPANT_CONTACT_READ` GRANT 후 운영자 목록 | 200. 다른 운영자는 이름·역할만. 연락처 필드 없음. 참가자 연락처 조회는 `PARTICIPANT_CONTACT_READ`로 허용 |
-| 29 | MANAGER가 role 변경 또는 제거 후 재추가 | 403 `FORBIDDEN`, 기존 REVOKE 유지 |
-| 30 | ARCHIVED에서 Owner가 운영자 제거 / 같은 사용자 재추가 | 제거 200, override CASCADE. 재추가 409 `EVENT_ARCHIVED` |
-| 31 | ARCHIVED에서 Owner가 role 변경 | 409 `EVENT_ARCHIVED`, override 유지 |
-| 32 | Space ADMIN이 GET | 403 `FORBIDDEN` |
-| 33 | Owner 위임 수락 | 받는 사람 role=OWNER, 라이브 override 0건. 넘기는 사람은 HANDOVER 동안 Owner 권한 유지, 라이브 override 0건. 양쪽 스냅샷이 위임 레코드에 있음. audit에 양쪽 삭제 목록 |
-| 34 | HANDOVER 중 새 GRANT 후 취소 | role은 수락 전으로 복귀. 스냅샷 override만 복원. 수락 후 GRANT는 없음 |
-| 35 | 위임 COMPLETED | 스냅샷을 복원하지 않음. 넘기는 사람 effective = 위임에 기록된 후임 role 기본값 |
+| 21 | Owner가 STAFF S의 기본 키 K를 REVOKE한 뒤 MANAGER가 (a) S를 MANAGER로 바꿨다가 STAFF로 되돌리려 `PATCH /operators/{userId}` (b) S를 `DELETE` 후 `POST /operators`로 재추가 | **보류(pending)**: K는 STAFF 기본 집합 확정 후 정한다(기대값은 K와 무관). 기대: (a)(b) 모두 첫 호출부터 403 `FORBIDDEN`(운영자 관리는 Owner만, 현 결정 10/2), S의 REVOKE K 유지, `effective` 불변, audit 없음 |
+| 22 | 판정 순서 401 > 403: 미인증으로 PUT | 401 `AUTHENTICATION_REQUIRED` |
+| 23 | 판정 순서 403 > 400: MANAGER가 형식이 틀린 body(`grants`가 문자열)로 PUT | 403 `FORBIDDEN` (400 아님) |
+| 24 | 판정 순서 403 > 404: STAFF가 행사 운영자가 아닌 사용자 GET | 403 `FORBIDDEN` (404 아님, 운영자 여부 노출 없음) |
+| 25 | 판정 순서 404 > 400: Owner가 행사 운영자가 아닌 사용자에게 없는 키로 PUT | 404 `RESOURCE_NOT_FOUND` (400 아님) |
+| 26 | 판정 순서 400 > 409: ARCHIVED 행사에서 Owner가 없는 키 GRANT | 400 `VALIDATION_FAILED` (`UNKNOWN_PERMISSION`) |
+| 27 | 판정 순서 409 > 422: ARCHIVED 행사에서 Owner가 OWNER 대상에 `{grants:[FINANCE_READ]}` | 409 `EVENT_ARCHIVED` |
+| 28 | 판정 순서 422 `PERMISSION_OWNER_NOT_OVERRIDABLE` > `PERMISSION_NOT_OVERRIDABLE`: OWNER 대상 `{grants:[], revokes:[EVENT_READ]}` | 422 `PERMISSION_OWNER_NOT_OVERRIDABLE` |
+| 29 | 판정 순서 422 `PERMISSION_OWNER_NOT_OVERRIDABLE` > `PERMISSION_OWNER_ONLY`: OWNER 대상 `{grants:[EVENT_LIFECYCLE]}` | 422 `PERMISSION_OWNER_NOT_OVERRIDABLE` |
+| 30 | 판정 순서 422 `PERMISSION_OWNER_ONLY` > `PERMISSION_NOT_OVERRIDABLE`: STAFF 대상 `{grants:[EVENT_USER_MANAGE], revokes:[EVENT_READ]}` | 422 `PERMISSION_OWNER_ONLY` |
+| 31 | Owner가 행사 전용 협력자(STAFF)에게 `EVENT_USER_READ`·`PARTICIPANT_CONTACT_READ` GRANT 후 그 협력자가 `GET /operators` | GRANT 200. 다른 운영자는 이름·역할만, 연락처 없음(DEC-060 우선, 현 결정 10/2). 화면도 같음 |
+| 32 | Owner가 행사 운영자가 아닌 사용자의 GET / PUT | 둘 다 404 `RESOURCE_NOT_FOUND`, 저장 없음 |
+| 33 | Space ADMIN(행사 운영자 아님)이 GET | 403 `FORBIDDEN` (현 결정 10/2) |
+| 34 | `{grants:[DATA_EXPORT]}`가 있는 MANAGER M이 Owner 위임 수락 | 같은 transaction에서 M의 override를 위임 기록에 저장하고 `event_user_permissions`에서 삭제. M `effective` = OWNER 전체, audit에 저장·삭제한 목록 (현 결정 10/2) |
+| 35 | 34 뒤 인수인계 중 위임 취소 | 같은 transaction에서 M의 role MANAGER와 `{grants:[DATA_EXPORT]}` 복원, `effective` = MANAGER 기본 + `DATA_EXPORT`, audit에 복원 목록. ARCHIVED 행사에서도 같음 (현 결정 10/2) |
+| 36 | 위임 완료(인수인계 종료) 뒤 넘긴 사람이 OWNER가 아닌 role로 남음 | override 0건, `effective` = 새 role 기본값, audit에 role 전환 (현 결정 10/2) |
+| 37 | ENDED 행사에서 Owner가 STAFF에게 `{grants:[DATA_EXPORT]}` | 200, 저장 (현 결정 10/2) |
+| 38 | ARCHIVED 행사에서 저장된 GRANT `DATA_EXPORT` 제거(`{grants:[], revokes:[]}`) | 200, 삭제, audit 1건 (현 결정 10/2, #30 L5) |
+| 39 | ARCHIVED 행사에서 STAFF에게 `{grants:[DATA_EXPORT]}` | 409 `EVENT_ARCHIVED`, 저장 없음 (현 결정 10/2, #30 L5) |
+| 40 | ARCHIVED 행사에서 STAFF의 기본 키 K REVOKE | **보류(pending)**: K는 STAFF 기본 집합 확정 후 정한다(기대값은 K와 무관). 기대: 200, `effective`에서 K 제외 (현 결정 10/2, #30 L5) |
