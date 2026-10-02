@@ -189,6 +189,9 @@ ENDED는 조회·정산·회고·후속 업무·후속 공지·감사 가능한 
 - `permission` 값은 서비스에서 Java enum으로 검증한다. 키 목록이 초안이므로 DB CHECK는 목록 확정 후 추가 여부를 정한다.
 - Effective = role 기본 집합 ∪ GRANT − REVOKE. 저장하지 않고 요청마다 계산한다.
 - OWNER role 운영자에게는 override 행을 두지 않는다(OWNER 권한은 override 불가). OWNER 전용 키는 OWNER가 아닌 운영자에게 GRANT로 저장하지 않는다. 둘 다 서비스에서 검사한다.
-- role 변경(`event_users.role` UPDATE)은 같은 transaction에서 해당 운영자의 override를 모두 삭제하고 audit에 남긴다. Owner 위임 수락으로 OWNER가 되는 것도 role 변경이다.
+- role 변경(`event_users.role` UPDATE)은 같은 transaction에서 해당 운영자의 override를 모두 삭제하고 audit에 남긴다. 추가·role 변경·제거·재추가는 `EVENT_USER_MANAGE`이며 Event OWNER만 한다.
+- Owner 위임 수락도 받는 사람의 role을 OWNER로 바꾸는 role 변경이다. 받는 사람·넘기는 사람 양쪽의 라이브 override를 비우고, 지우기 직전 행(`user_id`, `permission`, `effect`, `granted_by`, `granted_at`)을 위임 레코드의 스냅샷으로 복사한다. 넘기는 사람의 role은 수락 시 내리지 않는다(DEC-033 HANDOVER 14일). 위임 테이블 이름과 그 외 컬럼은 위임 endpoint 계약이 OPEN이라 여기서 정하지 않는다. 스냅샷에 개인정보를 넣지 않는다.
+- HANDOVER 취소는 스냅샷을 이 테이블에 다시 넣고 role을 수락 전으로 되돌린다. 수락 이후 생긴 행은 복원하지 않고 삭제한다. COMPLETED에서는 스냅샷을 복원하지 않는다. 넘기는 사람의 effective는 위임에 기록된 후임 role 기본값이며, 그 role 값은 OPEN이다.
+- ARCHIVED에서는 REVOKE 행 추가와 운영자 제거(CASCADE)만 허용한다. GRANT, role 변경, 재추가는 저장하지 않는다(409 `EVENT_ARCHIVED`). ENDED는 이 제한이 없다.
 - 운영자 제거와 DEC-060의 조직 탈퇴·관리자 제거에 따른 행사 접근 회수는 `event_users` 행 삭제이므로 CASCADE로 override가 사라진다. CASCADE 삭제 자체는 audit에 남지 않으므로 운영자 제거 audit 항목에 삭제된 override 목록을 함께 기록한다. 행사 전용 협력자로 전환해 `event_users` 행이 유지되면 override도 유지된다.
 - 아직 코드가 없으므로 마이그레이션이 아니라 Flyway V1 초기 스키마에 포함한다(SCENE Backend Lead).

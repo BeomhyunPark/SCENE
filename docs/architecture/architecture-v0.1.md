@@ -104,6 +104,7 @@ Complexity v0.1 및 First-pass Audit는 현재 기준선으로 중복 배치하�
 2026-10-02 현 결정(SCENE 개발 리드 전달)으로 [DEC-029](../product/PRODUCT_DECISIONS.md#dec-029--행사-운영진의-업무-권한을-사람별로-달리-부여한다)와 enum 전용 Role 모델의 충돌을 정리한다.
 
 - Event 권한 = Event role 기본 Permission Set(Java enum mapping, DB 테이블 없음) + 사람별 GRANT − 사람별 REVOKE. 사람별 차이는 `event_user_permissions`에 저장하고 Flyway V1 초기 스키마에 포함한다(SCENE Backend Lead).
-- 부여·회수는 Event Owner만 한다. OWNER 권한은 override하지 않고 OWNER 전용 권한은 다른 운영자에게 부여하지 않는다. role 변경·운영자 제거 시 override는 사라진다.
+- 부여·회수는 Event Owner만 한다. OWNER 권한은 override하지 않고 OWNER 전용 권한은 다른 운영자에게 부여하지 않는다. role 변경·운영자 제거 시 override는 사라진다. `EVENT_USER_MANAGE`도 Owner 전용이라 MANAGER가 그 삭제를 실행할 수 없다.
+- 2026-10-02 후속: 조회는 Event Owner·본인·Space OWNER. Space ADMIN은 불가. 경로 `{userId}`. DEC-060 연락처 숨김은 GRANT로 풀리지 않는다. ARCHIVED는 REVOKE·제거만 허용(409 `EVENT_ARCHIVED`). 위임 수락 시 override 스냅샷을 위임 레코드에 남기고 HANDOVER 취소 때만 복원한다. 오류 순서는 401 → 403 → 404 → 400 → 422 → 409.
 - 서버는 모든 요청에서 effective 집합으로 판정하고 변경마다 audit을 남긴다.
 - 상세: [Data Model](data-model-v0.1.md#2026-10-02-개인별-권한-현-결정-dec-029-정합), [API Architecture](api-architecture-v0.1.md#2026-10-02-개인별-권한-현-결정-dec-029-정합)(endpoint·오류 코드·키 목록 초안·회귀 표), [Security / Privacy](security-privacy-v0.1.md#2026-10-02-개인별-권한-현-결정-dec-029-정합).
