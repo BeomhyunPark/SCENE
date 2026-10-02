@@ -1,0 +1,50 @@
+# SCENE docs CI — usable TODAY (the repo currently contains docs only).
+# Checks: JSON validity, reaction-check passed==total, relative Markdown links,
+# syntax of Figma plugin check scripts (*.figma.js).
+name: docs-ci
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docs-check:
+    name: docs-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: JSON / reaction-check results / relative links
+        run: python3 scripts/check_docs.py
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+
+      # *.figma.js files are Figma plugin bodies (top-level await + top-level return),
+      # so they are wrapped in an async function before `node --check`.
+      - name: Syntax-check Figma plugin scripts
+        shell: bash
+        run: |
+          shopt -s globstar nullglob
+          fail=0
+          for f in docs/**/*.figma.js; do
+            { echo "(async()=>{"; cat "$f"; echo; echo "});"; } > "$RUNNER_TEMP/wrapped.js"
+            if node --check "$RUNNER_TEMP/wrapped.js"; then echo "ok   $f"; else echo "FAIL $f"; fail=1; fi
+          done
+          exit $fail

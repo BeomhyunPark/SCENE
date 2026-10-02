@@ -1,0 +1,28 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      timezone: Asia/Seoul
+    groups:
+      github-actions:
+        patterns: ["*"]
+
+  # Backend: build.gradle.kts / settings.gradle.kts (+ gradle/libs.versions.toml if used).
+  - package-ecosystem: gradle
+    directory: /backend
+    schedule:
+      interval: weekly
+      timezone: Asia/Seoul
+    open-pull-requests-limit: 5
+    groups:
+      spring:
+        patterns: ["org.springframework*"]
+      testcontainers:
+        patterns: ["org.testcontainers*"]
+
+  # Enable once the frontend scaffold exists:
+  # - package-ecosystem: npm
+  #   directory: /frontend
+  #   schedule: { interval: weekly, timezone: Asia/Seoul }
