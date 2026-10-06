@@ -25,6 +25,7 @@ dependencies {
   implementation(libs.spring.boot.starter.validation)
   implementation(libs.spring.boot.starter.actuator)
   implementation(libs.spring.boot.starter.security)
+  implementation(libs.spring.boot.starter.session.jdbc)
   implementation(libs.spring.boot.starter.flyway)
   implementation(libs.mybatis.spring.boot.starter)
   runtimeOnly(libs.flyway.database.postgresql)

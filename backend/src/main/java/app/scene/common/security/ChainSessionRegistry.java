@@ -12,8 +12,8 @@ import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 /**
- * In-memory stand-in so the two chains can keep separate cookies. This is not the session store.
- * TTL, recovery, and Spring Session JDBC are P0-09 and are intentionally absent.
+ * In-memory stand-in for the participant chain. The operator chain stores sessions in Spring
+ * Session JDBC and does not use this registry. There is no participant login route.
  */
 final class ChainSessionRegistry {
 
@@ -31,8 +31,8 @@ final class ChainSessionRegistry {
   }
 
   /**
-   * Saves an already authenticated context and writes this chain's cookie. There is no login HTTP
-   * route; tests and a later authentication filter are the only callers.
+   * Saves an already authenticated participant context and writes that chain's cookie. Tests are
+   * the only callers. Operator sessions are issued by HTTP login.
    */
   Cookie establish(Authentication authentication, HttpServletResponse response) {
     if (authentication == null || !authentication.isAuthenticated()) {

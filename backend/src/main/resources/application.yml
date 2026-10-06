@@ -9,6 +9,12 @@ spring:
       enabled: true
   flyway:
     locations: classpath:db/migration
+  session:
+    # 30 minutes is Spring Session's library default. Session TTL is still OPEN in
+    # security-privacy §2; this value is not a SCENE product decision.
+    timeout: 30m
+    jdbc:
+      initialize-schema: never
 
 server:
   error:

@@ -9,21 +9,33 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import app.scene.SceneApplication;
 import app.scene.common.web.RequestIdFilter;
 import app.scene.support.PostgresTestcontainer;
+import com.zaxxer.hikari.HikariDataSource;
 import jakarta.servlet.http.Cookie;
+import java.time.Duration;
 import java.util.Map;
+import java.util.UUID;
+import javax.sql.DataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers;
+import org.springframework.session.Session;
+import org.springframework.session.SessionRepository;
+import org.springframework.session.web.http.SessionRepositoryFilter;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -37,22 +49,17 @@ class SecurityChainsIT {
   private static final String PLACEHOLDER_ORIGIN = "http://scene-frontend.placeholder.invalid";
   private static final String CSRF = "csrf-token";
 
+  private static final String OPERATOR_COOKIE = "placeholder-operator-session";
+
   @Autowired WebApplicationContext context;
+  @Autowired JdbcTemplate jdbc;
 
   MockMvc mvc;
 
   @BeforeEach
   void mockMvc() {
-    mvc =
-        MockMvcBuilders.webAppContextSetup(context)
-            .addFilters(context.getBean(RequestIdFilter.class))
-            .apply(SecurityMockMvcConfigurers.springSecurity())
-            .build();
+    mvc = mvc(context);
   }
-
-  @Autowired
-  @Qualifier("operatorSessions")
-  ChainSessionRegistry operatorSessions;
 
   @Autowired
   @Qualifier("participantSessions")
@@ -83,10 +90,7 @@ class SecurityChainsIT {
 
   @Test
   void sessionsAreNotInterchangeable() throws Exception {
-    Cookie operator =
-        operatorSessions.establish(
-            new ProbeAuthentication("operator"),
-            new org.springframework.mock.web.MockHttpServletResponse());
+    Cookie operator = login(insertUser("Operator"));
     Cookie participant =
         participantSessions.establish(
             new ProbeAuthentication("participant"),
@@ -124,15 +128,87 @@ class SecurityChainsIT {
   }
 
   @Test
-  void issuedSessionCookieCarriesThePlaceholderFlags() {
-    org.springframework.mock.web.MockHttpServletResponse response =
-        new org.springframework.mock.web.MockHttpServletResponse();
-    operatorSessions.establish(new ProbeAuthentication("operator"), response);
-    String header = response.getHeader(HttpHeaders.SET_COOKIE);
-    assertThat(header).contains("placeholder-operator-session=");
+  void issuedSessionCookieCarriesThePlaceholderFlags() throws Exception {
+    MvcResult result = loginResult(insertUser("Operator"));
+    String header =
+        result.getResponse().getHeaders(HttpHeaders.SET_COOKIE).stream()
+            .filter(value -> value.startsWith(OPERATOR_COOKIE + "="))
+            .findFirst()
+            .orElseThrow();
     assertThat(header).contains("HttpOnly", "Secure", "SameSite=Lax");
+    assertThat(header).doesNotContain("Domain=");
     assertThat(header).doesNotContain("scene_operator_session", "scene_participant_session");
     assertThat(header).doesNotContain("JSESSIONID");
+  }
+
+  @Test
+  void operatorLoginIsStoredInJdbcAndSurvivesAnotherApplicationInstance() throws Exception {
+    UUID userId = insertUser("Stored operator");
+    Cookie operator = login(userId);
+    Integer rows =
+        jdbc.queryForObject(
+            "SELECT count(*) FROM spring_session WHERE session_id = ?",
+            Integer.class,
+            operator.getValue());
+    assertThat(rows).isEqualTo(1);
+
+    try (ConfigurableApplicationContext restarted = restart()) {
+      mvc((WebApplicationContext) restarted)
+          .perform(get("/api/v1/operator/me").cookie(operator))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.userId").value(userId.toString()))
+          .andExpect(jsonPath("$.displayName").value("Stored operator"));
+    }
+  }
+
+  @Test
+  void expiredOperatorSessionIsAuthenticationRequired() throws Exception {
+    Cookie operator = login(insertUser("Expiring operator"));
+    expire(operator.getValue());
+
+    mvc.perform(get("/api/v1/operator/me").cookie(operator).header("X-Request-Id", "req-expired"))
+        .andExpect(status().isUnauthorized())
+        .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+        .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
+        .andExpect(jsonPath("$.type").value("urn:scene:problem:authentication-required"))
+        .andExpect(jsonPath("$.detail").value("로그인이 필요합니다."))
+        .andExpect(jsonPath("$.traceId").value("req-expired"))
+        .andExpect(header().string("X-Request-Id", "req-expired"));
+  }
+
+  @Test
+  void unknownOperatorDoesNotCreateASession() throws Exception {
+    MvcResult result =
+        mvc.perform(
+                post("/api/v1/operator/auth/login")
+                    .cookie(csrf())
+                    .header(csrfHeader(), CSRF)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"userId\":\"" + UUID.randomUUID() + "\"}"))
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
+            .andExpect(jsonPath("$.detail").value("로그인이 필요합니다."))
+            .andReturn();
+    assertThat(result.getResponse().getCookie(OPERATOR_COOKIE)).isNull();
+  }
+
+  @Test
+  void logoutDropsTheJdbcSession() throws Exception {
+    Cookie operator = login(insertUser("Leaving operator"));
+    mvc.perform(
+            post("/api/v1/operator/auth/logout")
+                .cookie(operator, csrf())
+                .header(csrfHeader(), CSRF))
+        .andExpect(status().isNoContent());
+    mvc.perform(get("/api/v1/operator/me").cookie(operator))
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
+    Integer rows =
+        jdbc.queryForObject(
+            "SELECT count(*) FROM spring_session WHERE session_id = ?",
+            Integer.class,
+            operator.getValue());
+    assertThat(rows).isZero();
   }
 
   @Test
@@ -186,6 +262,62 @@ class SecurityChainsIT {
         .andExpect(jsonPath("$.status").value("UP"))
         .andExpect(header().string("X-Request-Id", "req-health"));
     assertThat(context.getBeanNamesForType(UserDetailsService.class)).isEmpty();
+  }
+
+  private MockMvc mvc(WebApplicationContext web) {
+    return MockMvcBuilders.webAppContextSetup(web)
+        .addFilters(web.getBean(RequestIdFilter.class), web.getBean(SessionRepositoryFilter.class))
+        .apply(SecurityMockMvcConfigurers.springSecurity())
+        .build();
+  }
+
+  private UUID insertUser(String displayName) {
+    UUID id = UUID.randomUUID();
+    jdbc.update("INSERT INTO users (id, display_name) VALUES (?, ?)", id, displayName);
+    return id;
+  }
+
+  private Cookie login(UUID userId) throws Exception {
+    MvcResult result = loginResult(userId);
+    Cookie cookie = result.getResponse().getCookie(OPERATOR_COOKIE);
+    assertThat(cookie).isNotNull();
+    assertThat(cookie.isHttpOnly()).isTrue();
+    return cookie;
+  }
+
+  private MvcResult loginResult(UUID userId) throws Exception {
+    return mvc.perform(
+            post("/api/v1/operator/auth/login")
+                .cookie(csrf())
+                .header(csrfHeader(), CSRF)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"userId\":\"" + userId + "\"}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.userId").value(userId.toString()))
+        .andReturn();
+  }
+
+  private ConfigurableApplicationContext restart() {
+    DataSource dataSource = context.getBean(DataSource.class);
+    if (!(dataSource instanceof HikariDataSource hikari)) {
+      throw new IllegalStateException(dataSource.getClass().getName());
+    }
+    return new SpringApplicationBuilder(SceneApplication.class)
+        .properties(
+            "server.port=0",
+            "spring.datasource.url=" + hikari.getJdbcUrl(),
+            "spring.datasource.username=" + hikari.getUsername(),
+            "spring.datasource.password=" + hikari.getPassword())
+        .run();
+  }
+
+  @SuppressWarnings({"rawtypes", "unchecked"})
+  private void expire(String sessionId) {
+    SessionRepository repository = context.getBean(SessionRepository.class);
+    Session session = repository.findById(sessionId);
+    assertThat(session).isNotNull();
+    session.setMaxInactiveInterval(Duration.ZERO);
+    repository.save(session);
   }
 
   private static Cookie csrf() {

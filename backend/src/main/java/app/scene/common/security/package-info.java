@@ -1,2 +1,5 @@
-/** Operator, participant, and public filter chains (P0-08). Session storage is P0-09. */
+/**
+ * Operator, participant, and public filter chains. Operator sessions are Spring Session JDBC.
+ * Participant sessions stay in memory.
+ */
 package app.scene.common.security;
