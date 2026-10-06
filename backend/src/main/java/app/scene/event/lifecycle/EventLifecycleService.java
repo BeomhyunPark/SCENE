@@ -150,12 +150,12 @@ public class EventLifecycleService {
     throw new SceneException(ErrorCode.FORBIDDEN);
   }
 
-  /** A sent override is 1 to 500 characters on every command. Blank is not decided here. */
+  /** A sent override is 1 to 500 characters. Null was not sent. Blank or whitespace is 400. */
   private static void rejectOversizedOverride(String overrideReason) {
-    if (overrideReason == null || overrideReason.isBlank()) {
+    if (overrideReason == null) {
       return;
     }
-    if (overrideReason.trim().length() > REASON_MAX) {
+    if (overrideReason.isBlank() || overrideReason.trim().length() > REASON_MAX) {
       throw new SceneException(ErrorCode.VALIDATION_FAILED, Map.of("field", "override.reason"));
     }
   }

@@ -442,6 +442,23 @@ class LifecycleAndTaskIT {
     assertThat(count(fx, "audit_logs")).isZero();
   }
 
+  @Test
+  void blankOverrideReasonIsRejectedWhenItWasSent() {
+    // 현 결정 10/6 D3. 대행 경로의 공백은 authorize의 403이 먼저다.
+    Fixture fx = seed("ACTIVE");
+    OperatorActor spaceOwner = new OperatorActor(fx.spaceOwnerId, "OWNER", null);
+    LifecycleRequest blank = new LifecycleRequest(0, true, null, " ");
+    assertField(() -> lifecycle.end(fx.spaceId, fx.eventId, blank, fx.ownerActor()));
+    assertField(() -> lifecycle.archive(fx.spaceId, fx.eventId, blank, fx.ownerActor()));
+    assertField(() -> lifecycle.archive(fx.spaceId, fx.eventId, blank, spaceOwner));
+    assertCode(
+        ErrorCode.OVERRIDE_REQUIRED,
+        () -> lifecycle.end(fx.spaceId, fx.eventId, blank, spaceOwner));
+    assertThat(status(fx)).isEqualTo("ACTIVE");
+    assertThat(count(fx, "event_lifecycle_transitions")).isZero();
+    assertThat(count(fx, "audit_logs")).isZero();
+  }
+
   private static void assertCode(ErrorCode code, Throwing call) {
     assertThatThrownBy(call::run)
         .isInstanceOf(SceneException.class)

@@ -25,7 +25,7 @@ public interface EventLifecycleMapper {
       SELECT command, from_status, to_status, acted_as, occurred_at
       FROM event_lifecycle_transitions
       WHERE space_id = #{spaceId} AND event_id = #{eventId}
-      ORDER BY occurred_at DESC
+      ORDER BY occurred_at DESC, id DESC
       LIMIT 1
       """)
   LifecycleTransitionView lastTransition(
