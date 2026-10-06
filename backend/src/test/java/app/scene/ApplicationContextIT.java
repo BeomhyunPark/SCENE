@@ -40,13 +40,18 @@ class ApplicationContextIT {
   void flywayAppliedBaselineMigration() {
     MigrationInfo current = flyway.info().current();
     assertThat(current).isNotNull();
-    assertThat(current.getVersion().getVersion()).isEqualTo("1");
+    assertThat(current.getVersion().getVersion()).isEqualTo("2");
 
-    Integer applied =
+    Integer baseline =
         jdbcTemplate.queryForObject(
             "SELECT count(*) FROM flyway_schema_history WHERE version = '1' AND success",
             Integer.class);
-    assertThat(applied).isEqualTo(1);
+    Integer sessions =
+        jdbcTemplate.queryForObject(
+            "SELECT count(*) FROM flyway_schema_history WHERE version = '2' AND success",
+            Integer.class);
+    assertThat(baseline).isEqualTo(1);
+    assertThat(sessions).isEqualTo(1);
   }
 
   @Test

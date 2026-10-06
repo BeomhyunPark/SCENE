@@ -24,7 +24,7 @@ docker compose up -d --wait
 
 준비되면 `GET http://localhost:8080/actuator/health`가 `{"status":"UP"}`이다. Flyway가 V1을 적용한 뒤 `local`에서만 `db/seed/R__local_seed.sql`을 넣는다. 같은 행은 다시 넣지 않는다. 비울 때는 `docker compose down -v`로 볼륨을 지운다. dev, stg, prod와 테스트는 이 시드를 적용하지 않는다. 테스트는 compose 대신 Testcontainers를 띄운다.
 
-시드는 로그인 계정이 아니다. 권한 override도 없다. MANAGER/STAFF 기본 권한은 아직 승인되지 않았다.
+시드 사용자에게는 비밀번호가 없다. 로컬 운영자 로그인은 `users.id`만 확인하고 세션을 발급한다. 자격 증명 형식은 아직 결정되지 않았다. 권한 override도 없다. MANAGER/STAFF 기본 권한은 아직 승인되지 않았다.
 
 오류 응답은 `application/problem+json`이다. 분기 값은 `code`다. `detail` 문장으로 분기하지 않는다. 응답 헤더 `X-Request-Id`와 본문 `traceId`는 같은 값이다. 요청에 형식에 맞는 `X-Request-Id`가 있으면 그 값을 쓰고, 없으면 서버가 만든다. 이 값은 분산 trace id가 아니다.
 

@@ -1,7 +1,8 @@
 -- Local fixture only. The local profile adds this folder to spring.flyway.locations.
 -- dev, stg, prod, and tests stay on classpath:db/migration, so they never apply it.
 -- Rows are insert-if-absent. Permission overrides are absent: MANAGER/STAFF defaults are not approved.
--- These people cannot sign in. Operator sessions are not built yet.
+-- These people have no secret. Operator login accepts a known users.id and does not check a password.
+-- Credential format is still open. Permission overrides are absent.
 
 INSERT INTO users (id, display_name) VALUES
   ('00000000-0000-4000-8000-000000000001', 'Local owner'),

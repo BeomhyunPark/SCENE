@@ -11,22 +11,25 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.NullSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
+import org.springframework.session.web.http.DefaultCookieSerializer;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 /**
- * Three filter chains. Operator and participant each read their own session cookie. Public does not
- * require either session. No login, no {@code UserDetails}, and no Spring Session.
+ * Three filter chains. The operator chain stores its session in Spring Session JDBC. The
+ * participant chain keeps its own in-memory cookie. Public does not require either session.
  */
 @Configuration(proxyBeanMethods = false)
 @EnableWebSecurity
@@ -40,29 +43,45 @@ class SecurityConfiguration {
       List.of("GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS");
 
   @Bean
-  ChainSessionRegistry operatorSessions(SecurityProperties properties) {
-    return new ChainSessionRegistry(
-        properties.session().operatorCookieName(), properties.session().sameSite());
-  }
-
-  @Bean
   ChainSessionRegistry participantSessions(SecurityProperties properties) {
     return new ChainSessionRegistry(
         properties.session().participantCookieName(), properties.session().sameSite());
   }
 
+  /**
+   * Operator session cookie. Names, SameSite, and the conceptual names stay on {@link
+   * SecurityProperties}. Base64 is off so the cookie value is the JDBC session id.
+   */
+  @Bean
+  DefaultCookieSerializer operatorSessionCookie(SecurityProperties properties) {
+    DefaultCookieSerializer serializer = new DefaultCookieSerializer();
+    serializer.setCookieName(properties.session().operatorCookieName());
+    serializer.setUseHttpOnlyCookie(true);
+    serializer.setUseSecureCookie(true);
+    serializer.setSameSite(properties.session().sameSite());
+    serializer.setCookiePath("/");
+    serializer.setUseBase64Encoding(false);
+    return serializer;
+  }
+
   @Bean
   @Order(1)
-  SecurityFilterChain operatorChain(
-      HttpSecurity http,
-      SecurityProperties properties,
-      @Qualifier("operatorSessions") ChainSessionRegistry operatorSessions)
+  SecurityFilterChain operatorChain(HttpSecurity http, SecurityProperties properties)
       throws Exception {
-    return authenticated(
-        http,
-        "/api/v1/operator/**",
-        properties,
-        new ChainSecurityContextRepository(operatorSessions));
+    shared(http, "/api/v1/operator/**", properties);
+    // Registered before session management so IF_REQUIRED keeps this repository.
+    http.securityContext(
+        context -> context.securityContextRepository(new HttpSessionSecurityContextRepository()));
+    http.sessionManagement(
+        session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED));
+    http.authorizeHttpRequests(
+        authorize ->
+            authorize
+                .requestMatchers(HttpMethod.POST, "/api/v1/operator/auth/login")
+                .permitAll()
+                .anyRequest()
+                .authenticated());
+    return http.build();
   }
 
   @Bean
