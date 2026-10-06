@@ -229,7 +229,7 @@ ENDED는 조회·정산·회고·후속 업무·후속 공지·감사 가능한 
 - OWNER role 운영자에게는 override 행을 두지 않는다(OWNER 권한은 override 불가). OWNER 전용 키는 OWNER가 아닌 운영자에게 GRANT로 저장하지 않는다. 둘 다 서비스에서 검사한다.
 - role 변경(`event_users.role` UPDATE)은 같은 transaction에서 해당 운영자의 override를 모두 삭제하고 audit에 남긴다. 운영자 추가·제거·role 변경은 Event Owner만 한다(현 결정 10/2).
 - Owner 위임 (현 결정 10/2, DEC-033): override가 있는 운영자가 위임을 수락해 OWNER가 되면 같은 transaction에서 그 override를 위임 기록에 스냅샷으로 저장하고 이 테이블에서 지운다. 위임이 취소되면 위임 기록의 스냅샷을 이전 role과 함께 되살린다. 넘긴 사람은 인수인계 종료 뒤 남는 role의 기본값으로 시작하고 override는 없다. 단계마다 audit에 남긴다. 위임 기록은 [DEC-063](api-architecture-v0.1.md#2026-10-02-행사-lifecycle-command-30-dec-063)의 `owner_transfers`를 따른다.
-- ARCHIVED 행사에서는 줄이는 변경(저장된 GRANT 행 삭제, REVOKE 추가, 운영자 제거)만 허용하고 GRANT 추가와 REVOKE 해제는 서비스에서 409 `EVENT_ARCHIVED`로 막는다(현 결정 10/2, #30 L5). role 변경(`event_users.role` UPDATE와 override 삭제)과 제거됐던 사용자의 재추가(`event_users` INSERT, 직접 추가·DEC-060 초대 수락)도 늘리는 변경이라 같은 409로 막고 아무것도 저장하지 않는다(현 결정 10/2 (#30 L5), #44 머지에서 빠진 규칙 복원). ENDED는 제한 없다.
+- ARCHIVED 행사에서는 줄이는 변경(저장된 GRANT 행 삭제, REVOKE 추가, 운영자 제거)만 허용하고 GRANT 추가와 REVOKE 해제는 서비스에서 409 `EVENT_ARCHIVED`로 막는다(현 결정 10/2, #30 L5). role 변경(`event_users.role` UPDATE와 override 삭제)과 제거됐던 사용자의 재추가(`event_users` INSERT, 직접 추가·DEC-060 초대 수락)도 늘리는 변경이라 같은 409로 막고 아무것도 저장하지 않는다(현 결정 10/2 (#30 L5), #44 머지에서 빠진 규칙 복원). ENDED는 제한 없다. (Owner 위임 수락은 예외, API 개인별 권한 절)
 - 운영자 제거와 DEC-060의 조직 탈퇴·관리자 제거에 따른 행사 접근 회수는 `event_users` 행 삭제이므로 CASCADE로 override가 사라진다. CASCADE 삭제 자체는 audit에 남지 않으므로 운영자 제거 audit 항목에 삭제된 override 목록을 함께 기록한다. 행사 전용 협력자로 전환해 `event_users` 행이 유지되면 override도 유지된다.
 - 아직 코드가 없으므로 마이그레이션이 아니라 Flyway V1 초기 스키마에 포함한다(SCENE Backend Lead).
 
