@@ -2,7 +2,7 @@
 # Spring Boot 4.0 line; latest 4.0.x patch as of 2026-10-02.
 spring-boot = "4.1.1"
 # MyBatis Spring Boot starter 4.0.x targets Spring Boot 4.0.
-mybatis-spring-boot = "4.0.1"
+mybatis-spring-boot = "4.1.0"
 archunit = "1.5.1"
 spotless = "8.10.3"
 # 1.37.0 fails inside Spotless 8.10.3 (InvocationTargetException on every file); pinned to 1.36.1 (verified locally).
