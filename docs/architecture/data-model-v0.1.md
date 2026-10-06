@@ -250,9 +250,11 @@ ENDED는 조회·정산·회고·후속 업무·후속 공지·감사 가능한 
 | `from_status`, `to_status` | 전이 전후 |
 | `actor_user_id` | 실행한 사용자 |
 | `acted_as` | `EVENT_OWNER / SPACE_OWNER / SPACE_OWNER_OVERRIDE` |
-| `reason` | 재개 사유 또는 Override 사유. 없으면 null |
+| `reason` | REOPEN이면 재개 사유(요청 `reason`). Space OWNER가 재개를 대신 실행해도 이 칸에는 재개 사유를 둔다. REOPEN이 아닌 Override 전이(활성화·종료)는 `override.reason`. 그 밖은 null (DEC-065) |
 | `warnings_snapshot` | 실행 시점 경고 건수. 개인정보 없음 |
 | `occurred_at` | timestamptz |
+
+- Override 사유 (2026-10-06 DEC-065): 모든 Override command(`acted_as = SPACE_OWNER_OVERRIDE`)의 `override.reason`은 그 전이의 `audit_logs` 항목 details에 `actedAs`와 함께 `overrideReason`으로 저장한다. Override 사유의 기준 기록은 audit이다. `override.reason`과 재개 `reason`은 모두 1~500자이며 API가 400 `VALIDATION_FAILED`로 먼저 거른다(긴 값이 DB 오류·500이 되지 않게 한다).
 
 `owner_transfers`
 

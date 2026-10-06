@@ -402,7 +402,12 @@ POST /api/v1/operator/events/{eventId}/tasks/{taskId}/reopen
 
 판정 순서와 오류
 
-401 인증 → 404 tenant·업무·항목 → 403 권한 → 400 요청 값 → 409 행사 상태 → 변경 없음이면 200 → 409 업무 상태 → 409 version.
+401 인증 → 404 tenant·업무·항목 → 403 권한 → 400 요청 값 → 409 행사 상태(`EVENT_ARCHIVED`) → 이미 목표 상태면 200 → 409 version(`TASK_VERSION_CONFLICT`) → 409 업무 상태(`INVALID_TASK_STATE`). 앞 단계에서 걸리면 그 결과 하나만 돌려준다. (2026-10-06 DEC-065, 현 승인)
+
+- complete·reopen: 이미 목표 상태면 요청 `version`과 무관하게 200이고 version은 바뀌지 않는다. complete인데 이미 DONE → `ALREADY_DONE`, reopen인데 이미 TODO/DOING → `ALREADY_OPEN`. 목표 상태가 아니고 요청 `version` ≠ 현재면 업무 상태와 무관하게 409 `TASK_VERSION_CONFLICT`다. version이 맞을 때만 409 `INVALID_TASK_STATE`(`reason: CHECKLIST_INCOMPLETE | TASK_CANCELLED`)를 판정하고, 통과하면 200 `COMPLETED` / `REOPENED`.
+- 항목 설정: version을 받지 않으므로 version 단계가 없다. 같은 값이면 업무 상태와 무관하게 200 `NO_CHANGE`(회귀 #10), 다른 값이면 409 `INVALID_TASK_STATE`(`reason: TASK_DONE | TASK_CANCELLED`)를 판정하고, 통과하면 200 `UPDATED`.
+- 행사 ARCHIVED는 행사 상태 오류라 404·403·400 뒤, 목표 상태 200보다 앞이다. 그래서 보관된 행사에서는 같은 값 재전송·`ALREADY_*` 대상 요청도 409 `EVENT_ARCHIVED`다(회귀 #23, DEC-063).
+- 이전 문장 "409 업무 상태 → 409 version"은 회귀 #12와 모순돼 DEC-065로 고쳤다. lifecycle command의 `ALREADY_IN_STATE` → `CONCURRENT_MODIFICATION` → `INVALID_STATE_TRANSITION` 순서와 같은 방식이다.
 
 | 결과 | HTTP | code | 본문 |
 |---|---|---|---|
@@ -414,8 +419,8 @@ POST /api/v1/operator/events/{eventId}/tasks/{taskId}/reopen
 | 행사 접근 회수 | 403 | `NOT_A_MEMBER` (#30, 제안) | |
 | `checked` 누락·boolean 아님, `version` 누락 | 400 | `VALIDATION_FAILED` | `errors[]` |
 | 행사 ARCHIVED | 409 | `EVENT_ARCHIVED` (DEC-063) | `eventStatus`, `task` |
-| DONE 업무 항목 변경 / 미완료 체크로 complete / CANCELLED | 409 | `INVALID_TASK_STATE` | `reason`, `task` |
-| complete·reopen의 `version` ≠ 현재 | 409 | `TASK_VERSION_CONFLICT` | `task` |
+| complete·reopen의 `version` ≠ 현재 (이미 목표 상태가 아닐 때. 업무 상태 오류보다 먼저, DEC-065) | 409 | `TASK_VERSION_CONFLICT` | `task` |
+| DONE 업무 항목 변경 / 미완료 체크로 complete / CANCELLED (complete·reopen은 `version`이 맞을 때만) | 409 | `INVALID_TASK_STATE` | `reason`, `task` |
 
 409 본문 예 (RFC 9457 + 확장):
 
@@ -433,7 +438,7 @@ POST /api/v1/operator/events/{eventId}/tasks/{taskId}/reopen
 
 - ARCHIVED 업무 쓰기 차단 코드는 `EVENT_ARCHIVED`다(DEC-063). 업무 쓰기에는 `EVENT_ENDED`를 쓰지 않는다.
 - ENDED 행사는 지금 업무 쓰기를 막지 않는다(D6). #30이 동결 대상 업무 구분을 정하면 서버의 행사 상태 판정 지점에서 추가한다. `tasks.kind` 같은 업무 유형 필드는 지금 만들지 않는다.
-- 이미 목표 상태면 version과 무관하게 200: complete인데 이미 DONE → `ALREADY_DONE`, reopen인데 이미 TODO/DOING → `ALREADY_OPEN`. 재시도와 '다른 사람이 먼저 같은 일을 함'을 충돌로 보지 않는다.
+- 이미 목표 상태면 version과 무관하게 200: complete인데 이미 DONE → `ALREADY_DONE`, reopen인데 이미 TODO/DOING → `ALREADY_OPEN`. version은 그대로이고 audit도 남기지 않는다. 이 판정은 version 비교보다 먼저다(DEC-065). 재시도와 '다른 사람이 먼저 같은 일을 함'을 충돌로 보지 않는다.
 
 동시성·멱등성 (구현 기준)
 
@@ -441,7 +446,7 @@ POST /api/v1/operator/events/{eventId}/tasks/{taskId}/reopen
 - 항목 설정: 값이 같으면 아무것도 바꾸지 않는다(`checkedByUserId`·`checkedAt`·version 유지, audit 없음, `NO_CHANGE`). 다르면 항목 갱신 + 업무 상태 재계산 + version +1.
 - 두 사람이 동시에 같은 항목 체크: 먼저 커밋한 사람이 `checkedByUserId`, 두 번째는 200 `NO_CHANGE`.
 - 서로 다른 항목 동시 체크: 둘 다 성공(항목 PUT은 version 검사 없음). version은 차례로 +1.
-- 완료·다시 진행: `UPDATE tasks … WHERE id = ? AND version = ? AND status IN (…)` 한 행 성공으로 판정하고, 0행이면 다시 읽어 `ALREADY_*` / `INVALID_TASK_STATE` / `TASK_VERSION_CONFLICT`로 분류한다.
+- 완료·다시 진행: `UPDATE tasks … WHERE id = ? AND version = ? AND status IN (…)` 한 행 성공으로 판정하고, 0행이면 다시 읽어 위 판정 순서대로 `ALREADY_*` → `TASK_VERSION_CONFLICT` → `INVALID_TASK_STATE`로 분류한다(DEC-065).
 
 클라이언트 재시도
 
@@ -473,10 +478,10 @@ POST /api/v1/operator/events/{eventId}/tasks/{taskId}/reopen
 | 9 | DONE 업무 항목 해제 | 409 `INVALID_TASK_STATE` `reason: TASK_DONE`, 본문 DONE 2/2 |
 | 10 | DONE 업무에 이미 체크된 항목 `checked: true` 재전송 | 200 `NO_CHANGE` |
 | 11 | DONE에서 reopen | 200 `REOPENED`, DOING 2/2 (체크 유지) → 이후 항목 1·2 모두 해제 가능 (#14 10/1 결정) |
-| 12 | 다른 사람이 항목 해제한 뒤 이전 version으로 complete | 409 `TASK_VERSION_CONFLICT`, 본문 1/2·새 version |
+| 12 | 다른 사람이 항목 해제한 뒤(version +1) 이전 version으로 complete | 409 `TASK_VERSION_CONFLICT`, 본문 1/2·새 version (`CHECKLIST_INCOMPLETE`보다 version이 먼저, DEC-065) |
 | 13 | 마지막 항목 해제와 complete가 동시에 도착 | 최종 상태가 'DONE + 1/2'인 경우 없음. complete는 200 또는 409 중 하나 |
-| 14 | complete 응답 유실 후 같은 요청 재전송 | 200 `ALREADY_DONE` |
-| 15 | 이미 DOING인 업무 reopen | 200 `ALREADY_OPEN`, version 그대로 |
+| 14 | complete 응답 유실 후 같은 요청(이전 version) 재전송 | 200 `ALREADY_DONE`, version 그대로 (version과 무관, DEC-065) |
+| 15 | 이미 DOING인 업무 reopen (현재 version / 이전 version) | 둘 다 200 `ALREADY_OPEN`, version 그대로 (DEC-065) |
 | 16 | 담당자 아님, `TASK_WRITE` 없는 STAFF가 항목 체크 | 403 `FORBIDDEN`, 상태 불변 |
 | 17 | Event Owner가 STAFF에게 `TASK_WRITE` GRANT → 남의 업무 체크 | 200 |
 | 18 | MANAGER의 `TASK_WRITE`를 REVOKE → 남의 업무 complete / 자기 담당 업무 complete | 403 `FORBIDDEN` / 200 (담당자 규칙, D1) |
@@ -501,6 +506,8 @@ POST /api/v1/operator/events/{eventId}/tasks/{taskId}/reopen
 | 37 | 36 이후 그 업무들 조회 | 그 사람이 체크한 항목의 `checkedByUserId`·`checkedByDisplayName`·`checkedAt`, DONE 업무의 `completedByUserId`·`completedAt` 그대로 |
 | 38 | 36 이후 미배정 업무를 `TASK_WRITE` 없는 STAFF가 체크 / `TASK_WRITE` 있는 MANAGER가 체크 | 403 `FORBIDDEN` / 200 |
 | 39 | 제거된 사용자를 같은 행사에 다시 추가 | 이전 담당 업무가 자동으로 다시 배정되지 않음 (제안) |
+| 40 | CANCELLED 업무 complete·reopen, 현재 version / 이전 version | 409 `INVALID_TASK_STATE` `reason: TASK_CANCELLED` / 409 `TASK_VERSION_CONFLICT`, 상태·version 불변 (DEC-065) |
+| 41 | ARCHIVED 행사의 DONE 업무에 complete 재전송(이전 version) | 409 `EVENT_ARCHIVED` (행사 상태가 `ALREADY_DONE`보다 먼저, DEC-063·DEC-065) |
 
 ## 9. Schedule / Notice
 
@@ -1137,10 +1144,11 @@ POST /api/v1/operator/events/{eventId}/archive
 POST /api/v1/operator/events/{eventId}/unarchive
 ```
 
-공통 본문 필드는 `expectedLifecycleVersion`(필수 정수), 종료·보관의 `acknowledgeWarnings`, 재개의 `reason`(1~500자, 필수), Space OWNER가 대신 실행할 때의 `override.reason`(1~500자, 필수)이다. 없는 필드는 무시하지 않고 400 `VALIDATION_FAILED`다.
+공통 본문 필드는 `expectedLifecycleVersion`(필수 정수), 종료·보관의 `acknowledgeWarnings`, 재개의 `reason`(1~500자, 필수), Space OWNER가 대신 실행할 때의 `override.reason`(1~500자, 필수)이다. 없는 필드는 무시하지 않고 400 `VALIDATION_FAILED`다. `override.reason`은 받는 모든 command(활성화·종료·재개·보관·보관 해제)에서 보내면 실행자·`actedAs`와 무관하게 1~500자로 검사하고 어기면 400 `VALIDATION_FAILED`다. 재개에서만 검사하는 것이 아니며, 필수인지만 L2·L3에 따라 다르다(DEC-065).
 
 - L1: 활성화·종료·재개·보관·보관 해제의 Event 경로 실행자는 Event OWNER다. `EVENT_LIFECYCLE`은 OWNER 기본값에만 있고 GRANT·REVOKE 대상이 아니다(422 `PERMISSION_OWNER_ONLY`).
 - L2: Space OWNER는 `event_users` 행 없이도 활성화·종료·재개를 대신 실행할 수 있다. `override.reason`이 없으면 403 `OVERRIDE_REQUIRED`. 있으면 200, `actedAs: SPACE_OWNER_OVERRIDE`, audit, Event OWNER 전원에게 알림 기록. 전달 채널은 OPEN이다. Space ADMIN은 전이를 실행하지 못한다.
+  - Override 사유 저장 (2026-10-06 DEC-065): 모든 Override command에서 `override.reason`은 그 전이의 `audit_logs` 항목 details에 `actedAs`와 함께 `overrideReason`으로 남긴다(예: `{"actedAs":"SPACE_OWNER_OVERRIDE","overrideReason":"…"}`). Space OWNER가 재개를 대신 실행하면 재개 사유 `reason`은 전이 행의 `reason`에, `override.reason`은 audit details에 남겨 두 사유를 모두 보존한다.
 - L3: 보관과 보관 해제는 Event OWNER 또는 Space OWNER가 한다. Space OWNER의 보관·보관 해제는 Override가 아니므로 `override.reason`이 없어도 된다(`actedAs: SPACE_OWNER`).
 - L4: 종료·보관의 확인은 `acknowledgeWarnings: true`만 본다. 경고가 1건 이상인데 이 값이 아니면 409 `CONFIRMATION_REQUIRED`와 실행 시점 경고 수를 돌려주고 저장하지 않는다. 경고가 0건이면 플래그 없이 실행한다. 건수가 미리보기와 달라도 다시 확인받지 않는다. 실행 시점 건수는 전이 행의 스냅샷으로 남는다. 경고는 미완료 업무(`TODO`/`DOING`), 미정산, 미배정, 미전송 안내이며 종료를 막는 조건이 아니다(DEC-050). 종료가 업무를 완료 처리하지 않는다.
 - 전이는 `DRAFT→ACTIVE`, `ACTIVE→ENDED`, `ENDED→ACTIVE`, `ENDED→ARCHIVED`, `ARCHIVED→ENDED`만 된다. ACTIVE 직접 보관과 ARCHIVED 직접 재개는 409 `INVALID_STATE_TRANSITION`이다. 이미 목표 상태면 200 `outcome: ALREADY_IN_STATE`이고 이력·audit를 추가하지 않는다. 이 판정은 버전 비교보다 먼저다. 버전이 다르고 목표 상태도 아니면 409 `CONCURRENT_MODIFICATION`과 현재 `lifecycleVersion`, `lastTransition`을 돌려준다.
@@ -1180,6 +1188,9 @@ POST /api/v1/operator/spaces/{spaceId}/me/leave
 | 14 | 공동 Owner가 있는 행사 Owner가 이전 없이 이탈 | 409 `OWNER_ROLE_HELD`, 권한 불변 |
 | 15 | 수락된 HANDOVER 중 넘긴 사람이 이탈 | 200. 그 인수인계 권한은 즉시 종료. 그 행사는 유지 불가 |
 | 16 | PENDING 이전과 마지막 Owner와 남은 책임이 같이 있는 이탈 | 409 `HANDOVER_NOT_ACCEPTED` 하나만 |
+| 17 | Space OWNER가 재개 `reason`과 `override.reason`을 함께 넣어 재개 | 200 `SPACE_OWNER_OVERRIDE`. 전이 행 `reason` = 재개 사유, audit details `actedAs`·`overrideReason` = Override 사유 (DEC-065) |
+| 18 | Space OWNER가 사유를 넣어 종료·활성화 | audit details에 `actedAs: SPACE_OWNER_OVERRIDE`와 `overrideReason` (DEC-065) |
+| 19 | 501자 `override.reason`: Space OWNER 대행 종료·재개, Event OWNER 종료·보관, Space OWNER 보관 | 모두 400 `VALIDATION_FAILED`, 상태·이력·audit 불변 (500 아님, DEC-065) |
 
 ## 2026-10-06 MVP 참여자 인증 (DEC-064)
 

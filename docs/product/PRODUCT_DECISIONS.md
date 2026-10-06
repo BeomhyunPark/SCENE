@@ -1,6 +1,6 @@
 # Church Event Operations Platform — Product Decisions
 
-> **2026-09-30 baseline:** DEC-001~027의 기존 본문·Status 보존. 최초 정리 당시에는 새 DEC를 만들지 않았고, 이후 검토에서 DEC-028~059를 추가했다. 2026-10-01 #11·#12 기술 계약으로 DEC-060~061을, 2026-10-02 #31 업무·체크리스트 저장 계약으로 DEC-062를, #30 행사 lifecycle command 계약으로 DEC-063을, 2026-10-06 MVP 참여자 인증 결정으로 DEC-064를 추가했다(현재 마지막 번호 DEC-064). 최신 요청의 제품명 SCENE 및 Technical Design / implementation 전 상태가 현재 기준이다. DEC-024/027의 단계와 §17 Product Name OPEN은 이전 이력이며 기술 기준은 [Architecture](../architecture/architecture-v0.1.md)를 따른다. 공식 Decision Log 정합화는 검토 필요.
+> **2026-09-30 baseline:** DEC-001~027의 기존 본문·Status 보존. 최초 정리 당시에는 새 DEC를 만들지 않았고, 이후 검토에서 DEC-028~059를 추가했다. 2026-10-01 #11·#12 기술 계약으로 DEC-060~061을, 2026-10-02 #31 업무·체크리스트 저장 계약으로 DEC-062를, #30 행사 lifecycle command 계약으로 DEC-063을, 2026-10-06 MVP 참여자 인증 결정으로 DEC-064를, 같은 날 업무 오류 판정 순서·Override 사유 저장 보강으로 DEC-065를 추가했다(현재 마지막 번호 DEC-065). 최신 요청의 제품명 SCENE 및 Technical Design / implementation 전 상태가 현재 기준이다. DEC-024/027의 단계와 §17 Product Name OPEN은 이전 이력이며 기술 기준은 [Architecture](../architecture/architecture-v0.1.md)를 따른다. 공식 Decision Log 정합화는 검토 필요.
 >
 > DEC-027은 단계 설명에 한해 DEC-024를 대체한다고 기록하지만 DEC-024의 원래 CONFIRMED 표기는 보존한다. Evidence Type의 HYPOTHESIS 용어 충돌도 [검토 기록](../architecture/architecture-v0.1.md)에 남긴다.
 > [Product Definition](PRODUCT_DEFINITION.md) · [Research](RESEARCH.md)
@@ -1957,3 +1957,42 @@ DEC-054~059와 [#12 사용자 답변](https://github.com/BeomhyunPark/SCENE/issu
 ### Evidence
 
 현 결정 2026-10-06 (SCENE 개발 리드 전달).
+
+---
+
+## DEC-065 — 업무 command 오류는 목표 상태 → version → 업무 상태 순으로 판정하고 Override 사유는 audit에 남긴다
+
+**Date:** 2026-10-06
+
+**Status:** CONFIRMED (현 결정 2026-10-06) — DEC-062·DEC-063 기술 계약 보강
+
+### Context
+
+- #31(DEC-062) 업무 계약의 판정 순서 문장 "409 업무 상태 → 409 version"이 같은 절의 회귀 #12(다른 사람이 항목을 해제한 뒤 이전 version으로 complete → 409 `TASK_VERSION_CONFLICT`)와 모순됐다. 문장대로라면 `INVALID_TASK_STATE`(`CHECKLIST_INCOMPLETE`)가 먼저 나온다.
+- #30(DEC-063) `event_lifecycle_transitions.reason`은 "재개 사유 또는 Override 사유" 한 칸이라 Space OWNER가 재개를 대신 실행하면 두 사유 중 하나를 잃는다. `override.reason`을 audit 어디에 남기는지도 정해지지 않았다.
+
+### Decision
+
+- 업무 complete·reopen·항목 설정의 판정 순서는 404(없음) → 403(권한) → 이미 목표 상태면 200 → 409 `TASK_VERSION_CONFLICT` → 409 `INVALID_TASK_STATE`다.
+  - 목표 상태 200은 `ALREADY_DONE`(DONE 업무에 complete), `ALREADY_OPEN`(TODO/DOING 업무에 reopen)이며 요청 version과 무관하고 version은 바뀌지 않는다. 항목 설정의 같은 값은 `NO_CHANGE`다.
+  - 요청 version이 오래됐으면 업무 상태와 무관하게 `TASK_VERSION_CONFLICT`다(complete·reopen만. 항목 설정은 version을 받지 않는다).
+  - version이 맞을 때만 `INVALID_TASK_STATE`(`reason: TASK_CANCELLED | TASK_DONE | CHECKLIST_INCOMPLETE`)를 판정한다.
+  - 400 요청 값과 409 `EVENT_ARCHIVED`는 지금 문서 위치(403 뒤, 목표 상태 200 앞)를 유지한다. 보관된 행사의 재전송은 409 `EVENT_ARCHIVED`다(DEC-063).
+- Space OWNER가 재개를 대신 실행하면 재개 사유는 전이 행 `reason`에, `override.reason`은 audit 항목 details(`actedAs`와 함께 `overrideReason`)에 저장한다. 모든 Override command에서 `override.reason`은 audit details에 남긴다.
+- `override.reason`은 받는 모든 command에서 1~500자로 검사하고 어기면 400 `VALIDATION_FAILED`다. 재개에서만 검사하는 것이 아니다.
+
+### Alternatives
+
+기존 문장(업무 상태 → version)은 회귀 #12와 모순되고, 오래된 화면에서 온 요청에 현재와 다른 원인의 오류를 줄 수 있어 채택하지 않았다. 전이 행 `reason` 한 칸에 두 사유 중 하나만 남기는 안은 필수 정당화나 재개 사유 중 하나를 잃어 채택하지 않았다.
+
+### Reason
+
+lifecycle command(DEC-063)의 `ALREADY_IN_STATE` → `CONCURRENT_MODIFICATION` → `INVALID_STATE_TRANSITION`과 같은 방식으로 맞춰 재시도·늦은 요청을 한 가지 규칙으로 처리한다. 오래된 version이면 클라이언트는 409 본문 `task`로 현재 상태를 다시 그린다. Override 사유는 대행의 필수 정당화라 잃지 않게 한다.
+
+### Consequence
+
+업무 판정 순서·오류표·회귀(#12·#14·#15 수정, #40·#41 추가)는 [API Architecture](../architecture/api-architecture-v0.1.md#2026-10-02-업무-체크리스트-저장-계약-31-dec-062) §8, Override 사유 저장·검증과 회귀(#17~#19)는 [API Architecture](../architecture/api-architecture-v0.1.md#2026-10-02-행사-lifecycle-command-30-dec-063), 전이 행 `reason`은 [Data Model](../architecture/data-model-v0.1.md#2026-10-02-행사-lifecycle-30-dec-063), 권한은 [Security / Privacy](../architecture/security-privacy-v0.1.md#2026-10-02-개인별-권한-현-결정-dec-029-정합)의 DEC-063 항을 따른다. 문서만 바꿨으며 서버 코드 정합은 후속이다.
+
+### Evidence
+
+현 결정 2026-10-06. [#31](https://github.com/BeomhyunPark/SCENE/issues/31), [#30](https://github.com/BeomhyunPark/SCENE/issues/30).
