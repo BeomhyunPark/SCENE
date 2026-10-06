@@ -1,7 +1,9 @@
 package app.scene.space;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
@@ -65,16 +67,78 @@ public interface MembershipLeaveMapper {
       """)
   int activeMember(@Param("spaceId") UUID spaceId, @Param("userId") UUID userId);
 
-  @Update("DELETE FROM event_users WHERE event_id = #{eventId} AND user_id = #{userId}")
-  int deleteOperator(@Param("eventId") UUID eventId, @Param("userId") UUID userId);
+  @Select(
+      """
+      SELECT user_id FROM event_users
+      WHERE space_id = #{spaceId} AND event_id = #{eventId} AND user_id = #{userId}
+      FOR UPDATE
+      """)
+  UUID lockOperator(
+      @Param("spaceId") UUID spaceId, @Param("eventId") UUID eventId, @Param("userId") UUID userId);
+
+  @Select(
+      """
+      SELECT id FROM tasks
+      WHERE space_id = #{spaceId} AND event_id = #{eventId} AND assignee_user_id = #{userId}
+      ORDER BY id
+      """)
+  List<UUID> assignedTasks(
+      @Param("spaceId") UUID spaceId, @Param("eventId") UUID eventId, @Param("userId") UUID userId);
+
+  @Update(
+      """
+      UPDATE tasks SET assignee_user_id = NULL
+      WHERE space_id = #{spaceId} AND event_id = #{eventId} AND assignee_user_id = #{userId}
+      """)
+  int clearAssignees(
+      @Param("spaceId") UUID spaceId, @Param("eventId") UUID eventId, @Param("userId") UUID userId);
+
+  @Select(
+      """
+      SELECT coalesce(jsonb_agg(jsonb_build_object(
+               'permission', permission,
+               'effect', effect,
+               'grantedBy', granted_by,
+               'grantedAt', granted_at) ORDER BY permission)::text, '[]')
+      FROM event_user_permissions
+      WHERE space_id = #{spaceId} AND event_id = #{eventId} AND user_id = #{userId}
+      """)
+  String permissionSnapshot(
+      @Param("spaceId") UUID spaceId, @Param("eventId") UUID eventId, @Param("userId") UUID userId);
+
+  @Update(
+      """
+      DELETE FROM event_users
+      WHERE space_id = #{spaceId} AND event_id = #{eventId} AND user_id = #{userId}
+      """)
+  int deleteOperator(
+      @Param("spaceId") UUID spaceId, @Param("eventId") UUID eventId, @Param("userId") UUID userId);
 
   @Update(
       """
       UPDATE owner_transfers
       SET status = 'COMPLETED'
-      WHERE event_id = #{eventId} AND from_user_id = #{userId} AND status = 'HANDOVER'
+      WHERE space_id = #{spaceId} AND event_id = #{eventId}
+        AND from_user_id = #{userId} AND status = 'HANDOVER'
       """)
-  int completeHandover(@Param("eventId") UUID eventId, @Param("userId") UUID userId);
+  int completeHandover(
+      @Param("spaceId") UUID spaceId, @Param("eventId") UUID eventId, @Param("userId") UUID userId);
+
+  @Insert(
+      """
+      INSERT INTO audit_logs (id, space_id, event_id, actor_user_id, action, detail, occurred_at)
+      VALUES (
+        #{id}, #{spaceId}, #{eventId}, #{actorUserId}, #{action},
+        CAST(#{detail} AS jsonb), #{occurredAt})
+      """)
+  void audit(
+      @Param("id") UUID id,
+      @Param("spaceId") UUID spaceId,
+      @Param("eventId") UUID eventId,
+      @Param("actorUserId") UUID actorUserId,
+      @Param("action") String action,
+      @Param("detail") String detail,
+      @Param("occurredAt") Instant occurredAt);
 
   @Update(
       """
