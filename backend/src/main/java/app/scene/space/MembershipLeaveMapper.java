@@ -1,6 +1,6 @@
 package app.scene.space;
 
-import java.time.Instant;
+import app.scene.common.sql.EffectiveOwnerSql;
 import java.util.List;
 import java.util.UUID;
 import org.apache.ibatis.annotations.Mapper;
@@ -16,7 +16,12 @@ public interface MembershipLeaveMapper {
       SELECT eu.event_id,
              eu.role = 'OWNER' AS owner,
              (SELECT count(*) FROM event_users o
-               WHERE o.event_id = eu.event_id AND o.role = 'OWNER' AND o.user_id <> eu.user_id) AS other_owners,
+               WHERE o.event_id = eu.event_id AND o.role = 'OWNER' AND o.user_id <> eu.user_id
+                 AND NOT
+      """
+          + EffectiveOwnerSql.OWNER_AUTHORITY_ENDED
+          + """
+                 ) AS other_owners,
              EXISTS (
                SELECT 1 FROM owner_transfers t
                WHERE t.event_id = eu.event_id AND t.from_user_id = eu.user_id AND t.status = 'HANDOVER'
@@ -65,10 +70,8 @@ public interface MembershipLeaveMapper {
       UPDATE owner_transfers
       SET status = 'COMPLETED'
       WHERE event_id = #{eventId} AND from_user_id = #{userId} AND status = 'HANDOVER'
-        AND handover_ends_at > #{now}
       """)
-  int completeHandover(
-      @Param("eventId") UUID eventId, @Param("userId") UUID userId, @Param("now") Instant now);
+  int completeHandover(@Param("eventId") UUID eventId, @Param("userId") UUID userId);
 
   @Update(
       """

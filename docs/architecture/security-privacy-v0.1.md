@@ -31,7 +31,7 @@
 [#31 현 결정 기록 (10/2)](https://github.com/BeomhyunPark/SCENE/issues/31#issuecomment-5946079736)에 따른 업무 체크·완료·다시 진행의 권한 판정이다. endpoint·오류 코드는 [API Architecture](api-architecture-v0.1.md#2026-10-02-업무-체크리스트-저장-계약-31-dec-062) §8의 같은 날짜 절을 따른다.
 
 - `TASK_WRITE` role 기본값: Event OWNER·MANAGER는 포함, STAFF는 미포함. 위 "미제공 Role별 세부 허용 집합을 추가 확정하지 않는다"의 예외로 `TASK_WRITE`만 확정한다. 나머지 키의 role별 기본값은 계속 OPEN이다.
-- 유효 `TASK_WRITE` = role 기본값 + 사람별 GRANT − REVOKE([개인별 권한](#2026-10-02-개인별-권한-현-결정-dec-029-정합), 현 결정 10/2). 사람별 GRANT/REVOKE는 Event Owner만 한다.
+- 유효 `TASK_WRITE` = role 기본값 + 사람별 GRANT − REVOKE([개인별 권한](#2026-10-02-개인별-권한-현-결정-dec-029-정합), 현 결정 10/2). 사람별 GRANT/REVOKE는 Event Owner만 한다. 인수인계가 끝난 넘긴 사람은 Q5 전까지 OWNER 기본값 없이 GRANT·담당자로만 쓴다 (현 결정 10/6, D1).
 - 담당자 본인 규칙: 업무 담당자(업무당 1명)는 유효 `TASK_WRITE` 없이도 자기 업무를 체크·완료·다시 진행할 수 있다. `TASK_WRITE`가 REVOKE돼도 자기 담당 업무는 처리할 수 있다. 처리 권한을 빼려면 담당을 바꾼다(담당 지정·변경은 `TASK_WRITE`).
 - 담당자가 아닌 운영자는 유효 `TASK_WRITE`가 있어야 남의 업무를 체크·완료·다시 진행할 수 있다. 없으면 403 `FORBIDDEN`이다.
 - 조직 관리자(Space OWNER/ADMIN)는 행사 운영자가 아니어도 업무를 조회할 수 있지만 쓰기는 403이다(DEC-028). 그룹 리더 역할만으로는 업무 쓰기 권한이 생기지 않는다(DEC-030).

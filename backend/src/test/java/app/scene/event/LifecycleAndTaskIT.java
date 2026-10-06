@@ -12,6 +12,7 @@ import app.scene.event.lifecycle.OperatorActor;
 import app.scene.event.task.TaskProgressService;
 import app.scene.event.task.TaskWriteResult;
 import app.scene.event.transfer.OwnerTransferService;
+import app.scene.event.transfer.TransferAcceptResult;
 import app.scene.space.MembershipLeaveService;
 import app.scene.support.PostgresTestcontainer;
 import java.time.Instant;
@@ -527,6 +528,7 @@ class LifecycleAndTaskIT {
 
   @Test
   void repeatedAcceptKeepsHandoverEnd() {
+    // lifecycle 회귀 #12, #13. API 개인별 권한 회귀 #34
     Fixture fx = seed("ACTIVE");
     UUID transferId = UUID.randomUUID();
     jdbc.update(
@@ -549,9 +551,11 @@ class LifecycleAndTaskIT {
         fx.eventId,
         fx.managerId,
         fx.ownerId);
-    Instant first = transfers.accept(transferId);
-    Instant second = transfers.accept(transferId);
-    assertThat(second).isEqualTo(first);
+    TransferAcceptResult first = transfers.accept(fx.spaceId, transferId, fx.managerId);
+    TransferAcceptResult second = transfers.accept(fx.spaceId, transferId, fx.managerId);
+    assertThat(first.outcome()).isEqualTo("ACCEPTED");
+    assertThat(second.outcome()).isEqualTo("ALREADY_ACCEPTED");
+    assertThat(second.handoverEndsAt()).isEqualTo(first.handoverEndsAt());
     Integer overrides =
         jdbc.queryForObject(
             "SELECT count(*) FROM event_user_permissions WHERE event_id = ? AND user_id = ?",
@@ -565,6 +569,9 @@ class LifecycleAndTaskIT {
             transferId);
     assertThat(overrides).isZero();
     assertThat(snapshot).contains("TASK_WRITE");
+    assertThat(auditCount(fx, "OWNER_TRANSFER_ACCEPTED")).isEqualTo(1);
+    String detail = auditDetail(fx, "OWNER_TRANSFER_ACCEPTED");
+    assertThat(detail).contains(transferId.toString()).contains("MANAGER").contains("TASK_WRITE");
   }
 
   @Test
@@ -581,7 +588,258 @@ class LifecycleAndTaskIT {
         fx.eventId,
         fx.ownerId,
         fx.managerId);
-    assertCode(ErrorCode.TRANSFER_NOT_PENDING, () -> transfers.accept(transferId));
+    assertCode(
+        ErrorCode.TRANSFER_NOT_PENDING,
+        () -> transfers.accept(fx.spaceId, transferId, fx.managerId));
+  }
+
+  @Test
+  void someoneOtherThanTheRecipientCannotAccept() {
+    // 계약 회귀 없음. Q2: 받는 사람이 아니면 404
+    Fixture fx = seed("ACTIVE");
+    UUID transferId = pendingTransfer(fx, fx.managerId);
+    assertCode(
+        ErrorCode.RESOURCE_NOT_FOUND, () -> transfers.accept(fx.spaceId, transferId, fx.ownerId));
+    assertThat(transferStatus(transferId)).isEqualTo("PENDING");
+    transfers.accept(fx.spaceId, transferId, fx.managerId);
+    assertCode(
+        ErrorCode.RESOURCE_NOT_FOUND, () -> transfers.accept(fx.spaceId, transferId, fx.ownerId));
+  }
+
+  @Test
+  void recipientWhoIsNotAnActiveMemberCannotAccept() {
+    // 계약 회귀 없음. Q3: 403 NOT_A_MEMBER
+    Fixture fx = seed("ACTIVE");
+    UUID outsider = UUID.randomUUID();
+    jdbc.update("INSERT INTO users (id, display_name) VALUES (?, 'outsider')", outsider);
+    UUID transferId = pendingTransfer(fx, outsider);
+    assertCode(ErrorCode.NOT_A_MEMBER, () -> transfers.accept(fx.spaceId, transferId, outsider));
+    assertThat(transferStatus(transferId)).isEqualTo("PENDING");
+  }
+
+  @Test
+  void acceptInsertsAnOwnerRowWhenTheRecipientHasNone() {
+    // 계약 회귀 없음. Q4: OWNER INSERT, recipient_prior_role NULL
+    Fixture fx = seed("ACTIVE");
+    UUID newbie = UUID.randomUUID();
+    jdbc.update("INSERT INTO users (id, display_name) VALUES (?, 'newbie')", newbie);
+    jdbc.update(
+        "INSERT INTO members (space_id, user_id, role) VALUES (?, ?, 'MEMBER')",
+        fx.spaceId,
+        newbie);
+    UUID transferId = pendingTransfer(fx, newbie);
+    transfers.accept(fx.spaceId, transferId, newbie);
+    String role =
+        jdbc.queryForObject(
+            "SELECT role FROM event_users WHERE event_id = ? AND user_id = ?",
+            String.class,
+            fx.eventId,
+            newbie);
+    String prior =
+        jdbc.query(
+                "SELECT recipient_prior_role FROM owner_transfers WHERE id = ?",
+                (rs, row) -> rs.getString(1),
+                transferId)
+            .getFirst();
+    assertThat(role).isEqualTo("OWNER");
+    assertThat(prior).isNull();
+  }
+
+  @Test
+  void transferFromAnotherSpaceOrWithoutAnEventIsNotFound() {
+    // 계약 회귀 없음. X5, X6
+    Fixture fx = seed("ACTIVE");
+    Fixture other = seed("ACTIVE");
+    UUID transferId = pendingTransfer(fx, fx.managerId);
+    assertCode(
+        ErrorCode.RESOURCE_NOT_FOUND,
+        () -> transfers.accept(other.spaceId, transferId, fx.managerId));
+    UUID orgTransfer = UUID.randomUUID();
+    jdbc.update(
+        """
+        INSERT INTO owner_transfers (id, space_id, event_id, from_user_id, to_user_id, status)
+        VALUES (?, ?, NULL, ?, ?, 'PENDING')
+        """,
+        orgTransfer,
+        fx.spaceId,
+        fx.ownerId,
+        fx.managerId);
+    assertCode(
+        ErrorCode.RESOURCE_NOT_FOUND,
+        () -> transfers.accept(fx.spaceId, orgTransfer, fx.managerId));
+  }
+
+  @Test
+  void expiredHandoverIsCompletedWhenTheSenderLeaves() {
+    // lifecycle 회귀 #15, 만료된 경우
+    Fixture fx = seed("ACTIVE");
+    jdbc.update(
+        """
+        INSERT INTO owner_transfers (
+          id, space_id, event_id, from_user_id, to_user_id, status, accepted_at, handover_ends_at)
+        VALUES (?, ?, ?, ?, ?, 'HANDOVER', now() - interval '15 days', now() - interval '1 second')
+        """,
+        UUID.randomUUID(),
+        fx.spaceId,
+        fx.eventId,
+        fx.ownerId,
+        fx.managerId);
+    jdbc.update(
+        "UPDATE event_users SET role = 'OWNER' WHERE event_id = ? AND user_id = ?",
+        fx.eventId,
+        fx.managerId);
+    leave.leave(fx.spaceId, fx.ownerId, List.of());
+    assertThat(transferStatusOfSender(fx)).isEqualTo("COMPLETED");
+  }
+
+  @Test
+  void expiredSenderIsNotNotifiedAndDoesNotCountAsAnotherOwner() {
+    // X9
+    Fixture fx = seed("ACTIVE");
+    jdbc.update(
+        """
+        INSERT INTO owner_transfers (
+          id, space_id, event_id, from_user_id, to_user_id, status, accepted_at, handover_ends_at)
+        VALUES (?, ?, ?, ?, ?, 'HANDOVER', now() - interval '15 days', now() - interval '1 second')
+        """,
+        UUID.randomUUID(),
+        fx.spaceId,
+        fx.eventId,
+        fx.ownerId,
+        fx.managerId);
+    jdbc.update(
+        "UPDATE event_users SET role = 'OWNER' WHERE event_id = ? AND user_id = ?",
+        fx.eventId,
+        fx.managerId);
+    OperatorActor spaceOwner = new OperatorActor(fx.spaceOwnerId, "OWNER", null);
+    lifecycle.end(fx.spaceId, fx.eventId, new LifecycleRequest(0, true, null, "연락 두절"), spaceOwner);
+    Integer notices =
+        jdbc.queryForObject(
+            "SELECT count(*) FROM operator_notices WHERE event_id = ? AND recipient_user_id = ?",
+            Integer.class,
+            fx.eventId,
+            fx.ownerId);
+    Integer managerNotices =
+        jdbc.queryForObject(
+            "SELECT count(*) FROM operator_notices WHERE event_id = ? AND recipient_user_id = ?",
+            Integer.class,
+            fx.eventId,
+            fx.managerId);
+    assertThat(notices).isZero();
+    assertThat(managerNotices).isEqualTo(1);
+    assertThat(leave.leavePreview(fx.spaceId, fx.managerId)).isEqualTo(ErrorCode.LAST_OWNER);
+  }
+
+  @Test
+  void expiredSenderLosesOwnerTaskWriteUnlessTheyAreTheAssignee() {
+    // X9 on the task-write role check
+    Fixture fx = seed("ACTIVE");
+    jdbc.update(
+        """
+        INSERT INTO owner_transfers (
+          id, space_id, event_id, from_user_id, to_user_id, status, accepted_at, handover_ends_at)
+        VALUES (?, ?, ?, ?, ?, 'HANDOVER', now() - interval '15 days', now() - interval '1 second')
+        """,
+        UUID.randomUUID(),
+        fx.spaceId,
+        fx.eventId,
+        fx.ownerId,
+        fx.managerId);
+    UUID taskId = insertTask(fx, "TODO");
+    assertCode(
+        ErrorCode.FORBIDDEN,
+        () -> tasks.complete(fx.spaceId, fx.eventId, taskId, 0, fx.ownerActor()));
+    jdbc.update("UPDATE tasks SET assignee_user_id = ? WHERE id = ?", fx.ownerId, taskId);
+    assertThat(tasks.complete(fx.spaceId, fx.eventId, taskId, 0, fx.ownerActor()).outcome())
+        .isEqualTo("COMPLETED");
+  }
+
+  @Test
+  void acceptingTheEventBackRestoresOwnerAuthority() {
+    // 현 결정 10/6 D1. 만료된 A→B 뒤 B→A 수락은 A를 다시 유효 OWNER로 본다.
+    Fixture fx = seed("ACTIVE");
+    jdbc.update(
+        """
+        INSERT INTO owner_transfers (
+          id, space_id, event_id, from_user_id, to_user_id, status, accepted_at, handover_ends_at)
+        VALUES (?, ?, ?, ?, ?, 'HANDOVER', now() - interval '15 days', now() - interval '1 second')
+        """,
+        UUID.randomUUID(),
+        fx.spaceId,
+        fx.eventId,
+        fx.ownerId,
+        fx.managerId);
+    jdbc.update(
+        "UPDATE event_users SET role = 'OWNER' WHERE event_id = ? AND user_id = ?",
+        fx.eventId,
+        fx.managerId);
+    UUID taskId = insertTask(fx, "TODO");
+    assertCode(
+        ErrorCode.FORBIDDEN,
+        () -> tasks.complete(fx.spaceId, fx.eventId, taskId, 0, fx.ownerActor()));
+
+    UUID backId = UUID.randomUUID();
+    jdbc.update(
+        """
+        INSERT INTO owner_transfers (id, space_id, event_id, from_user_id, to_user_id, status)
+        VALUES (?, ?, ?, ?, ?, 'PENDING')
+        """,
+        backId,
+        fx.spaceId,
+        fx.eventId,
+        fx.managerId,
+        fx.ownerId);
+    assertThat(transfers.accept(fx.spaceId, backId, fx.ownerId).outcome()).isEqualTo("ACCEPTED");
+    assertThat(tasks.complete(fx.spaceId, fx.eventId, taskId, 0, fx.ownerActor()).outcome())
+        .isEqualTo("COMPLETED");
+
+    OperatorActor spaceOwner = new OperatorActor(fx.spaceOwnerId, "OWNER", null);
+    lifecycle.end(fx.spaceId, fx.eventId, new LifecycleRequest(0, true, null, "재위임"), spaceOwner);
+    Integer notices =
+        jdbc.queryForObject(
+            "SELECT count(*) FROM operator_notices WHERE event_id = ? AND recipient_user_id = ?",
+            Integer.class,
+            fx.eventId,
+            fx.ownerId);
+    assertThat(notices).isEqualTo(1);
+
+    jdbc.update(
+        "UPDATE owner_transfers SET handover_ends_at = now() - interval '1 second' WHERE id = ?",
+        backId);
+    UUID other = UUID.randomUUID();
+    jdbc.update("INSERT INTO users (id, display_name) VALUES (?, 'other-owner')", other);
+    jdbc.update(
+        "INSERT INTO members (space_id, user_id, role) VALUES (?, ?, 'MEMBER')", fx.spaceId, other);
+    jdbc.update(
+        "INSERT INTO event_users (space_id, event_id, user_id, role) VALUES (?, ?, ?, 'OWNER')",
+        fx.spaceId,
+        fx.eventId,
+        other);
+    assertThat(leave.leavePreview(fx.spaceId, other)).isEqualTo(ErrorCode.OWNER_ROLE_HELD);
+  }
+
+  @Test
+  void archivedEventStillAcceptsAnOwnerTransfer() {
+    // API L5, 현 결정 10/6 D5
+    Fixture fx = seed("ARCHIVED");
+    UUID transferId = pendingTransfer(fx, fx.managerId);
+    assertThat(transfers.accept(fx.spaceId, transferId, fx.managerId).outcome())
+        .isEqualTo("ACCEPTED");
+    assertThat(eventRole(fx, fx.managerId)).isEqualTo("OWNER");
+    assertThat(auditCount(fx, "OWNER_TRANSFER_ACCEPTED")).isEqualTo(1);
+  }
+
+  @Test
+  void archivedAcceptInsertsOwnerWhenTheRecipientWasRemoved() {
+    // 현 결정 10/6 D5. 제거된 회원의 수락은 OWNER 행을 만든다.
+    Fixture fx = seed("ARCHIVED");
+    jdbc.update(
+        "DELETE FROM event_users WHERE event_id = ? AND user_id = ?", fx.eventId, fx.managerId);
+    UUID transferId = pendingTransfer(fx, fx.managerId);
+    assertThat(transfers.accept(fx.spaceId, transferId, fx.managerId).outcome())
+        .isEqualTo("ACCEPTED");
+    assertThat(eventRole(fx, fx.managerId)).isEqualTo("OWNER");
+    assertThat(priorRole(transferId)).isNull();
   }
 
   @Test
@@ -605,8 +863,8 @@ class LifecycleAndTaskIT {
     jdbc.update(
         """
         INSERT INTO owner_transfers (
-          id, space_id, event_id, from_user_id, to_user_id, status, handover_ends_at)
-        VALUES (?, ?, ?, ?, ?, 'HANDOVER', now() + interval '14 days')
+          id, space_id, event_id, from_user_id, to_user_id, status, accepted_at, handover_ends_at)
+        VALUES (?, ?, ?, ?, ?, 'HANDOVER', now(), now() + interval '14 days')
         """,
         UUID.randomUUID(),
         fx.spaceId,
@@ -1020,6 +1278,50 @@ class LifecycleAndTaskIT {
   private UUID onlyItem(UUID taskId) {
     return jdbc.queryForObject(
         "SELECT id FROM task_checklist_items WHERE task_id = ?", UUID.class, taskId);
+  }
+
+  private UUID pendingTransfer(Fixture fx, UUID toUserId) {
+    UUID transferId = UUID.randomUUID();
+    jdbc.update(
+        """
+        INSERT INTO owner_transfers (id, space_id, event_id, from_user_id, to_user_id, status)
+        VALUES (?, ?, ?, ?, ?, 'PENDING')
+        """,
+        transferId,
+        fx.spaceId,
+        fx.eventId,
+        fx.ownerId,
+        toUserId);
+    return transferId;
+  }
+
+  private String eventRole(Fixture fx, UUID userId) {
+    return jdbc.queryForObject(
+        "SELECT role FROM event_users WHERE event_id = ? AND user_id = ?",
+        String.class,
+        fx.eventId,
+        userId);
+  }
+
+  private String priorRole(UUID transferId) {
+    return jdbc.query(
+            "SELECT recipient_prior_role FROM owner_transfers WHERE id = ?",
+            (rs, row) -> rs.getString(1),
+            transferId)
+        .getFirst();
+  }
+
+  private String transferStatus(UUID transferId) {
+    return jdbc.queryForObject(
+        "SELECT status FROM owner_transfers WHERE id = ?", String.class, transferId);
+  }
+
+  private String transferStatusOfSender(Fixture fx) {
+    return jdbc.queryForObject(
+        "SELECT status FROM owner_transfers WHERE event_id = ? AND from_user_id = ?",
+        String.class,
+        fx.eventId,
+        fx.ownerId);
   }
 
   private String statusOfMember(Fixture fx) {

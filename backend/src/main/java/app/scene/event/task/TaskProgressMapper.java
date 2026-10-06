@@ -1,5 +1,6 @@
 package app.scene.event.task;
 
+import app.scene.common.sql.EffectiveOwnerSql;
 import java.time.Instant;
 import java.util.UUID;
 import org.apache.ibatis.annotations.Insert;
@@ -26,6 +27,21 @@ public interface TaskProgressMapper {
         AND permission = 'TASK_WRITE'
       """)
   String taskWriteEffect(
+      @Param("spaceId") UUID spaceId, @Param("eventId") UUID eventId, @Param("userId") UUID userId);
+
+  /** {@link EffectiveOwnerSql#OWNER_AUTHORITY_ENDED} for this operator row. */
+  @Select(
+      """
+      SELECT EXISTS (
+        SELECT 1 FROM event_users o
+        WHERE o.space_id = #{spaceId} AND o.event_id = #{eventId} AND o.user_id = #{userId}
+          AND
+      """
+          + EffectiveOwnerSql.OWNER_AUTHORITY_ENDED
+          + """
+      )
+      """)
+  boolean ownerAuthorityEnded(
       @Param("spaceId") UUID spaceId, @Param("eventId") UUID eventId, @Param("userId") UUID userId);
 
   @Select(

@@ -13,6 +13,18 @@ public final class TaskWrite {
   }
 
   public static boolean effective(String eventRole, String storedEffect) {
+    return effective(eventRole, false, storedEffect);
+  }
+
+  /**
+   * {@code ownerAuthorityEnded} is the shared expired-handover predicate. An OWNER whose handover
+   * end has passed keeps no owner default. GRANT still applies. REVOKE does not.
+   */
+  public static boolean effective(
+      String eventRole, boolean ownerAuthorityEnded, String storedEffect) {
+    if ("OWNER".equals(eventRole) && ownerAuthorityEnded) {
+      return "GRANT".equals(storedEffect);
+    }
     if ("OWNER".equals(eventRole)) {
       return true;
     }
