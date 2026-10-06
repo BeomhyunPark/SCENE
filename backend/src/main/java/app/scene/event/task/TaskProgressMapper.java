@@ -13,6 +13,23 @@ public interface TaskProgressMapper {
 
   @Select(
       """
+      SELECT role FROM event_users
+      WHERE space_id = #{spaceId} AND event_id = #{eventId} AND user_id = #{userId}
+      """)
+  String eventRole(
+      @Param("spaceId") UUID spaceId, @Param("eventId") UUID eventId, @Param("userId") UUID userId);
+
+  @Select(
+      """
+      SELECT effect FROM event_user_permissions
+      WHERE space_id = #{spaceId} AND event_id = #{eventId} AND user_id = #{userId}
+        AND permission = 'TASK_WRITE'
+      """)
+  String taskWriteEffect(
+      @Param("spaceId") UUID spaceId, @Param("eventId") UUID eventId, @Param("userId") UUID userId);
+
+  @Select(
+      """
       SELECT t.id, t.event_id, t.status, t.version, t.assignee_user_id,
              t.completed_by_user_id, t.completed_at, e.lifecycle_status
       FROM tasks t
