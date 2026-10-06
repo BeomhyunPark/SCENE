@@ -26,6 +26,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 @SpringBootTest
@@ -912,6 +913,183 @@ class LifecycleAndTaskIT {
   }
 
   @Test
+  void leavingUnassignsDoneAndCancelledTasks() {
+    // API §8 회귀 #36, #37, #39. 이탈은 TODO/DOING을 RESPONSIBILITY로 막으므로
+    // DONE·CANCELLED만 둔다. 해제 SQL에는 상태 조건이 없다(제안).
+    Fixture fx = seed("ACTIVE");
+    UUID done = insertAssignedTask(fx, fx.eventId, fx.managerId, "DONE");
+    UUID cancelled = insertAssignedTask(fx, fx.eventId, fx.managerId, "CANCELLED");
+    UUID itemId = insertItem(fx, done);
+    jdbc.update(
+        """
+        UPDATE task_checklist_items
+        SET checked = true, checked_by_user_id = ?, checked_at = now()
+        WHERE id = ?
+        """,
+        fx.managerId,
+        itemId);
+    jdbc.update(
+        """
+        UPDATE tasks SET completed_by_user_id = ?, completed_at = now() WHERE id = ?
+        """,
+        fx.managerId,
+        done);
+    UUID stillAssigned = insertAssignedTask(fx, fx.eventId, fx.staffId, "TODO");
+
+    leave.leave(fx.spaceId, fx.managerId, List.of());
+
+    assertThat(assigneeOf(done)).isNull();
+    assertThat(assigneeOf(cancelled)).isNull();
+    assertThat(version(done)).isEqualTo(1);
+    assertThat(version(cancelled)).isEqualTo(1);
+    assertThat(assigneeOf(stillAssigned)).isEqualTo(fx.staffId);
+    assertThat(version(stillAssigned)).isZero();
+    assertThat(taskStatus(done)).isEqualTo("DONE");
+    assertThat(taskStatus(cancelled)).isEqualTo("CANCELLED");
+    assertThat(itemChecked(itemId)).isTrue();
+    assertThat(checkedBy(itemId)).isEqualTo(fx.managerId);
+    assertThat(checkedAt(itemId)).isNotNull();
+    assertThat(completedBy(done)).isEqualTo(fx.managerId);
+    assertThat(completedAt(done)).isNotNull();
+    assertThat(auditCount(fx, "TASK_ASSIGNEE_CLEARED")).isEqualTo(2);
+    assertThat(auditDetail(fx, "TASK_ASSIGNEE_CLEARED").replace(" ", ""))
+        .contains(fx.managerId.toString(), "이탈", "\"version\":1");
+    assertThat(count(fx, "tasks")).isEqualTo(3);
+    assertThat(count(fx, "task_checklist_items")).isEqualTo(1);
+
+    jdbc.update(
+        "INSERT INTO event_users (space_id, event_id, user_id, role) VALUES (?, ?, ?, 'MANAGER')",
+        fx.spaceId,
+        fx.eventId,
+        fx.managerId);
+    assertThat(assigneeOf(done)).isNull();
+    assertThat(assigneeOf(cancelled)).isNull();
+  }
+
+  @Test
+  void unassignedTaskAfterLeaveFollowsTaskWrite() {
+    // API §8 회귀 #38. 이탈은 TODO를 RESPONSIBILITY로 막으므로 체크는 미배정 TODO로 한다.
+    Fixture fx = seed("ACTIVE");
+    jdbc.update(
+        "INSERT INTO members (space_id, user_id, role) VALUES (?, ?, 'MEMBER')",
+        fx.spaceId,
+        fx.staffId);
+    insertAssignedTask(fx, fx.eventId, fx.staffId, "DONE");
+    leave.leave(fx.spaceId, fx.staffId, List.of());
+    UUID todo = insertUnassignedTask(fx);
+    UUID itemId = insertItem(fx, todo);
+    assertCode(
+        ErrorCode.FORBIDDEN,
+        () -> tasks.setChecked(fx.spaceId, fx.eventId, todo, itemId, true, fx.staffActor()));
+    assertThat(
+            tasks
+                .setChecked(fx.spaceId, fx.eventId, todo, itemId, true, fx.managerActor())
+                .outcome())
+        .isEqualTo("UPDATED");
+    assertThat(version(todo)).isEqualTo(1);
+    assertThat(taskStatus(todo)).isEqualTo("DOING");
+  }
+
+  @Test
+  void leavingKeepsTasksAndOverridesOnTheChosenEvent() {
+    Fixture fx = seed("ACTIVE");
+    UUID kept = addEvent(fx);
+    UUID droppedTask = insertAssignedTask(fx, fx.eventId, fx.managerId, "DONE");
+    UUID keptTask = insertAssignedTask(fx, kept, fx.managerId, "DONE");
+    grantTaskWrite(fx, fx.managerId, "GRANT");
+    grantOn(fx, kept, fx.managerId, "REVOKE");
+
+    leave.leave(fx.spaceId, fx.managerId, List.of(kept));
+
+    assertThat(assigneeOf(droppedTask)).isNull();
+    assertThat(assigneeOf(keptTask)).isEqualTo(fx.managerId);
+    assertThat(operatorCount(fx.eventId, fx.managerId)).isZero();
+    assertThat(operatorCount(kept, fx.managerId)).isEqualTo(1);
+    assertThat(overrideCount(fx.eventId, fx.managerId)).isZero();
+    assertThat(overrideCount(kept, fx.managerId)).isEqualTo(1);
+    assertThat(auditCount(fx, "TASK_ASSIGNEE_CLEARED")).isEqualTo(1);
+    assertThat(auditCount(fx, "EVENT_ACCESS_REVOKED")).isEqualTo(1);
+    assertThat(auditCountOn(kept, "TASK_ASSIGNEE_CLEARED")).isZero();
+    assertThat(auditCountOn(kept, "EVENT_ACCESS_REVOKED")).isZero();
+  }
+
+  @Test
+  void leavingRecordsDeletedOverrides() {
+    // API 개인별 권한 회귀 #6, #19. DELETE /operators는 아직 없어 이탈로 회수한다.
+    Fixture fx = seed("ACTIVE");
+    UUID taskId = insertAssignedTask(fx, fx.eventId, fx.staffId, "TODO");
+    grantTaskWrite(fx, fx.managerId, "REVOKE");
+    jdbc.update(
+        """
+        INSERT INTO event_user_permissions (
+          space_id, event_id, user_id, permission, effect, granted_by, granted_at)
+        VALUES (?, ?, ?, 'FINANCE_READ', 'GRANT', ?, now())
+        """,
+        fx.spaceId,
+        fx.eventId,
+        fx.managerId,
+        fx.ownerId);
+
+    leave.leave(fx.spaceId, fx.managerId, List.of());
+
+    assertThat(operatorCount(fx.eventId, fx.managerId)).isZero();
+    assertThat(overrideCount(fx.eventId, fx.managerId)).isZero();
+    assertThat(auditCount(fx, "EVENT_ACCESS_REVOKED")).isEqualTo(1);
+    String detail = auditDetail(fx, "EVENT_ACCESS_REVOKED");
+    assertThat(detail).contains(fx.managerId.toString(), "TASK_WRITE", "FINANCE_READ");
+    jdbc.update(
+        "INSERT INTO event_users (space_id, event_id, user_id, role) VALUES (?, ?, ?, 'MANAGER')",
+        fx.spaceId,
+        fx.eventId,
+        fx.managerId);
+    assertThat(overrideCount(fx.eventId, fx.managerId)).isZero();
+    assertThat(tasks.complete(fx.spaceId, fx.eventId, taskId, 0, fx.managerActor()).outcome())
+        .isEqualTo("COMPLETED");
+  }
+
+  @Test
+  void handoverLeaveUnassignsTheOutgoingOwner() {
+    Fixture fx = seed("ACTIVE");
+    UUID taskId = insertAssignedTask(fx, fx.eventId, fx.ownerId, "CANCELLED");
+    jdbc.update(
+        """
+        INSERT INTO owner_transfers (
+          id, space_id, event_id, from_user_id, to_user_id, status, handover_ends_at)
+        VALUES (?, ?, ?, ?, ?, 'HANDOVER', now() + interval '14 days')
+        """,
+        UUID.randomUUID(),
+        fx.spaceId,
+        fx.eventId,
+        fx.ownerId,
+        fx.managerId);
+    jdbc.update(
+        "UPDATE event_users SET role = 'OWNER' WHERE event_id = ? AND user_id = ?",
+        fx.eventId,
+        fx.managerId);
+
+    leave.leave(fx.spaceId, fx.ownerId, List.of());
+
+    assertThat(assigneeOf(taskId)).isNull();
+    assertThat(operatorCount(fx.eventId, fx.ownerId)).isZero();
+    assertThat(transferStatusOfSender(fx)).isEqualTo("COMPLETED");
+    assertThat(auditCount(fx, "TASK_ASSIGNEE_CLEARED")).isEqualTo(1);
+    assertThat(auditDetail(fx, "EVENT_ACCESS_REVOKED").replace(" ", ""))
+        .contains("\"deletedOverrides\":[]");
+  }
+
+  @Test
+  void assigneeWhoIsNotAnOperatorIsRejected() {
+    Fixture fx = seed("ACTIVE");
+    UUID outsider = UUID.randomUUID();
+    jdbc.update("INSERT INTO users (id, display_name) VALUES (?, 'outsider')", outsider);
+    assertThatThrownBy(() -> insertAssignedTask(fx, fx.eventId, outsider, "TODO"))
+        .isInstanceOf(DataIntegrityViolationException.class);
+    Fixture other = seed("ACTIVE");
+    assertThatThrownBy(() -> insertAssignedTask(fx, fx.eventId, other.managerId, "TODO"))
+        .isInstanceOf(DataIntegrityViolationException.class);
+  }
+
+  @Test
   void ownerActivateLeavesTheTransitionReasonEmpty() {
     // lifecycle 회귀 #1
     Fixture fx = seed("DRAFT");
@@ -1142,6 +1320,10 @@ class LifecycleAndTaskIT {
   }
 
   private UUID insertTask(Fixture fx, String status) {
+    return insertAssignedTask(fx, fx.eventId, fx.staffId, status);
+  }
+
+  private UUID insertAssignedTask(Fixture fx, UUID eventId, UUID assignee, String status) {
     UUID taskId = UUID.randomUUID();
     jdbc.update(
         """
@@ -1150,10 +1332,40 @@ class LifecycleAndTaskIT {
         """,
         taskId,
         fx.spaceId,
-        fx.eventId,
+        eventId,
         status,
-        fx.staffId);
+        assignee);
     return taskId;
+  }
+
+  private UUID insertUnassignedTask(Fixture fx) {
+    UUID taskId = UUID.randomUUID();
+    jdbc.update(
+        """
+        INSERT INTO tasks (id, space_id, event_id, title, status)
+        VALUES (?, ?, ?, 'task', 'TODO')
+        """,
+        taskId,
+        fx.spaceId,
+        fx.eventId);
+    return taskId;
+  }
+
+  private UUID addEvent(Fixture fx) {
+    UUID eventId = UUID.randomUUID();
+    jdbc.update(
+        """
+        INSERT INTO events (id, space_id, name, lifecycle_status, lifecycle_version)
+        VALUES (?, ?, 'kept', 'ACTIVE', 0)
+        """,
+        eventId,
+        fx.spaceId);
+    jdbc.update(
+        "INSERT INTO event_users (space_id, event_id, user_id, role) VALUES (?, ?, ?, 'MANAGER')",
+        fx.spaceId,
+        eventId,
+        fx.managerId);
+    return eventId;
   }
 
   private UUID insertItem(Fixture fx, UUID taskId) {
@@ -1188,6 +1400,22 @@ class LifecycleAndTaskIT {
     return jdbc.queryForObject("SELECT version FROM tasks WHERE id = ?", Integer.class, taskId);
   }
 
+  private UUID assigneeOf(UUID taskId) {
+    return jdbc.query(
+            "SELECT assignee_user_id FROM tasks WHERE id = ?",
+            (rs, row) -> rs.getObject(1, UUID.class),
+            taskId)
+        .getFirst();
+  }
+
+  private Instant completedAt(UUID taskId) {
+    return jdbc.query(
+            "SELECT completed_at FROM tasks WHERE id = ?",
+            (rs, row) -> rs.getTimestamp(1) == null ? null : rs.getTimestamp(1).toInstant(),
+            taskId)
+        .getFirst();
+  }
+
   private UUID completedBy(UUID taskId) {
     return jdbc.query(
             "SELECT completed_by_user_id FROM tasks WHERE id = ?",
@@ -1219,11 +1447,31 @@ class LifecycleAndTaskIT {
   }
 
   private int auditCount(Fixture fx, String action) {
+    return auditCountOn(fx.eventId, action);
+  }
+
+  private int auditCountOn(UUID eventId, String action) {
     return jdbc.queryForObject(
         "SELECT count(*) FROM audit_logs WHERE event_id = ? AND action = ?",
         Integer.class,
-        fx.eventId,
+        eventId,
         action);
+  }
+
+  private int operatorCount(UUID eventId, UUID userId) {
+    return jdbc.queryForObject(
+        "SELECT count(*) FROM event_users WHERE event_id = ? AND user_id = ?",
+        Integer.class,
+        eventId,
+        userId);
+  }
+
+  private int overrideCount(UUID eventId, UUID userId) {
+    return jdbc.queryForObject(
+        "SELECT count(*) FROM event_user_permissions WHERE event_id = ? AND user_id = ?",
+        Integer.class,
+        eventId,
+        userId);
   }
 
   private String auditDetail(Fixture fx, String action) {
@@ -1262,6 +1510,10 @@ class LifecycleAndTaskIT {
   }
 
   private void grantTaskWrite(Fixture fx, UUID userId, String effect) {
+    grantOn(fx, fx.eventId, userId, effect);
+  }
+
+  private void grantOn(Fixture fx, UUID eventId, UUID userId, String effect) {
     jdbc.update(
         """
         INSERT INTO event_user_permissions (
@@ -1269,7 +1521,7 @@ class LifecycleAndTaskIT {
         VALUES (?, ?, ?, 'TASK_WRITE', ?, ?, now())
         """,
         fx.spaceId,
-        fx.eventId,
+        eventId,
         userId,
         effect,
         fx.ownerId);

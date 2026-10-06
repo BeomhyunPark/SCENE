@@ -120,10 +120,13 @@ CREATE TABLE tasks (
   title varchar(200) NOT NULL,
   status varchar(16) NOT NULL CHECK (status IN ('TODO', 'DOING', 'DONE', 'CANCELLED')),
   version integer NOT NULL DEFAULT 0 CHECK (version >= 0),
-  assignee_user_id uuid REFERENCES users (id),
+  assignee_user_id uuid,
   completed_by_user_id uuid REFERENCES users (id),
   completed_at timestamptz,
   FOREIGN KEY (event_id, space_id) REFERENCES events (id, space_id),
+  -- No ON DELETE. Leave and operator removal clear the assignee before deleting event_users.
+  FOREIGN KEY (space_id, event_id, assignee_user_id)
+    REFERENCES event_users (space_id, event_id, user_id),
   UNIQUE (space_id, event_id, id)
 );
 
