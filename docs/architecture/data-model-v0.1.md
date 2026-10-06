@@ -44,7 +44,7 @@ Flight/Class 배정은 Mission/Child 업무에서 관리한다. 지도는 해당
 - Application 상태: `SUBMITTED / SUPERSEDED / WITHDRAWN`. 상태값이 있다는 이유로 미정 command를 추가하지 않는다.
 - 최초 제출은 Form/Event 검증, 답변, Participant 생성/연결, Participant Access 생성, Audit를 하나의 transaction으로 묶는 기준이다.
 - Participant 생성/연결의 세부 중복 판정과 consent 정책은 원문 이상으로 확대하지 않는다.
-- Participant는 SCENE 운영계정을 만들지 않는다. 행사별 링크/QR → 신청 → Participant 생성 → participant_access 발급 → 본인 인증 → Participant Session 흐름.
+- Participant는 SCENE 운영계정을 만들지 않는다. 행사별 링크/QR → 신청 → Participant 생성 → participant_access 발급 → 본인 인증(MVP는 링크 접근 키 검증, OTP 없음, DEC-064) → Participant Session 흐름.
 - Participant Session scope는 `participant_id`, `event_id`, `space_id`에 고정한다.
 - Form의 OPEN/CLOSE 오류 경계는 있으나 실제 상태 schema는 OPEN이다.
 
@@ -113,6 +113,7 @@ Flight/Class 배정은 Mission/Child 업무에서 관리한다. 지도는 해당
 ## 6. Security data
 
 - Participant Access는 high-entropy random key를 사용하며 저장은 `key_hash`만 허용한다.
+- `participant_access`는 `key_hash`와 폐기 시각(예: `revoked_at`, 제안)을 둔다. 재발급은 같은 transaction에서 이전 행을 폐기하고 새 행을 만든다. Participant session은 열 때 쓴 access 행을 참조해 재발급 때 함께 폐기할 수 있어야 한다. 정확한 컬럼과 session store는 Phase 3에서 정한다(DEC-064).
 - 개인정보 조회 기록 `privacy_logs`와 변경 기록 `audit_logs`를 구분한다.
 - privacy action 예: `CONTACT_VIEW / SENSITIVE_VIEW / EXPORT`.
 - 민감값·password·raw access key·session을 audit before/after에 복사하지 않는다.

@@ -1,6 +1,6 @@
 # Church Event Operations Platform — Product Decisions
 
-> **2026-09-30 baseline:** DEC-001~027의 기존 본문·Status 보존. 최초 정리 당시에는 새 DEC를 만들지 않았고, 이후 검토에서 DEC-028~059를 추가했다. 2026-10-01 #11·#12 기술 계약으로 DEC-060~061을, 2026-10-02 #31 업무·체크리스트 저장 계약으로 DEC-062를, #30 행사 lifecycle command 계약으로 DEC-063을 추가했다(현재 마지막 번호 DEC-063). 최신 요청의 제품명 SCENE 및 Technical Design / implementation 전 상태가 현재 기준이다. DEC-024/027의 단계와 §17 Product Name OPEN은 이전 이력이며 기술 기준은 [Architecture](../architecture/architecture-v0.1.md)를 따른다. 공식 Decision Log 정합화는 검토 필요.
+> **2026-09-30 baseline:** DEC-001~027의 기존 본문·Status 보존. 최초 정리 당시에는 새 DEC를 만들지 않았고, 이후 검토에서 DEC-028~059를 추가했다. 2026-10-01 #11·#12 기술 계약으로 DEC-060~061을, 2026-10-02 #31 업무·체크리스트 저장 계약으로 DEC-062를, #30 행사 lifecycle command 계약으로 DEC-063을, 2026-10-06 MVP 참여자 인증 결정으로 DEC-064를 추가했다(현재 마지막 번호 DEC-064). 최신 요청의 제품명 SCENE 및 Technical Design / implementation 전 상태가 현재 기준이다. DEC-024/027의 단계와 §17 Product Name OPEN은 이전 이력이며 기술 기준은 [Architecture](../architecture/architecture-v0.1.md)를 따른다. 공식 Decision Log 정합화는 검토 필요.
 >
 > DEC-027은 단계 설명에 한해 DEC-024를 대체한다고 기록하지만 DEC-024의 원래 CONFIRMED 표기는 보존한다. Evidence Type의 HYPOTHESIS 용어 충돌도 [검토 기록](../architecture/architecture-v0.1.md)에 남긴다.
 > [Product Definition](PRODUCT_DEFINITION.md) · [Research](RESEARCH.md)
@@ -1923,3 +1923,37 @@ DEC-054~059와 [#12 사용자 답변](https://github.com/BeomhyunPark/SCENE/issu
 ### Evidence
 
 [#30 결정 기록 (10/2 현)](https://github.com/BeomhyunPark/SCENE/issues/30#issuecomment-5946089035), [#30 계약 초안](https://github.com/BeomhyunPark/SCENE/issues/30#issuecomment-5946067458).
+
+---
+
+## DEC-064 — MVP 참여자 인증은 링크 접근 키 하나로 한다
+
+**Date:** 2026-10-06
+
+**Status:** CONFIRMED (현 결정 2026-10-06)
+
+### Context
+
+참여자는 SCENE 운영계정이 없고 행사별 링크로 들어온다. 기존 문서는 Participant Access를 128비트 이상 난수·`key_hash` 저장·POST body 검증으로 두었지만 "raw key URL 전달 금지"라고만 써서 링크로 키를 어떻게 건네는지가 비어 있었고, 키 재발급은 OPEN이었다. 프로토타입에는 인증번호(SMS) 화면이 있으나 서버 계약은 없었다.
+
+### Decision
+
+- MVP 참여자 인증은 링크에 담은 접근 키 하나다. 전화번호 OTP와 SMS vendor는 MVP에 없다.
+- 키는 CSPRNG 128비트 난수다. DB에는 hash(`key_hash`)만 저장하고 raw key는 저장하지 않는다.
+- 키는 링크의 fragment(`#…`)에 넣는다. fragment는 서버로 전송되지 않아 서버 로그·프록시·Referer에 남지 않는다. 클라이언트가 키를 읽어 `POST /api/v1/public/events/{eventId}/participant-sessions`의 body로 보내고, 서버는 hash를 검증한 뒤 Participant session cookie를 발급한다. 클라이언트는 키를 읽은 즉시 `history.replaceState`로 fragment를 지우며, analytics·오류 리포팅 초기화와 third-party script의 `location.hash` 접근은 그 뒤에만 가능하다(QA 조건 (#55)).
+- 키는 URL path·query string, 서버·액세스 로그, analytics에 넣지 않고 응답으로 되돌려 주지 않는다. 틀린·없는·폐기된 키는 같은 401로 응답해 키 존재를 드러내지 않는다.
+- 운영자는 키를 재발급할 수 있다. 재발급은 같은 transaction에서 이전 키와 그 키로 연 Participant session을 모두 즉시 폐기하고 audit에 남긴다.
+- 단계: 세션 발급은 Phase 3에서 구현한다. P0-08은 participant 인증 체인을 모든 요청에 401을 돌려주는 stub으로만 둔다.
+
+### 범위 밖
+
+- 전화번호 OTP, SMS vendor 연동. 프로토타입의 인증번호 화면은 MVP 서버 계약이 아니다.
+- 키 TTL, 세션 TTL, 키 복구, rate limit 숫자, 재발급 endpoint 경로와 Permission은 OPEN이다.
+
+### Consequence
+
+상세 계약과 회귀 표는 [API Architecture](../architecture/api-architecture-v0.1.md#2026-10-06-mvp-참여자-인증-dec-064)(§3 포함), 보안 기준은 [Security / Privacy](../architecture/security-privacy-v0.1.md#3-participant-access) §3, 저장은 [Data Model](../architecture/data-model-v0.1.md#6-security-data) §6을 따른다. 서버 구현은 QA·현 확인 뒤다.
+
+### Evidence
+
+현 결정 2026-10-06 (SCENE 개발 리드 전달).
