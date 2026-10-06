@@ -150,14 +150,15 @@ Endpoint는 추가 참조 원문과 회수된 대화에 제시된 경로다. 메
 | 영역 | 확인된 경계 | 기준 / 미결 |
 |---|---|---|
 | Operator | `POST /api/v1/operator/auth/login`, `GET /api/v1/operator/me`, `POST /api/v1/operator/auth/logout` | 운영계정 Session 인증, 자기 정보, logout |
-| Public | `POST /api/v1/public/events/{eventId}/participant-sessions` | raw Access Key를 POST body로 검증하고 Participant session으로 연결 |
+| Public | `POST /api/v1/public/events/{eventId}/participant-sessions` | 링크 fragment에서 읽은 raw Access Key를 POST body로 검증하고 Participant session cookie 발급 (DEC-064, 발급 구현은 Phase 3) |
 | Participant | `GET /api/v1/participant/me`, `POST /api/v1/participant/auth/logout` | Session scope의 자기 정보와 logout |
 
 - Operator와 Participant 인증체계 분리.
 - Operator `/me`에 모든 Space/Event role을 몰아넣지 않는다. Membership/Event Access는 각각 해당 API에서 다룬다.
 - server-revocable session + `HttpOnly` / `Secure` / `SameSite` cookie + CSRF 보호 + Production SCENE Frontend CORS allowlist. 두 Session 독립 관리.
-- Participant Access: cryptographically secure random, 최소 128-bit entropy 수준. DB에는 `key_hash`만 저장. raw key URL 전달 금지. 이름·전화번호 뒤 4자리·6자리 숫자·생년월일·사용자 PIN을 secret으로 쓰지 않는다.
-- Brute-force 방어, server-side revocation 가능.
+- Participant Access: cryptographically secure random, 최소 128-bit entropy 수준. DB에는 `key_hash`만 저장. raw key는 링크의 fragment(`#…`)로만 전달한다. URL path·query string, 서버·액세스 로그, analytics에는 넣지 않고 받은 key를 응답에 되돌려 주지 않는다(DEC-064). 이름·전화번호 뒤 4자리·6자리 숫자·생년월일·사용자 PIN을 secret으로 쓰지 않는다.
+- Brute-force 방어, server-side revocation 가능. 운영자가 키를 재발급하면 이전 키와 그 키로 연 Participant session을 같은 transaction에서 즉시 폐기한다(DEC-064).
+- MVP 참여자 인증은 링크 접근 키 하나다. 전화번호 OTP와 SMS vendor는 MVP에 없다. 세션 발급은 Phase 3이고 P0-08은 participant 인증 체인을 401 stub으로만 둔다(DEC-064, [아래 절](#2026-10-06-mvp-참여자-인증-dec-064)).
 - 정확한 session store, TTL, recovery는 OPEN.
 - Participant scope는 인증된 Event/Participant에서 도출. 다른 Participant의 정보를 임의 조회하는 경계를 만들지 않는다.
 - Participant Session은 `participant_id / event_id / space_id`에 고정. Participant API에서 다른 Participant ID를 URL로 선택하게 하지 않는다.
@@ -1179,3 +1180,29 @@ POST /api/v1/operator/spaces/{spaceId}/me/leave
 | 14 | 공동 Owner가 있는 행사 Owner가 이전 없이 이탈 | 409 `OWNER_ROLE_HELD`, 권한 불변 |
 | 15 | 수락된 HANDOVER 중 넘긴 사람이 이탈 | 200. 그 인수인계 권한은 즉시 종료. 그 행사는 유지 불가 |
 | 16 | PENDING 이전과 마지막 Owner와 남은 책임이 같이 있는 이탈 | 409 `HANDOVER_NOT_ACCEPTED` 하나만 |
+
+## 2026-10-06 MVP 참여자 인증 (DEC-064)
+
+현 결정 2026-10-06(개발 리드 전달). MVP 참여자 인증은 링크에 담은 접근 키 하나다. 전화번호 OTP와 SMS vendor는 MVP에 없다. §3과 [Security / Privacy §3](security-privacy-v0.1.md#3-participant-access)의 Participant Access 기준을 이 절로 보강한다. 세션 진입 경로는 §3에 이미 있는 이름을 그대로 쓴다.
+
+```http
+POST /api/v1/public/events/{eventId}/participant-sessions   # body {accessKey}, Phase 3
+```
+
+- 키: CSPRNG 128비트 난수. DB에는 `key_hash`만 저장하고 raw key는 저장하지 않는다.
+- 전달: 링크의 fragment(`#…`)로만 준다. 브라우저는 fragment를 서버로 보내지 않으므로 서버 로그·프록시·Referer에 남지 않는다. 클라이언트가 fragment에서 키를 읽어 위 endpoint의 POST body로 보낸다. URL path·query string에는 넣지 않으며 서버는 query string의 키를 읽지 않는다. 서버·액세스 로그와 analytics에도 남기지 않는다.
+- 검증: 서버가 body의 키를 hash해 그 행사의 유효한 `participant_access`와 비교한다. 맞으면 Participant session을 만들고 §3 기준의 session cookie를 발급한다. 세션은 그 키(access 행)와 `participant_id / event_id / space_id`에 고정한다.
+- 실패: 틀린 키, 없는 키, 폐기된 키, 다른 행사의 키, body에 키 없음은 모두 같은 401 `PARTICIPANT_ACCESS_INVALID`와 같은 응답이다. 키가 있는지 드러내지 않는다. 받은 키를 응답·오류 본문에 되돌려 주지 않는다. Rate limit·brute-force 방어는 §3 그대로다.
+- 재발급: 운영자가 참여자의 키를 재발급할 수 있다. 같은 transaction에서 이전 키를 폐기하고 그 키로 연 Participant session을 모두 폐기한 뒤 새 키를 만든다. 커밋 즉시 적용된다. audit에 실행자·행사·참여자를 남기고 raw key와 `key_hash`는 넣지 않는다. 새 raw key는 재발급 응답에서 1회만 돌려준다. 재발급 endpoint 경로와 필요한 Permission은 Phase 3에서 정한다.
+- 단계: 세션 발급은 Phase 3에서 구현한다. P0-08은 participant 인증 체인(`/api/v1/participant/**`)을 stub으로만 두고 모든 요청에 401 `AUTHENTICATION_REQUIRED`를 돌려준다.
+- 범위 밖: 전화번호 OTP, SMS vendor 연동. 키 TTL, 세션 TTL, 키 복구, rate limit 숫자는 계속 OPEN.
+
+회귀 테스트
+
+| # | 시나리오 | 기대 |
+|---|---|---|
+| 1 | (Phase 3) 유효한 키를 POST body로 세션 요청 | 성공, Participant session cookie 발급. 이후 `GET /api/v1/participant/me` 200 |
+| 2 | 틀린 키 / 없는 키 / 다른 행사의 키로 세션 요청 | 모두 401 `PARTICIPANT_ACCESS_INVALID`, 응답 동일, 키 존재 여부 노출 없음, 세션 없음 |
+| 3 | 재발급 뒤 (a) 이전 키로 세션 요청 (b) 재발급 전 이전 키로 연 세션으로 `GET /api/v1/participant/me` | (a) 401 `PARTICIPANT_ACCESS_INVALID` (b) 401 `AUTHENTICATION_REQUIRED`. 재발급 커밋 직후부터. 재발급 audit 1건, raw key·`key_hash` 없음 |
+| 4 | 키를 query string으로만 보냄(`?accessKey=…`, body에 키 없음) | 키를 읽지 않음, 세션 없음, 401 `PARTICIPANT_ACCESS_INVALID`. 액세스 로그·애플리케이션 로그·analytics에 query 값 없음 |
+| 5 | (P0-08) `/api/v1/participant/**` 아무 요청 | 401 `AUTHENTICATION_REQUIRED` (stub, 세션 발급 없음) |

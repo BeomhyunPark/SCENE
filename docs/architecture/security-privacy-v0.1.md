@@ -54,15 +54,17 @@
 
 ## 3. Participant Access
 
+- MVP 참여자 인증은 이 링크 접근 키 하나다. 전화번호 OTP와 SMS vendor는 MVP에 없다(DEC-064, 현 결정 2026-10-06).
 - Cryptographically secure random key, 최소 128-bit entropy 수준.
 - 6자리 숫자·생년월일·전화번호 뒤 4자리·사용자 PIN은 credential로 사용하지 않는다. 이름/전화번호 뒤 4자리는 secret이 아니다.
 - DB에는 `key_hash`만 저장. raw key 저장 금지.
-- raw key를 URL에 넣지 않고 POST body로 검증.
+- raw key는 링크의 fragment(`#…`)로만 전달하고 클라이언트가 POST body로 보내 검증한다. fragment는 서버로 전송되지 않아 서버 로그·프록시·Referer에 남지 않는다. URL path·query string, 서버·액세스 로그, analytics에는 넣지 않고 받은 키를 응답·오류 본문에 되돌려 주지 않는다(DEC-064).
 - 검증 진입 경계: `/api/v1/public/events/{eventId}/participant-sessions`.
 - 성공 후 Participant session으로 자신의 scope에 접근.
 - Rate limit, 실패 monitoring, brute-force 방어 및 server-side revocation 가능해야 함. 정확한 rate limit 숫자는 미정.
+- 틀린·없는·폐기된 키는 모두 같은 401로 응답해 키 존재를 드러내지 않는다. 운영자가 키를 재발급하면 같은 transaction에서 이전 키와 그 키로 연 Participant session을 즉시 폐기하고 audit에 남긴다(DEC-064). 세션 발급 구현은 Phase 3이다.
 - 최초 Application 성공에서 새 Access가 만들어지면 raw key는 그때 1회만 전달하는 기준.
-- 키 복구·재발급, TTL, rate limit 숫자, idempotent retry 시 1회 전달 보장 방식은 OPEN. raw key 재저장을 새 해법으로 정하지 않는다.
+- 키 복구, TTL, rate limit 숫자, idempotent retry 시 1회 전달 보장 방식은 OPEN(재발급은 DEC-064로 정했다). raw key 재저장을 새 해법으로 정하지 않는다.
 
 ## 4. Tenant isolation
 
