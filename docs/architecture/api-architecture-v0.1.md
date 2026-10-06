@@ -1062,7 +1062,8 @@ PUT /api/v1/operator/events/{eventId}/operators/{userId}/permissions
 - Owner 위임 (현 결정 10/2, DEC-033): override가 있는 운영자(예: MANAGER)가 위임을 수락해 OWNER가 되면 같은 transaction에서 그 override를 위임 기록에 저장하고 `event_user_permissions`에서 지운다. OWNER는 override를 갖지 않기 때문이다. 위임 기록의 테이블·컬럼은 #30 Owner 이전 계약(`owner_transfers`, `recipient_prior_role` 제안)을 따른다.
   - 위임이 취소되면(DEC-033) 받은 사람의 이전 role과 함께 저장한 override를 같은 transaction에서 되살린다. 취소는 이전 상태 복구이고 새 GRANT가 아니므로 ARCHIVED에서도 409 `EVENT_ARCHIVED` 대상이 아니다(#30 L5: Owner 이전은 ARCHIVED에서도 허용).
   - 넘긴 사람이 인수인계 종료 뒤 다른 role로 남으면 그 role의 기본값으로 시작하고 override는 없다. OWNER였으므로 되살릴 override도 없다.
-  - 수락(저장·삭제), 취소(복원), 넘긴 사람의 role 전환을 각각 audit에 남기고 지우거나 되살린 override 목록을 함께 기록한다.
+  - 인수인계 종료(handover_ends_at 경과) 뒤 Q5가 정해지기 전까지 넘긴 사람의 event_users 행은 바꾸지 않고, 요청마다 유효 OWNER가 아니라고 계산한다. TASK_WRITE는 GRANT가 있거나 그 업무 담당자일 때만 있다. 나중에 같은 사람이 위임을 다시 받아 수락하면 예전 만료 기록은 보지 않는다 (현 결정 10/6, D1).
+  - 수락(저장·삭제), 취소(복원), 넘긴 사람의 role 전환을 각각 audit에 남기고 지우거나 되살린 override 목록을 함께 기록한다. 수락 audit action은 OWNER_TRANSFER_ACCEPTED, details {transferId, toUserId, recipientPriorRole, deletedOverrides}다. deletedOverrides는 [{permission, effect, grantedBy, grantedAt}](permission 순, 0건이면 [])이다 (현 결정 10/6, D6).
 - 행사 상태 (현 결정 10/2, #30 L5): ENDED에서는 override 변경을 허용한다. ARCHIVED에서는 줄이는 변경(REVOKE 추가, 저장된 GRANT 제거)만 허용한다. 저장된 override와 비교해 grants에 새 키가 있거나 저장된 REVOKE를 revokes에서 빼면 늘리는 변경이며 409 `EVENT_ARCHIVED`로 거절하고 아무것도 저장하지 않는다. 판정은 정규화 전 요청 기준이다. `EVENT_ARCHIVED`는 DEC-063에서 확정한 코드다. ARCHIVED에서도 운영자 제거는 허용한다(#30 L5).
 - Audit: PUT으로 실제 변경이 있을 때마다 `audit_logs`에 실행자·eventId·대상 userId·변경 전후 grants/revokes를 남긴다. action 이름(예: `EVENT_USER_PERMISSIONS_REPLACED`)은 구현에서 정한다.
 - 동시성: PUT·role 변경·운영자 제거·Owner 위임 수락/취소는 대상 `event_users` 행을 잠그고(`SELECT … FOR UPDATE`) 처리해 서로 섞이지 않게 한다. 마지막 PUT이 전체 목록을 정한다.

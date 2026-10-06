@@ -1,5 +1,6 @@
 package app.scene.event.task;
 
+import app.scene.common.sql.EffectiveOwnerSql;
 import java.time.Instant;
 import java.util.UUID;
 import org.apache.ibatis.annotations.Insert;
@@ -28,18 +29,16 @@ public interface TaskProgressMapper {
   String taskWriteEffect(
       @Param("spaceId") UUID spaceId, @Param("eventId") UUID eventId, @Param("userId") UUID userId);
 
-  /**
-   * Same predicate as event-owner notices and the other-owner count: a HANDOVER or COMPLETED
-   * transfer for this sender whose end is at or before now.
-   */
+  /** {@link EffectiveOwnerSql#OWNER_AUTHORITY_ENDED} for this operator row. */
   @Select(
       """
       SELECT EXISTS (
-        SELECT 1 FROM owner_transfers t
-        WHERE t.space_id = #{spaceId} AND t.event_id = #{eventId}
-          AND t.from_user_id = #{userId}
-          AND t.status IN ('HANDOVER', 'COMPLETED')
-          AND t.handover_ends_at <= now()
+        SELECT 1 FROM event_users o
+        WHERE o.space_id = #{spaceId} AND o.event_id = #{eventId} AND o.user_id = #{userId}
+          AND
+      """
+          + EffectiveOwnerSql.OWNER_AUTHORITY_ENDED
+          + """
       )
       """)
   boolean ownerAuthorityEnded(
