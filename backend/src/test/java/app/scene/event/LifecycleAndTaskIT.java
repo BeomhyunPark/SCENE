@@ -10,6 +10,7 @@ import app.scene.event.lifecycle.LifecycleRequest;
 import app.scene.event.lifecycle.LifecycleResult;
 import app.scene.event.lifecycle.OperatorActor;
 import app.scene.event.task.TaskProgressService;
+import app.scene.event.task.TaskWriteResult;
 import app.scene.event.transfer.OwnerTransferService;
 import app.scene.space.MembershipLeaveService;
 import app.scene.support.PostgresTestcontainer;
@@ -17,6 +18,9 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -148,29 +152,318 @@ class LifecycleAndTaskIT {
   void archivedTaskWriteIsBlockedAndEndedWriteMovesTodoToDoing() {
     Fixture ended = seed("ENDED");
     UUID taskId = insertTask(ended, "TODO");
-    UUID itemId = insertItem(taskId);
-    tasks.setChecked(ended.spaceId, taskId, itemId, true, ended.staffActor());
+    UUID itemId = insertItem(ended, taskId);
+    // API §8 회귀 #21
+    tasks.setChecked(ended.spaceId, ended.eventId, taskId, itemId, true, ended.staffActor());
     assertThat(taskStatus(taskId)).isEqualTo("DOING");
 
     Fixture archived = seed("ARCHIVED");
     UUID archivedTask = insertTask(archived, "TODO");
-    UUID archivedItem = insertItem(archivedTask);
+    UUID archivedItem = insertItem(archived, archivedTask);
     assertCode(
         ErrorCode.EVENT_ARCHIVED,
         () ->
             tasks.setChecked(
-                archived.spaceId, archivedTask, archivedItem, true, archived.ownerActor()));
+                archived.spaceId,
+                archived.eventId,
+                archivedTask,
+                archivedItem,
+                true,
+                archived.ownerActor()));
   }
 
   @Test
   void staffWhoIsNotAssigneeCannotCheck() {
+    // API §8 회귀 #16
     Fixture fx = seed("ACTIVE");
     UUID taskId = insertTask(fx, "TODO");
-    UUID itemId = insertItem(taskId);
+    UUID itemId = insertItem(fx, taskId);
     jdbc.update("UPDATE tasks SET assignee_user_id = ? WHERE id = ?", fx.managerId, taskId);
     assertCode(
         ErrorCode.FORBIDDEN,
-        () -> tasks.setChecked(fx.spaceId, taskId, itemId, true, fx.staffActor()));
+        () -> tasks.setChecked(fx.spaceId, fx.eventId, taskId, itemId, true, fx.staffActor()));
+    assertThat(taskStatus(taskId)).isEqualTo("TODO");
+  }
+
+  @Test
+  void firstCheckMovesTodoToDoingAndRecordsWhoChecked() {
+    // API §8 회귀 #1, #29
+    Fixture fx = seed("ACTIVE");
+    UUID taskId = insertTask(fx, "TODO");
+    UUID first = insertItem(fx, taskId, 0);
+    insertItem(fx, taskId, 1);
+    TaskWriteResult result =
+        tasks.setChecked(fx.spaceId, fx.eventId, taskId, first, true, fx.staffActor());
+    assertThat(result.outcome()).isEqualTo("UPDATED");
+    assertThat(result.status()).isEqualTo("DOING");
+    assertThat(result.version()).isEqualTo(1);
+    assertThat(result.done()).isEqualTo(1);
+    assertThat(result.total()).isEqualTo(2);
+    assertThat(checkedBy(first)).isEqualTo(fx.staffId);
+    assertThat(checkedAt(first)).isNotNull();
+    assertThat(auditCount(fx, "TASK_ITEM_CHECKED")).isEqualTo(1);
+    String detail = auditDetail(fx, "TASK_ITEM_CHECKED");
+    assertThat(detail).contains("TODO").contains("DOING").contains(first.toString());
+  }
+
+  @Test
+  void repeatingTheSameCheckDoesNotChangeVersionOrAudit() {
+    // API §8 회귀 #2
+    Fixture fx = seed("ACTIVE");
+    UUID taskId = insertTask(fx, "TODO");
+    UUID itemId = insertItem(fx, taskId);
+    tasks.setChecked(fx.spaceId, fx.eventId, taskId, itemId, true, fx.staffActor());
+    TaskWriteResult again =
+        tasks.setChecked(fx.spaceId, fx.eventId, taskId, itemId, true, fx.staffActor());
+    assertThat(again.outcome()).isEqualTo("NO_CHANGE");
+    assertThat(again.version()).isEqualTo(1);
+    assertThat(version(taskId)).isEqualTo(1);
+    assertThat(auditCount(fx, "TASK_ITEM_CHECKED")).isEqualTo(1);
+  }
+
+  @Test
+  void secondCheckOfTheSameItemIsNoChangeAfterTheFirstCommits() throws Exception {
+    // API §8 회귀 #3. The row lock makes the later transaction see the committed check.
+    Fixture fx = seed("ACTIVE");
+    UUID taskId = insertTask(fx, "TODO");
+    UUID itemId = insertItem(fx, taskId);
+    ExecutorService pool = Executors.newFixedThreadPool(2);
+    try {
+      Future<TaskWriteResult> first =
+          pool.submit(
+              () ->
+                  tasks.setChecked(fx.spaceId, fx.eventId, taskId, itemId, true, fx.staffActor()));
+      Future<TaskWriteResult> second =
+          pool.submit(
+              () ->
+                  tasks.setChecked(fx.spaceId, fx.eventId, taskId, itemId, true, fx.staffActor()));
+      TaskWriteResult a = first.get();
+      TaskWriteResult b = second.get();
+      assertThat(List.of(a.outcome(), b.outcome()))
+          .containsExactlyInAnyOrder("UPDATED", "NO_CHANGE");
+      assertThat(version(taskId)).isEqualTo(1);
+      assertThat(checkedBy(itemId)).isEqualTo(fx.staffId);
+    } finally {
+      pool.shutdownNow();
+    }
+  }
+
+  @Test
+  void checkingTwoItemsBumpsVersionTwice() {
+    // API §8 회귀 #4
+    Fixture fx = seed("ACTIVE");
+    UUID taskId = insertTask(fx, "TODO");
+    UUID first = insertItem(fx, taskId, 0);
+    UUID second = insertItem(fx, taskId, 1);
+    tasks.setChecked(fx.spaceId, fx.eventId, taskId, first, true, fx.staffActor());
+    TaskWriteResult result =
+        tasks.setChecked(fx.spaceId, fx.eventId, taskId, second, true, fx.ownerActor());
+    assertThat(result.outcome()).isEqualTo("UPDATED");
+    assertThat(result.done()).isEqualTo(2);
+    assertThat(result.version()).isEqualTo(2);
+    assertThat(result.status()).isEqualTo("DOING");
+  }
+
+  @Test
+  void completeRecordsWhoFinishedAndReopenClearsThatRecord() {
+    // API §8 회귀 #6, #11
+    Fixture fx = seed("ACTIVE");
+    UUID taskId = insertTask(fx, "TODO");
+    UUID first = insertItem(fx, taskId, 0);
+    UUID second = insertItem(fx, taskId, 1);
+    tasks.setChecked(fx.spaceId, fx.eventId, taskId, first, true, fx.staffActor());
+    tasks.setChecked(fx.spaceId, fx.eventId, taskId, second, true, fx.staffActor());
+    TaskWriteResult completed = tasks.complete(fx.spaceId, fx.eventId, taskId, 2, fx.staffActor());
+    assertThat(completed.outcome()).isEqualTo("COMPLETED");
+    assertThat(completed.status()).isEqualTo("DONE");
+    assertThat(completed.version()).isEqualTo(3);
+    assertThat(completedBy(taskId)).isEqualTo(fx.staffId);
+    assertThat(auditCount(fx, "TASK_COMPLETED")).isEqualTo(1);
+
+    TaskWriteResult reopened = tasks.reopen(fx.spaceId, fx.eventId, taskId, 3, fx.staffActor());
+    assertThat(reopened.outcome()).isEqualTo("REOPENED");
+    assertThat(reopened.status()).isEqualTo("DOING");
+    assertThat(reopened.done()).isEqualTo(2);
+    assertThat(completedBy(taskId)).isNull();
+    tasks.setChecked(fx.spaceId, fx.eventId, taskId, first, false, fx.staffActor());
+    TaskWriteResult unchecked =
+        tasks.setChecked(fx.spaceId, fx.eventId, taskId, second, false, fx.staffActor());
+    assertThat(unchecked.outcome()).isEqualTo("UPDATED");
+    assertThat(unchecked.status()).isEqualTo("DOING");
+    assertThat(unchecked.done()).isZero();
+    assertThat(checkedBy(second)).isNull();
+  }
+
+  @Test
+  void completeWithAnOpenItemUsesChecklistIncompleteOnlyWhenTheVersionMatches() {
+    // API §8 회귀 #7, #12
+    Fixture fx = seed("ACTIVE");
+    UUID taskId = insertTask(fx, "TODO");
+    UUID first = insertItem(fx, taskId, 0);
+    UUID second = insertItem(fx, taskId, 1);
+    tasks.setChecked(fx.spaceId, fx.eventId, taskId, first, true, fx.staffActor());
+    tasks.setChecked(fx.spaceId, fx.eventId, taskId, second, true, fx.staffActor());
+    tasks.setChecked(fx.spaceId, fx.eventId, taskId, second, false, fx.staffActor());
+    assertReason(
+        ErrorCode.TASK_VERSION_CONFLICT,
+        null,
+        () -> tasks.complete(fx.spaceId, fx.eventId, taskId, 2, fx.staffActor()));
+    assertThat(version(taskId)).isEqualTo(3);
+    assertReason(
+        ErrorCode.INVALID_TASK_STATE,
+        "CHECKLIST_INCOMPLETE",
+        () -> tasks.complete(fx.spaceId, fx.eventId, taskId, 3, fx.staffActor()));
+    assertThat(taskStatus(taskId)).isEqualTo("DOING");
+  }
+
+  @Test
+  void taskWithNoItemsCanBeCompleted() {
+    // API §8 회귀 #8
+    Fixture fx = seed("ACTIVE");
+    UUID taskId = insertTask(fx, "TODO");
+    TaskWriteResult result = tasks.complete(fx.spaceId, fx.eventId, taskId, 0, fx.staffActor());
+    assertThat(result.outcome()).isEqualTo("COMPLETED");
+    assertThat(result.done()).isZero();
+    assertThat(result.total()).isZero();
+    assertThat(result.status()).isEqualTo("DONE");
+  }
+
+  @Test
+  void doneTaskRejectsAChangedCheckAndIgnoresTheSameValue() {
+    // API §8 회귀 #9, #10
+    Fixture fx = seed("ACTIVE");
+    UUID taskId = doneTask(fx);
+    UUID itemId = onlyItem(taskId);
+    TaskWriteResult same =
+        tasks.setChecked(fx.spaceId, fx.eventId, taskId, itemId, true, fx.staffActor());
+    assertThat(same.outcome()).isEqualTo("NO_CHANGE");
+    assertThat(version(taskId)).isEqualTo(1);
+    assertReason(
+        ErrorCode.INVALID_TASK_STATE,
+        "TASK_DONE",
+        () -> tasks.setChecked(fx.spaceId, fx.eventId, taskId, itemId, false, fx.staffActor()));
+    assertThat(itemChecked(itemId)).isTrue();
+    assertThat(taskStatus(taskId)).isEqualTo("DONE");
+  }
+
+  @Test
+  void uncheckingAfterCompleteStaysDone() {
+    // API §8 회귀 #13
+    Fixture fx = seed("ACTIVE");
+    UUID taskId = insertTask(fx, "TODO");
+    UUID itemId = insertItem(fx, taskId);
+    tasks.setChecked(fx.spaceId, fx.eventId, taskId, itemId, true, fx.staffActor());
+    tasks.complete(fx.spaceId, fx.eventId, taskId, 1, fx.staffActor());
+    assertReason(
+        ErrorCode.INVALID_TASK_STATE,
+        "TASK_DONE",
+        () -> tasks.setChecked(fx.spaceId, fx.eventId, taskId, itemId, false, fx.staffActor()));
+    assertThat(taskStatus(taskId)).isEqualTo("DONE");
+    assertThat(itemChecked(itemId)).isTrue();
+  }
+
+  @Test
+  void repeatingCompleteIsAlreadyDoneRegardlessOfVersion() {
+    // API §8 회귀 #14
+    Fixture fx = seed("ACTIVE");
+    UUID taskId = insertTask(fx, "TODO");
+    TaskWriteResult first = tasks.complete(fx.spaceId, fx.eventId, taskId, 0, fx.staffActor());
+    TaskWriteResult again = tasks.complete(fx.spaceId, fx.eventId, taskId, 0, fx.staffActor());
+    assertThat(again.outcome()).isEqualTo("ALREADY_DONE");
+    assertThat(again.version()).isEqualTo(first.version());
+    assertThat(version(taskId)).isEqualTo(first.version());
+    assertThat(auditCount(fx, "TASK_COMPLETED")).isEqualTo(1);
+  }
+
+  @Test
+  void reopeningAnOpenTaskIsAlreadyOpenRegardlessOfVersion() {
+    // API §8 회귀 #15
+    Fixture fx = seed("ACTIVE");
+    UUID taskId = insertTask(fx, "DOING");
+    jdbc.update("UPDATE tasks SET version = 4 WHERE id = ?", taskId);
+    TaskWriteResult current = tasks.reopen(fx.spaceId, fx.eventId, taskId, 4, fx.staffActor());
+    TaskWriteResult stale = tasks.reopen(fx.spaceId, fx.eventId, taskId, 1, fx.staffActor());
+    assertThat(current.outcome()).isEqualTo("ALREADY_OPEN");
+    assertThat(stale.outcome()).isEqualTo("ALREADY_OPEN");
+    assertThat(stale.version()).isEqualTo(4);
+    assertThat(auditCount(fx, "TASK_REOPENED")).isZero();
+  }
+
+  @Test
+  void taskFromAnotherEventIsNotFound() {
+    // API §8 회귀 #20
+    Fixture fx = seed("ACTIVE");
+    UUID otherEvent = UUID.randomUUID();
+    jdbc.update(
+        """
+        INSERT INTO events (id, space_id, name, lifecycle_status, lifecycle_version)
+        VALUES (?, ?, 'other', 'ACTIVE', 0)
+        """,
+        otherEvent,
+        fx.spaceId);
+    UUID taskId = insertTask(fx, "TODO");
+    UUID itemId = insertItem(fx, taskId);
+    assertCode(
+        ErrorCode.RESOURCE_NOT_FOUND,
+        () -> tasks.setChecked(fx.spaceId, otherEvent, taskId, itemId, true, fx.ownerActor()));
+  }
+
+  @Test
+  void archivedEventRejectsARepeatedCheckAndARepeatedComplete() {
+    // API §8 회귀 #23, #41
+    Fixture fx = seed("ARCHIVED");
+    UUID taskId = doneTask(fx);
+    UUID itemId = onlyItem(taskId);
+    assertCode(
+        ErrorCode.EVENT_ARCHIVED,
+        () -> tasks.setChecked(fx.spaceId, fx.eventId, taskId, itemId, true, fx.ownerActor()));
+    assertCode(
+        ErrorCode.EVENT_ARCHIVED,
+        () -> tasks.complete(fx.spaceId, fx.eventId, taskId, 0, fx.ownerActor()));
+    assertThat(version(taskId)).isEqualTo(1);
+    assertThat(auditCount(fx, "TASK_COMPLETED")).isZero();
+  }
+
+  @Test
+  void missingChecklistItemIsNotFound() {
+    // API §8 회귀 #27
+    Fixture fx = seed("ACTIVE");
+    UUID taskId = insertTask(fx, "TODO");
+    assertCode(
+        ErrorCode.RESOURCE_NOT_FOUND,
+        () ->
+            tasks.setChecked(
+                fx.spaceId, fx.eventId, taskId, UUID.randomUUID(), true, fx.staffActor()));
+  }
+
+  @Test
+  void cancelledTaskUsesTaskStateOnlyWhenTheVersionMatches() {
+    // API §8 회귀 #31, #40
+    Fixture fx = seed("ACTIVE");
+    UUID taskId = insertTask(fx, "CANCELLED");
+    UUID itemId = insertItem(fx, taskId);
+    assertReason(
+        ErrorCode.INVALID_TASK_STATE,
+        "TASK_CANCELLED",
+        () -> tasks.setChecked(fx.spaceId, fx.eventId, taskId, itemId, true, fx.staffActor()));
+    assertReason(
+        ErrorCode.INVALID_TASK_STATE,
+        "TASK_CANCELLED",
+        () -> tasks.complete(fx.spaceId, fx.eventId, taskId, 0, fx.staffActor()));
+    assertReason(
+        ErrorCode.TASK_VERSION_CONFLICT,
+        null,
+        () -> tasks.complete(fx.spaceId, fx.eventId, taskId, 9, fx.staffActor()));
+    assertReason(
+        ErrorCode.INVALID_TASK_STATE,
+        "TASK_CANCELLED",
+        () -> tasks.reopen(fx.spaceId, fx.eventId, taskId, 0, fx.staffActor()));
+    assertReason(
+        ErrorCode.TASK_VERSION_CONFLICT,
+        null,
+        () -> tasks.reopen(fx.spaceId, fx.eventId, taskId, 9, fx.staffActor()));
+    assertThat(taskStatus(taskId)).isEqualTo("CANCELLED");
+    assertThat(version(taskId)).isZero();
   }
 
   @Test
@@ -460,10 +753,22 @@ class LifecycleAndTaskIT {
   }
 
   private static void assertCode(ErrorCode code, Throwing call) {
+    assertReason(code, null, call);
+  }
+
+  private static void assertReason(ErrorCode code, String reason, Throwing call) {
     assertThatThrownBy(call::run)
         .isInstanceOf(SceneException.class)
-        .extracting("code")
-        .isEqualTo(code);
+        .satisfies(
+            thrown -> {
+              SceneException scene = (SceneException) thrown;
+              assertThat(scene.code()).isEqualTo(code);
+              if (reason == null) {
+                assertThat(scene.details()).doesNotContainKey("reason");
+              } else {
+                assertThat(scene.details()).containsEntry("reason", reason);
+              }
+            });
   }
 
   private static void assertField(Throwing call) {
@@ -534,12 +839,22 @@ class LifecycleAndTaskIT {
     return taskId;
   }
 
-  private UUID insertItem(UUID taskId) {
+  private UUID insertItem(Fixture fx, UUID taskId) {
+    return insertItem(fx, taskId, 0);
+  }
+
+  private UUID insertItem(Fixture fx, UUID taskId, int position) {
     UUID itemId = UUID.randomUUID();
     jdbc.update(
-        "INSERT INTO task_checklist_items (id, task_id, label, position) VALUES (?, ?, 'item', 0)",
+        """
+        INSERT INTO task_checklist_items (id, space_id, event_id, task_id, label, position)
+        VALUES (?, ?, ?, ?, 'item', ?)
+        """,
         itemId,
-        taskId);
+        fx.spaceId,
+        fx.eventId,
+        taskId,
+        position);
     return itemId;
   }
 
@@ -550,6 +865,88 @@ class LifecycleAndTaskIT {
 
   private String taskStatus(UUID taskId) {
     return jdbc.queryForObject("SELECT status FROM tasks WHERE id = ?", String.class, taskId);
+  }
+
+  private int version(UUID taskId) {
+    return jdbc.queryForObject("SELECT version FROM tasks WHERE id = ?", Integer.class, taskId);
+  }
+
+  private UUID completedBy(UUID taskId) {
+    return jdbc.query(
+            "SELECT completed_by_user_id FROM tasks WHERE id = ?",
+            (rs, row) -> rs.getObject(1, UUID.class),
+            taskId)
+        .getFirst();
+  }
+
+  private UUID checkedBy(UUID itemId) {
+    return jdbc.query(
+            "SELECT checked_by_user_id FROM task_checklist_items WHERE id = ?",
+            (rs, row) -> rs.getObject(1, UUID.class),
+            itemId)
+        .getFirst();
+  }
+
+  private Instant checkedAt(UUID itemId) {
+    return jdbc.query(
+            "SELECT checked_at FROM task_checklist_items WHERE id = ?",
+            (rs, row) -> rs.getTimestamp(1) == null ? null : rs.getTimestamp(1).toInstant(),
+            itemId)
+        .getFirst();
+  }
+
+  private boolean itemChecked(UUID itemId) {
+    return Boolean.TRUE.equals(
+        jdbc.queryForObject(
+            "SELECT checked FROM task_checklist_items WHERE id = ?", Boolean.class, itemId));
+  }
+
+  private int auditCount(Fixture fx, String action) {
+    return jdbc.queryForObject(
+        "SELECT count(*) FROM audit_logs WHERE event_id = ? AND action = ?",
+        Integer.class,
+        fx.eventId,
+        action);
+  }
+
+  private String auditDetail(Fixture fx, String action) {
+    return jdbc.queryForObject(
+        """
+        SELECT detail::text FROM audit_logs
+        WHERE event_id = ? AND action = ?
+        ORDER BY occurred_at DESC
+        LIMIT 1
+        """,
+        String.class,
+        fx.eventId,
+        action);
+  }
+
+  private UUID doneTask(Fixture fx) {
+    UUID taskId = insertTask(fx, "DONE");
+    UUID itemId = insertItem(fx, taskId);
+    jdbc.update(
+        """
+        UPDATE task_checklist_items
+        SET checked = true, checked_by_user_id = ?, checked_at = now()
+        WHERE id = ?
+        """,
+        fx.staffId,
+        itemId);
+    jdbc.update(
+        """
+        UPDATE tasks
+        SET version = 1, completed_by_user_id = ?, completed_at = now()
+        WHERE id = ?
+        """,
+        fx.staffId,
+        taskId);
+    return taskId;
+  }
+
+  private UUID onlyItem(UUID taskId) {
+    return jdbc.queryForObject(
+        "SELECT id FROM task_checklist_items WHERE task_id = ?", UUID.class, taskId);
   }
 
   private String statusOfMember(Fixture fx) {
