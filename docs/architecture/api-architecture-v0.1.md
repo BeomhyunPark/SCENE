@@ -1039,9 +1039,10 @@ PUT /api/v1/operator/events/{eventId}/operators/{userId}/permissions
   2. 호출자 권한(위 운영자 관리·GET 규칙) → 403 `FORBIDDEN`. 행사 자체가 tenant 밖이라 보이지 않으면 §1 규칙대로 404 `RESOURCE_NOT_FOUND`다.
   3. 대상 사용자가 해당 행사 운영자가 아님 → 404 `RESOURCE_NOT_FOUND`
   4. PUT body 형식(배열 아님·필드 누락 등)·알 수 없는 키·중복 → 400 `VALIDATION_FAILED`
-  5. ARCHIVED 행사에서 늘리는 변경 → 409 `EVENT_ARCHIVED`
+  5. ARCHIVED 행사에서 늘리는 변경(아래 행사 상태) → 409 `EVENT_ARCHIVED`
   6. 422는 아래 표 순서대로: `PERMISSION_OWNER_NOT_OVERRIDABLE` → `PERMISSION_OWNER_ONLY` → `PERMISSION_NOT_OVERRIDABLE`
   - 2단계가 3단계보다 앞서므로 권한 없는 호출자는 대상이 운영자인지 알 수 없다.
+  - ARCHIVED 행사의 role 변경(`PATCH /operators/{userId}`)과 재추가(`POST /operators`, DEC-060 초대 수락)도 이 순서의 5단계에서 409 `EVENT_ARCHIVED`로 판정한다. 순서는 바꾸지 않는다. 재추가는 대상이 아직 운영자가 아니므로 3단계를 보지 않는다(현 결정 10/2 (#30 L5), #44 머지에서 빠진 규칙 복원).
 - PUT 검증. 하나라도 어기면 전체 요청을 거절하고 아무것도 저장하지 않는다. 표 순서가 판정 순서다.
 
 | 조건 | HTTP | code |
@@ -1057,13 +1058,15 @@ PUT /api/v1/operator/events/{eventId}/operators/{userId}/permissions
 - 서버 판정: 모든 Event API는 요청마다 effective 집합으로 Permission을 검사한다. REVOKE된 키가 필요한 API는 403 `FORBIDDEN`이고 화면도 같은 집합으로 숨김·읽기 전용을 정한다(DEC-031).
 - DEC-060 연락처 숨김 우선 (현 결정 10/2): 행사 전용 협력자에게 다른 운영자의 연락처를 숨기는 DEC-060 규칙은 어떤 GRANT보다 앞선다. `EVENT_USER_READ`, `PARTICIPANT_CONTACT_READ` 등 어떤 GRANT로도 이 숨김을 풀 수 없다. 서버는 effective 집합과 관계없이 행사 전용 협력자에게 가는 운영자 응답에서 연락처를 빼고 화면도 같은 기준을 따른다(DEC-031).
 - 목록: `GET /operators?include=permissions`는 각 항목에 `effectivePermissions`를 넣는다. Event OWNER만 쓸 수 있고 그 밖은 403 `FORBIDDEN`이다. 같은 endpoint가 권한에 따라 몰래 다른 응답을 주지 않도록(§1) 명시적 parameter로 둔다. 행사 전용 협력자에게 다른 운영자의 이름·역할만 보이는 DEC-060 규칙은 유지한다.
-- role 변경(`PATCH /operators/{userId}`, Event OWNER만)은 같은 transaction에서 대상의 override를 모두 지우고 audit에 role 전후와 지운 override를 남긴다. 이후 effective는 새 role 기본값이다. MANAGER는 role 변경·제거·재추가를 할 수 없으므로 Owner의 REVOKE를 이 경로로 지울 수 없다.
+- role 변경(`PATCH /operators/{userId}`, Event OWNER만)은 같은 transaction에서 대상의 override를 모두 지우고 audit에 role 전후와 지운 override를 남긴다. 이후 effective는 새 role 기본값이다. MANAGER는 role 변경·제거·재추가를 할 수 없으므로 Owner의 REVOKE를 이 경로로 지울 수 없다. ARCHIVED 행사에서는 방향과 관계없이 409 `EVENT_ARCHIVED`이고 role·override를 바꾸지 않으며 변경 audit을 남기지 않는다(아래 행사 상태, 현 결정 10/2 (#30 L5), #44 머지에서 빠진 규칙 복원).
 - 운영자 제거(`DELETE /operators/{userId}`, Event OWNER만)는 CASCADE로 override를 지우고 제거 audit에 지운 override 목록을 남긴다.
+- 운영자 추가(`POST /operators` 직접 추가, DEC-060 `POST /invitations/accept`)는 ARCHIVED 행사에서 409 `EVENT_ARCHIVED`다. 제거됐던 사용자를 다시 추가하는 재추가도 같다. `event_users` 행을 만들지 않고 변경 audit을 남기지 않는다(아래 행사 상태, 현 결정 10/2 (#30 L5), #44 머지에서 빠진 규칙 복원). 초대 수락은 DEC-060 판정 순서(토큰 조회 → 이메일 일치 → 상태)를 그대로 둔 뒤 행사 상태를 본다. 보관 때 PENDING 초대는 REVOKED가 되므로 예전 링크 수락은 그대로 410 `INVITATION_REVOKED`다(L5). 예외: Owner 위임 수락은 L5대로 ARCHIVED에서도 허용한다. 받는 사람의 event_users 행이 없으면(전에 제거된 사용자 포함) OWNER 행을 만들며 이 409 규칙을 적용하지 않는다 (현 결정 10/6, D5).
 - Owner 위임 (현 결정 10/2, DEC-033): override가 있는 운영자(예: MANAGER)가 위임을 수락해 OWNER가 되면 같은 transaction에서 그 override를 위임 기록에 저장하고 `event_user_permissions`에서 지운다. OWNER는 override를 갖지 않기 때문이다. 위임 기록의 테이블·컬럼은 #30 Owner 이전 계약(`owner_transfers`, `recipient_prior_role` 제안)을 따른다.
   - 위임이 취소되면(DEC-033) 받은 사람의 이전 role과 함께 저장한 override를 같은 transaction에서 되살린다. 취소는 이전 상태 복구이고 새 GRANT가 아니므로 ARCHIVED에서도 409 `EVENT_ARCHIVED` 대상이 아니다(#30 L5: Owner 이전은 ARCHIVED에서도 허용).
   - 넘긴 사람이 인수인계 종료 뒤 다른 role로 남으면 그 role의 기본값으로 시작하고 override는 없다. OWNER였으므로 되살릴 override도 없다.
   - 수락(저장·삭제), 취소(복원), 넘긴 사람의 role 전환을 각각 audit에 남기고 지우거나 되살린 override 목록을 함께 기록한다.
 - 행사 상태 (현 결정 10/2, #30 L5): ENDED에서는 override 변경을 허용한다. ARCHIVED에서는 줄이는 변경(REVOKE 추가, 저장된 GRANT 제거)만 허용한다. 저장된 override와 비교해 grants에 새 키가 있거나 저장된 REVOKE를 revokes에서 빼면 늘리는 변경이며 409 `EVENT_ARCHIVED`로 거절하고 아무것도 저장하지 않는다. 판정은 정규화 전 요청 기준이다. `EVENT_ARCHIVED`는 DEC-063에서 확정한 코드다. ARCHIVED에서도 운영자 제거는 허용한다(#30 L5).
+  - role 변경과 재추가도 늘리는 변경이다(현 결정 10/2 (#30 L5), #44 머지에서 빠진 규칙 복원). role 변경은 대상의 override를 모두 지워 REVOKE가 풀릴 수 있고 role 기본값을 바꾼다. 재추가(제거됐던 사용자를 직접 추가 또는 DEC-060 초대 수락으로 다시 운영자로 만드는 것)는 접근을 새로 만든다. 그래서 MANAGER→STAFF처럼 좁히는 role 변경도 409 `EVENT_ARCHIVED`다. 거절하면 role·override·`event_users` 행을 저장하지 않고 변경 audit을 남기지 않는다.
 - Audit: PUT으로 실제 변경이 있을 때마다 `audit_logs`에 실행자·eventId·대상 userId·변경 전후 grants/revokes를 남긴다. action 이름(예: `EVENT_USER_PERMISSIONS_REPLACED`)은 구현에서 정한다.
 - 동시성: PUT·role 변경·운영자 제거·Owner 위임 수락/취소는 대상 `event_users` 행을 잠그고(`SELECT … FOR UPDATE`) 처리해 서로 섞이지 않게 한다. 마지막 PUT이 전체 목록을 정한다.
 
@@ -1129,6 +1132,10 @@ Permission 키 목록 (초안)
 | 38 | ARCHIVED 행사에서 저장된 GRANT `DATA_EXPORT` 제거(`{grants:[], revokes:[]}`) | 200, 삭제, audit 1건 (현 결정 10/2, #30 L5) |
 | 39 | ARCHIVED 행사에서 STAFF에게 `{grants:[DATA_EXPORT]}` | 409 `EVENT_ARCHIVED`, 저장 없음 (현 결정 10/2, #30 L5) |
 | 40 | ARCHIVED 행사에서 STAFF의 기본 키 K REVOKE | **보류(pending)**: K는 STAFF 기본 집합 확정 후 정한다(기대값은 K와 무관). 기대: 200, `effective`에서 K 제외 (현 결정 10/2, #30 L5) |
+| 41 | ARCHIVED 행사에서 Owner가 STAFF를 MANAGER로 role 변경(`PATCH /operators/{userId}`) | 409 `EVENT_ARCHIVED`, role STAFF·override 불변, audit 없음 (현 결정 10/2 (#30 L5), #44 머지에서 빠진 규칙 복원) |
+| 42 | ARCHIVED 행사에서 Owner가 override가 있는 MANAGER를 STAFF로 role 변경(좁히는 role 변경) | 409 `EVENT_ARCHIVED`, role MANAGER·override 불변(삭제 없음), audit 없음. role 변경은 override를 지우므로 #30 L5의 'role 변경 = 늘리는 변경' 규칙을 따른다 (현 결정 10/2 (#30 L5), #44 머지에서 빠진 규칙 복원) |
+| 43 | ARCHIVED 행사에서 Owner가 전에 제거된 사용자를 `POST /operators`로 재추가 | 409 `EVENT_ARCHIVED`, `event_users` 행 생성 없음, audit 없음 (현 결정 10/2 (#30 L5), #44 머지에서 빠진 규칙 복원) |
+| 44 | ARCHIVED 행사에서 Owner가 운영자 제거(`DELETE /operators/{userId}`) | 200, `event_users` 삭제, override CASCADE 삭제, 제거 audit에 지운 override 목록 (현 결정 10/2, #30 L5) |
 
 ## 2026-10-02 행사 lifecycle command (#30, DEC-063)
 
@@ -1151,9 +1158,9 @@ POST /api/v1/operator/events/{eventId}/unarchive
   - Override 사유 저장 (2026-10-06 DEC-065): 모든 Override command에서 `override.reason`은 그 전이의 `audit_logs` 항목 details에 `actedAs`와 함께 `overrideReason`으로 남긴다(예: `{"actedAs":"SPACE_OWNER_OVERRIDE","overrideReason":"…"}`). Space OWNER가 재개를 대신 실행하면 재개 사유 `reason`은 전이 행의 `reason`에, `override.reason`은 audit details에 남겨 두 사유를 모두 보존한다.
 - L3: 보관과 보관 해제는 Event OWNER 또는 Space OWNER가 한다. Space OWNER의 보관·보관 해제는 Override가 아니므로 `override.reason`이 없어도 된다(`actedAs: SPACE_OWNER`).
 - L4: 종료·보관의 확인은 `acknowledgeWarnings: true`만 본다. 경고가 1건 이상인데 이 값이 아니면 409 `CONFIRMATION_REQUIRED`와 실행 시점 경고 수를 돌려주고 저장하지 않는다. 경고가 0건이면 플래그 없이 실행한다. 건수가 미리보기와 달라도 다시 확인받지 않는다. 실행 시점 건수는 전이 행의 스냅샷으로 남는다. 경고는 미완료 업무(`TODO`/`DOING`), 미정산, 미배정, 미전송 안내이며 종료를 막는 조건이 아니다(DEC-050). 종료가 업무를 완료 처리하지 않는다.
-- 전이는 `DRAFT→ACTIVE`, `ACTIVE→ENDED`, `ENDED→ACTIVE`, `ENDED→ARCHIVED`, `ARCHIVED→ENDED`만 된다. ACTIVE 직접 보관과 ARCHIVED 직접 재개는 409 `INVALID_STATE_TRANSITION`이다. 이미 목표 상태면 200 `outcome: ALREADY_IN_STATE`이고 이력·audit를 추가하지 않는다. 이 판정은 버전 비교보다 먼저다. 버전이 다르고 목표 상태도 아니면 409 `CONCURRENT_MODIFICATION`과 현재 `lifecycleVersion`, `lastTransition`을 돌려준다.
+- 전이는 `DRAFT→ACTIVE`, `ACTIVE→ENDED`, `ENDED→ACTIVE`, `ENDED→ARCHIVED`, `ARCHIVED→ENDED`만 된다. ACTIVE 직접 보관과 ARCHIVED 직접 재개는 409 `INVALID_STATE_TRANSITION`이다. 이미 목표 상태면 200 `outcome: ALREADY_IN_STATE`이고 이력·audit를 추가하지 않는다. 이 판정은 버전 비교보다 먼저다. 버전이 다르고 목표 상태도 아니면 409 `CONCURRENT_MODIFICATION`과 현재 `lifecycleVersion`, `lastTransition`을 돌려준다. lastTransition은 {command, fromStatus, toStatus, actedAs, occurredAt}이다. 사유(reason, overrideReason)는 넣지 않는다. 전이 기록이 없으면 키를 뺀다 (현 결정 10/6, D4).
 - 판정 순서: 401 `AUTHENTICATION_REQUIRED` → 404 `RESOURCE_NOT_FOUND`(다른 tenant) → 403 `NOT_A_MEMBER`(회수된 접근) → 403 `FORBIDDEN` 또는 `OVERRIDE_REQUIRED` → 400 `VALIDATION_FAILED` → 200 `ALREADY_IN_STATE` → 409 `CONCURRENT_MODIFICATION` → 409 `INVALID_STATE_TRANSITION` → 409 `CONFIRMATION_REQUIRED` → 200 `TRANSITIONED`.
-- L5: 보관하는 transaction에서 그 행사의 PENDING 초대를 `REVOKED`로 바꾼다. 이후 예전 링크 수락은 410 `INVITATION_REVOKED`다. ARCHIVED에서 운영자 제거, 권한 회수, Owner 이전, 본인 이탈은 허용한다. 운영자 추가, 초대, GRANT, REVOKE 해제는 409 `EVENT_ARCHIVED`다.
+- L5: 보관하는 transaction에서 그 행사의 PENDING 초대를 `REVOKED`로 바꾼다. 이후 예전 링크 수락은 410 `INVITATION_REVOKED`다. ARCHIVED에서 운영자 제거, 권한 회수, Owner 이전, 본인 이탈은 허용한다. 운영자 추가(재추가 포함), 초대, GRANT, REVOKE 해제, role 변경은 409 `EVENT_ARCHIVED`다(role 변경·재추가: 현 결정 10/2 (#30 L5), #44 머지에서 빠진 규칙 복원).
 - L8: DRAFT를 끝내는 전이는 없다. 방치된 DRAFT는 DEC-061 삭제 요청으로 정리한다.
 - L9: ENDED·ARCHIVED에서 새 참가 신청과 재제출은 409 `EVENT_ENDED`다. 보관 여부를 이 코드로 드러내지 않는다. 종료 전에 연 신청 화면도 제출 시점에 다시 검사한다. 참가 취소·재참가는 이 계약 밖이다. ENDED에서 막는 다른 쓰기는 기존 문장(참가 신청·새 체크인·새 조 편성·현장 일정)을 따른다. 업무 쓰기는 ARCHIVED에서만 `EVENT_ARCHIVED`로 막는다(DEC-062).
 
