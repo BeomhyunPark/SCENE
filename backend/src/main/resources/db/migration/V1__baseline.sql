@@ -121,15 +121,23 @@ CREATE TABLE tasks (
   status varchar(16) NOT NULL CHECK (status IN ('TODO', 'DOING', 'DONE', 'CANCELLED')),
   version integer NOT NULL DEFAULT 0 CHECK (version >= 0),
   assignee_user_id uuid REFERENCES users (id),
-  FOREIGN KEY (event_id, space_id) REFERENCES events (id, space_id)
+  completed_by_user_id uuid REFERENCES users (id),
+  completed_at timestamptz,
+  FOREIGN KEY (event_id, space_id) REFERENCES events (id, space_id),
+  UNIQUE (space_id, event_id, id)
 );
 
 CREATE TABLE task_checklist_items (
   id uuid PRIMARY KEY,
-  task_id uuid NOT NULL REFERENCES tasks (id),
+  space_id uuid NOT NULL,
+  event_id uuid NOT NULL,
+  task_id uuid NOT NULL,
   label varchar(200) NOT NULL,
   checked boolean NOT NULL DEFAULT false,
-  position integer NOT NULL
+  position integer NOT NULL,
+  checked_by_user_id uuid REFERENCES users (id),
+  checked_at timestamptz,
+  FOREIGN KEY (space_id, event_id, task_id) REFERENCES tasks (space_id, event_id, id)
 );
 
 CREATE TABLE audit_logs (
