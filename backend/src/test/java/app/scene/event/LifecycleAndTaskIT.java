@@ -467,6 +467,65 @@ class LifecycleAndTaskIT {
   }
 
   @Test
+  void staffGrantChecksAnotherOperatorsTask() {
+    // API §8 회귀 #17
+    Fixture fx = seed("ACTIVE");
+    UUID taskId = insertTask(fx, "TODO");
+    UUID itemId = insertItem(fx, taskId);
+    jdbc.update("UPDATE tasks SET assignee_user_id = ? WHERE id = ?", fx.managerId, taskId);
+    grantTaskWrite(fx, fx.staffId, "GRANT");
+    TaskWriteResult result =
+        tasks.setChecked(fx.spaceId, fx.eventId, taskId, itemId, true, fx.staffActor());
+    assertThat(result.outcome()).isEqualTo("UPDATED");
+  }
+
+  @Test
+  void revokedManagerCannotWriteSomeoneElsesTaskButCanFinishTheirOwn() {
+    // API §8 회귀 #18, API 개인별 권한 회귀 #14
+    Fixture fx = seed("ACTIVE");
+    UUID taskId = insertTask(fx, "TODO");
+    grantTaskWrite(fx, fx.managerId, "REVOKE");
+    assertCode(
+        ErrorCode.FORBIDDEN,
+        () -> tasks.complete(fx.spaceId, fx.eventId, taskId, 0, fx.managerActor()));
+    jdbc.update("UPDATE tasks SET assignee_user_id = ? WHERE id = ?", fx.managerId, taskId);
+    TaskWriteResult own = tasks.complete(fx.spaceId, fx.eventId, taskId, 0, fx.managerActor());
+    assertThat(own.outcome()).isEqualTo("COMPLETED");
+  }
+
+  @Test
+  void spaceAdminWhoIsNotAnEventOperatorCannotCheck() {
+    // API §8 회귀 #19
+    Fixture fx = seed("ACTIVE");
+    UUID adminId = UUID.randomUUID();
+    jdbc.update("INSERT INTO users (id, display_name) VALUES (?, 'admin')", adminId);
+    jdbc.update(
+        "INSERT INTO members (space_id, user_id, role) VALUES (?, ?, 'ADMIN')",
+        fx.spaceId,
+        adminId);
+    UUID taskId = insertTask(fx, "TODO");
+    UUID itemId = insertItem(fx, taskId);
+    OperatorActor lyingOwner = new OperatorActor(adminId, "ADMIN", "OWNER");
+    assertCode(
+        ErrorCode.FORBIDDEN,
+        () -> tasks.setChecked(fx.spaceId, fx.eventId, taskId, itemId, true, lyingOwner));
+    assertThat(taskStatus(taskId)).isEqualTo("TODO");
+  }
+
+  @Test
+  void ownerTaskWriteRevokeIsIgnored() {
+    // API 개인별 권한: OWNER는 override 대상이 아니다
+    Fixture fx = seed("ACTIVE");
+    UUID taskId = insertTask(fx, "TODO");
+    UUID itemId = insertItem(fx, taskId);
+    jdbc.update("UPDATE tasks SET assignee_user_id = ? WHERE id = ?", fx.managerId, taskId);
+    grantTaskWrite(fx, fx.ownerId, "REVOKE");
+    TaskWriteResult result =
+        tasks.setChecked(fx.spaceId, fx.eventId, taskId, itemId, true, fx.ownerActor());
+    assertThat(result.outcome()).isEqualTo("UPDATED");
+  }
+
+  @Test
   void repeatedAcceptKeepsHandoverEnd() {
     Fixture fx = seed("ACTIVE");
     UUID transferId = UUID.randomUUID();
@@ -942,6 +1001,20 @@ class LifecycleAndTaskIT {
         fx.staffId,
         taskId);
     return taskId;
+  }
+
+  private void grantTaskWrite(Fixture fx, UUID userId, String effect) {
+    jdbc.update(
+        """
+        INSERT INTO event_user_permissions (
+          space_id, event_id, user_id, permission, effect, granted_by, granted_at)
+        VALUES (?, ?, ?, 'TASK_WRITE', ?, ?, now())
+        """,
+        fx.spaceId,
+        fx.eventId,
+        userId,
+        effect,
+        fx.ownerId);
   }
 
   private UUID onlyItem(UUID taskId) {

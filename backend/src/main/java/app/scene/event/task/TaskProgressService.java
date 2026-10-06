@@ -2,6 +2,7 @@ package app.scene.event.task;
 
 import app.scene.common.error.ErrorCode;
 import app.scene.common.error.SceneException;
+import app.scene.common.permission.TaskWrite;
 import app.scene.event.lifecycle.OperatorActor;
 import java.time.Clock;
 import java.time.Instant;
@@ -37,7 +38,7 @@ public class TaskProgressService {
     if (checkedNow == null) {
       throw new SceneException(ErrorCode.RESOURCE_NOT_FOUND);
     }
-    authorize(task, actor);
+    authorize(spaceId, eventId, task, actor);
     if ("ARCHIVED".equals(task.lifecycleStatus())) {
       throw new SceneException(ErrorCode.EVENT_ARCHIVED);
     }
@@ -84,7 +85,7 @@ public class TaskProgressService {
   public TaskWriteResult complete(
       UUID spaceId, UUID eventId, UUID taskId, int version, OperatorActor actor) {
     TaskRow task = lock(spaceId, eventId, taskId);
-    authorize(task, actor);
+    authorize(spaceId, eventId, task, actor);
     if ("ARCHIVED".equals(task.lifecycleStatus())) {
       throw new SceneException(ErrorCode.EVENT_ARCHIVED);
     }
@@ -120,7 +121,7 @@ public class TaskProgressService {
   public TaskWriteResult reopen(
       UUID spaceId, UUID eventId, UUID taskId, int version, OperatorActor actor) {
     TaskRow task = lock(spaceId, eventId, taskId);
-    authorize(task, actor);
+    authorize(spaceId, eventId, task, actor);
     if ("ARCHIVED".equals(task.lifecycleStatus())) {
       throw new SceneException(ErrorCode.EVENT_ARCHIVED);
     }
@@ -157,10 +158,15 @@ public class TaskProgressService {
     return task;
   }
 
-  /** Role check until effective TASK_WRITE is calculated from stored overrides. */
-  private static void authorize(TaskRow task, OperatorActor actor) {
+  /** Reads role and TASK_WRITE in this transaction. The actor's role is not trusted. */
+  private void authorize(UUID spaceId, UUID eventId, TaskRow task, OperatorActor actor) {
+    String role = mapper.eventRole(spaceId, eventId, actor.userId());
+    if (role == null) {
+      throw new SceneException(ErrorCode.FORBIDDEN);
+    }
     boolean assignee = actor.userId().equals(task.assigneeUserId());
-    boolean taskWrite = actor.eventOwner() || "MANAGER".equals(actor.eventRole());
+    boolean taskWrite =
+        TaskWrite.effective(role, mapper.taskWriteEffect(spaceId, eventId, actor.userId()));
     if (!assignee && !taskWrite) {
       throw new SceneException(ErrorCode.FORBIDDEN);
     }
