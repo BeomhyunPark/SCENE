@@ -939,7 +939,10 @@ class LifecycleAndTaskIT {
 
     assertThat(assigneeOf(done)).isNull();
     assertThat(assigneeOf(cancelled)).isNull();
+    assertThat(version(done)).isEqualTo(1);
+    assertThat(version(cancelled)).isEqualTo(1);
     assertThat(assigneeOf(stillAssigned)).isEqualTo(fx.staffId);
+    assertThat(version(stillAssigned)).isZero();
     assertThat(taskStatus(done)).isEqualTo("DONE");
     assertThat(taskStatus(cancelled)).isEqualTo("CANCELLED");
     assertThat(itemChecked(itemId)).isTrue();
@@ -948,7 +951,8 @@ class LifecycleAndTaskIT {
     assertThat(completedBy(done)).isEqualTo(fx.managerId);
     assertThat(completedAt(done)).isNotNull();
     assertThat(auditCount(fx, "TASK_ASSIGNEE_CLEARED")).isEqualTo(2);
-    assertThat(auditDetail(fx, "TASK_ASSIGNEE_CLEARED")).contains(fx.managerId.toString(), "이탈");
+    assertThat(auditDetail(fx, "TASK_ASSIGNEE_CLEARED").replace(" ", ""))
+        .contains(fx.managerId.toString(), "이탈", "\"version\":1");
     assertThat(count(fx, "tasks")).isEqualTo(3);
     assertThat(count(fx, "task_checklist_items")).isEqualTo(1);
 
@@ -959,6 +963,30 @@ class LifecycleAndTaskIT {
         fx.managerId);
     assertThat(assigneeOf(done)).isNull();
     assertThat(assigneeOf(cancelled)).isNull();
+  }
+
+  @Test
+  void unassignedTaskAfterLeaveFollowsTaskWrite() {
+    // API §8 회귀 #38. 이탈은 TODO를 RESPONSIBILITY로 막으므로 체크는 미배정 TODO로 한다.
+    Fixture fx = seed("ACTIVE");
+    jdbc.update(
+        "INSERT INTO members (space_id, user_id, role) VALUES (?, ?, 'MEMBER')",
+        fx.spaceId,
+        fx.staffId);
+    insertAssignedTask(fx, fx.eventId, fx.staffId, "DONE");
+    leave.leave(fx.spaceId, fx.staffId, List.of());
+    UUID todo = insertUnassignedTask(fx);
+    UUID itemId = insertItem(fx, todo);
+    assertCode(
+        ErrorCode.FORBIDDEN,
+        () -> tasks.setChecked(fx.spaceId, fx.eventId, todo, itemId, true, fx.staffActor()));
+    assertThat(
+            tasks
+                .setChecked(fx.spaceId, fx.eventId, todo, itemId, true, fx.managerActor())
+                .outcome())
+        .isEqualTo("UPDATED");
+    assertThat(version(todo)).isEqualTo(1);
+    assertThat(taskStatus(todo)).isEqualTo("DOING");
   }
 
   @Test
@@ -1137,6 +1165,19 @@ class LifecycleAndTaskIT {
         eventId,
         status,
         assignee);
+    return taskId;
+  }
+
+  private UUID insertUnassignedTask(Fixture fx) {
+    UUID taskId = UUID.randomUUID();
+    jdbc.update(
+        """
+        INSERT INTO tasks (id, space_id, event_id, title, status)
+        VALUES (?, ?, ?, 'task', 'TODO')
+        """,
+        taskId,
+        fx.spaceId,
+        fx.eventId);
     return taskId;
   }
 

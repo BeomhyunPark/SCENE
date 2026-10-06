@@ -100,16 +100,17 @@ public class MembershipLeaveService {
     if (mapper.lockOperator(spaceId, eventId, userId) == null) {
       throw new IllegalStateException("event operator row was not locked");
     }
-    List<UUID> taskIds = mapper.assignedTasks(spaceId, eventId, userId);
-    if (mapper.clearAssignees(spaceId, eventId, userId) != taskIds.size()) {
+    List<AssignedTask> tasks = mapper.assignedTasks(spaceId, eventId, userId);
+    if (mapper.clearAssignees(spaceId, eventId, userId) != tasks.size()) {
       throw new IllegalStateException("assigned tasks were not cleared");
     }
     Instant occurredAt = clock.instant();
-    for (UUID taskId : taskIds) {
+    for (AssignedTask task : tasks) {
       Map<String, Object> detail = new LinkedHashMap<>();
-      detail.put("taskId", taskId);
+      detail.put("taskId", task.id());
       detail.put("previousAssigneeUserId", userId);
       detail.put("reason", reason);
+      detail.put("version", task.version() + 1);
       audit(spaceId, eventId, userId, TASK_ASSIGNEE_CLEARED, detail, occurredAt);
     }
     String snapshot = mapper.permissionSnapshot(spaceId, eventId, userId);

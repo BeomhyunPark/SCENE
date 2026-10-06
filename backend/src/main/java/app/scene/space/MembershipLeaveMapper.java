@@ -75,16 +75,17 @@ public interface MembershipLeaveMapper {
 
   @Select(
       """
-      SELECT id FROM tasks
+      SELECT id, version FROM tasks
       WHERE space_id = #{spaceId} AND event_id = #{eventId} AND assignee_user_id = #{userId}
       ORDER BY id
+      FOR UPDATE
       """)
-  List<UUID> assignedTasks(
+  List<AssignedTask> assignedTasks(
       @Param("spaceId") UUID spaceId, @Param("eventId") UUID eventId, @Param("userId") UUID userId);
 
   @Update(
       """
-      UPDATE tasks SET assignee_user_id = NULL
+      UPDATE tasks SET assignee_user_id = NULL, version = version + 1
       WHERE space_id = #{spaceId} AND event_id = #{eventId} AND assignee_user_id = #{userId}
       """)
   int clearAssignees(
