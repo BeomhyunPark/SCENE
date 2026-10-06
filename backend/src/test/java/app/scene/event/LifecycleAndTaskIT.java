@@ -17,6 +17,7 @@ import app.scene.space.MembershipLeaveService;
 import app.scene.support.PostgresTestcontainer;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -910,6 +911,164 @@ class LifecycleAndTaskIT {
         ErrorCode.HANDOVER_NOT_ACCEPTED, () -> leave.leave(fx.spaceId, fx.ownerId, List.of()));
   }
 
+  @Test
+  void ownerActivateLeavesTheTransitionReasonEmpty() {
+    // lifecycle 회귀 #1
+    Fixture fx = seed("DRAFT");
+    lifecycle.activate(fx.spaceId, fx.eventId, req(0), fx.ownerActor());
+    String reason =
+        jdbc.query(
+                "SELECT reason FROM event_lifecycle_transitions WHERE event_id = ?",
+                (rs, row) -> rs.getString(1),
+                fx.eventId)
+            .getFirst();
+    String detail =
+        jdbc.queryForObject(
+            "SELECT detail::text FROM audit_logs WHERE event_id = ? AND action = 'EVENT_ACTIVATE'",
+            String.class,
+            fx.eventId);
+    assertThat(reason).isNull();
+    assertThat(detail).contains("EVENT_OWNER").doesNotContain("overrideReason");
+  }
+
+  @Test
+  void endWithoutAcknowledgementReturnsWarningCounts() {
+    // lifecycle 회귀 #6
+    Fixture fx = seed("ACTIVE");
+    insertTask(fx, "TODO");
+    assertThatThrownBy(() -> lifecycle.end(fx.spaceId, fx.eventId, req(0), fx.ownerActor()))
+        .isInstanceOf(SceneException.class)
+        .satisfies(
+            thrown -> {
+              SceneException scene = (SceneException) thrown;
+              assertThat(scene.code()).isEqualTo(ErrorCode.CONFIRMATION_REQUIRED);
+              @SuppressWarnings("unchecked")
+              Map<String, Object> warnings = (Map<String, Object>) scene.details().get("warnings");
+              assertThat(warnings)
+                  .containsEntry("openTasks", 1)
+                  .containsEntry("unsettledFees", 0)
+                  .containsEntry("unassignedParticipants", 0)
+                  .containsEntry("unsentNotices", 0);
+            });
+  }
+
+  @Test
+  void staleVersionReturnsTheLastTransition() {
+    // lifecycle 회귀 #8 주변
+    Fixture fx = seed("DRAFT");
+    lifecycle.activate(fx.spaceId, fx.eventId, req(0), fx.ownerActor());
+    assertThatThrownBy(
+            () ->
+                lifecycle.end(
+                    fx.spaceId,
+                    fx.eventId,
+                    new LifecycleRequest(0, true, null, null),
+                    fx.ownerActor()))
+        .isInstanceOf(SceneException.class)
+        .satisfies(
+            thrown -> {
+              SceneException scene = (SceneException) thrown;
+              assertThat(scene.code()).isEqualTo(ErrorCode.CONCURRENT_MODIFICATION);
+              assertThat(scene.details()).containsEntry("lifecycleVersion", 1);
+              @SuppressWarnings("unchecked")
+              Map<String, Object> last =
+                  (Map<String, Object>) scene.details().get("lastTransition");
+              assertThat(last)
+                  .containsEntry("command", "ACTIVATE")
+                  .containsEntry("fromStatus", "DRAFT")
+                  .containsEntry("toStatus", "ACTIVE")
+                  .containsEntry("actedAs", "EVENT_OWNER");
+              assertThat(last.get("occurredAt")).isNotNull();
+              assertThat(last).doesNotContainKey("reason");
+            });
+  }
+
+  @Test
+  void spaceOwnerReopenKeepsTheReopenReasonAndTheOverrideReason() {
+    // lifecycle 회귀 #17
+    Fixture fx = seed("ACTIVE");
+    lifecycle.end(
+        fx.spaceId, fx.eventId, new LifecycleRequest(0, true, null, null), fx.ownerActor());
+    OperatorActor spaceOwner = new OperatorActor(fx.spaceOwnerId, "OWNER", null);
+    lifecycle.reopen(
+        fx.spaceId,
+        fx.eventId,
+        new LifecycleRequest(1, null, "일정을 다시 연다", "소유자가 연락되지 않음"),
+        spaceOwner);
+    String reason =
+        jdbc.queryForObject(
+            """
+            SELECT reason FROM event_lifecycle_transitions
+            WHERE event_id = ? AND command = 'REOPEN'
+            """,
+            String.class,
+            fx.eventId);
+    String detail =
+        jdbc.queryForObject(
+            "SELECT detail::text FROM audit_logs WHERE event_id = ? AND action = 'EVENT_REOPEN'",
+            String.class,
+            fx.eventId);
+    assertThat(reason).isEqualTo("일정을 다시 연다");
+    assertThat(detail).contains("SPACE_OWNER_OVERRIDE").contains("소유자가 연락되지 않음");
+  }
+
+  @Test
+  void spaceOwnerOverrideAuditsTheReasonOnActivateAndEnd() {
+    // lifecycle 회귀 #18
+    Fixture fx = seed("DRAFT");
+    OperatorActor spaceOwner = new OperatorActor(fx.spaceOwnerId, "OWNER", null);
+    lifecycle.activate(
+        fx.spaceId, fx.eventId, new LifecycleRequest(0, null, null, "준비를 마쳤다"), spaceOwner);
+    lifecycle.end(
+        fx.spaceId, fx.eventId, new LifecycleRequest(1, true, null, "행사를 끝낸다"), spaceOwner);
+    String activate =
+        jdbc.queryForObject(
+            "SELECT detail::text FROM audit_logs WHERE event_id = ? AND action = 'EVENT_ACTIVATE'",
+            String.class,
+            fx.eventId);
+    String end =
+        jdbc.queryForObject(
+            "SELECT detail::text FROM audit_logs WHERE event_id = ? AND action = 'EVENT_END'",
+            String.class,
+            fx.eventId);
+    assertThat(activate).contains("SPACE_OWNER_OVERRIDE").contains("준비를 마쳤다");
+    assertThat(end).contains("SPACE_OWNER_OVERRIDE").contains("행사를 끝낸다");
+  }
+
+  @Test
+  void oversizedOverrideReasonIsRejectedBeforeAnyWrite() {
+    // lifecycle 회귀 #19
+    Fixture fx = seed("ACTIVE");
+    String tooLong = "x".repeat(501);
+    OperatorActor spaceOwner = new OperatorActor(fx.spaceOwnerId, "OWNER", null);
+    LifecycleRequest override = new LifecycleRequest(0, true, "재개 사유", tooLong);
+    assertField(() -> lifecycle.end(fx.spaceId, fx.eventId, override, spaceOwner));
+    assertField(() -> lifecycle.reopen(fx.spaceId, fx.eventId, override, spaceOwner));
+    assertField(() -> lifecycle.end(fx.spaceId, fx.eventId, override, fx.ownerActor()));
+    assertField(() -> lifecycle.archive(fx.spaceId, fx.eventId, override, fx.ownerActor()));
+    assertField(() -> lifecycle.archive(fx.spaceId, fx.eventId, override, spaceOwner));
+    assertThat(status(fx)).isEqualTo("ACTIVE");
+    assertThat(count(fx, "event_lifecycle_transitions")).isZero();
+    assertThat(count(fx, "audit_logs")).isZero();
+  }
+
+  @Test
+  void blankOverrideReasonIsRejectedWhenItWasSent() {
+    // 현 결정 10/6 D3. 대행 경로의 공백은 authorize의 403이 먼저다.
+    Fixture fx = seed("ACTIVE");
+    OperatorActor spaceOwner = new OperatorActor(fx.spaceOwnerId, "OWNER", null);
+    LifecycleRequest blank = new LifecycleRequest(0, true, null, " ");
+    assertField(() -> lifecycle.end(fx.spaceId, fx.eventId, blank, fx.ownerActor()));
+    assertField(() -> lifecycle.archive(fx.spaceId, fx.eventId, blank, fx.ownerActor()));
+    assertField(() -> lifecycle.archive(fx.spaceId, fx.eventId, blank, spaceOwner));
+    assertCode(
+        ErrorCode.OVERRIDE_REQUIRED,
+        () -> lifecycle.end(fx.spaceId, fx.eventId, blank, spaceOwner));
+    assertThat(status(fx)).isEqualTo("ACTIVE");
+    assertThat(count(fx, "event_lifecycle_transitions")).isZero();
+    assertThat(count(fx, "audit_logs")).isZero();
+  }
+
   private static void assertCode(ErrorCode code, Throwing call) {
     assertReason(code, null, call);
   }
@@ -926,6 +1085,17 @@ class LifecycleAndTaskIT {
               } else {
                 assertThat(scene.details()).containsEntry("reason", reason);
               }
+            });
+  }
+
+  private static void assertField(Throwing call) {
+    assertThatThrownBy(call::run)
+        .isInstanceOf(SceneException.class)
+        .satisfies(
+            thrown -> {
+              SceneException scene = (SceneException) thrown;
+              assertThat(scene.code()).isEqualTo(ErrorCode.VALIDATION_FAILED);
+              assertThat(scene.details()).containsEntry("field", "override.reason");
             });
   }
 

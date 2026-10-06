@@ -23,6 +23,17 @@ public interface EventLifecycleMapper {
 
   @Select(
       """
+      SELECT command, from_status, to_status, acted_as, occurred_at
+      FROM event_lifecycle_transitions
+      WHERE space_id = #{spaceId} AND event_id = #{eventId}
+      ORDER BY occurred_at DESC, id DESC
+      LIMIT 1
+      """)
+  LifecycleTransitionView lastTransition(
+      @Param("spaceId") UUID spaceId, @Param("eventId") UUID eventId);
+
+  @Select(
+      """
       SELECT count(*)
       FROM tasks
       WHERE event_id = #{eventId} AND space_id = #{spaceId}
