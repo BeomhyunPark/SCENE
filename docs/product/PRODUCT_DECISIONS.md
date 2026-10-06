@@ -1940,7 +1940,7 @@ DEC-054~059와 [#12 사용자 답변](https://github.com/BeomhyunPark/SCENE/issu
 
 - MVP 참여자 인증은 링크에 담은 접근 키 하나다. 전화번호 OTP와 SMS vendor는 MVP에 없다.
 - 키는 CSPRNG 128비트 난수다. DB에는 hash(`key_hash`)만 저장하고 raw key는 저장하지 않는다.
-- 키는 링크의 fragment(`#…`)에 넣는다. fragment는 서버로 전송되지 않아 서버 로그·프록시·Referer에 남지 않는다. 클라이언트가 키를 읽어 `POST /api/v1/public/events/{eventId}/participant-sessions`의 body로 보내고, 서버는 hash를 검증한 뒤 Participant session cookie를 발급한다.
+- 키는 링크의 fragment(`#…`)에 넣는다. fragment는 서버로 전송되지 않아 서버 로그·프록시·Referer에 남지 않는다. 클라이언트가 키를 읽어 `POST /api/v1/public/events/{eventId}/participant-sessions`의 body로 보내고, 서버는 hash를 검증한 뒤 Participant session cookie를 발급한다. 클라이언트는 키를 읽은 즉시 `history.replaceState`로 fragment를 지우며, analytics·오류 리포팅 초기화와 third-party script의 `location.hash` 접근은 그 뒤에만 가능하다(QA 조건 (#55)).
 - 키는 URL path·query string, 서버·액세스 로그, analytics에 넣지 않고 응답으로 되돌려 주지 않는다. 틀린·없는·폐기된 키는 같은 401로 응답해 키 존재를 드러내지 않는다.
 - 운영자는 키를 재발급할 수 있다. 재발급은 같은 transaction에서 이전 키와 그 키로 연 Participant session을 모두 즉시 폐기하고 audit에 남긴다.
 - 단계: 세션 발급은 Phase 3에서 구현한다. P0-08은 participant 인증 체인을 모든 요청에 401을 돌려주는 stub으로만 둔다.

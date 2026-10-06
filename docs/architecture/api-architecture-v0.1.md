@@ -1191,11 +1191,17 @@ POST /api/v1/public/events/{eventId}/participant-sessions   # body {accessKey}, 
 
 - 키: CSPRNG 128비트 난수. DB에는 `key_hash`만 저장하고 raw key는 저장하지 않는다.
 - 전달: 링크의 fragment(`#…`)로만 준다. 브라우저는 fragment를 서버로 보내지 않으므로 서버 로그·프록시·Referer에 남지 않는다. 클라이언트가 fragment에서 키를 읽어 위 endpoint의 POST body로 보낸다. URL path·query string에는 넣지 않으며 서버는 query string의 키를 읽지 않는다. 서버·액세스 로그와 analytics에도 남기지 않는다.
+- fragment 제거 (QA 조건 (#55)): 클라이언트는 fragment에서 키를 읽은 즉시 `history.replaceState`로 URL에서 fragment를 지운다. 이 처리는 analytics·오류 리포팅 코드가 초기화되기 전에 끝나야 하고, 지우기 전에는 어떤 third-party script도 `location.hash`를 읽을 수 없어야 한다.
 - 검증: 서버가 body의 키를 hash해 그 행사의 유효한 `participant_access`와 비교한다. 맞으면 Participant session을 만들고 §3 기준의 session cookie를 발급한다. 세션은 그 키(access 행)와 `participant_id / event_id / space_id`에 고정한다.
 - 실패: 틀린 키, 없는 키, 폐기된 키, 다른 행사의 키, body에 키 없음은 모두 같은 401 `PARTICIPANT_ACCESS_INVALID`와 같은 응답이다. 키가 있는지 드러내지 않는다. 받은 키를 응답·오류 본문에 되돌려 주지 않는다. Rate limit·brute-force 방어는 §3 그대로다.
 - 재발급: 운영자가 참여자의 키를 재발급할 수 있다. 같은 transaction에서 이전 키를 폐기하고 그 키로 연 Participant session을 모두 폐기한 뒤 새 키를 만든다. 커밋 즉시 적용된다. audit에 실행자·행사·참여자를 남기고 raw key와 `key_hash`는 넣지 않는다. 새 raw key는 재발급 응답에서 1회만 돌려준다. 재발급 endpoint 경로와 필요한 Permission은 Phase 3에서 정한다.
 - 단계: 세션 발급은 Phase 3에서 구현한다. P0-08은 participant 인증 체인(`/api/v1/participant/**`)을 stub으로만 두고 모든 요청에 401 `AUTHENTICATION_REQUIRED`를 돌려준다.
 - 범위 밖: 전화번호 OTP, SMS vendor 연동. 키 TTL, 세션 TTL, 키 복구, rate limit 숫자는 계속 OPEN.
+- OPEN (Phase 3, QA 비차단 #55). 새 규칙이 아니라 구현 때 정할 메모다.
+  - request body 로그에서 `accessKey` 마스킹(#51 로깅과 연결).
+  - 재발급 응답을 `Cache-Control: no-store`로 보내고 로그에 남기지 않기.
+  - 참여자 페이지의 `Referrer-Policy: no-referrer`.
+  - public 세션 POST(`participant-sessions`)의 CSRF 처리.
 
 회귀 테스트
 
@@ -1206,3 +1212,4 @@ POST /api/v1/public/events/{eventId}/participant-sessions   # body {accessKey}, 
 | 3 | 재발급 뒤 (a) 이전 키로 세션 요청 (b) 재발급 전 이전 키로 연 세션으로 `GET /api/v1/participant/me` | (a) 401 `PARTICIPANT_ACCESS_INVALID` (b) 401 `AUTHENTICATION_REQUIRED`. 재발급 커밋 직후부터. 재발급 audit 1건, raw key·`key_hash` 없음 |
 | 4 | 키를 query string으로만 보냄(`?accessKey=…`, body에 키 없음) | 키를 읽지 않음, 세션 없음, 401 `PARTICIPANT_ACCESS_INVALID`. 액세스 로그·애플리케이션 로그·analytics에 query 값 없음 |
 | 5 | (P0-08) `/api/v1/participant/**` 아무 요청 | 401 `AUTHENTICATION_REQUIRED` (stub, 세션 발급 없음) |
+| 6 | 링크를 연 뒤 주소창, 브라우저 history 항목, analytics·오류 리포트에 기록된 URL 확인 | 어디에도 키 없음 (QA 조건 (#55)) |
