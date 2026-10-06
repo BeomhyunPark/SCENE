@@ -4,8 +4,8 @@ import java.net.URI;
 import java.util.Locale;
 
 /**
- * Single registry for the confirmed #30, #31, and #39 error codes. HTTP status, title, and detail
- * travel with the code. Clients branch on {@code code}, not on the sentence.
+ * Single registry for confirmed API error codes. HTTP status, title, and detail travel with the
+ * code. Clients branch on {@code code}, not on the sentence.
  */
 public enum ErrorCode {
   AUTHENTICATION_REQUIRED(401, "Authentication required", "로그인이 필요합니다."),
@@ -14,6 +14,7 @@ public enum ErrorCode {
   OVERRIDE_REQUIRED(403, "Override required", "대신 실행하려면 사유가 필요합니다."),
   RESOURCE_NOT_FOUND(404, "Resource not found", "대상을 찾을 수 없습니다."),
   VALIDATION_FAILED(400, "Validation failed", "요청 값이 올바르지 않습니다."),
+  PAGE_SIZE_EXCEEDED(400, "Page size exceeded", "페이지 크기가 허용된 최대값을 넘었습니다."),
   CONCURRENT_MODIFICATION(409, "Concurrent modification", "다른 변경이 먼저 반영되었습니다."),
   INVALID_STATE_TRANSITION(409, "Invalid state transition", "현재 상태에서는 이 전이를 할 수 없습니다."),
   CONFIRMATION_REQUIRED(409, "Confirmation required", "경고를 확인해야 진행할 수 있습니다."),
