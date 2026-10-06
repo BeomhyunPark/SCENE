@@ -16,6 +16,19 @@ server:
     include-stacktrace: never
     include-binding-errors: never
 
+# Session cookie names are placeholders. scene_operator_session and scene_participant_session
+# are conceptual names in security-privacy §2 and are not cookie names.
+# SameSite's token is not decided; Lax only makes the attribute present.
+# The CORS origin is not a SCENE frontend. dev, stg, and prod replace it from the environment.
+scene:
+  security:
+    cors:
+      allowed-origins: http://scene-frontend.placeholder.invalid
+    session:
+      operator-cookie-name: placeholder-operator-session
+      participant-cookie-name: placeholder-participant-session
+      same-site: Lax
+
 logging:
   structured:
     format:

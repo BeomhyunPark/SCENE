@@ -30,10 +30,23 @@ class ProfileFilesTest {
       assertThat(text).contains("${SCENE_DB_URL}");
       assertThat(text).contains("${SCENE_DB_USER}");
       assertThat(text).contains("${SCENE_DB_PASSWORD}");
+      assertThat(text).contains("${SCENE_CORS_ALLOWED_ORIGINS:}");
       assertThat(text).doesNotContain("jdbc:");
       assertThat(text).doesNotContain("localhost");
       assertThat(text).doesNotContain("db/seed");
+      assertThat(text).doesNotContain("https://");
+      assertThat(text).doesNotContain("scene-frontend.placeholder.invalid");
     }
+  }
+
+  @Test
+  void defaultSecurityPlaceholdersAreNotConceptualNamesOrAProductionOrigin() throws IOException {
+    String text = read("application.yml");
+    assertThat(text).contains("http://scene-frontend.placeholder.invalid");
+    assertThat(text).contains("placeholder-operator-session");
+    assertThat(text).contains("placeholder-participant-session");
+    assertThat(text).doesNotContain("operator-cookie-name: scene_operator_session");
+    assertThat(text).doesNotContain("participant-cookie-name: scene_participant_session");
   }
 
   @Test

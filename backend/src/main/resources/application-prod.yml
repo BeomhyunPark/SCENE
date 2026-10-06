@@ -4,3 +4,9 @@ spring:
     url: ${SCENE_DB_URL}
     username: ${SCENE_DB_USER}
     password: ${SCENE_DB_PASSWORD}
+
+# Comma-separated allowlist. Empty until a SCENE frontend origin is chosen.
+scene:
+  security:
+    cors:
+      allowed-origins: ${SCENE_CORS_ALLOWED_ORIGINS:}

@@ -1,6 +1,5 @@
 package app.scene.common.error;
 
-import app.scene.common.web.RequestIds;
 import jakarta.servlet.http.HttpServletRequest;
 import java.net.URI;
 import java.util.ArrayList;
@@ -36,7 +35,7 @@ public class SceneExceptionHandler {
 
   @ExceptionHandler(SceneException.class)
   ResponseEntity<ProblemDetail> scene(SceneException exception, HttpServletRequest request) {
-    ProblemDetail problem = problem(exception.code(), request);
+    ProblemDetail problem = ProblemBodies.of(exception.code(), request);
     List<Map<String, String>> errors = new ArrayList<>();
     for (Map.Entry<String, Object> entry : exception.details().entrySet()) {
       if ("field".equals(entry.getKey()) && entry.getValue() instanceof String field) {
@@ -56,7 +55,7 @@ public class SceneExceptionHandler {
   @ExceptionHandler(MethodArgumentNotValidException.class)
   ResponseEntity<ProblemDetail> invalidBody(
       MethodArgumentNotValidException exception, HttpServletRequest request) {
-    ProblemDetail problem = problem(ErrorCode.VALIDATION_FAILED, request);
+    ProblemDetail problem = ProblemBodies.of(ErrorCode.VALIDATION_FAILED, request);
     List<Map<String, String>> errors = new ArrayList<>();
     exception
         .getBindingResult()
@@ -82,7 +81,7 @@ public class SceneExceptionHandler {
     HandlerMethodValidationException.class
   })
   ResponseEntity<ProblemDetail> malformed(HttpServletRequest request) {
-    return response(problem(ErrorCode.VALIDATION_FAILED, request));
+    return response(ProblemBodies.of(ErrorCode.VALIDATION_FAILED, request));
   }
 
   @ExceptionHandler(Exception.class)
@@ -92,32 +91,14 @@ public class SceneExceptionHandler {
     problem.setType(URI.create("urn:scene:problem:unexpected"));
     problem.setTitle("Unexpected error");
     problem.setDetail("요청을 처리하지 못했습니다.");
-    problem.setProperty("traceId", traceId(request));
+    problem.setProperty("traceId", ProblemBodies.traceId(request));
     return response(problem);
-  }
-
-  private static ProblemDetail problem(ErrorCode code, HttpServletRequest request) {
-    ProblemDetail problem = ProblemDetail.forStatus(code.httpStatus());
-    problem.setType(code.type());
-    problem.setTitle(code.title());
-    problem.setDetail(code.detail());
-    problem.setProperty("code", code.name());
-    problem.setProperty("traceId", traceId(request));
-    return problem;
   }
 
   private static ResponseEntity<ProblemDetail> response(ProblemDetail problem) {
     return ResponseEntity.status(problem.getStatus())
         .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_PROBLEM_JSON_VALUE)
         .body(problem);
-  }
-
-  private static String traceId(HttpServletRequest request) {
-    Object assigned = request.getAttribute(RequestIds.ATTRIBUTE);
-    if (assigned instanceof String requestId) {
-      return requestId;
-    }
-    return RequestIds.resolve(request.getHeader(RequestIds.HEADER));
   }
 
   /** Field-level code. Blank and null constraints share the contract example's REQUIRED. */
