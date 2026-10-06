@@ -1,5 +1,6 @@
 package app.scene.event.lifecycle;
 
+import app.scene.common.sql.EffectiveOwnerSql;
 import java.time.Instant;
 import java.util.UUID;
 import org.apache.ibatis.annotations.Insert;
@@ -75,18 +76,13 @@ public interface EventLifecycleMapper {
   @Insert(
       """
       INSERT INTO operator_notices (id, space_id, event_id, recipient_user_id, kind, created_at)
-      SELECT gen_random_uuid(), #{spaceId}, #{eventId}, eu.user_id, #{kind}, #{now}
-      FROM event_users eu
-      WHERE eu.event_id = #{eventId} AND eu.space_id = #{spaceId} AND eu.role = 'OWNER'
-        -- Effective owner. Keep in sync with MembershipLeaveMapper other_owners
-        -- and TaskProgressMapper.ownerAuthorityEnded.
-        AND NOT EXISTS (
-          SELECT 1 FROM owner_transfers t
-          WHERE t.space_id = eu.space_id AND t.event_id = eu.event_id
-            AND t.from_user_id = eu.user_id
-            AND t.status IN ('HANDOVER', 'COMPLETED')
-            AND t.handover_ends_at <= now()
-        )
+      SELECT gen_random_uuid(), #{spaceId}, #{eventId}, o.user_id, #{kind}, #{now}
+      FROM event_users o
+      WHERE o.event_id = #{eventId} AND o.space_id = #{spaceId} AND o.role = 'OWNER'
+        AND NOT
+      """
+          + EffectiveOwnerSql.OWNER_AUTHORITY_ENDED
+          + """
       """)
   int notifyEventOwners(
       @Param("spaceId") UUID spaceId,

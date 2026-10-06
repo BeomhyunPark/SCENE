@@ -42,7 +42,7 @@ public interface OwnerTransferMapper {
                'permission', permission,
                'effect', effect,
                'grantedBy', granted_by,
-               'grantedAt', granted_at))::text, '[]')
+               'grantedAt', granted_at) ORDER BY permission)::text, '[]')
       FROM event_user_permissions
       WHERE space_id = #{spaceId} AND event_id = #{eventId} AND user_id = #{userId}
       """)

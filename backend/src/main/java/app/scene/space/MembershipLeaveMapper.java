@@ -1,5 +1,6 @@
 package app.scene.space;
 
+import app.scene.common.sql.EffectiveOwnerSql;
 import java.util.List;
 import java.util.UUID;
 import org.apache.ibatis.annotations.Mapper;
@@ -16,15 +17,11 @@ public interface MembershipLeaveMapper {
              eu.role = 'OWNER' AS owner,
              (SELECT count(*) FROM event_users o
                WHERE o.event_id = eu.event_id AND o.role = 'OWNER' AND o.user_id <> eu.user_id
-                 -- Effective owner. Keep in sync with EventLifecycleMapper notices
-                 -- and TaskProgressMapper.ownerAuthorityEnded.
-                 AND NOT EXISTS (
-                   SELECT 1 FROM owner_transfers t
-                   WHERE t.space_id = o.space_id AND t.event_id = o.event_id
-                     AND t.from_user_id = o.user_id
-                     AND t.status IN ('HANDOVER', 'COMPLETED')
-                     AND t.handover_ends_at <= now()
-                 )) AS other_owners,
+                 AND NOT
+      """
+          + EffectiveOwnerSql.OWNER_AUTHORITY_ENDED
+          + """
+                 ) AS other_owners,
              EXISTS (
                SELECT 1 FROM owner_transfers t
                WHERE t.event_id = eu.event_id AND t.from_user_id = eu.user_id AND t.status = 'HANDOVER'
