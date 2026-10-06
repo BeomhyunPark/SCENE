@@ -166,7 +166,10 @@ public class TaskProgressService {
     }
     boolean assignee = actor.userId().equals(task.assigneeUserId());
     boolean taskWrite =
-        TaskWrite.effective(role, mapper.taskWriteEffect(spaceId, eventId, actor.userId()));
+        TaskWrite.effective(
+            role,
+            mapper.ownerAuthorityEnded(spaceId, eventId, actor.userId()),
+            mapper.taskWriteEffect(spaceId, eventId, actor.userId()));
     if (!assignee && !taskWrite) {
       throw new SceneException(ErrorCode.FORBIDDEN);
     }

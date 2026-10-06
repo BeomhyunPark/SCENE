@@ -28,6 +28,23 @@ public interface TaskProgressMapper {
   String taskWriteEffect(
       @Param("spaceId") UUID spaceId, @Param("eventId") UUID eventId, @Param("userId") UUID userId);
 
+  /**
+   * Same predicate as event-owner notices and the other-owner count: a HANDOVER or COMPLETED
+   * transfer for this sender whose end is at or before now.
+   */
+  @Select(
+      """
+      SELECT EXISTS (
+        SELECT 1 FROM owner_transfers t
+        WHERE t.space_id = #{spaceId} AND t.event_id = #{eventId}
+          AND t.from_user_id = #{userId}
+          AND t.status IN ('HANDOVER', 'COMPLETED')
+          AND t.handover_ends_at <= now()
+      )
+      """)
+  boolean ownerAuthorityEnded(
+      @Param("spaceId") UUID spaceId, @Param("eventId") UUID eventId, @Param("userId") UUID userId);
+
   @Select(
       """
       SELECT t.id, t.event_id, t.status, t.version, t.assignee_user_id,

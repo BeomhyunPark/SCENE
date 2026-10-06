@@ -2,7 +2,6 @@ package app.scene.space;
 
 import app.scene.common.error.ErrorCode;
 import app.scene.common.error.SceneException;
-import java.time.Clock;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -19,11 +18,9 @@ import org.springframework.transaction.annotation.Transactional;
 public class MembershipLeaveService {
 
   private final MembershipLeaveMapper mapper;
-  private final Clock clock;
 
-  public MembershipLeaveService(MembershipLeaveMapper mapper, Clock clock) {
+  public MembershipLeaveService(MembershipLeaveMapper mapper) {
     this.mapper = mapper;
-    this.clock = clock;
   }
 
   /** Same block order as {@link #leave}. A clear preview is not a guarantee on the later leave. */
@@ -67,7 +64,7 @@ public class MembershipLeaveService {
         mapper.deleteOperator(event.eventId(), userId);
       }
       if (event.handoverAccepted()) {
-        mapper.completeHandover(event.eventId(), userId, clock.instant());
+        mapper.completeHandover(event.eventId(), userId);
         mapper.deleteOperator(event.eventId(), userId);
       }
     }
