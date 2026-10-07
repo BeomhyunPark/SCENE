@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="app.scene.common.tenant.mapper.SpaceAccessQueryMapper">
+
+  <select id="findSpace" resultType="app.scene.common.tenant.SpaceAccessRow">
+    SELECT s.id AS space_id,
+           s.name AS space_name,
+           m.status AS membership_status
+    FROM members m
+    JOIN spaces s ON s.id = m.space_id
+    WHERE m.space_id = #{spaceId}
+      AND m.user_id = #{userId}
+  </select>
+
+</mapper>

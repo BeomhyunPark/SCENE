@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="app.scene.event.task.mapper.TaskChecklistItemQueryMapper">
+
+  <select id="findChecked" resultType="java.lang.Boolean">
+    SELECT checked
+    FROM task_checklist_items
+    WHERE id = #{itemId} AND task_id = #{taskId}
+      AND space_id = #{spaceId} AND event_id = #{eventId}
+  </select>
+
+  <select id="count" resultType="app.scene.event.task.ChecklistCounts">
+    SELECT (count(*) FILTER (WHERE checked))::int AS done, count(*)::int AS total
+    FROM task_checklist_items
+    WHERE task_id = #{taskId} AND space_id = #{spaceId} AND event_id = #{eventId}
+  </select>
+
+</mapper>

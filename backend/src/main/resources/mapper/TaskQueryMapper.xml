@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="app.scene.event.task.mapper.TaskQueryMapper">
+
+  <sql id="lockColumns">
+    t.id, t.event_id, t.status, t.version, t.assignee_user_id,
+    t.completed_by_user_id, t.completed_at, e.lifecycle_status
+  </sql>
+
+  <select id="findForUpdate" resultType="app.scene.event.task.TaskRow">
+    SELECT <include refid="lockColumns"/>
+    FROM tasks t
+    JOIN events e ON e.id = t.event_id AND e.space_id = t.space_id
+    WHERE t.id = #{taskId} AND t.space_id = #{spaceId} AND t.event_id = #{eventId}
+    FOR UPDATE OF t
+  </select>
+
+  <select id="countOpen" resultType="int">
+    SELECT count(*)
+    FROM tasks
+    WHERE event_id = #{eventId} AND space_id = #{spaceId}
+      AND status IN
+      <foreach collection="openStatuses" item="status" open="(" separator="," close=")">
+        #{status}
+      </foreach>
+  </select>
+
+</mapper>

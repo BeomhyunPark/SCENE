@@ -1,7 +1,9 @@
 package app.scene.event.lifecycle;
 
+import app.scene.common.audit.AuditLogRepository;
 import app.scene.common.error.ErrorCode;
 import app.scene.common.error.SceneException;
+import app.scene.event.task.TaskRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -17,12 +19,27 @@ public class EventLifecycleService {
 
   private static final int REASON_MAX = 500;
 
-  private final EventLifecycleMapper mapper;
+  private final EventRepository events;
+  private final TaskRepository tasks;
+  private final EventInvitationRepository invitations;
+  private final OperatorNoticeRepository notices;
+  private final AuditLogRepository auditLogs;
   private final JsonMapper json;
   private final Clock clock;
 
-  public EventLifecycleService(EventLifecycleMapper mapper, JsonMapper json, Clock clock) {
-    this.mapper = mapper;
+  public EventLifecycleService(
+      EventRepository events,
+      TaskRepository tasks,
+      EventInvitationRepository invitations,
+      OperatorNoticeRepository notices,
+      AuditLogRepository auditLogs,
+      JsonMapper json,
+      Clock clock) {
+    this.events = events;
+    this.tasks = tasks;
+    this.invitations = invitations;
+    this.notices = notices;
+    this.auditLogs = auditLogs;
     this.json = json;
     this.clock = clock;
   }
@@ -63,7 +80,7 @@ public class EventLifecycleService {
       UUID eventId,
       LifecycleRequest request,
       OperatorActor actor) {
-    EventRow row = lock(spaceId, eventId);
+    EventRow row = events.getForUpdate(spaceId, eventId);
     String actedAs = authorize(command, actor, request.overrideReason());
     rejectOversizedOverride(request.overrideReason());
     if (command == LifecycleCommand.REOPEN) {
@@ -81,7 +98,7 @@ public class EventLifecycleService {
           ErrorCode.INVALID_STATE_TRANSITION,
           Map.of("currentStatus", row.lifecycleStatus(), "command", command.name()));
     }
-    int openTasks = mapper.openTaskCount(spaceId, eventId);
+    int openTasks = tasks.countOpen(spaceId, eventId);
     Map<String, Object> warnings = warningCounts(openTasks);
     if (command.needsWarningAck()
         && openTasks > 0
@@ -90,13 +107,13 @@ public class EventLifecycleService {
     }
     Instant now = clock.instant();
     int updated =
-        mapper.transition(spaceId, eventId, request.expectedLifecycleVersion(), command.toStatus());
+        events.updateStatus(
+            spaceId, eventId, request.expectedLifecycleVersion(), command.toStatus());
     if (updated != 1) {
       throw concurrent(spaceId, eventId, row);
     }
     String reason = storedReason(command, actedAs, request);
-    mapper.insertTransition(
-        UUID.randomUUID(),
+    events.saveTransition(
         spaceId,
         eventId,
         command.name(),
@@ -108,13 +125,12 @@ public class EventLifecycleService {
         json.writeValueAsString(warnings),
         now);
     if (command == LifecycleCommand.ARCHIVE) {
-      mapper.revokePendingInvitations(spaceId, eventId, now);
+      invitations.updateRevoked(spaceId, eventId, now);
     }
     if ("SPACE_OWNER_OVERRIDE".equals(actedAs)) {
-      mapper.notifyEventOwners(spaceId, eventId, "LIFECYCLE_OVERRIDE", now);
+      notices.saveForOwners(spaceId, eventId, "LIFECYCLE_OVERRIDE", now);
     }
-    mapper.audit(
-        UUID.randomUUID(),
+    auditLogs.save(
         spaceId,
         eventId,
         actor.userId(),
@@ -123,14 +139,6 @@ public class EventLifecycleService {
         now);
     return new LifecycleResult(
         "TRANSITIONED", command.toStatus(), row.lifecycleVersion() + 1, actedAs);
-  }
-
-  private EventRow lock(UUID spaceId, UUID eventId) {
-    EventRow row = mapper.lock(spaceId, eventId);
-    if (row == null) {
-      throw new SceneException(ErrorCode.RESOURCE_NOT_FOUND);
-    }
-    return row;
   }
 
   private static String authorize(
@@ -190,7 +198,7 @@ public class EventLifecycleService {
     Map<String, Object> details = new LinkedHashMap<>();
     details.put("lifecycleVersion", row.lifecycleVersion());
     details.put("currentStatus", row.lifecycleStatus());
-    LifecycleTransitionView last = mapper.lastTransition(spaceId, eventId);
+    LifecycleTransitionView last = events.findLatestTransition(spaceId, eventId).orElse(null);
     if (last != null) {
       Map<String, Object> transition = new LinkedHashMap<>();
       transition.put("command", last.command());

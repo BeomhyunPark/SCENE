@@ -1,13 +1,17 @@
 package app.scene.event.task;
 
+import app.scene.common.audit.AuditLogRepository;
 import app.scene.common.error.ErrorCode;
 import app.scene.common.error.SceneException;
 import app.scene.common.permission.TaskWrite;
 import app.scene.event.lifecycle.OperatorActor;
+import app.scene.space.EventUserPermissionRepository;
+import app.scene.space.EventUserRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,12 +24,29 @@ import tools.jackson.databind.json.JsonMapper;
 @Service
 public class TaskProgressService {
 
-  private final TaskProgressMapper mapper;
+  private static final String TASK_WRITE = "TASK_WRITE";
+
+  private final TaskRepository tasks;
+  private final TaskChecklistItemRepository items;
+  private final EventUserRepository eventUsers;
+  private final EventUserPermissionRepository permissions;
+  private final AuditLogRepository auditLogs;
   private final JsonMapper json;
   private final Clock clock;
 
-  public TaskProgressService(TaskProgressMapper mapper, JsonMapper json, Clock clock) {
-    this.mapper = mapper;
+  public TaskProgressService(
+      TaskRepository tasks,
+      TaskChecklistItemRepository items,
+      EventUserRepository eventUsers,
+      EventUserPermissionRepository permissions,
+      AuditLogRepository auditLogs,
+      JsonMapper json,
+      Clock clock) {
+    this.tasks = tasks;
+    this.items = items;
+    this.eventUsers = eventUsers;
+    this.permissions = permissions;
+    this.auditLogs = auditLogs;
     this.json = json;
     this.clock = clock;
   }
@@ -33,16 +54,17 @@ public class TaskProgressService {
   @Transactional
   public TaskWriteResult setChecked(
       UUID spaceId, UUID eventId, UUID taskId, UUID itemId, boolean checked, OperatorActor actor) {
-    TaskRow task = lock(spaceId, eventId, taskId);
-    Boolean checkedNow = mapper.item(spaceId, eventId, taskId, itemId);
-    if (checkedNow == null) {
+    TaskRow task = tasks.getForUpdate(spaceId, eventId, taskId);
+    Optional<Boolean> stored = items.findChecked(spaceId, eventId, taskId, itemId);
+    if (stored.isEmpty()) {
       throw new SceneException(ErrorCode.RESOURCE_NOT_FOUND);
     }
+    boolean checkedNow = stored.get();
     authorize(spaceId, eventId, task, actor);
     if ("ARCHIVED".equals(task.lifecycleStatus())) {
       throw new SceneException(ErrorCode.EVENT_ARCHIVED);
     }
-    ChecklistCounts counts = mapper.counts(spaceId, eventId, taskId);
+    ChecklistCounts counts = items.count(spaceId, eventId, taskId);
     if (checkedNow == checked) {
       return result("NO_CHANGE", task.status(), task.version(), counts);
     }
@@ -55,11 +77,11 @@ public class TaskProgressService {
     Instant now = clock.instant();
     UUID checkedBy = checked ? actor.userId() : null;
     Instant checkedAt = checked ? now : null;
-    if (mapper.setChecked(spaceId, eventId, taskId, itemId, checked, checkedBy, checkedAt) != 1) {
+    if (items.updateChecked(spaceId, eventId, taskId, itemId, checked, checkedBy, checkedAt) != 1) {
       throw new IllegalStateException("checklist item disappeared after it was loaded");
     }
     String nextStatus = checked && "TODO".equals(task.status()) ? "DOING" : task.status();
-    if (mapper.bump(spaceId, eventId, taskId, nextStatus) != 1) {
+    if (tasks.updateStatus(spaceId, eventId, taskId, nextStatus) != 1) {
       throw new IllegalStateException("task disappeared after it was locked");
     }
     int nextVersion = task.version() + 1;
@@ -78,18 +100,18 @@ public class TaskProgressService {
             nextStatus,
             nextVersion),
         now);
-    return result("UPDATED", nextStatus, nextVersion, mapper.counts(spaceId, eventId, taskId));
+    return result("UPDATED", nextStatus, nextVersion, items.count(spaceId, eventId, taskId));
   }
 
   @Transactional
   public TaskWriteResult complete(
       UUID spaceId, UUID eventId, UUID taskId, int version, OperatorActor actor) {
-    TaskRow task = lock(spaceId, eventId, taskId);
+    TaskRow task = tasks.getForUpdate(spaceId, eventId, taskId);
     authorize(spaceId, eventId, task, actor);
     if ("ARCHIVED".equals(task.lifecycleStatus())) {
       throw new SceneException(ErrorCode.EVENT_ARCHIVED);
     }
-    ChecklistCounts counts = mapper.counts(spaceId, eventId, taskId);
+    ChecklistCounts counts = items.count(spaceId, eventId, taskId);
     if ("DONE".equals(task.status())) {
       return result("ALREADY_DONE", task.status(), task.version(), counts);
     }
@@ -103,7 +125,7 @@ public class TaskProgressService {
       throw invalid("CHECKLIST_INCOMPLETE");
     }
     Instant now = clock.instant();
-    if (mapper.complete(spaceId, eventId, taskId, version, actor.userId(), now) != 1) {
+    if (tasks.updateCompleted(spaceId, eventId, taskId, version, actor.userId(), now) != 1) {
       throw new IllegalStateException("task complete did not update the locked row");
     }
     int nextVersion = task.version() + 1;
@@ -120,12 +142,12 @@ public class TaskProgressService {
   @Transactional
   public TaskWriteResult reopen(
       UUID spaceId, UUID eventId, UUID taskId, int version, OperatorActor actor) {
-    TaskRow task = lock(spaceId, eventId, taskId);
+    TaskRow task = tasks.getForUpdate(spaceId, eventId, taskId);
     authorize(spaceId, eventId, task, actor);
     if ("ARCHIVED".equals(task.lifecycleStatus())) {
       throw new SceneException(ErrorCode.EVENT_ARCHIVED);
     }
-    ChecklistCounts counts = mapper.counts(spaceId, eventId, taskId);
+    ChecklistCounts counts = items.count(spaceId, eventId, taskId);
     if ("TODO".equals(task.status()) || "DOING".equals(task.status())) {
       return result("ALREADY_OPEN", task.status(), task.version(), counts);
     }
@@ -135,7 +157,7 @@ public class TaskProgressService {
     if ("CANCELLED".equals(task.status())) {
       throw invalid("TASK_CANCELLED");
     }
-    if (mapper.reopen(spaceId, eventId, taskId, version) != 1) {
+    if (tasks.updateReopened(spaceId, eventId, taskId, version) != 1) {
       throw new IllegalStateException("task reopen did not update the locked row");
     }
     Instant now = clock.instant();
@@ -150,26 +172,18 @@ public class TaskProgressService {
     return result("REOPENED", "DOING", nextVersion, counts);
   }
 
-  private TaskRow lock(UUID spaceId, UUID eventId, UUID taskId) {
-    TaskRow task = mapper.lock(spaceId, eventId, taskId);
-    if (task == null) {
-      throw new SceneException(ErrorCode.RESOURCE_NOT_FOUND);
-    }
-    return task;
-  }
-
   /** Reads role and TASK_WRITE in this transaction. The actor's role is not trusted. */
   private void authorize(UUID spaceId, UUID eventId, TaskRow task, OperatorActor actor) {
-    String role = mapper.eventRole(spaceId, eventId, actor.userId());
-    if (role == null) {
+    Optional<String> role = eventUsers.findRole(spaceId, eventId, actor.userId());
+    if (role.isEmpty()) {
       throw new SceneException(ErrorCode.FORBIDDEN);
     }
     boolean assignee = actor.userId().equals(task.assigneeUserId());
     boolean taskWrite =
         TaskWrite.effective(
-            role,
-            mapper.ownerAuthorityEnded(spaceId, eventId, actor.userId()),
-            mapper.taskWriteEffect(spaceId, eventId, actor.userId()));
+            role.get(),
+            eventUsers.existsAuthorityEnded(spaceId, eventId, actor.userId()),
+            permissions.findEffect(spaceId, eventId, actor.userId(), TASK_WRITE).orElse(null));
     if (!assignee && !taskWrite) {
       throw new SceneException(ErrorCode.FORBIDDEN);
     }
@@ -191,8 +205,7 @@ public class TaskProgressService {
       String action,
       Map<String, Object> detail,
       Instant occurredAt) {
-    mapper.audit(
-        UUID.randomUUID(), spaceId, eventId, actorUserId, action, writeJson(detail), occurredAt);
+    auditLogs.save(spaceId, eventId, actorUserId, action, writeJson(detail), occurredAt);
   }
 
   private Map<String, Object> itemDetail(

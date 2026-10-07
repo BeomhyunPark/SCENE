@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="app.scene.common.audit.AuditLogMapper">
+
+  <sql id="columns">
+    id, space_id, event_id, actor_user_id, action, detail, occurred_at
+  </sql>
+
+  <insert id="save">
+    INSERT INTO audit_logs (<include refid="columns"/>)
+    VALUES (
+      #{id}, #{spaceId}, #{eventId}, #{actorUserId}, #{action},
+      CAST(#{detail} AS jsonb), #{occurredAt})
+  </insert>
+
+</mapper>

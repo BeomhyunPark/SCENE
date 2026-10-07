@@ -1,5 +1,6 @@
 package app.scene.space;
 
+import app.scene.common.audit.AuditLogRepository;
 import app.scene.common.error.ErrorCode;
 import app.scene.common.error.SceneException;
 import java.time.Clock;
@@ -29,12 +30,30 @@ public class MembershipLeaveService {
   static final String TASK_ASSIGNEE_CLEARED = "TASK_ASSIGNEE_CLEARED";
   static final String EVENT_ACCESS_REVOKED = "EVENT_ACCESS_REVOKED";
 
-  private final MembershipLeaveMapper mapper;
+  private final MemberRepository members;
+  private final EventUserRepository eventUsers;
+  private final MembershipTransferRepository transfers;
+  private final TaskAssigneeRepository assignees;
+  private final EventUserPermissionRepository permissions;
+  private final AuditLogRepository auditLogs;
   private final JsonMapper json;
   private final Clock clock;
 
-  public MembershipLeaveService(MembershipLeaveMapper mapper, JsonMapper json, Clock clock) {
-    this.mapper = mapper;
+  public MembershipLeaveService(
+      MemberRepository members,
+      EventUserRepository eventUsers,
+      MembershipTransferRepository transfers,
+      TaskAssigneeRepository assignees,
+      EventUserPermissionRepository permissions,
+      AuditLogRepository auditLogs,
+      JsonMapper json,
+      Clock clock) {
+    this.members = members;
+    this.eventUsers = eventUsers;
+    this.transfers = transfers;
+    this.assignees = assignees;
+    this.permissions = permissions;
+    this.auditLogs = auditLogs;
     this.json = json;
     this.clock = clock;
   }
@@ -42,18 +61,18 @@ public class MembershipLeaveService {
   /** Same block order as {@link #leave}. A clear preview is not a guarantee on the later leave. */
   @Transactional(readOnly = true)
   public ErrorCode leavePreview(UUID spaceId, UUID userId) {
-    if (mapper.activeMember(spaceId, userId) == 0) {
+    if (members.countActive(spaceId, userId) == 0) {
       throw new SceneException(ErrorCode.NOT_A_MEMBER);
     }
-    return firstBlock(spaceId, userId, mapper.operatedEvents(spaceId, userId));
+    return firstBlock(spaceId, userId, eventUsers.findOperated(spaceId, userId));
   }
 
   @Transactional
   public void leave(UUID spaceId, UUID userId, List<UUID> keepEventIds) {
-    if (mapper.activeMember(spaceId, userId) == 0) {
+    if (members.countActive(spaceId, userId) == 0) {
       throw new SceneException(ErrorCode.NOT_A_MEMBER);
     }
-    List<OperatedEvent> events = mapper.operatedEvents(spaceId, userId);
+    List<OperatedEvent> events = eventUsers.findOperated(spaceId, userId);
     ErrorCode block = firstBlock(spaceId, userId, events);
     if (block != null) {
       throw new SceneException(block);
@@ -81,11 +100,11 @@ public class MembershipLeaveService {
       }
       revokeEventAccess(spaceId, event.eventId(), userId, LEAVE_REASON);
       if (event.handoverAccepted()
-          && mapper.completeHandover(spaceId, event.eventId(), userId) != 1) {
+          && transfers.updateCompleted(spaceId, event.eventId(), userId) != 1) {
         throw new IllegalStateException("accepted handover was not completed");
       }
     }
-    if (mapper.leaveMembership(spaceId, userId) != 1) {
+    if (members.updateLeft(spaceId, userId) != 1) {
       throw new SceneException(ErrorCode.RESOURCE_NOT_FOUND);
     }
   }
@@ -97,11 +116,11 @@ public class MembershipLeaveService {
    * added). Kept events must not call this.
    */
   void revokeEventAccess(UUID spaceId, UUID eventId, UUID userId, String reason) {
-    if (mapper.lockOperator(spaceId, eventId, userId) == null) {
+    if (eventUsers.findForUpdate(spaceId, eventId, userId).isEmpty()) {
       throw new IllegalStateException("event operator row was not locked");
     }
-    List<AssignedTask> tasks = mapper.assignedTasks(spaceId, eventId, userId);
-    if (mapper.clearAssignees(spaceId, eventId, userId) != tasks.size()) {
+    List<AssignedTask> tasks = assignees.findForUpdate(spaceId, eventId, userId);
+    if (assignees.updateCleared(spaceId, eventId, userId) != tasks.size()) {
       throw new IllegalStateException("assigned tasks were not cleared");
     }
     Instant occurredAt = clock.instant();
@@ -113,8 +132,8 @@ public class MembershipLeaveService {
       detail.put("version", task.version() + 1);
       audit(spaceId, eventId, userId, TASK_ASSIGNEE_CLEARED, detail, occurredAt);
     }
-    String snapshot = mapper.permissionSnapshot(spaceId, eventId, userId);
-    if (mapper.deleteOperator(spaceId, eventId, userId) != 1) {
+    String snapshot = permissions.findSnapshot(spaceId, eventId, userId);
+    if (eventUsers.delete(spaceId, eventId, userId) != 1) {
       throw new IllegalStateException("event operator row was not deleted");
     }
     Map<String, Object> detail = new LinkedHashMap<>();
@@ -130,22 +149,16 @@ public class MembershipLeaveService {
       String action,
       Map<String, Object> detail,
       Instant occurredAt) {
-    mapper.audit(
-        UUID.randomUUID(),
-        spaceId,
-        eventId,
-        actorUserId,
-        action,
-        json.writeValueAsString(detail),
-        occurredAt);
+    auditLogs.save(
+        spaceId, eventId, actorUserId, action, json.writeValueAsString(detail), occurredAt);
   }
 
   private ErrorCode firstBlock(UUID spaceId, UUID userId, List<OperatedEvent> events) {
-    if (mapper.pendingHandoverFrom(spaceId, userId) > 0) {
+    if (transfers.countPendingFrom(spaceId, userId) > 0) {
       return ErrorCode.HANDOVER_NOT_ACCEPTED;
     }
     boolean onlySpaceOwner =
-        mapper.otherSpaceOwners(spaceId, userId) == 0 && mapper.isSpaceOwner(spaceId, userId) > 0;
+        members.countOtherOwners(spaceId, userId) == 0 && members.countOwners(spaceId, userId) > 0;
     for (OperatedEvent event : events) {
       if (event.owner() && !event.handoverAccepted() && event.otherOwners() == 0) {
         return ErrorCode.LAST_OWNER;

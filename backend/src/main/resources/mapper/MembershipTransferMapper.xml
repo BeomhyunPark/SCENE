@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="app.scene.space.mapper.MembershipTransferMapper">
+
+  <select id="countPendingFrom" resultType="int">
+    SELECT count(*)
+    FROM owner_transfers
+    WHERE space_id = #{spaceId} AND from_user_id = #{userId} AND status = #{pendingStatus}
+  </select>
+
+  <update id="updateCompleted">
+    UPDATE owner_transfers
+    SET status = #{completedStatus}
+    WHERE space_id = #{spaceId} AND event_id = #{eventId}
+      AND from_user_id = #{userId} AND status = #{handoverStatus}
+  </update>
+
+</mapper>

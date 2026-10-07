@@ -4,7 +4,6 @@ import app.scene.common.error.ErrorCode;
 import app.scene.common.error.SceneException;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  * #30 access order (issue comment 5946067458, section 2). Stop at the first match. Authentication
@@ -26,15 +25,14 @@ public class OperatorAccess {
 
   private static final String ACTIVE = "ACTIVE";
 
-  private final OperatorAccessMapper mapper;
+  private final OperatorAccessRepository access;
 
-  public OperatorAccess(OperatorAccessMapper mapper) {
-    this.mapper = mapper;
+  public OperatorAccess(OperatorAccessRepository access) {
+    this.access = access;
   }
 
-  @Transactional(readOnly = true)
   public OperatorEventView readEvent(UUID userId, UUID spaceId, UUID eventId) {
-    EventAccessRow row = mapper.findEvent(spaceId, eventId, userId);
+    EventAccessRow row = access.findEvent(spaceId, eventId, userId).orElse(null);
     if (row == null || (!row.eventOperator() && !row.accessRevoked())) {
       throw new SceneException(ErrorCode.RESOURCE_NOT_FOUND);
     }
@@ -51,9 +49,8 @@ public class OperatorAccess {
    * Space path after leave (issue comment 5945116073). A kept event does not keep this call. An
    * active member may read the space; who may do more is P0-11.
    */
-  @Transactional(readOnly = true)
   public OperatorSpaceView readSpace(UUID userId, UUID spaceId) {
-    SpaceAccessRow row = mapper.findSpace(spaceId, userId);
+    SpaceAccessRow row = access.findSpace(spaceId, userId).orElse(null);
     if (row == null) {
       throw new SceneException(ErrorCode.RESOURCE_NOT_FOUND);
     }

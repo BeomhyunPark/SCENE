@@ -1,2 +1,2 @@
-/** MyBatis infrastructure such as type handlers. */
+/** MyBatis infrastructure: type handlers and shared SQL fragments. */
 package app.scene.common.mybatis;
