@@ -2,7 +2,7 @@
 
 지금 서버가 받는 HTTP 계약이다. 설계 초안은 저장소 루트의 [API Architecture](../../docs/architecture/api-architecture-v0.1.md)에 있고, 파일을 찾는 순서는 [소스 안내](source-guide.md)에 있다. 이 문서와 코드가 다르면 코드를 따른다.
 
-관련 이슈: [#89](https://github.com/BeomhyunPark/SCENE/issues/89), [#93](https://github.com/BeomhyunPark/SCENE/issues/93).
+관련 이슈: [#89](https://github.com/BeomhyunPark/SCENE/issues/89), [#93](https://github.com/BeomhyunPark/SCENE/issues/93), [#97](https://github.com/BeomhyunPark/SCENE/issues/97).
 
 참가자 API와 공개 API는 아직 없다. `/api/v1/participant/**`와 `/api/v1/public/**`는 필터 체인만 있고 제품 컨트롤러가 없다. 아래 경로는 모두 `/api/v1/operator`다.
 
@@ -368,7 +368,7 @@ curl -sS \
 { "role": "MANAGER" }
 ```
 
-`role`은 `MANAGER` 또는 `STAFF`만이다. 이 경로로 `OWNER`를 부여하지 않는다. 역할이 바뀌면 그 사람의 개별 권한 행은 지워진다. 보관된 행사는 `409 EVENT_ARCHIVED`다. `200`은 한 명 조회와 같다.
+`role`은 `MANAGER` 또는 `STAFF`만이다. 이 경로로 `OWNER`를 부여하지 않는다. 요청한 역할이 지금과 같아도 그 사람의 개별 권한 행은 지워지고 역할은 다시 써진다. 보관된 행사는 `409 EVENT_ARCHIVED`다. `200`은 한 명 조회와 같다.
 
 ### `DELETE /api/v1/operator/events/{eventId}/operators/{userId}`
 
@@ -545,6 +545,33 @@ curl -sS \
 `version`은 필수다. `reason`은 생략할 수 있고, 있으면 500자 이하다. `DONE`을 연다. 체크 항목의 체크 값은 지우지 않는다.
 
 `200`의 `outcome`은 `REOPENED` 또는 `ALREADY_OPEN`이다. `TODO`나 `DOING`이면 `ALREADY_OPEN`이다. 다시 열리면 상태는 `DOING`, `version`은 1 증가, 완료자와 완료 시각은 비운다. `CANCELLED`는 `409 INVALID_TASK_STATE`이고 `reason`은 `TASK_CANCELLED`다. 버전 불일치는 `409 TASK_VERSION_CONFLICT`다.
+
+## 응답에 안 나오는 기록
+
+일부 성공은 응답 밖에 행을 남긴다. 그 행을 읽는 URL은 없다.
+
+### `audit_logs`
+
+값이 실제로 바뀔 때만 남긴다. 저장하지 않은 같은 값, `NO_CHANGE`, `ALREADY_IN_STATE`, `ALREADY_DONE`, `ALREADY_OPEN`, `ALREADY_ACCEPTED`는 남기지 않는다. 권한 override가 요청과 같으면 남기지 않는다. 운영자 역할 변경은 역할이 같아도 override를 지우고 한 줄 남긴다.
+
+| `action` | 언제 |
+| --- | --- |
+| `EVENT_ACTIVATE`, `EVENT_END`, `EVENT_REOPEN`, `EVENT_ARCHIVE`, `EVENT_UNARCHIVE` | 행사 상태가 실제로 옮겨질 때 |
+| `EVENT_USER_ROLE_CHANGED` | 운영자 역할을 다시 쓸 때 |
+| `EVENT_USER_PERMISSIONS_REPLACED` | 권한 override 내용이 바뀔 때 |
+| `EVENT_ACCESS_REVOKED` | 운영자 제거로 행사 접근이 끊길 때 |
+| `TASK_ASSIGNEE_CLEARED` | 그 제거가 업무 담당을 비울 때. `DONE`과 `CANCELLED`를 포함해 담당인 업무마다 한 줄 |
+| `TASK_ITEM_CHECKED`, `TASK_ITEM_UNCHECKED` | 체크 값이 바뀔 때 |
+| `TASK_COMPLETED` | 업무가 `DONE`이 될 때 |
+| `TASK_REOPENED` | `DONE` 업무가 다시 열릴 때 |
+
+이름 상수는 `common/audit/AuditActions`에 있다. 업무 진행의 네 이름은 그 클래스 밖에 있고, `TaskProgressService`가 문자열로 넣는다.
+
+남기지 않는 명령: 로그인과 로그아웃, 초대 생성·재발송·취소·미리보기·수락, 업무 생성·수정·삭제. 업무 수정으로 `CANCELLED`가 되거나 담당이 바뀌어도 감사 로그는 없다. 담당이 비워지며 로그가 남는 경우는 운영자 제거뿐이다.
+
+### `operator_notices`
+
+공간 소유자가 활성화, 종료, 다시 열기를 대신해서 `actedAs`가 `SPACE_OWNER_OVERRIDE`일 때만 행이 생긴다. `kind`는 `LIFECYCLE_OVERRIDE`다. 받는 사람은 그 행사의 `OWNER` 중 인수인계로 권한이 끝나지 않은 사람이다. 보관과 보관 해제는 공간 소유자의 자신의 권한이라 이 행을 만들지 않는다. 읽는 URL은 없다.
 
 ## 아직 없는 경로
 
