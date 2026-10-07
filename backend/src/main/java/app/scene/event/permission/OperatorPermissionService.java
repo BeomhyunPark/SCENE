@@ -157,6 +157,16 @@ public class OperatorPermissionService {
     remove(actorId, location.spaceId(), eventId, targetUserId);
   }
 
+  /**
+   * Event OWNER gate for operator management, including DEC-060 invitations. Stops at not found,
+   * {@code NOT_A_MEMBER}, then {@code FORBIDDEN}.
+   */
+  public void requireEventOwner(UUID actorId, UUID spaceId, UUID eventId) {
+    if (!mayChange(open(actorId, spaceId, eventId))) {
+      throw new SceneException(ErrorCode.FORBIDDEN);
+    }
+  }
+
   @Transactional(readOnly = true)
   public OperatorPermissionBody readOperatorPermissions(
       UUID actorId, UUID eventId, UUID targetUserId) {
