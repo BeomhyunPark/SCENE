@@ -35,6 +35,11 @@ public class EventRepository {
     return Optional.ofNullable(events.find(EventKey.of(spaceId, eventId)));
   }
 
+  /** Resolves {@code spaceId} from {@code eventId}. Missing events are empty, not a cross-check. */
+  public Optional<EventLocation> findLocation(UUID eventId) {
+    return Optional.ofNullable(events.findLocation(eventId));
+  }
+
   public Optional<EventRow> findForUpdate(UUID spaceId, UUID eventId) {
     return Optional.ofNullable(events.findForUpdate(EventKey.of(spaceId, eventId)));
   }

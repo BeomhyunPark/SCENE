@@ -47,6 +47,27 @@
     WHERE eu.space_id = #{spaceId} AND eu.user_id = #{userId}
   </select>
 
+  <select id="findOperator" resultType="app.scene.space.ListedEventOperator">
+    SELECT eu.user_id, u.display_name, eu.role
+    FROM event_users eu
+    JOIN users u ON u.id = eu.user_id
+    WHERE eu.space_id = #{spaceId} AND eu.event_id = #{eventId} AND eu.user_id = #{userId}
+  </select>
+
+  <select id="countOperators" resultType="long">
+    SELECT count(*)
+    FROM event_users
+    WHERE space_id = #{spaceId} AND event_id = #{eventId}
+  </select>
+
+  <select id="findOperators" resultType="app.scene.space.ListedEventOperator">
+    SELECT eu.user_id, u.display_name, eu.role
+    FROM event_users eu
+    JOIN users u ON u.id = eu.user_id
+    WHERE eu.space_id = #{spaceId} AND eu.event_id = #{eventId}
+    <include refid="app.scene.common.mybatis.CommonMapper.orderByAndPage"/>
+  </select>
+
   <select id="existsAuthorityEnded" resultType="boolean">
     SELECT EXISTS (
       SELECT 1 FROM event_users o
