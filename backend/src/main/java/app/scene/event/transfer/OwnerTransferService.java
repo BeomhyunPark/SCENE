@@ -12,12 +12,18 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.json.JsonMapper;
 
-/** Accepts an event-owner handover. A repeated accept keeps the original end time (DEC-063). */
+/**
+ * Accepts an event-owner handover and stores a due handover as COMPLETED. A repeated accept keeps
+ * the original end time (DEC-063). Completion does not rename the sender's role: permission row 36
+ * leaves that role unnamed, and the 10/6 decision keeps the {@code event_users} row until that name
+ * exists. No completion route and no scheduler.
+ */
 @Service
 public class OwnerTransferService {
 
@@ -92,6 +98,25 @@ public class OwnerTransferService {
         auditDetail(transferId, row.toUserId(), prior, snapshot),
         acceptedAt);
     return new TransferAcceptResult(ACCEPTED, endsAt);
+  }
+
+  /**
+   * Stores COMPLETED for each event HANDOVER whose {@code handoverEndsAt} is at or before {@code
+   * now}, and deletes that sender's overrides on that event. The sender's {@code event_users} row
+   * and role stay. A later row, and PENDING, DECLINED, or CANCELLED, stay as stored. A second call
+   * finds nothing left to complete and writes no audit. Leave does not call this.
+   */
+  @Transactional
+  public void completeDue(Instant now) {
+    Objects.requireNonNull(now, "now");
+    for (DueTransfer row : transfers.findDueForUpdate(now)) {
+      if (transfers.updateCompleted(row.spaceId(), row.id()) != 1) {
+        continue;
+      }
+      // Hold the sender row. The role is unnamed, so this does not update it.
+      eventUsers.findRoleForUpdate(row.spaceId(), row.eventId(), row.fromUserId());
+      permissions.delete(row.spaceId(), row.eventId(), row.fromUserId());
+    }
   }
 
   private String auditDetail(UUID transferId, UUID toUserId, String priorRole, String snapshot) {

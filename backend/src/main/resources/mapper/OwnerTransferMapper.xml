@@ -10,12 +10,27 @@
     FOR UPDATE
   </select>
 
+  <select id="findDueForUpdate" resultType="app.scene.event.transfer.DueTransfer">
+    SELECT id, space_id, event_id, from_user_id, to_user_id, handover_ends_at
+    FROM owner_transfers
+    WHERE status = #{handoverStatus}
+      AND event_id IS NOT NULL
+      AND handover_ends_at &lt;= #{now}
+    FOR UPDATE
+  </select>
+
   <update id="updateAccepted">
     UPDATE owner_transfers
     SET status = #{handoverStatus}, recipient_prior_role = #{priorRole},
         accepted_at = #{acceptedAt}, handover_ends_at = #{endsAt},
         permission_snapshot = CAST(#{snapshot} AS jsonb)
     WHERE id = #{id} AND space_id = #{spaceId} AND status = #{pendingStatus}
+  </update>
+
+  <update id="updateCompleted">
+    UPDATE owner_transfers
+    SET status = #{completedStatus}
+    WHERE id = #{id} AND space_id = #{spaceId} AND status = #{handoverStatus}
   </update>
 
 </mapper>
