@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="app.scene.common.mybatis.CommonMapper">
+
+  <!-- Outer row alias is o. handover_ends_at is compared to the database clock. -->
+  <sql id="ownerAuthorityEnded">
+    EXISTS (
+      SELECT 1 FROM owner_transfers t
+      WHERE t.space_id = o.space_id AND t.event_id = o.event_id
+        AND t.from_user_id = o.user_id
+        AND t.status IN
+        <foreach collection="authorityStatuses" item="status" open="(" separator="," close=")">
+          #{status}
+        </foreach>
+        AND t.handover_ends_at &lt;= now()
+        AND NOT EXISTS (
+          SELECT 1 FROM owner_transfers r
+          WHERE r.space_id = t.space_id AND r.event_id = t.event_id
+            AND r.to_user_id = t.from_user_id
+            AND r.status IN
+            <foreach collection="authorityStatuses" item="status" open="(" separator="," close=")">
+              #{status}
+            </foreach>
+            AND r.accepted_at &gt; t.accepted_at))
+  </sql>
+
+  <!-- PostgreSQL limit. Page is absent for a batch read, present for a screen read. -->
+  <sql id="orderByAndPage">
+    <if test="page != null">
+      <if test="page.orderByClause != null and page.orderByClause != ''">
+        ORDER BY ${page.orderByClause}
+      </if>
+      LIMIT #{page.size} OFFSET #{page.offset}
+    </if>
+  </sql>
+
+</mapper>

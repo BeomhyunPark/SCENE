@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="app.scene.event.lifecycle.mapper.OperatorNoticeMapper">
+
+  <insert id="saveForOwners">
+    INSERT INTO operator_notices (id, space_id, event_id, recipient_user_id, kind, created_at)
+    SELECT gen_random_uuid(), #{spaceId}, #{eventId}, o.user_id, #{kind}, #{now}
+    FROM event_users o
+    WHERE o.event_id = #{eventId} AND o.space_id = #{spaceId} AND o.role = #{ownerRole}
+      AND NOT
+      <include refid="app.scene.common.mybatis.CommonMapper.ownerAuthorityEnded"/>
+  </insert>
+
+</mapper>

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="app.scene.common.tenant.mapper.EventAccessQueryMapper">
+
+  <select id="findEvent" resultType="app.scene.common.tenant.EventAccessRow">
+    SELECT e.id AS event_id,
+           e.name AS event_name,
+           EXISTS (
+             SELECT 1 FROM event_users eu
+             WHERE eu.space_id = e.space_id
+               AND eu.event_id = e.id
+               AND eu.user_id = #{userId}
+           ) AS event_operator,
+           EXISTS (
+             SELECT 1 FROM audit_logs a
+             WHERE a.space_id = e.space_id
+               AND a.event_id = e.id
+               AND a.actor_user_id = #{userId}
+               AND a.action = #{revokedAction}
+           ) AS access_revoked
+    FROM events e
+    WHERE e.space_id = #{spaceId}
+      AND e.id = #{eventId}
+  </select>
+
+</mapper>

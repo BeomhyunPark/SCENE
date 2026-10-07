@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="app.scene.event.task.mapper.TaskMapper">
+
+  <update id="updateStatus">
+    UPDATE tasks
+    SET status = #{status}, version = version + 1
+    WHERE id = #{taskId} AND space_id = #{spaceId} AND event_id = #{eventId}
+  </update>
+
+  <update id="updateCompleted">
+    UPDATE tasks
+    SET status = #{doneStatus}, version = version + 1,
+        completed_by_user_id = #{completedByUserId}, completed_at = #{completedAt}
+    WHERE id = #{taskId} AND space_id = #{spaceId} AND event_id = #{eventId}
+      AND version = #{version}
+      AND status IN
+      <foreach collection="openStatuses" item="status" open="(" separator="," close=")">
+        #{status}
+      </foreach>
+  </update>
+
+  <update id="updateReopened">
+    UPDATE tasks
+    SET status = #{doingStatus}, version = version + 1,
+        completed_by_user_id = NULL, completed_at = NULL
+    WHERE id = #{taskId} AND space_id = #{spaceId} AND event_id = #{eventId}
+      AND version = #{version} AND status = #{doneStatus}
+  </update>
+
+</mapper>

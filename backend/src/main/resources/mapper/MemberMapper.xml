@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="app.scene.space.mapper.MemberMapper">
+
+  <select id="count" resultType="int">
+    SELECT count(*)
+    FROM members
+    <where>
+      space_id = #{spaceId}
+      AND status = #{activeStatus}
+      <if test="!excludeUser">
+        AND user_id = #{userId}
+      </if>
+      <if test="excludeUser">
+        AND user_id &lt;&gt; #{userId}
+      </if>
+      <if test="role != null">
+        AND role = #{role}
+      </if>
+    </where>
+  </select>
+
+  <update id="updateLeft">
+    UPDATE members
+    SET status = #{leftStatus}
+    WHERE space_id = #{spaceId} AND user_id = #{userId} AND status = #{activeStatus}
+  </update>
+
+</mapper>

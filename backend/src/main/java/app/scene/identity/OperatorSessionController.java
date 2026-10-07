@@ -22,11 +22,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class OperatorSessionController {
 
-  private final OperatorAccountMapper accounts;
+  private final OperatorAccountRepository accounts;
   private final SecurityContextRepository securityContexts =
       new HttpSessionSecurityContextRepository();
 
-  public OperatorSessionController(OperatorAccountMapper accounts) {
+  public OperatorSessionController(OperatorAccountRepository accounts) {
     this.accounts = accounts;
   }
 
@@ -35,10 +35,10 @@ public class OperatorSessionController {
       @Valid @RequestBody OperatorLoginRequest body,
       HttpServletRequest request,
       HttpServletResponse response) {
-    OperatorAccount account = accounts.findById(body.userId());
-    if (account == null) {
-      throw new SceneException(ErrorCode.AUTHENTICATION_REQUIRED);
-    }
+    OperatorAccount account =
+        accounts
+            .findById(body.userId())
+            .orElseThrow(() -> new SceneException(ErrorCode.AUTHENTICATION_REQUIRED));
     OperatorPrincipal principal = new OperatorPrincipal(account.id(), account.displayName());
     Authentication authentication =
         UsernamePasswordAuthenticationToken.authenticated(

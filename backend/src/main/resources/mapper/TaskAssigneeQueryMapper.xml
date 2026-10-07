@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="app.scene.space.mapper.TaskAssigneeQueryMapper">
+
+  <select id="findForUpdate" resultType="app.scene.space.AssignedTask">
+    SELECT id, version
+    FROM tasks
+    WHERE space_id = #{spaceId} AND event_id = #{eventId} AND assignee_user_id = #{userId}
+    ORDER BY id
+    FOR UPDATE
+  </select>
+
+</mapper>

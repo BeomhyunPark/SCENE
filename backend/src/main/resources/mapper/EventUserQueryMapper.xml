@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="app.scene.space.mapper.EventUserQueryMapper">
+
+  <select id="findRole" resultType="string">
+    SELECT role
+    FROM event_users
+    WHERE space_id = #{spaceId} AND event_id = #{eventId} AND user_id = #{userId}
+  </select>
+
+  <select id="findRoleForUpdate" resultType="string">
+    SELECT role
+    FROM event_users
+    WHERE space_id = #{spaceId} AND event_id = #{eventId} AND user_id = #{userId}
+    FOR UPDATE
+  </select>
+
+  <select id="findForUpdate" resultType="java.util.UUID">
+    SELECT user_id
+    FROM event_users
+    WHERE space_id = #{spaceId} AND event_id = #{eventId} AND user_id = #{userId}
+    FOR UPDATE
+  </select>
+
+  <select id="findOperated" resultType="app.scene.space.OperatedEvent">
+    SELECT eu.event_id,
+           eu.role = #{ownerRole} AS owner,
+           (SELECT count(*) FROM event_users o
+             WHERE o.event_id = eu.event_id AND o.role = #{ownerRole} AND o.user_id &lt;&gt; eu.user_id
+               AND NOT
+               <include refid="app.scene.common.mybatis.CommonMapper.ownerAuthorityEnded"/>
+           ) AS other_owners,
+           EXISTS (
+             SELECT 1 FROM owner_transfers t
+             WHERE t.event_id = eu.event_id AND t.from_user_id = eu.user_id
+               AND t.status = #{handoverStatus}
+           ) AS handover_accepted,
+           (SELECT count(*) FROM tasks tk
+             WHERE tk.event_id = eu.event_id AND tk.assignee_user_id = eu.user_id
+               AND tk.status IN
+               <foreach collection="openStatuses" item="status" open="(" separator="," close=")">
+                 #{status}
+               </foreach>
+           ) AS open_tasks
+    FROM event_users eu
+    WHERE eu.space_id = #{spaceId} AND eu.user_id = #{userId}
+  </select>
+
+  <select id="existsAuthorityEnded" resultType="boolean">
+    SELECT EXISTS (
+      SELECT 1 FROM event_users o
+      WHERE o.space_id = #{spaceId} AND o.event_id = #{eventId} AND o.user_id = #{userId}
+        AND
+        <include refid="app.scene.common.mybatis.CommonMapper.ownerAuthorityEnded"/>
+    )
+  </select>
+
+</mapper>
