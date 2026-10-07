@@ -1,8 +1,8 @@
 # SCENE 프로젝트 문서
 
-현재 단계: **Technical Design / implementation 전**. 교회 Event의 준비·참가·현장 운영을 지원하며, 상시 교적·목양·출석관리 중심의 Church Management System(CMS)을 목표로 하지 않는다.
+이 디렉터리는 제품·설계 결정의 baseline이다. 교회 Event의 준비·참가·현장 운영을 지원하며, 상시 교적·목양·출석관리 중심의 Church Management System(CMS)을 목표로 하지 않는다.
 
-현재 저장소는 문서 baseline만 포함한다. 구현 코드·프로젝트 scaffold·DB migration 없음.
+실행되는 서버는 [backend/](../backend/)다. 소스 위치는 [백엔드 소스 안내](../backend/docs/source-guide.md), 지금 받는 HTTP는 [Operator API](../backend/docs/api.md)를 본다. 아래 설계 문서에 남은 "implementation 전"은 그 문서를 적을 때의 상태다.
 
 ## Documents
 

@@ -1,10 +1,10 @@
 # 백엔드 소스 안내
 
-처음 이 디렉터리를 연 사람이 코드를 따라갈 수 있게 적은 지도다. 실행 방법과 로컬 시드 계정은 [README](../README.md)에 있다. 지금 서버가 받는 요청과 응답은 [API](api.md)에 있다. 제품 결정의 근거는 저장소 루트의 `docs/architecture`와 `docs/product`에 있다. 이 문서는 그 결정을 다시 적지 않고, 지금 소스에서 어느 파일을 열면 되는지만 적는다.
+처음 이 디렉터리를 연 사람이 코드를 따라갈 수 있게 적은 지도다. 실행 방법과 로컬 시드 계정은 [README](../README.md)에 있다. 지금 서버가 받는 요청과 응답, 쿠키, 로컬 호출 순서는 [API](api.md)에 있다. 제품 결정의 근거는 저장소 루트의 `docs/architecture`와 `docs/product`에 있다. 이 문서는 그 결정을 다시 적지 않고, 지금 소스에서 어느 파일을 열면 되는지만 적는다.
 
-코드와 이 문서의 경로가 다르면 코드를 따른다. 설계 문서 표지(`docs/README.md`)에는 아직 구현 전이라고 적혀 있다. 실행되는 서버는 `backend/`다.
+코드와 이 문서의 경로가 다르면 코드를 따른다. 설계 문서 표지(`docs/README.md`)는 결정 baseline이고, 실행되는 서버는 `backend/`다. 각 설계 문서 안의 "implementation 전"은 그 문서를 적을 때의 상태다.
 
-관련 이슈: [#87](https://github.com/BeomhyunPark/SCENE/issues/87).
+관련 이슈: [#87](https://github.com/BeomhyunPark/SCENE/issues/87), [#93](https://github.com/BeomhyunPark/SCENE/issues/93).
 
 ## 한 줄
 
@@ -27,6 +27,24 @@
 5. 패키지 방향을 어기면 깨지는 규칙은 `src/test/java/app/scene/ArchitectureTest.java`다.
 
 기능 하나를 읽을 때는 컨트롤러의 URL부터 연다. 패키지 전체를 위에서 내려다보지 않는다.
+
+## 고칠 때 여는 파일
+
+| 고치는 것 | 먼저 여는 파일 |
+| --- | --- |
+| URL, 상태 코드, 누가 호출했는지 | 해당 `*Controller` |
+| 행사를 열 수 있는지 | `event/lifecycle/EventAccessGate` |
+| 공간 경로의 멤버십, `GET /spaces/{spaceId}/events/{eventId}` | `common/tenant/OperatorAccess` |
+| 역할 기본값과 GRANT/REVOKE | `common/permission/RoleDefaults`, `PermissionEvaluator` |
+| 로그인 쿠키 | `identity/OperatorSessionController`, `common/security/SecurityConfiguration` |
+| CSRF 쿠키 이름과 `Secure` | `SecurityConfiguration`의 `shared` |
+| 초대 토큰이 어디로 가는지 | `event/invitation/CapturingInvitationMailer` |
+| 업무 저장 | `event/task/TaskCommandService` 또는 `TaskProgressService` |
+| SQL | `src/main/resources/mapper/`의 같은 이름 XML |
+
+초대 메일은 SMTP로 나가지 않는다. `InvitationMailer`의 구현은 `CapturingInvitationMailer` 하나이고, 링크를 그 프로세스의 리스트에만 넣는다. 응답 JSON과 로그에는 토큰이 없다.
+
+CSRF를 받는 주소는 없다. 변경 요청은 쿠키 `XSRF-TOKEN`과 헤더 `X-XSRF-TOKEN`에 같은 값을 넣는다. 세션 쿠키 값은 Base64가 아닌 세션 id다. 속성과 로컬 `curl`은 [API](api.md)의 공통 절과 로컬 호출 절에 있다.
 
 ## 패키지 지도
 
@@ -204,6 +222,7 @@ Flyway만 스키마를 쓴다. `V1__baseline.sql`이 제품 테이블이고, `V2
 - 참가자 세션으로 하는 제품 API
 - 공개 신청, 공개 조회
 - 비밀번호, 토큰 로그인
+- SMTP. 초대 링크는 `CapturingInvitationMailer`의 메모리에만 있다
 - 참가자, 신청서, 회비, 조, 방, 차량, 체크인 테이블과 그 API
 - MANAGER와 STAFF에 대한 `TASK_WRITE` 외의 승인된 기본 권한
 
