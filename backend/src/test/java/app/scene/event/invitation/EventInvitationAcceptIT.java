@@ -97,6 +97,7 @@ class EventInvitationAcceptIT {
     }
   }
 
+  /** DEC-060 row 4. */
   @Test
   void previewTwiceDoesNotChangeTheInvitation() throws Exception {
     Fixture fx = seed("ACTIVE");
@@ -133,6 +134,7 @@ class EventInvitationAcceptIT {
     assertLogsOmit(invite.token(), "ada@example.com");
   }
 
+  /** DEC-060 rows 1 and 8. The account switch and the 30-minute hold are client behavior. */
   @Test
   void acceptThenAcceptReturnsAlreadyAccepted() throws Exception {
     Fixture fx = seed("ACTIVE");
@@ -145,6 +147,11 @@ class EventInvitationAcceptIT {
     Cookie managerSession = login(manager, "manager@example.com");
     int membersBefore = memberships();
 
+    assertThat(
+            json.readTree(ok(preview(staffSession, staffInvite.token(), "10.4.1.1")))
+                .get("outcome")
+                .asString())
+        .isEqualTo("PENDING");
     String accepted = ok(accept(staffSession, staffInvite.token(), "10.4.1.1"));
     assertThat(json.readTree(accepted).propertyNames()).containsExactly("outcome");
     assertThat(json.readTree(accepted).get("outcome").asString()).isEqualTo("ACCEPTED");
@@ -197,6 +204,7 @@ class EventInvitationAcceptIT {
     assertLogsOmit(staffInvite.token(), managerInvite.token(), "staffer@example.com");
   }
 
+  /** DEC-060 row 6. A real token with the wrong account is 403 and does not reveal state. */
   @Test
   void mismatchedEmailDoesNotRevealState() throws Exception {
     Fixture fx = seed("ACTIVE");
@@ -236,6 +244,7 @@ class EventInvitationAcceptIT {
     assertThat(audits(fx.eventId)).isZero();
   }
 
+  /** DEC-060 rows 5, 10, 11, and 12. */
   @Test
   void expiredRevokedAndSupersededTokens() throws Exception {
     Fixture fx = seed("ACTIVE");
@@ -307,6 +316,7 @@ class EventInvitationAcceptIT {
     assertLogsOmit(expired.token(), revoked.token(), oldToken, resent, "old@example.com");
   }
 
+  /** DEC-060 row 15. */
   @Test
   void anotherUserAlreadyAccepted() throws Exception {
     Fixture fx = seed("ACTIVE");
@@ -362,6 +372,7 @@ class EventInvitationAcceptIT {
     assertLogsOmit("forged-token-value", "ada@example.com");
   }
 
+  /** DEC-060 row 9. The document leaves the number undecided; the provisional limit is 5. */
   @Test
   void overLimitIsRateLimited() throws Exception {
     assertThat(EventInvitationService.INVITATION_ATTEMPT_LIMIT).isEqualTo(5);
@@ -400,6 +411,7 @@ class EventInvitationAcceptIT {
     assertLogsOmit(previewOnly.token(), thenAccept.token(), "limit-preview@example.com");
   }
 
+  /** DEC-060 row 7. Logged-out calls are 401 and do not fill the rate-limit bucket. */
   @Test
   void loggedOutStaysUnauthorized() throws Exception {
     Fixture fx = seed("ACTIVE");
@@ -417,6 +429,7 @@ class EventInvitationAcceptIT {
     assertThat(invitationState(invite.id())).isEqualTo("PENDING");
   }
 
+  /** DEC-060 row 9, split by account and by direct address. */
   @Test
   void accountAndAddressAreLimitedSeparately() throws Exception {
     Fixture fx = seed("ACTIVE");
@@ -443,6 +456,7 @@ class EventInvitationAcceptIT {
     assertThat(invitationState(second.id())).isEqualTo("PENDING");
   }
 
+  /** DEC-063 L5. A revoked archived invitation stays 410. A still-pending one is 409. */
   @Test
   void archivedPendingIsConflictAndRevokedStaysGone() throws Exception {
     Fixture pendingEvent = seed("ACTIVE");

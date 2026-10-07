@@ -1020,7 +1020,7 @@ class LifecycleAndTaskIT {
 
   @Test
   void leavingRecordsDeletedOverrides() {
-    // API 개인별 권한 회귀 #6, #19. DELETE /operators는 아직 없어 이탈로 회수한다.
+    // Leave clears overrides on the events it revokes. Operator removal is DELETE /operators.
     Fixture fx = seed("ACTIVE");
     UUID taskId = insertAssignedTask(fx, fx.eventId, fx.staffId, "TODO");
     grantTaskWrite(fx, fx.managerId, "REVOKE");

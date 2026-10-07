@@ -124,6 +124,10 @@ class EventOperatorIT {
     assertThat(role(fx.eventId, ownerTargetId)).isEqualTo("OWNER");
   }
 
+  /**
+   * #39 row 21. MANAGER cannot add or change an operator. The pending default key K is not
+   * asserted.
+   */
   @Test
   void nonOwnerIsForbiddenAfterNotFoundAndNotAMember() throws Exception {
     Fixture fx = seed("ACTIVE");
@@ -193,6 +197,7 @@ class EventOperatorIT {
     assertThat(role(fx.eventId, fx.managerId)).isEqualTo("MANAGER");
   }
 
+  /** #39 rows 41, 42, 43, and 44. Narrowing a role on ARCHIVED keeps the override. */
   @Test
   void archivedAddReAddAndRoleChangeWriteNothing() throws Exception {
     Fixture fx = seed("ACTIVE");
@@ -247,6 +252,7 @@ class EventOperatorIT {
     assertThat(auditRows(fx.eventId)).isEqualTo(audits + 1);
   }
 
+  /** #39 rows 6 and 19. */
   @Test
   void deleteRemovesTheOperatorAndReAddDoesNotRestoreOverrides() throws Exception {
     Fixture fx = seed("ACTIVE");

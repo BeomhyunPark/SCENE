@@ -58,6 +58,7 @@ class OperatorPermissionHttpIT {
             .build();
   }
 
+  /** #39 rows 1 and 7. POST /exports is not an API in this slice. */
   @Test
   void ownerPutReplacesOnceAndTheSameBodyWritesNothing() throws Exception {
     Fixture fx = seed();
@@ -88,6 +89,7 @@ class OperatorPermissionHttpIT {
     assertThat(auditCount(fx.eventId, AuditActions.EVENT_USER_PERMISSIONS_REPLACED)).isEqualTo(1);
   }
 
+  /** #39 rows 16 and 17. */
   @Test
   void staffMayReadSelfAndNotAnotherOperator() throws Exception {
     Fixture fx = seed();
@@ -114,6 +116,7 @@ class OperatorPermissionHttpIT {
         "req-include");
   }
 
+  /** #39 rows 4, 5, 9, 10, and the 422 order in rows 28, 29, and 30. */
   @Test
   void rejectionCodesFollowOwnerThenOwnerOnlyThenNotOverridable() throws Exception {
     Fixture fx = seed();
@@ -151,6 +154,7 @@ class OperatorPermissionHttpIT {
     assertThat(overrideCount(fx.eventId, fx.ownerId)).isZero();
   }
 
+  /** #39 row 39. A reducing REVOKE on ARCHIVED is stored. Row 40 stays pending. */
   @Test
   void archivedGrantWritesNothingAndAReducingRevokeIsStored() throws Exception {
     Fixture fx = seed();
