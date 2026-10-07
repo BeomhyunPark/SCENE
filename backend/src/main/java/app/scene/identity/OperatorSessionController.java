@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
+import java.util.Locale;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -39,7 +40,8 @@ public class OperatorSessionController {
         accounts
             .findById(body.userId())
             .orElseThrow(() -> new SceneException(ErrorCode.AUTHENTICATION_REQUIRED));
-    OperatorPrincipal principal = new OperatorPrincipal(account.id(), account.displayName());
+    OperatorPrincipal principal =
+        new OperatorPrincipal(account.id(), account.displayName(), sessionEmail(body.email()));
     Authentication authentication =
         UsernamePasswordAuthenticationToken.authenticated(
             principal, null, principal.getAuthorities());
@@ -48,6 +50,15 @@ public class OperatorSessionController {
     SecurityContextHolder.setContext(context);
     securityContexts.saveContext(context, request, response);
     return new OperatorView(principal.userId(), principal.displayName());
+  }
+
+  /** Blank becomes absent. The value is not logged and is not part of {@link OperatorView}. */
+  private static String sessionEmail(String raw) {
+    if (raw == null) {
+      return null;
+    }
+    String email = raw.trim().toLowerCase(Locale.ROOT);
+    return email.isEmpty() ? null : email;
   }
 
   @GetMapping("/api/v1/operator/me")
