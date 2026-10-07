@@ -3,6 +3,60 @@
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="app.scene.event.lifecycle.mapper.EventInvitationMapper">
 
+  <select id="find" resultType="app.scene.event.lifecycle.InvitationRow">
+    SELECT id, space_id, event_id, email_normalized, role, token_hash, status,
+           expires_at, invited_by, accepted_user_id
+    FROM event_invitations
+    WHERE id = #{id} AND event_id = #{eventId} AND space_id = #{spaceId}
+  </select>
+
+  <select id="findForUpdate" resultType="app.scene.event.lifecycle.InvitationRow">
+    SELECT id, space_id, event_id, email_normalized, role, token_hash, status,
+           expires_at, invited_by, accepted_user_id
+    FROM event_invitations
+    WHERE id = #{id} AND event_id = #{eventId} AND space_id = #{spaceId}
+    FOR UPDATE
+  </select>
+
+  <insert id="save">
+    INSERT INTO event_invitations (
+      id, space_id, event_id, email_normalized, role, token_hash, status,
+      expires_at, invited_by, created_at, updated_at)
+    VALUES (
+      #{id}, #{spaceId}, #{eventId}, #{emailNormalized}, #{role}, #{tokenHash}, #{status},
+      #{expiresAt}, #{invitedBy}, #{now}, #{now})
+  </insert>
+
+  <update id="supersedePending">
+    UPDATE event_invitations
+    SET status = #{supersededStatus}, updated_at = #{now}
+    WHERE space_id = #{spaceId}
+      AND event_id = #{eventId}
+      AND email_normalized = #{emailNormalized}
+      AND status = #{pendingStatus}
+  </update>
+
+  <select id="findByTokenHash" resultType="app.scene.event.lifecycle.InvitationRow">
+    SELECT id, space_id, event_id, email_normalized, role, token_hash, status,
+           expires_at, invited_by, accepted_user_id
+    FROM event_invitations
+    WHERE token_hash = #{tokenHash}
+  </select>
+
+  <update id="acceptPending">
+    UPDATE event_invitations
+    SET status = #{acceptedStatus}, accepted_user_id = #{acceptedUserId}, updated_at = #{now}
+    WHERE id = #{id} AND space_id = #{spaceId} AND event_id = #{eventId}
+      AND status = #{pendingStatus} AND expires_at &gt; #{now}
+  </update>
+
+  <update id="revokePending">
+    UPDATE event_invitations
+    SET status = #{revokedStatus}, updated_at = #{now}
+    WHERE id = #{id} AND space_id = #{spaceId} AND event_id = #{eventId}
+      AND status = #{pendingStatus}
+  </update>
+
   <update id="updateRevoked">
     UPDATE event_invitations
     SET status = #{revokedStatus}, updated_at = #{now}

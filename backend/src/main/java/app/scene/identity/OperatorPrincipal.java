@@ -13,7 +13,8 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 /**
  * Authenticated operator bound to {@code users.id}. No password is stored. Credential format is
- * still open, and this type carries no role or permission.
+ * still open, and this type carries no role or permission. {@code email} is the optional session
+ * address used to match an invitation. It is not a user column and is not returned by {@code /me}.
  */
 public final class OperatorPrincipal implements UserDetails, Serializable {
 
@@ -21,10 +22,12 @@ public final class OperatorPrincipal implements UserDetails, Serializable {
 
   private final UUID userId;
   private final String displayName;
+  private final String email;
 
-  public OperatorPrincipal(UUID userId, String displayName) {
+  public OperatorPrincipal(UUID userId, String displayName, String email) {
     this.userId = userId;
     this.displayName = displayName;
+    this.email = email;
   }
 
   /** The operator chain's principal. Anything else is signed out. Login is unchanged. */
@@ -42,6 +45,11 @@ public final class OperatorPrincipal implements UserDetails, Serializable {
 
   public String displayName() {
     return displayName;
+  }
+
+  /** Normalized invitation address for this session, or null when login did not send one. */
+  public String email() {
+    return email;
   }
 
   @Override

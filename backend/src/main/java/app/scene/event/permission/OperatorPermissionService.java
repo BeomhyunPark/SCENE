@@ -84,19 +84,30 @@ public class OperatorPermissionService {
   }
 
   @Transactional(readOnly = true)
-  public ItemPage<ListedEventOperator> listOperators(
-      UUID actorId, UUID eventId, Integer page, Integer size, List<String> sort) {
+  public Object listOperators(
+      UUID actorId, UUID eventId, Integer page, Integer size, List<String> sort, String include) {
     EventLocation location = location(eventId);
     Gate gate = open(actorId, location.spaceId(), eventId);
     if (!mayList(gate)) {
       throw new SceneException(ErrorCode.FORBIDDEN);
     }
+    boolean withPermissions = includePermissions(gate, include);
     PageRequest request = PageRequest.of(page, size);
     String order = orderClause(Sorts.parse(sort, OPERATOR_SORTS));
     long total = eventUsers.countOperators(location.spaceId(), eventId);
     List<ListedEventOperator> items =
         eventUsers.findOperators(location.spaceId(), eventId, request, order);
-    return ItemPage.of(items, request, total);
+    if (!withPermissions) {
+      return ItemPage.of(items, request, total);
+    }
+    List<OperatorListItem> detailed = new ArrayList<>();
+    for (ListedEventOperator row : items) {
+      OperatorPermissions permissions = view(location.spaceId(), eventId, row.userId(), row.role());
+      detailed.add(
+          new OperatorListItem(
+              row.userId(), row.displayName(), row.role(), permissions.effective()));
+    }
+    return ItemPage.of(detailed, request, total);
   }
 
   @Transactional(readOnly = true)
@@ -144,6 +155,40 @@ public class OperatorPermissionService {
   public void removeOperator(UUID actorId, UUID eventId, UUID targetUserId) {
     EventLocation location = location(eventId);
     remove(actorId, location.spaceId(), eventId, targetUserId);
+  }
+
+  /**
+   * Event OWNER gate for operator management, including DEC-060 invitations. Stops at not found,
+   * {@code NOT_A_MEMBER}, then {@code FORBIDDEN}.
+   */
+  public void requireEventOwner(UUID actorId, UUID spaceId, UUID eventId) {
+    if (!mayChange(open(actorId, spaceId, eventId))) {
+      throw new SceneException(ErrorCode.FORBIDDEN);
+    }
+  }
+
+  @Transactional(readOnly = true)
+  public OperatorPermissionBody readOperatorPermissions(
+      UUID actorId, UUID eventId, UUID targetUserId) {
+    EventLocation location = location(eventId);
+    return OperatorPermissionBody.of(read(actorId, location.spaceId(), eventId, targetUserId));
+  }
+
+  @Transactional
+  public OperatorPermissionBody replaceOperatorPermissions(
+      UUID actorId, UUID eventId, UUID targetUserId, JsonNode body) {
+    EventLocation location = location(eventId);
+    Gate gate = open(actorId, location.spaceId(), eventId);
+    if (!mayChange(gate)) {
+      throw new SceneException(ErrorCode.FORBIDDEN);
+    }
+    if (eventUsers.findRole(location.spaceId(), eventId, targetUserId).isEmpty()) {
+      throw new SceneException(ErrorCode.RESOURCE_NOT_FOUND);
+    }
+    List<String> grants = requiredKeys(body, "grants");
+    List<String> revokes = requiredKeys(body, "revokes");
+    return OperatorPermissionBody.of(
+        replace(actorId, location.spaceId(), eventId, targetUserId, grants, revokes));
   }
 
   @Transactional(readOnly = true)
@@ -311,6 +356,19 @@ public class OperatorPermissionService {
     return gate.eventRole() != null
         && PermissionEvaluator.allows(
             Permission.EVENT_USER_MANAGE, gate.eventRole(), gate.authorityEnded(), null);
+  }
+
+  private static boolean includePermissions(Gate gate, String include) {
+    if (include == null || include.isBlank()) {
+      return false;
+    }
+    if (!"permissions".equals(include)) {
+      throw new SceneException(ErrorCode.VALIDATION_FAILED, Map.of("field", "include"));
+    }
+    if (!mayChange(gate)) {
+      throw new SceneException(ErrorCode.FORBIDDEN);
+    }
+    return true;
   }
 
   private static boolean mayList(Gate gate) {
@@ -589,6 +647,24 @@ public class OperatorPermissionService {
     } catch (IllegalArgumentException ex) {
       throw new SceneException(ErrorCode.VALIDATION_FAILED, Map.of("field", "userId"));
     }
+  }
+
+  private static List<String> requiredKeys(JsonNode body, String field) {
+    if (body == null || !body.isObject()) {
+      throw new SceneException(ErrorCode.VALIDATION_FAILED, Map.of("field", field));
+    }
+    JsonNode node = body.get(field);
+    if (node == null || !node.isArray()) {
+      throw new SceneException(ErrorCode.VALIDATION_FAILED, Map.of("field", field));
+    }
+    List<String> keys = new ArrayList<>();
+    for (JsonNode item : node) {
+      if (item == null || !item.isString()) {
+        throw new SceneException(ErrorCode.VALIDATION_FAILED, Map.of("field", field));
+      }
+      keys.add(item.asString());
+    }
+    return keys;
   }
 
   private static String requiredRole(JsonNode body) {
