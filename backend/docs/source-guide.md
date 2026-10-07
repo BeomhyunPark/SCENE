@@ -4,7 +4,7 @@
 
 코드와 이 문서의 경로가 다르면 코드를 따른다. 설계 문서 표지(`docs/README.md`)는 결정 baseline이고, 실행되는 서버는 `backend/`다. 각 설계 문서 안의 "implementation 전"은 그 문서를 적을 때의 상태다.
 
-관련 이슈: [#87](https://github.com/BeomhyunPark/SCENE/issues/87), [#93](https://github.com/BeomhyunPark/SCENE/issues/93).
+관련 이슈: [#87](https://github.com/BeomhyunPark/SCENE/issues/87), [#93](https://github.com/BeomhyunPark/SCENE/issues/93), [#97](https://github.com/BeomhyunPark/SCENE/issues/97).
 
 ## 한 줄
 
@@ -40,6 +40,8 @@
 | CSRF 쿠키 이름과 `Secure` | `SecurityConfiguration`의 `shared` |
 | 초대 토큰이 어디로 가는지 | `event/invitation/CapturingInvitationMailer` |
 | 업무 저장 | `event/task/TaskCommandService` 또는 `TaskProgressService` |
+| 감사 로그 이름 | `common/audit/AuditActions`. 업무 진행 네 이름은 `TaskProgressService` 안에 있다 |
+| 공간 소유자 대신 실행 알림 | `event/lifecycle/OperatorNoticeRepository` |
 | SQL | `src/main/resources/mapper/`의 같은 이름 XML |
 
 초대 메일은 SMTP로 나가지 않는다. `InvitationMailer`의 구현은 `CapturingInvitationMailer` 하나이고, 링크를 그 프로세스의 리스트에만 넣는다. 응답 JSON과 로그에는 토큰이 없다.
@@ -190,6 +192,8 @@ Flyway만 스키마를 쓴다. `V1__baseline.sql`이 제품 테이블이고, `V2
 행사 아래 행은 `space_id`와 `event_id`를 같이 가진다. 조회도 그 둘을 같이 넘긴다. id 하나만으로 찾은 뒤 서비스에서 공간을 비교하는 형태를 기본으로 두지 않는다.
 
 `local` 프로파일만 `db/seed/R__local_seed.sql`을 넣는다. dev, stg, prod와 테스트는 이 시드를 쓰지 않는다. 테스트는 Testcontainers의 PostgreSQL을 띄운다.
+
+`audit_logs`와 `operator_notices`는 쓰이지만 읽는 URL이 없다. 어떤 명령이 어떤 `action`을 남기는지는 [API의 기록 절](api.md#응답에-안-나오는-기록)에 있다.
 
 설계 문서의 참가자, 신청, 재정, 조, 방, 차량, 체크인 테이블은 이 마이그레이션에 없다.
 
