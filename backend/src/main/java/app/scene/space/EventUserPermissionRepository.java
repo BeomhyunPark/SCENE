@@ -4,6 +4,9 @@ import app.scene.space.mapper.EventUserPermissionMapper;
 import app.scene.space.mapper.EventUserPermissionQueryMapper;
 import app.scene.space.param.EventOperatorKey;
 import app.scene.space.param.PermissionEffectQuery;
+import app.scene.space.param.PermissionOverrideWrite;
+import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Component;
@@ -30,8 +33,45 @@ public class EventUserPermissionRepository {
     return queries.findSnapshot(EventOperatorKey.of(spaceId, eventId, userId));
   }
 
+  public List<PermissionOverride> findAll(UUID spaceId, UUID eventId, UUID userId) {
+    return queries.findAll(EventOperatorKey.of(spaceId, eventId, userId));
+  }
+
   @Transactional
-  public void delete(UUID spaceId, UUID eventId, UUID userId) {
-    permissions.delete(EventOperatorKey.of(spaceId, eventId, userId));
+  public int save(
+      UUID spaceId,
+      UUID eventId,
+      UUID userId,
+      String permission,
+      String effect,
+      UUID grantedBy,
+      Instant grantedAt) {
+    return permissions.save(
+        PermissionOverrideWrite.of(
+            spaceId, eventId, userId, permission, effect, grantedBy, grantedAt));
+  }
+
+  @Transactional
+  public int update(
+      UUID spaceId,
+      UUID eventId,
+      UUID userId,
+      String permission,
+      String effect,
+      UUID grantedBy,
+      Instant grantedAt) {
+    return permissions.update(
+        PermissionOverrideWrite.of(
+            spaceId, eventId, userId, permission, effect, grantedBy, grantedAt));
+  }
+
+  @Transactional
+  public int deleteOne(UUID spaceId, UUID eventId, UUID userId, String permission) {
+    return permissions.deleteOne(PermissionEffectQuery.of(spaceId, eventId, userId, permission));
+  }
+
+  @Transactional
+  public int delete(UUID spaceId, UUID eventId, UUID userId) {
+    return permissions.delete(EventOperatorKey.of(spaceId, eventId, userId));
   }
 }

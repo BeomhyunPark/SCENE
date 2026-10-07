@@ -3,6 +3,30 @@
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="app.scene.space.mapper.EventUserPermissionMapper">
 
+  <insert id="save">
+    INSERT INTO event_user_permissions (
+      space_id, event_id, user_id, permission, effect, granted_by, granted_at)
+    VALUES (
+      #{spaceId}, #{eventId}, #{userId}, #{permission}, #{effect}, #{grantedBy}, #{grantedAt})
+  </insert>
+
+  <update id="update">
+    UPDATE event_user_permissions
+    SET effect = #{effect}, granted_by = #{grantedBy}, granted_at = #{grantedAt}
+    WHERE space_id = #{spaceId}
+      AND event_id = #{eventId}
+      AND user_id = #{userId}
+      AND permission = #{permission}
+  </update>
+
+  <delete id="deleteOne">
+    DELETE FROM event_user_permissions
+    WHERE space_id = #{spaceId}
+      AND event_id = #{eventId}
+      AND user_id = #{userId}
+      AND permission = #{permission}
+  </delete>
+
   <delete id="delete">
     DELETE FROM event_user_permissions
     WHERE space_id = #{spaceId} AND event_id = #{eventId} AND user_id = #{userId}

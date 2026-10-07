@@ -6,7 +6,8 @@
   <select id="findSpace" resultType="app.scene.common.tenant.SpaceAccessRow">
     SELECT s.id AS space_id,
            s.name AS space_name,
-           m.status AS membership_status
+           m.status AS membership_status,
+           m.role AS role
     FROM members m
     JOIN spaces s ON s.id = m.space_id
     WHERE m.space_id = #{spaceId}

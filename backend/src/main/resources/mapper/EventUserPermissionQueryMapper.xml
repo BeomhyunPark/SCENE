@@ -10,6 +10,13 @@
       AND permission = #{permission}
   </select>
 
+  <select id="findAll" resultType="app.scene.space.PermissionOverride">
+    SELECT permission, effect, granted_by, granted_at
+    FROM event_user_permissions
+    WHERE space_id = #{spaceId} AND event_id = #{eventId} AND user_id = #{userId}
+    ORDER BY permission
+  </select>
+
   <select id="findSnapshot" resultType="string">
     SELECT coalesce(jsonb_agg(jsonb_build_object(
              'permission', permission,

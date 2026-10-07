@@ -3,7 +3,8 @@ package app.scene.event.task;
 import app.scene.common.audit.AuditLogRepository;
 import app.scene.common.error.ErrorCode;
 import app.scene.common.error.SceneException;
-import app.scene.common.permission.TaskWrite;
+import app.scene.common.permission.Permission;
+import app.scene.common.permission.PermissionEvaluator;
 import app.scene.event.lifecycle.OperatorActor;
 import app.scene.space.EventUserPermissionRepository;
 import app.scene.space.EventUserRepository;
@@ -180,7 +181,8 @@ public class TaskProgressService {
     }
     boolean assignee = actor.userId().equals(task.assigneeUserId());
     boolean taskWrite =
-        TaskWrite.effective(
+        PermissionEvaluator.allows(
+            Permission.TASK_WRITE,
             role.get(),
             eventUsers.existsAuthorityEnded(spaceId, eventId, actor.userId()),
             permissions.findEffect(spaceId, eventId, actor.userId(), TASK_WRITE).orElse(null));
