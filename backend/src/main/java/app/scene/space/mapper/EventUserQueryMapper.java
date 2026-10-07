@@ -1,8 +1,11 @@
 package app.scene.space.mapper;
 
+import app.scene.space.ListedEventOperator;
 import app.scene.space.OperatedEvent;
 import app.scene.space.param.AuthorityQuery;
 import app.scene.space.param.EventOperatorKey;
+import app.scene.space.param.EventOperatorListQuery;
+import app.scene.space.param.EventScope;
 import app.scene.space.param.OperatedEventQuery;
 import java.util.List;
 import java.util.UUID;
@@ -20,4 +23,10 @@ public interface EventUserQueryMapper {
   List<OperatedEvent> findOperated(OperatedEventQuery query);
 
   boolean existsAuthorityEnded(AuthorityQuery query);
+
+  ListedEventOperator findOperator(EventOperatorKey key);
+
+  long countOperators(EventScope scope);
+
+  List<ListedEventOperator> findOperators(EventOperatorListQuery query);
 }

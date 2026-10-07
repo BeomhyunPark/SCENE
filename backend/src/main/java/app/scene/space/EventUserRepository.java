@@ -1,11 +1,15 @@
 package app.scene.space;
 
 import app.scene.common.mybatis.AuthorityStatuses;
+import app.scene.common.mybatis.PageParam;
+import app.scene.common.web.PageRequest;
 import app.scene.space.mapper.EventUserMapper;
 import app.scene.space.mapper.EventUserQueryMapper;
 import app.scene.space.param.AuthorityQuery;
 import app.scene.space.param.EventOperatorKey;
+import app.scene.space.param.EventOperatorListQuery;
 import app.scene.space.param.EventOperatorRoleUpdate;
+import app.scene.space.param.EventScope;
 import app.scene.space.param.OperatedEventQuery;
 import java.util.List;
 import java.util.Optional;
@@ -44,6 +48,25 @@ public class EventUserRepository {
     return queries.findOperated(
         OperatedEventQuery.of(
             spaceId, userId, OWNER, HANDOVER, OPEN_TASKS, AuthorityStatuses.ENDED));
+  }
+
+  public Optional<ListedEventOperator> findOperator(UUID spaceId, UUID eventId, UUID userId) {
+    return Optional.ofNullable(queries.findOperator(key(spaceId, eventId, userId)));
+  }
+
+  public long countOperators(UUID spaceId, UUID eventId) {
+    return queries.countOperators(EventScope.of(spaceId, eventId));
+  }
+
+  public List<ListedEventOperator> findOperators(
+      UUID spaceId, UUID eventId, PageRequest request, String orderByClause) {
+    long offset = request.offset();
+    if (offset > Integer.MAX_VALUE) {
+      throw new IllegalArgumentException("page offset does not fit an int");
+    }
+    return queries.findOperators(
+        EventOperatorListQuery.of(
+            spaceId, eventId, PageParam.of((int) offset, request.size(), orderByClause)));
   }
 
   public boolean existsAuthorityEnded(UUID spaceId, UUID eventId, UUID userId) {
