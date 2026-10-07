@@ -115,7 +115,7 @@ public class MembershipLeaveService {
    * reason} is the task-audit text ({@code 이탈} here, {@code 운영자 제거} when operator removal is
    * added). Kept events must not call this.
    */
-  void revokeEventAccess(UUID spaceId, UUID eventId, UUID userId, String reason) {
+  public void revokeEventAccess(UUID spaceId, UUID eventId, UUID userId, String reason) {
     if (eventUsers.findForUpdate(spaceId, eventId, userId).isEmpty()) {
       throw new IllegalStateException("event operator row was not locked");
     }

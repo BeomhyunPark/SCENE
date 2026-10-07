@@ -6,20 +6,33 @@
   <select id="findEvent" resultType="app.scene.common.tenant.EventAccessRow">
     SELECT e.id AS event_id,
            e.name AS event_name,
-           EXISTS (
-             SELECT 1 FROM event_users eu
-             WHERE eu.space_id = e.space_id
-               AND eu.event_id = e.id
-               AND eu.user_id = #{userId}
-           ) AS event_operator,
+           o.user_id IS NOT NULL AS event_operator,
            EXISTS (
              SELECT 1 FROM audit_logs a
              WHERE a.space_id = e.space_id
                AND a.event_id = e.id
                AND a.actor_user_id = #{userId}
                AND a.action = #{revokedAction}
-           ) AS access_revoked
+           ) AS access_revoked,
+           o.role AS event_role,
+           CASE
+             WHEN o.user_id IS NULL THEN FALSE
+             ELSE
+             <include refid="app.scene.common.mybatis.CommonMapper.ownerAuthorityEnded"/>
+           END AS owner_authority_ended,
+           (
+             SELECT p.effect
+             FROM event_user_permissions p
+             WHERE p.space_id = e.space_id
+               AND p.event_id = e.id
+               AND p.user_id = o.user_id
+               AND p.permission = #{permission}
+           ) AS stored_effect
     FROM events e
+    LEFT JOIN event_users o
+      ON o.space_id = e.space_id
+     AND o.event_id = e.id
+     AND o.user_id = #{userId}
     WHERE e.space_id = #{spaceId}
       AND e.id = #{eventId}
   </select>

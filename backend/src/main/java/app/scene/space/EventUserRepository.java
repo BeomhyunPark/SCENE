@@ -52,6 +52,16 @@ public class EventUserRepository {
   }
 
   @Transactional
+  public int updateRole(UUID spaceId, UUID eventId, UUID userId, String role) {
+    return users.updateRole(EventOperatorRoleUpdate.of(spaceId, eventId, userId, role));
+  }
+
+  @Transactional
+  public int save(UUID spaceId, UUID eventId, UUID userId, String role) {
+    return users.save(EventOperatorRoleUpdate.of(spaceId, eventId, userId, role));
+  }
+
+  @Transactional
   public int updateOwner(UUID spaceId, UUID eventId, UUID userId) {
     return users.updateRole(EventOperatorRoleUpdate.of(spaceId, eventId, userId, OWNER));
   }

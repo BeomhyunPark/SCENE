@@ -31,6 +31,10 @@ public class EventRepository {
     this.transitionQueries = transitionQueries;
   }
 
+  public Optional<EventRow> find(UUID spaceId, UUID eventId) {
+    return Optional.ofNullable(events.find(EventKey.of(spaceId, eventId)));
+  }
+
   public Optional<EventRow> findForUpdate(UUID spaceId, UUID eventId) {
     return Optional.ofNullable(events.findForUpdate(EventKey.of(spaceId, eventId)));
   }

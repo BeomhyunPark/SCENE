@@ -2,14 +2,15 @@ package app.scene.common.permission;
 
 /**
  * Effective {@link Permission#TASK_WRITE}. OWNER and MANAGER include it. STAFF does not. A stored
- * GRANT or REVOKE changes that, except OWNER overrides are ignored.
+ * GRANT or REVOKE changes that, except an active OWNER's stored override is ignored. An OWNER whose
+ * handover has ended keeps the permission only through GRANT.
  */
 public final class TaskWrite {
 
   private TaskWrite() {}
 
   public static boolean roleDefault(String eventRole) {
-    return "OWNER".equals(eventRole) || "MANAGER".equals(eventRole);
+    return RoleDefaults.of(eventRole).contains(Permission.TASK_WRITE);
   }
 
   public static boolean effective(String eventRole, String storedEffect) {
@@ -22,18 +23,7 @@ public final class TaskWrite {
    */
   public static boolean effective(
       String eventRole, boolean ownerAuthorityEnded, String storedEffect) {
-    if ("OWNER".equals(eventRole) && ownerAuthorityEnded) {
-      return "GRANT".equals(storedEffect);
-    }
-    if ("OWNER".equals(eventRole)) {
-      return true;
-    }
-    if ("REVOKE".equals(storedEffect)) {
-      return false;
-    }
-    if ("GRANT".equals(storedEffect)) {
-      return true;
-    }
-    return roleDefault(eventRole);
+    return PermissionEvaluator.allows(
+        Permission.TASK_WRITE, eventRole, ownerAuthorityEnded, storedEffect);
   }
 }

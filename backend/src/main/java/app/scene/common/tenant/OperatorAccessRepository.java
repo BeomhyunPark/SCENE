@@ -1,5 +1,7 @@
 package app.scene.common.tenant;
 
+import app.scene.common.mybatis.AuthorityStatuses;
+import app.scene.common.permission.Permission;
 import app.scene.common.tenant.mapper.EventAccessQueryMapper;
 import app.scene.common.tenant.mapper.SpaceAccessQueryMapper;
 import app.scene.common.tenant.param.EventAccessQuery;
@@ -22,7 +24,14 @@ public class OperatorAccessRepository {
 
   public Optional<EventAccessRow> findEvent(UUID spaceId, UUID eventId, UUID userId) {
     return Optional.ofNullable(
-        events.findEvent(EventAccessQuery.of(spaceId, eventId, userId, ACCESS_REVOKED)));
+        events.findEvent(
+            EventAccessQuery.of(
+                spaceId,
+                eventId,
+                userId,
+                ACCESS_REVOKED,
+                Permission.EVENT_READ.name(),
+                AuthorityStatuses.ENDED)));
   }
 
   public Optional<SpaceAccessRow> findSpace(UUID spaceId, UUID userId) {

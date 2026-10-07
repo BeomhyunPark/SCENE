@@ -8,7 +8,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import app.scene.common.tenant.OperatorAccess;
 import app.scene.common.web.RequestIdFilter;
 import app.scene.support.PostgresTestcontainer;
 import jakarta.servlet.http.Cookie;
@@ -144,7 +143,7 @@ class OperatorTenantIsolationIT {
     UUID userId = user("Still a member");
     space(spaceId, "home");
     member(spaceId, userId, "MEMBER");
-    UUID eventId = event(spaceId, OperatorAccess.CALL_NOT_ALLOWED_EVENT_NAME);
+    UUID eventId = event(spaceId, "revoked-event");
     operator(spaceId, eventId, userId);
     Cookie session = login(userId);
 
@@ -164,15 +163,25 @@ class OperatorTenantIsolationIT {
   }
 
   @Test
-  void memberWithoutThisCallIsForbiddenAndAnAllowedFixtureIsOk() throws Exception {
+  void memberWithoutEventReadIsForbiddenAndAnOperatorWithItIsOk() throws Exception {
     UUID spaceId = UUID.randomUUID();
     UUID userId = user("Operator");
     space(spaceId, "home");
     member(spaceId, userId, "MEMBER");
-    UUID deniedId = event(spaceId, OperatorAccess.CALL_NOT_ALLOWED_EVENT_NAME);
+    UUID deniedId = event(spaceId, "event-read-revoked");
     UUID allowedId = event(spaceId, "fixture-call-allowed");
     operator(spaceId, deniedId, userId);
     operator(spaceId, allowedId, userId);
+    jdbc.update(
+        """
+        INSERT INTO event_user_permissions (
+          space_id, event_id, user_id, permission, effect, granted_by, granted_at)
+        VALUES (?, ?, ?, 'EVENT_READ', 'REVOKE', ?, now())
+        """,
+        spaceId,
+        deniedId,
+        userId,
+        userId);
     Cookie session = login(userId);
 
     problem(

@@ -8,6 +8,8 @@ import org.apache.ibatis.annotations.Mapper;
 @Mapper
 public interface EventMapper {
 
+  EventRow find(EventKey key);
+
   EventRow findForUpdate(EventKey key);
 
   int updateStatus(EventStatusUpdate update);

@@ -2,6 +2,8 @@ package app.scene.common.tenant;
 
 import app.scene.common.error.ErrorCode;
 import app.scene.common.error.SceneException;
+import app.scene.common.permission.Permission;
+import app.scene.common.permission.PermissionEvaluator;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 
@@ -10,18 +12,12 @@ import org.springframework.stereotype.Service;
  * is the operator chain's job. Field validation and lifecycle conflicts stay later, on the commands
  * that have them.
  *
- * <p>P0-11 owns the permission enum, role defaults, GRANT/REVOKE, and Space-path override. Until
- * then, {@link #CALL_NOT_ALLOWED_EVENT_NAME} is the only way a current operator is refused with
- * {@code FORBIDDEN}.
+ * <p>A current operator still needs effective {@link Permission#EVENT_READ}. A missing permission
+ * is {@code FORBIDDEN}. Space-path rules are {@link #readSpace(UUID, UUID)} and {@link
+ * #spaceMembership(UUID, UUID)}.
  */
 @Service
 public class OperatorAccess {
-
-  /**
-   * Fixed fixture, not a permission key. A current operator of an event with this name is a member
-   * the call does not allow.
-   */
-  public static final String CALL_NOT_ALLOWED_EVENT_NAME = "fixture-call-not-allowed";
 
   private static final String ACTIVE = "ACTIVE";
 
@@ -39,7 +35,8 @@ public class OperatorAccess {
     if (!row.eventOperator()) {
       throw new SceneException(ErrorCode.NOT_A_MEMBER);
     }
-    if (CALL_NOT_ALLOWED_EVENT_NAME.equals(row.eventName())) {
+    if (!PermissionEvaluator.allows(
+        Permission.EVENT_READ, row.eventRole(), row.ownerAuthorityEnded(), row.storedEffect())) {
       throw new SceneException(ErrorCode.FORBIDDEN);
     }
     return new OperatorEventView(row.eventId(), spaceId, row.eventName());
@@ -47,10 +44,11 @@ public class OperatorAccess {
 
   /**
    * Space path after leave (issue comment 5945116073). A kept event does not keep this call. An
-   * active member may read the space; who may do more is P0-11.
+   * active member may read the space. {@link SpaceMembership} says who may read or change event
+   * permission rows, and neither of those is granted here.
    */
   public OperatorSpaceView readSpace(UUID userId, UUID spaceId) {
-    SpaceAccessRow row = access.findSpace(spaceId, userId).orElse(null);
+    SpaceAccessRow row = loadSpace(userId, spaceId);
     if (row == null) {
       throw new SceneException(ErrorCode.RESOURCE_NOT_FOUND);
     }
@@ -58,5 +56,31 @@ public class OperatorAccess {
       throw new SceneException(ErrorCode.NOT_A_MEMBER);
     }
     return new OperatorSpaceView(row.spaceId(), row.spaceName());
+  }
+
+  /**
+   * Same space row as {@link #readSpace(UUID, UUID)}, without throwing. Callers that stop at the
+   * first #30 match use {@link SpaceMembership.Kind#ABSENT} as not found and {@link
+   * SpaceMembership.Kind#ENDED} as {@code NOT_A_MEMBER}.
+   */
+  public SpaceMembership spaceMembership(UUID userId, UUID spaceId) {
+    SpaceAccessRow row = loadSpace(userId, spaceId);
+    if (row == null) {
+      return SpaceMembership.absent();
+    }
+    if (!ACTIVE.equals(row.membershipStatus())) {
+      return SpaceMembership.ended();
+    }
+    return SpaceMembership.active(row.role());
+  }
+
+  /** True when this person has an {@code EVENT_ACCESS_REVOKED} audit on the event. */
+  public boolean eventAccessRevoked(UUID userId, UUID spaceId, UUID eventId) {
+    EventAccessRow row = access.findEvent(spaceId, eventId, userId).orElse(null);
+    return row != null && row.accessRevoked();
+  }
+
+  private SpaceAccessRow loadSpace(UUID userId, UUID spaceId) {
+    return access.findSpace(spaceId, userId).orElse(null);
   }
 }
