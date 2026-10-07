@@ -2,7 +2,7 @@
 
 지금 서버가 받는 HTTP 계약이다. 설계 초안은 저장소 루트의 [API Architecture](../../docs/architecture/api-architecture-v0.1.md)에 있고, 파일을 찾는 순서는 [소스 안내](source-guide.md)에 있다. 이 문서와 코드가 다르면 코드를 따른다.
 
-관련 이슈: [#89](https://github.com/BeomhyunPark/SCENE/issues/89), [#93](https://github.com/BeomhyunPark/SCENE/issues/93), [#97](https://github.com/BeomhyunPark/SCENE/issues/97), [#99](https://github.com/BeomhyunPark/SCENE/issues/99).
+관련 이슈: [#89](https://github.com/BeomhyunPark/SCENE/issues/89), [#93](https://github.com/BeomhyunPark/SCENE/issues/93), [#97](https://github.com/BeomhyunPark/SCENE/issues/97), [#99](https://github.com/BeomhyunPark/SCENE/issues/99), [#103](https://github.com/BeomhyunPark/SCENE/issues/103).
 
 참가자 API와 공개 API는 아직 없다. `/api/v1/participant/**`와 `/api/v1/public/**`는 필터 체인만 있고 제품 컨트롤러가 없다. 아래 경로는 모두 `/api/v1/operator`다.
 
@@ -99,8 +99,10 @@
 | `LAST_OWNER` | 409 | 마지막 소유자라 공간 탈퇴가 막힌다 |
 | `OWNER_ROLE_HELD` | 409 | 소유 역할을 가진 채 공간 탈퇴가 막힌다 |
 | `RESPONSIBILITY` | 409 | 열린 담당 업무가 있어 공간 탈퇴가 막힌다 |
+| `TRANSFER_NOT_PENDING` | 409 | 그 이전을 이 명령으로 진행할 수 없거나, 같은 보내는 사람의 `PENDING`이 이미 있다 |
+| `TRANSFER_COMPLETED` | 409 | 끝난 소유권 이전은 바꿀 수 없다 |
 
-`TRANSFER_NOT_PENDING`은 enum에 있으나 이 문서의 HTTP는 쓰지 않는다. 소유권 이전은 전용 URL이 없다.
+공간 소유권 이전은 전용 URL이 없다.
 
 접근은 경로마다 입구가 다르다. 없는 대상은 404, 제거된 접근은 `NOT_A_MEMBER`, 권한 부족은 `FORBIDDEN`이다. 한 경로의 규칙을 다른 경로에 그대로 적용하지 않는다.
 
@@ -245,7 +247,78 @@ curl -sS \
 - `handoverAccepted`인 행사를 끊으면 그 인수인계 status는 `COMPLETED`가 된다.
 - 운영 행사가 없으면 멤버십만 `LEFT`가 된다.
 
-끊길 때 남는 감사 로그는 [기록 절](#응답에-안-나오는-기록)에 있다. 탈퇴 자체를 가리키는 `action`은 없다.
+끊길 때 남는 감사 로그는 [기록 절](#응답에-안-나오는-기록)에 있다. 탈퇴 자체를 가리키는 `action`은 없다. `HANDOVER`로 만드는 수락은 [소유권 이전](#소유권-이전)이다.
+
+## 소유권 이전
+
+행사 소유권을 넘기는 요청이다. 컨트롤러는 `event/transfer/OwnerTransferController`다. 행을 바꾸는 규칙은 `OwnerTransferService`다. `scope`는 `EVENT`다. 공간 소유권 이전 URL은 없다. 목록 URL도 없다.
+
+상태 값은 `PENDING`, `HANDOVER`, `DECLINED`, `CANCELLED`, `COMPLETED`다. 이 경로가 `COMPLETED`로 바꾸지는 않는다. 보내는 사람이 그 행사를 유지하지 않고 [공간을 탈퇴](#공간-탈퇴)하면 `COMPLETED`가 된다. `handoverEndsAt`이 지났다는 이유만으로 `COMPLETED`가 되지 않는다. 보관된 행사도 `EVENT_ARCHIVED`로 막지 않는다.
+
+응답에 이메일, 토큰, 세션, `requestedAt`은 없다. `acceptedAt`과 `handoverEndsAt`은 값이 있을 때만 있다. `from`과 `to`는 `{ "userId", "displayName" }`다.
+
+### `POST /api/v1/operator/events/{eventId}/owner-transfers`
+
+행사 `OWNER`만 만든다. 멤버 행이 없으면 `404 RESOURCE_NOT_FOUND`다. 행사 운영자가 아닌데 멤버십이 끝났거나, 접근이 제거된 운영자면 `403 NOT_A_MEMBER`다. 행사 `OWNER`가 아니면, 권한이 끝난 소유자와 공간 `OWNER`를 포함해, `403 FORBIDDEN`이다. 그 다음에 `toUserId`를 본다.
+
+```json
+{ "toUserId": "…" }
+```
+
+`toUserId`는 그 공간의 활성 멤버다. 행사 운영자일 필요는 없다. 빠지거나 UUID 문자열이 아니면 `400 VALIDATION_FAILED`이고 `errors[0].field`는 `toUserId`다. 멤버가 아니거나 멤버십이 `ACTIVE`가 아니면 같은 400이고 행은 생기지 않는다.
+
+`201`. `Location` 헤더는 없다.
+
+```json
+{
+  "transferId": "…",
+  "scope": "EVENT",
+  "spaceId": "…",
+  "spaceName": "Local space",
+  "eventId": "…",
+  "eventName": "Local event",
+  "from": { "userId": "…", "displayName": "Local owner" },
+  "to": { "userId": "…", "displayName": "Local staff" },
+  "status": "PENDING",
+  "outcome": "REQUESTED"
+}
+```
+
+받는 사람의 역할과 권한 override는 그대로다. 감사 로그는 없다. 같은 보내는 사람이 그 행사에 `PENDING`을 하나 더 만들면 `409 TRANSFER_NOT_PENDING`이다. 다른 소유자의 `PENDING`은 따로 있을 수 있다.
+
+### `GET /api/v1/operator/owner-transfers/{transferId}`
+
+보내는 사람, 받는 사람, 그 행사의 `OWNER`가 본다. 그 외와 없는 id는 `404 RESOURCE_NOT_FOUND`다.
+
+`200` 필드는 생성과 같다. `outcome`은 없다.
+
+### `POST /api/v1/operator/owner-transfers/{transferId}/accept`
+
+본문이 없다. 받는 사람만 호출한다. 보내는 사람을 포함한 그 외는 `404 RESOURCE_NOT_FOUND`다.
+
+`PENDING`이면 `200`이고 `outcome`은 `ACCEPTED`, `status`는 `HANDOVER`다. `acceptedAt`은 수락 시각이고 `handoverEndsAt`은 그 시각에서 14일 뒤다. 받는 사람은 `OWNER`가 된다. 수락 전 역할은 그 이전 행에 남고, 권한 override는 지워진 뒤 스냅샷으로 남는다. 운영자 행이 없던 받는 사람은 `OWNER` 행이 생긴다. 보내는 사람의 역할 행은 이 경로가 바꾸지 않는다. 이 수락만으로 보내는 사람의 소유 권한이 바로 끝나지는 않는다. 권한이 끝나는 조건은 [소스 안내의 권한 절](source-guide.md#접근과-권한)과 같다.
+
+같은 받는 사람이 `HANDOVER`를 다시 수락하면 `200`이고 `outcome`은 `ALREADY_ACCEPTED`다. `handoverEndsAt`은 처음 값이다.
+
+`DECLINED`와 `CANCELLED`는 `409 TRANSFER_NOT_PENDING`이다. `COMPLETED`는 `409 TRANSFER_COMPLETED`다. 받는 사람의 멤버십이 `ACTIVE`가 아니면, `PENDING` 수락은 `403 NOT_A_MEMBER`다.
+
+### `POST /api/v1/operator/owner-transfers/{transferId}/reject`
+
+본문이 없다. 받는 사람만 호출한다. 그 외는 `404 RESOURCE_NOT_FOUND`다.
+
+`PENDING`이면 `200`이고 `status`와 `outcome`은 `DECLINED`다. 역할은 바꾸지 않는다. `HANDOVER`, `DECLINED`, `CANCELLED`는 `409 TRANSFER_NOT_PENDING`이다. `COMPLETED`는 `409 TRANSFER_COMPLETED`다.
+
+### `POST /api/v1/operator/owner-transfers/{transferId}/cancel`
+
+본문이 없다.
+
+`PENDING`은 보내는 사람만 취소한다. `200`의 `status`와 `outcome`은 `CANCELLED`다. 받는 사람은 `403 FORBIDDEN`이다. 당사자가 아닌 사람은 `404 RESOURCE_NOT_FOUND`다.
+
+`HANDOVER`는 보내는 사람 또는 받는 사람이 취소한다. `200`의 `status`와 `outcome`은 `CANCELLED`다. 받는 사람의 역할과 권한 override는 수락 전으로 돌아간다. 수락이 만든 `OWNER` 행이고 이전 역할이 없으면 그 행은 지워진다. 업무의 상태, `version`, 담당은 그대로다. `handoverEndsAt`이 지난 `HANDOVER`도 이 취소가 된다.
+
+`DECLINED`와 `CANCELLED`는 `409 TRANSFER_NOT_PENDING`이다. `COMPLETED`는 `409 TRANSFER_COMPLETED`다.
+
+요청, 거절, 취소와 `ALREADY_ACCEPTED`는 감사 로그를 쓰지 않는다. 처음 수락만 [기록 절](#응답에-안-나오는-기록)의 `OWNER_TRANSFER_ACCEPTED`를 남긴다.
 
 ## 행사 상태
 
@@ -627,15 +700,16 @@ curl -sS \
 | `EVENT_ACTIVATE`, `EVENT_END`, `EVENT_REOPEN`, `EVENT_ARCHIVE`, `EVENT_UNARCHIVE` | 행사 상태가 실제로 옮겨질 때 |
 | `EVENT_USER_ROLE_CHANGED` | 운영자 역할을 다시 쓸 때 |
 | `EVENT_USER_PERMISSIONS_REPLACED` | 권한 override 내용이 바뀔 때 |
+| `OWNER_TRANSFER_ACCEPTED` | 소유권 이전을 처음 수락할 때. 다시 수락하면 더 쓰지 않는다 |
 | `EVENT_ACCESS_REVOKED` | 운영자 제거 또는 공간 탈퇴로 그 행사 접근이 끊길 때. 탈퇴에서 유지한 행사는 끊지 않는다 |
 | `TASK_ASSIGNEE_CLEARED` | 그 제거 또는 탈퇴가 업무 담당을 비울 때. `DONE`과 `CANCELLED`를 포함해 담당인 업무마다 한 줄 |
 | `TASK_ITEM_CHECKED`, `TASK_ITEM_UNCHECKED` | 체크 값이 바뀔 때 |
 | `TASK_COMPLETED` | 업무가 `DONE`이 될 때 |
 | `TASK_REOPENED` | `DONE` 업무가 다시 열릴 때 |
 
-이름 상수는 `common/audit/AuditActions`에 있다. 업무 진행의 네 이름은 그 클래스 밖에 있고, `TaskProgressService`가 문자열로 넣는다.
+이름 상수는 `common/audit/AuditActions`에 있다. 업무 진행의 네 이름은 그 클래스 밖에 있고, `TaskProgressService`가 문자열로 넣는다. `OWNER_TRANSFER_ACCEPTED`도 그 클래스 밖에 있고, `OwnerTransferService`가 문자열로 넣는다. detail은 `transferId`, `toUserId`, `recipientPriorRole`, `deletedOverrides`다. actor는 받는 사람이다.
 
-남기지 않는 명령: 로그인과 로그아웃, 초대 생성·재발송·취소·미리보기·수락, 업무 생성·수정·삭제, 탈퇴 미리보기, 막힌 탈퇴. 업무 수정으로 `CANCELLED`가 되거나 담당이 바뀌어도 감사 로그는 없다.
+남기지 않는 명령: 로그인과 로그아웃, 초대 생성·재발송·취소·미리보기·수락, 업무 생성·수정·삭제, 탈퇴 미리보기, 막힌 탈퇴, 소유권 이전의 요청·거절·취소와 다시 수락. 업무 수정으로 `CANCELLED`가 되거나 담당이 바뀌어도 감사 로그는 없다.
 
 담당이 비워지며 로그가 남는 경우는 운영자 제거와 공간 탈퇴다. `TASK_ASSIGNEE_CLEARED`의 detail은 `taskId`, `previousAssigneeUserId`, `reason`, `version`이다. `version`은 비운 뒤의 값이다. `reason`은 제거면 `운영자 제거`, 탈퇴면 `이탈`이다. `EVENT_ACCESS_REVOKED`의 detail은 대상 `userId`와 지워진 override인 `deletedOverrides`다. 탈퇴의 actor는 떠나는 사람이고, 운영자 제거의 actor는 그 제거를 호출한 사람이다. 유지한 행사에는 두 `action`이 없다.
 
@@ -653,6 +727,6 @@ curl -sS \
 - 행사 생성·수정, 공간 설정
 - 체크 항목 추가
 - 참가자, 신청, 회비, 조, 방, 차량, 체크인
-- 소유권 이전의 전용 URL
+- 공간 소유권 이전의 전용 URL
 
 `Permission` enum에 키가 있는 것은 그 업무의 API가 열렸다는 뜻이 아니다.

@@ -4,7 +4,7 @@
 
 코드와 이 문서의 경로가 다르면 코드를 따른다. 설계 문서 표지(`docs/README.md`)는 결정 baseline이고, 실행되는 서버는 `backend/`다. 각 설계 문서 안의 "implementation 전"은 그 문서를 적을 때의 상태다.
 
-관련 이슈: [#87](https://github.com/BeomhyunPark/SCENE/issues/87), [#93](https://github.com/BeomhyunPark/SCENE/issues/93), [#97](https://github.com/BeomhyunPark/SCENE/issues/97), [#99](https://github.com/BeomhyunPark/SCENE/issues/99).
+관련 이슈: [#87](https://github.com/BeomhyunPark/SCENE/issues/87), [#93](https://github.com/BeomhyunPark/SCENE/issues/93), [#97](https://github.com/BeomhyunPark/SCENE/issues/97), [#99](https://github.com/BeomhyunPark/SCENE/issues/99), [#103](https://github.com/BeomhyunPark/SCENE/issues/103).
 
 ## 한 줄
 
@@ -40,8 +40,9 @@
 | CSRF 쿠키 이름과 `Secure` | `SecurityConfiguration`의 `shared` |
 | 초대 토큰이 어디로 가는지 | `event/invitation/CapturingInvitationMailer` |
 | 업무 저장 | `event/task/TaskCommandService` 또는 `TaskProgressService` |
-| 감사 로그 이름 | `common/audit/AuditActions`. 업무 진행 네 이름은 `TaskProgressService` 안에 있다 |
+| 감사 로그 이름 | `common/audit/AuditActions`. 업무 진행 네 이름은 `TaskProgressService`, 수락 이름은 `OwnerTransferService` 안에 있다 |
 | 공간 탈퇴 | `space/OperatorLeaveController`, `space/MembershipLeaveService` |
+| 행사 소유권 이전 | `event/transfer/OwnerTransferController`, `event/transfer/OwnerTransferService` |
 | 공간 소유자 대신 실행 알림 | `event/lifecycle/OperatorNoticeRepository` |
 | SQL | `src/main/resources/mapper/`의 같은 이름 XML |
 
@@ -173,6 +174,7 @@ CSRF 쿠키는 `XSRF-TOKEN`, 헤더는 `X-XSRF-TOKEN`이다. 변경 요청은 �
 | 활성화, 종료, 다시 열기, 보관, 보관 해제, 전이 목록 | `event/lifecycle/EventLifecycleController` |
 | 초대 생성, 재발송, 취소, 미리보기, 수락 | `event/invitation/EventInvitationController` |
 | 운영자 목록과 역할, 권한 override | `event/operator/EventOperatorController` |
+| 행사 소유권 이전 요청, 조회, 수락, 거절, 취소 | `event/transfer/OwnerTransferController` |
 | 업무 목록, 생성, 상세, 수정, 삭제 | `event/task/TaskCommandController` |
 | 체크 항목, 완료, 다시 열기 | `event/task/TaskProgressController` |
 
@@ -182,7 +184,7 @@ CSRF 쿠키는 `XSRF-TOKEN`, 헤더는 `X-XSRF-TOKEN`이다. 변경 요청은 �
 
 전용 URL이 없는 동작도 있다.
 
-- 소유권 이전은 서비스와 통합 테스트에 있다. 전용 컨트롤러는 없다.
+- 공간 소유권 이전은 전용 컨트롤러가 없다.
 
 오류 본문은 `application/problem+json`이다. 분기 값은 `code`다. 등록부는 `common/error/ErrorCode`다. `SceneException`을 던지면 `SceneExceptionHandler`가 상태로 바꾼다. 모르는 예외의 메시지는 응답에 넣지 않는다. 헤더 `X-Request-Id`와 본문 `traceId`는 같은 값이다.
 
@@ -215,6 +217,7 @@ Flyway만 스키마를 쓴다. `V1__baseline.sql`이 제품 테이블이고, `V2
 | 행사 상태 전이 HTTP | `event/lifecycle/EventLifecycleHttpIT` |
 | 초대 | `event/invitation/EventInvitationIT`, `EventInvitationAcceptIT` |
 | 운영자와 권한 override | `event/operator/EventOperatorIT`, `OperatorPermissionHttpIT` |
+| 행사 소유권 이전 HTTP | `event/transfer/OwnerTransferHttpIT` |
 | 업무 명령 | `event/task/TaskCommandHttpIT` |
 | 체크와 완료 | `event/task/TaskProgressHttpIT` |
 | 여러 기능이 한 행사에서 맞는지 | `event/LifecycleAndTaskIT`, `event/ServerContractRegressionIT` |
