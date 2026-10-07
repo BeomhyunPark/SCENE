@@ -2,7 +2,7 @@
 
 지금 서버가 받는 HTTP 계약이다. 설계 초안은 저장소 루트의 [API Architecture](../../docs/architecture/api-architecture-v0.1.md)에 있고, 파일을 찾는 순서는 [소스 안내](source-guide.md)에 있다. 이 문서와 코드가 다르면 코드를 따른다.
 
-관련 이슈: [#89](https://github.com/BeomhyunPark/SCENE/issues/89), [#93](https://github.com/BeomhyunPark/SCENE/issues/93), [#97](https://github.com/BeomhyunPark/SCENE/issues/97).
+관련 이슈: [#89](https://github.com/BeomhyunPark/SCENE/issues/89), [#93](https://github.com/BeomhyunPark/SCENE/issues/93), [#97](https://github.com/BeomhyunPark/SCENE/issues/97), [#99](https://github.com/BeomhyunPark/SCENE/issues/99).
 
 참가자 API와 공개 API는 아직 없다. `/api/v1/participant/**`와 `/api/v1/public/**`는 필터 체인만 있고 제품 컨트롤러가 없다. 아래 경로는 모두 `/api/v1/operator`다.
 
@@ -95,8 +95,12 @@
 | `PERMISSION_OWNER_ONLY` | 422 | `EVENT_LIFECYCLE`, `EVENT_USER_MANAGE`는 소유자만 가진다 |
 | `PERMISSION_NOT_OVERRIDABLE` | 422 | `EVENT_READ`는 개별 설정으로 뺄 수 없다 |
 | `RATE_LIMITED` | 429 | 초대 미리보기·수락이 한도를 넘었다 |
+| `HANDOVER_NOT_ACCEPTED` | 409 | 수락되지 않은 인수인계가 있어 공간 탈퇴가 막힌다 |
+| `LAST_OWNER` | 409 | 마지막 소유자라 공간 탈퇴가 막힌다 |
+| `OWNER_ROLE_HELD` | 409 | 소유 역할을 가진 채 공간 탈퇴가 막힌다 |
+| `RESPONSIBILITY` | 409 | 열린 담당 업무가 있어 공간 탈퇴가 막힌다 |
 
-`LAST_OWNER`, `TRANSFER_NOT_PENDING` 같은 나머지 코드는 enum에 있으나 이 문서의 HTTP는 쓰지 않는다. 탈퇴와 소유권 이전은 전용 URL이 없다.
+`TRANSFER_NOT_PENDING`은 enum에 있으나 이 문서의 HTTP는 쓰지 않는다. 소유권 이전은 전용 URL이 없다.
 
 접근은 경로마다 입구가 다르다. 없는 대상은 404, 제거된 접근은 `NOT_A_MEMBER`, 권한 부족은 `FORBIDDEN`이다. 한 경로의 규칙을 다른 경로에 그대로 적용하지 않는다.
 
@@ -178,6 +182,70 @@ curl -sS \
 ```
 
 행사 운영자가 아니며 접근 취소 기록도 없으면 `404`다. 접근이 제거된 운영자는 `403 NOT_A_MEMBER`다. 운영자인데 `EVENT_READ`가 없으면 `403 FORBIDDEN`이다. 공간 소유자라는 이유만으로 이 경로는 열리지 않는다.
+
+## 공간 탈퇴
+
+활성 공간 멤버가 그 공간에서 나간다. 컨트롤러는 `space/OperatorLeaveController`다. 막는 순서와 유지·제거는 `MembershipLeaveService`가 한다. 행사만 나가는 URL은 없다.
+
+호출자는 로그인한 본인이다. 경로에 대상 사용자 id는 없다. 멤버 행이 없으면 두 경로 모두 `404 RESOURCE_NOT_FOUND`다. 멤버십이 `ACTIVE`가 아니면 `403 NOT_A_MEMBER`다.
+
+막는 조건은 하나다. 아래 순서에서 먼저 걸리는 코드만 돌려준다. 막히면 멤버십, 운영자 행, 담당, 인수인계, 감사 로그는 그대로다.
+
+1. 그 사람이 보낸 `PENDING` 인수인계가 있으면 `409 HANDOVER_NOT_ACCEPTED`
+2. 인수인계가 수락되지 않았고, 그 행사에 권한이 끝나지 않은 다른 소유자가 없으면 `409 LAST_OWNER`
+3. 공간의 활성 소유자가 그 사람뿐이면 `409 LAST_OWNER`
+4. 인수인계가 수락되지 않은 소유 행사가 있으면 `409 OWNER_ROLE_HELD`
+5. 그 사람이 담당인 `TODO` 또는 `DOING` 업무가 있으면 `409 RESPONSIBILITY`
+
+이 판단은 `keepEventIds`보다 먼저다. 열린 업무가 있는 행사를 유지 목록에 넣어도 `RESPONSIBILITY`다. `DONE`과 `CANCELLED`는 열린 업무가 아니다. 보관된 행사는 `EVENT_ARCHIVED`로 탈퇴를 막지 않는다. 미리보기와 탈퇴는 호출 시점마다 이 순서를 다시 계산한다.
+
+### `GET /api/v1/operator/spaces/{spaceId}/me/leave-preview`
+
+본문이 없다. 행을 바꾸지 않는다.
+
+`200`
+
+```json
+{
+  "leaveBlocked": true,
+  "blockReason": "OWNER_ROLE_HELD",
+  "events": [
+    {
+      "eventId": "…",
+      "isOwner": true,
+      "handoverAccepted": false,
+      "openTasks": 0
+    }
+  ]
+}
+```
+
+`leaveBlocked`가 false이면 `blockReason`은 `null`이다. `blockReason`은 위 코드 이름 하나다. `events`는 그 공간에서 호출자가 운영자인 행사만 담는다. `isOwner`는 역할이 `OWNER`인지다. `handoverAccepted`는 그 사람이 그 행사에서 보낸 인수인계가 `HANDOVER`인지다. `openTasks`는 그 사람 담당의 `TODO`와 `DOING` 수다. 행사 이름, 일정, 상태, 표시 그룹은 없다.
+
+### `POST /api/v1/operator/spaces/{spaceId}/me/leave`
+
+```json
+{ "keepEventIds": ["…"] }
+```
+
+`keepEventIds`는 그 공간에서 자신이 운영하는 행사 id의 배열이다. 빈 배열은 운영 행사를 모두 끊는다. 이 배열에 없는 운영 행사는 끊긴다. 여기 넣은 행사는 운영자 행과 권한 override가 남는다.
+
+막는 조건이 있으면, `keepEventIds`가 없거나 배열이 아니거나 항목이 UUID 문자열이 아니어도 그 `409`다. `errors`는 없다. 막는 조건이 없을 때 아래는 `400 VALIDATION_FAILED`이고 `errors[0].field`는 `keepEventIds`다.
+
+- 본문이 없거나, 객체가 아니거나, `keepEventIds`가 없다
+- `keepEventIds`가 배열이 아니거나, 항목이 UUID 문자열이 아니다
+- 목록에 자신이 운영하지 않는 행사가 있다
+- 목록에 자신의 소유 행사가 있거나, `handoverAccepted`가 true인 행사가 있다
+
+성공은 본문이 없는 `200`이다.
+
+- `members.status`는 `LEFT`가 된다. 이후 공간 조회와 탈퇴 미리보기는 `403 NOT_A_MEMBER`다. 남긴 행사가 있어도 공간 조회는 열리지 않는다.
+- 남긴 행사의 `GET /spaces/{spaceId}/events/{eventId}`는 열린다. 그 행사에는 감사 로그가 없다.
+- 끊긴 행사는 운영자 행과 권한 override가 지워진다. 그 사람 담당 업무는 `DONE`과 `CANCELLED`를 포함해 담당이 비워지고 `version`이 1 증가한다. 이후 그 행사 조회는 `403 NOT_A_MEMBER`다.
+- `handoverAccepted`인 행사를 끊으면 그 인수인계 status는 `COMPLETED`가 된다.
+- 운영 행사가 없으면 멤버십만 `LEFT`가 된다.
+
+끊길 때 남는 감사 로그는 [기록 절](#응답에-안-나오는-기록)에 있다. 탈퇴 자체를 가리키는 `action`은 없다.
 
 ## 행사 상태
 
@@ -559,15 +627,17 @@ curl -sS \
 | `EVENT_ACTIVATE`, `EVENT_END`, `EVENT_REOPEN`, `EVENT_ARCHIVE`, `EVENT_UNARCHIVE` | 행사 상태가 실제로 옮겨질 때 |
 | `EVENT_USER_ROLE_CHANGED` | 운영자 역할을 다시 쓸 때 |
 | `EVENT_USER_PERMISSIONS_REPLACED` | 권한 override 내용이 바뀔 때 |
-| `EVENT_ACCESS_REVOKED` | 운영자 제거로 행사 접근이 끊길 때 |
-| `TASK_ASSIGNEE_CLEARED` | 그 제거가 업무 담당을 비울 때. `DONE`과 `CANCELLED`를 포함해 담당인 업무마다 한 줄 |
+| `EVENT_ACCESS_REVOKED` | 운영자 제거 또는 공간 탈퇴로 그 행사 접근이 끊길 때. 탈퇴에서 유지한 행사는 끊지 않는다 |
+| `TASK_ASSIGNEE_CLEARED` | 그 제거 또는 탈퇴가 업무 담당을 비울 때. `DONE`과 `CANCELLED`를 포함해 담당인 업무마다 한 줄 |
 | `TASK_ITEM_CHECKED`, `TASK_ITEM_UNCHECKED` | 체크 값이 바뀔 때 |
 | `TASK_COMPLETED` | 업무가 `DONE`이 될 때 |
 | `TASK_REOPENED` | `DONE` 업무가 다시 열릴 때 |
 
 이름 상수는 `common/audit/AuditActions`에 있다. 업무 진행의 네 이름은 그 클래스 밖에 있고, `TaskProgressService`가 문자열로 넣는다.
 
-남기지 않는 명령: 로그인과 로그아웃, 초대 생성·재발송·취소·미리보기·수락, 업무 생성·수정·삭제. 업무 수정으로 `CANCELLED`가 되거나 담당이 바뀌어도 감사 로그는 없다. 담당이 비워지며 로그가 남는 경우는 운영자 제거뿐이다.
+남기지 않는 명령: 로그인과 로그아웃, 초대 생성·재발송·취소·미리보기·수락, 업무 생성·수정·삭제, 탈퇴 미리보기, 막힌 탈퇴. 업무 수정으로 `CANCELLED`가 되거나 담당이 바뀌어도 감사 로그는 없다.
+
+담당이 비워지며 로그가 남는 경우는 운영자 제거와 공간 탈퇴다. `TASK_ASSIGNEE_CLEARED`의 detail은 `taskId`, `previousAssigneeUserId`, `reason`, `version`이다. `version`은 비운 뒤의 값이다. `reason`은 제거면 `운영자 제거`, 탈퇴면 `이탈`이다. `EVENT_ACCESS_REVOKED`의 detail은 대상 `userId`와 지워진 override인 `deletedOverrides`다. 탈퇴의 actor는 떠나는 사람이고, 운영자 제거의 actor는 그 제거를 호출한 사람이다. 유지한 행사에는 두 `action`이 없다.
 
 ### `operator_notices`
 
@@ -583,6 +653,6 @@ curl -sS \
 - 행사 생성·수정, 공간 설정
 - 체크 항목 추가
 - 참가자, 신청, 회비, 조, 방, 차량, 체크인
-- 공간 탈퇴, 소유권 이전의 전용 URL
+- 소유권 이전의 전용 URL
 
 `Permission` enum에 키가 있는 것은 그 업무의 API가 열렸다는 뜻이 아니다.
