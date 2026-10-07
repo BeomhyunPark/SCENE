@@ -2,7 +2,7 @@
 
 지금 서버가 받는 HTTP 계약이다. 설계 초안은 저장소 루트의 [API Architecture](../../docs/architecture/api-architecture-v0.1.md)에 있고, 파일을 찾는 순서는 [소스 안내](source-guide.md)에 있다. 이 문서와 코드가 다르면 코드를 따른다.
 
-관련 이슈: [#89](https://github.com/BeomhyunPark/SCENE/issues/89).
+관련 이슈: [#89](https://github.com/BeomhyunPark/SCENE/issues/89), [#93](https://github.com/BeomhyunPark/SCENE/issues/93).
 
 참가자 API와 공개 API는 아직 없다. `/api/v1/participant/**`와 `/api/v1/public/**`는 필터 체인만 있고 제품 컨트롤러가 없다. 아래 경로는 모두 `/api/v1/operator`다.
 
@@ -21,15 +21,19 @@
 
 `Idempotency-Key`는 읽지 않는다.
 
-### 세션
-
-로그인 성공 때 운영자 세션 쿠키가 내려간다. 쿠키 이름은 `placeholder-operator-session`이다. 자리표시자고, 설정은 `application.yml`의 `scene.security.session`이다. 서버는 이 쿠키를 Spring Session JDBC에 저장한다. `spring.session.timeout`은 30분이고, 이것은 라이브러리 기본값이다. 제품의 세션 만료는 아직 결정이 아니다.
-
-로그인 이후의 operator 경로는 이 쿠키가 필요하다. 없거나 만료되면 `401 AUTHENTICATION_REQUIRED`다.
-
 ### CSRF
 
-변경 요청은 쿠키 `XSRF-TOKEN`과 헤더 `X-XSRF-TOKEN`이 같아야 한다. 쿠키는 `HttpOnly`가 아니다. 값이 없거나 다르면 `403 FORBIDDEN`이다. 로그인도 이 검사를 받는다.
+변경 요청은 쿠키 `XSRF-TOKEN`과 헤더 `X-XSRF-TOKEN`에 같은 문자열을 넣는다. 토큰을 발급하는 주소는 없다. 클라이언트가 정한 값이면 된다. 두 값이 없거나 다르면 `403 FORBIDDEN`이다. 로그인도 이 검사를 받는다. 조회 `GET`은 CSRF가 필요 없다.
+
+쿠키는 `HttpOnly`가 아니고 `Secure`이며 경로는 `/`다. 자바스크립트가 읽을 수 있다.
+
+### 세션 쿠키
+
+로그인 성공의 `Set-Cookie` 이름은 `placeholder-operator-session`이다. 값은 Spring Session의 세션 id이고, Base64가 아니다. `HttpOnly`, `Secure`, 경로 `/`, `SameSite=Lax`다. 자리표시자 이름과 `Lax`는 `application.yml`의 `scene.security.session`에 있다. 제품의 쿠키 이름과 세션 만료는 아직 결정이 아니다. `spring.session.timeout` 30분은 라이브러리 기본값이다.
+
+서버는 이 쿠키를 Spring Session JDBC(`spring_session`)에 저장한다. 로그인 이후의 operator 경로는 이 쿠키가 필요하다. 없거나 만료되면 `401 AUTHENTICATION_REQUIRED`다.
+
+두 쿠키 모두 `Secure`다. Chromium 계열 브라우저는 `http://localhost`를 안전한 출처로 보아 이 쿠키를 보관한다. `curl`은 `http` 응답에 붙은 `Secure` 쿠키를 다음 `http` 요청에 스스로 돌려보내지 않는다. 아래 예시는 쿠키 값을 직접 넣는다.
 
 ### 목록
 
@@ -95,6 +99,28 @@
 `LAST_OWNER`, `TRANSFER_NOT_PENDING` 같은 나머지 코드는 enum에 있으나 이 문서의 HTTP는 쓰지 않는다. 탈퇴와 소유권 이전은 전용 URL이 없다.
 
 접근은 경로마다 입구가 다르다. 없는 대상은 404, 제거된 접근은 `NOT_A_MEMBER`, 권한 부족은 `FORBIDDEN`이다. 한 경로의 규칙을 다른 경로에 그대로 적용하지 않는다.
+
+## 로컬에서 한 번 호출
+
+서버를 띄우는 명령과 시드 id는 [README](../README.md)에 있다. 아래는 그 시드의 소유자다. `POST`는 CSRF 쿠키와 헤더를 같이 보낸다. 응답의 `Set-Cookie`에서 세션 값만 골라 다음 요청에 넣는다.
+
+```bash
+CSRF=dev-csrf
+curl -sS -D - \
+  -H 'Content-Type: application/json' \
+  -H "X-XSRF-TOKEN: $CSRF" \
+  -H "Cookie: XSRF-TOKEN=$CSRF" \
+  -d '{"userId":"00000000-0000-4000-8000-000000000001","email":"local-invite@example.com"}' \
+  http://localhost:8080/api/v1/operator/auth/login
+
+curl -sS \
+  -H 'Cookie: placeholder-operator-session=여기에-Set-Cookie-값' \
+  http://localhost:8080/api/v1/operator/me
+```
+
+로그인 `200`은 `userId`와 `displayName`이다. `email`은 응답에 없고 세션에만 있다. 초대를 수락할 때 그 값과 초대 이메일을 비교하므로, 시드 초대 `local-invite@example.com`을 보려면 로그인 본문에 그 이메일을 넣는다. 시드 행의 id `…0030`은 토큰이 아니다. 미리보기와 수락은 그 id로 호출하지 않는다.
+
+같은 호출 순서는 `src/test/java/app/scene/event/ServerContractRegressionIT.java`의 `login`이 서버에 대해 검증한 방식이다. 이 문서의 예시는 그 테스트를 로컬 서버에 옮겨 적은 것이고, 이 작성에서 서버를 띄워 다시 호출하지는 않았다.
 
 ## 준비 확인
 
@@ -243,9 +269,9 @@
 
 ## 초대
 
-초대 변경은 행사 `OWNER`만 한다. `EVENT_USER_MANAGE`다. 보관된 행사에서는 만들거나 다시 보내지 못한다.
+초대 변경은 행사 `OWNER`만 한다. `EVENT_USER_MANAGE`다. 클래스는 `event/invitation/EventInvitationController`다. 보관된 행사에서는 만들거나 다시 보내지 못한다.
 
-응답과 메일에 원문 토큰을 같이 넣지 않는다. 응답에는 토큰이 없다. 메일의 링크는 `/operator/invitations#` 뒤에 토큰을 둔다. 토큰은 fragment라 이 API의 쿼리로 돌아오지 않는다. 서버는 토큰 해시만 저장한다. 유효 시간은 7일이다.
+응답에는 토큰이 없다. 서버는 토큰 해시만 저장한다. 원문 토큰은 `CapturingInvitationMailer`가 프로세스 메모리에 담는 링크의 fragment에만 있다. 링크 모양은 `/operator/invitations#` 뒤에 토큰이다. SMTP 구현은 없다. 로그에 토큰을 남기지 않는다. 프로세스가 끝나면 그 링크도 없다. 유효 시간은 7일이다.
 
 같은 행사·이메일의 기존 `PENDING`은 새 초대를 만들 때 `SUPERSEDED`가 된다.
 
@@ -308,7 +334,13 @@
 
 목록과 한 명 조회는 행사 `EVENT_READ` 또는 활성 공간 `OWNER`다. 추가, 역할 변경, 제거, 권한 교체는 행사 `OWNER`의 `EVENT_USER_MANAGE`다. 공간 역할만으로는 운영자를 바꾸지 못한다. 공간 `OWNER`는 권한 행을 읽을 수 있고, 공간 `ADMIN`은 읽지 못한다.
 
-역할은 `OWNER`, `MANAGER`, `STAFF`다. 기본 권한은 [소스 안내의 권한 표](source-guide.md#접근과-권한)와 같다.
+역할은 `OWNER`, `MANAGER`, `STAFF`다. 기본 권한은 [소스 안내의 권한 표](source-guide.md#접근과-권한)와 같다. 컨트롤러는 `event/operator/EventOperatorController`다.
+
+등록된 권한 키는 이 이름뿐이다. 여기 없는 문자열은 `UNKNOWN_PERMISSION`이다.
+
+`EVENT_UPDATE`, `EVENT_USER_READ`, `PARTICIPANT_READ`, `PARTICIPANT_CONTACT_READ`, `PARTICIPANT_WRITE`, `FORM_WRITE`, `APPLICATION_READ`, `APPLICATION_MANAGE`, `TASK_WRITE`, `SCHEDULE_WRITE`, `NOTICE_WRITE`, `FINANCE_READ`, `FINANCE_WRITE`, `GROUP_WRITE`, `ROOM_WRITE`, `RIDE_WRITE`, `CLASS_WRITE`, `CHECKIN_WRITE`, `MISSION_WRITE`, `GUARDIAN_WRITE`, `GUARDIAN_CONTACT_READ`, `PRIVACY_LOG_READ`, `AUDIT_LOG_READ`, `DATA_EXPORT`, `EVENT_READ`, `EVENT_LIFECYCLE`, `EVENT_USER_MANAGE`.
+
+`OWNER`는 이 키를 모두 기본으로 가진다. `MANAGER`의 기본은 `EVENT_READ`와 `TASK_WRITE`다. `STAFF`의 기본은 `EVENT_READ`다. 키가 있다고 그 업무의 API가 열려 있는 것은 아니다. 지금 HTTP가 `PermissionEvaluator`로 보는 키는 `EVENT_READ`, `TASK_WRITE`, `EVENT_USER_MANAGE`다. 행사 상태 변경은 그 키 대신 행사 역할 `OWNER`와 공간 역할 `OWNER`를 본다. `EVENT_LIFECYCLE`은 소유자 전용이라 다른 역할에 `GRANT`되지 않는다.
 
 ### `GET /api/v1/operator/events/{eventId}/operators`
 
@@ -520,6 +552,7 @@
 
 - `/api/v1/participant/**`, `/api/v1/public/**`의 신청, 조회, 로그인
 - 비밀번호 로그인
+- SMTP. 초대 링크는 프로세스 메모리에만 남는다
 - 행사 생성·수정, 공간 설정
 - 체크 항목 추가
 - 참가자, 신청, 회비, 조, 방, 차량, 체크인
