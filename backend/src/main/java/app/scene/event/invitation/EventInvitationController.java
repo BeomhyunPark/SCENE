@@ -1,6 +1,7 @@
 package app.scene.event.invitation;
 
 import app.scene.identity.OperatorPrincipal;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.UUID;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -10,7 +11,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import tools.jackson.databind.JsonNode;
 
-/** DEC-060 invitation commands. Preview and accept stay on a later slice. */
+/** DEC-060 invitation commands, preview, and accept. */
 @RestController
 public class EventInvitationController {
 
@@ -35,8 +36,36 @@ public class EventInvitationController {
     return invitations.revoke(actor(), eventId, invitationId);
   }
 
+  @PostMapping("/api/v1/operator/invitations/preview")
+  InvitationPreview preview(@RequestBody JsonNode body, HttpServletRequest request) {
+    OperatorPrincipal principal = principal();
+    return invitations.preview(
+        principal.userId(), principal.email(), text(body, "token"), request.getRemoteAddr());
+  }
+
+  @PostMapping("/api/v1/operator/invitations/accept")
+  InvitationAcceptance accept(@RequestBody JsonNode body, HttpServletRequest request) {
+    OperatorPrincipal principal = principal();
+    return invitations.accept(
+        principal.userId(), principal.email(), text(body, "token"), request.getRemoteAddr());
+  }
+
+  private static OperatorPrincipal principal() {
+    return OperatorPrincipal.require(SecurityContextHolder.getContext().getAuthentication());
+  }
+
   private static UUID actor() {
-    return OperatorPrincipal.require(SecurityContextHolder.getContext().getAuthentication())
-        .userId();
+    return principal().userId();
+  }
+
+  private static String text(JsonNode body, String field) {
+    if (body == null || !body.isObject()) {
+      return "";
+    }
+    JsonNode node = body.get(field);
+    if (node == null || !node.isString()) {
+      return "";
+    }
+    return node.asString();
   }
 }

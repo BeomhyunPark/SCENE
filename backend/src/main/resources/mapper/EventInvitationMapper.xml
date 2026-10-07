@@ -36,6 +36,20 @@
       AND status = #{pendingStatus}
   </update>
 
+  <select id="findByTokenHash" resultType="app.scene.event.lifecycle.InvitationRow">
+    SELECT id, space_id, event_id, email_normalized, role, token_hash, status,
+           expires_at, invited_by, accepted_user_id
+    FROM event_invitations
+    WHERE token_hash = #{tokenHash}
+  </select>
+
+  <update id="acceptPending">
+    UPDATE event_invitations
+    SET status = #{acceptedStatus}, accepted_user_id = #{acceptedUserId}, updated_at = #{now}
+    WHERE id = #{id} AND space_id = #{spaceId} AND event_id = #{eventId}
+      AND status = #{pendingStatus} AND expires_at &gt; #{now}
+  </update>
+
   <update id="revokePending">
     UPDATE event_invitations
     SET status = #{revokedStatus}, updated_at = #{now}
