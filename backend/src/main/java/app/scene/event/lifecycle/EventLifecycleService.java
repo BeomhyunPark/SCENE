@@ -1,5 +1,6 @@
 package app.scene.event.lifecycle;
 
+import app.scene.common.audit.AuditActions;
 import app.scene.common.audit.AuditLogRepository;
 import app.scene.common.error.ErrorCode;
 import app.scene.common.error.SceneException;
@@ -134,11 +135,21 @@ public class EventLifecycleService {
         spaceId,
         eventId,
         actor.userId(),
-        "EVENT_" + command.name(),
+        action(command),
         json.writeValueAsString(auditDetail(actedAs, request.overrideReason())),
         now);
     return new LifecycleResult(
         "TRANSITIONED", command.toStatus(), row.lifecycleVersion() + 1, actedAs);
+  }
+
+  private static String action(LifecycleCommand command) {
+    return switch (command) {
+      case ACTIVATE -> AuditActions.EVENT_ACTIVATE;
+      case END -> AuditActions.EVENT_END;
+      case REOPEN -> AuditActions.EVENT_REOPEN;
+      case ARCHIVE -> AuditActions.EVENT_ARCHIVE;
+      case UNARCHIVE -> AuditActions.EVENT_UNARCHIVE;
+    };
   }
 
   private static String authorize(

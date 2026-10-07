@@ -74,7 +74,10 @@ public class OperatorAccess {
     return SpaceMembership.active(row.role());
   }
 
-  /** True when this person has an {@code EVENT_ACCESS_REVOKED} audit on the event. */
+  /**
+   * True when an {@code EVENT_ACCESS_REVOKED} detail names this person as {@code userId}. The actor
+   * may be someone else, as on operator removal.
+   */
   public boolean eventAccessRevoked(UUID userId, UUID spaceId, UUID eventId) {
     EventAccessRow row = access.findEvent(spaceId, eventId, userId).orElse(null);
     return row != null && row.accessRevoked();

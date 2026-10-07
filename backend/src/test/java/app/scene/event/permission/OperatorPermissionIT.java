@@ -3,9 +3,12 @@ package app.scene.event.permission;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import app.scene.common.audit.AuditActions;
 import app.scene.common.error.ErrorCode;
 import app.scene.common.error.SceneException;
+import app.scene.common.tenant.OperatorAccess;
 import app.scene.common.tenant.SpaceMembership;
+import app.scene.space.EventUserPermissionRepository;
 import app.scene.support.PostgresTestcontainer;
 import java.util.List;
 import java.util.Map;
@@ -15,6 +18,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 
 /** P0-11 permission overrides. Persistence uses the Testcontainers database. */
 @SpringBootTest
@@ -22,6 +29,10 @@ import org.springframework.jdbc.core.JdbcTemplate;
 class OperatorPermissionIT {
 
   @Autowired OperatorPermissionService permissions;
+  @Autowired EventUserPermissionRepository storedPermissions;
+  @Autowired OperatorAccess access;
+  @Autowired PlatformTransactionManager transactions;
+  @Autowired JsonMapper json;
   @Autowired JdbcTemplate jdbc;
 
   @Test
@@ -59,7 +70,7 @@ class OperatorPermissionIT {
                 List.of()));
     assertThat(overrideCount(fx.eventId, fx.staffId)).isZero();
     assertThat(overrideCount(fx.eventId, fx.ownerId)).isZero();
-    assertThat(auditCount(fx, OperatorPermissionService.PERMISSIONS_REPLACED)).isZero();
+    assertThat(auditCount(fx, AuditActions.EVENT_USER_PERMISSIONS_REPLACED)).isZero();
   }
 
   @Test
@@ -147,7 +158,7 @@ class OperatorPermissionIT {
         ErrorCode.EVENT_ARCHIVED,
         () -> permissions.changeRole(fx.ownerId, fx.spaceId, fx.eventId, fx.managerId, "STAFF"));
     assertThat(role(fx.eventId, fx.managerId)).isEqualTo("MANAGER");
-    assertThat(auditCount(fx, OperatorPermissionService.ROLE_CHANGED)).isZero();
+    assertThat(auditCount(fx, AuditActions.EVENT_USER_ROLE_CHANGED)).isZero();
   }
 
   @Test
@@ -170,7 +181,9 @@ class OperatorPermissionIT {
     assertThat(changed.role()).isEqualTo("STAFF");
     assertThat(changed.grants()).isEmpty();
     assertThat(changed.effective()).contains("EVENT_READ").doesNotContain("DATA_EXPORT");
-    assertThat(auditDetail(fx, OperatorPermissionService.ROLE_CHANGED)).contains("DATA_EXPORT");
+    assertThat(auditDetail(fx, AuditActions.EVENT_USER_ROLE_CHANGED))
+        .contains("DATA_EXPORT", "grantedBy", "grantedAt", "roleBefore", "roleAfter")
+        .contains(fx.managerId.toString());
 
     permissions.remove(fx.ownerId, fx.spaceId, fx.eventId, fx.managerId);
     OperatorPermissions added =
@@ -200,7 +213,93 @@ class OperatorPermissionIT {
     permissions.replace(
         fx.ownerId, fx.spaceId, fx.eventId, fx.staffId, List.of("DATA_EXPORT"), List.of());
     assertThat(grantedAt(fx.eventId, fx.staffId)).startsWith("2020-01-01");
-    assertThat(auditCount(fx, OperatorPermissionService.PERMISSIONS_REPLACED)).isEqualTo(1);
+    assertThat(auditCount(fx, AuditActions.EVENT_USER_PERMISSIONS_REPLACED)).isEqualTo(1);
+    assertThat(auditDetail(fx, AuditActions.EVENT_USER_PERMISSIONS_REPLACED))
+        .contains("grantsBefore", "revokesBefore", "grantsAfter", "revokesAfter", "DATA_EXPORT");
+  }
+
+  @Test
+  void removalKeepsTheCallerAsActorAndTheTargetInTheDetail() {
+    Fixture fx = seed("ACTIVE");
+    String contact = "staff.contact@example.com";
+    String token = "raw-access-key-secret";
+    jdbc.update(
+        """
+        INSERT INTO event_invitations (
+          id, space_id, event_id, email_normalized, role, token_hash, status,
+          expires_at, invited_by, created_at, updated_at)
+        VALUES (?, ?, ?, ?, 'STAFF', ?, 'PENDING', now() + interval '7 days', ?, now(), now())
+        """,
+        UUID.randomUUID(),
+        fx.spaceId,
+        fx.eventId,
+        contact,
+        token,
+        fx.ownerId);
+    jdbc.update("UPDATE users SET display_name = ? WHERE id = ?", contact, fx.managerId);
+    permissions.replace(
+        fx.ownerId,
+        fx.spaceId,
+        fx.eventId,
+        fx.managerId,
+        List.of("DATA_EXPORT"),
+        List.of("TASK_WRITE"));
+    UUID taskId = task(fx, fx.managerId);
+    String snapshot = storedPermissions.findSnapshot(fx.spaceId, fx.eventId, fx.managerId);
+
+    permissions.remove(fx.ownerId, fx.spaceId, fx.eventId, fx.managerId);
+
+    assertThat(auditActor(fx, AuditActions.EVENT_ACCESS_REVOKED)).isEqualTo(fx.ownerId);
+    assertThat(auditActor(fx, AuditActions.TASK_ASSIGNEE_CLEARED)).isEqualTo(fx.ownerId);
+    JsonNode detail = json.readTree(auditDetail(fx, AuditActions.EVENT_ACCESS_REVOKED));
+    assertThat(detail.get("userId").asString()).isEqualTo(fx.managerId.toString());
+    assertThat(detail.get("deletedOverrides")).isEqualTo(json.readTree(snapshot));
+    assertThat(snapshot).contains("DATA_EXPORT", "TASK_WRITE", "GRANT", "REVOKE");
+    String taskDetail = auditDetail(fx, AuditActions.TASK_ASSIGNEE_CLEARED);
+    assertThat(taskDetail).contains(fx.managerId.toString(), "운영자 제거", taskId.toString());
+    assertThat(auditText(fx)).doesNotContain(contact).doesNotContain(token);
+    assertThat(access.eventAccessRevoked(fx.managerId, fx.spaceId, fx.eventId)).isTrue();
+    assertThat(access.eventAccessRevoked(fx.ownerId, fx.spaceId, fx.eventId)).isFalse();
+    assertThat(overrideCount(fx.eventId, fx.managerId)).isZero();
+  }
+
+  @Test
+  void failedRemovalRollsTheAuditBack() {
+    Fixture fx = seed("ACTIVE");
+    permissions.replace(
+        fx.ownerId, fx.spaceId, fx.eventId, fx.staffId, List.of("DATA_EXPORT"), List.of());
+    UUID taskId = task(fx, fx.staffId);
+    int before = auditRows(fx);
+
+    assertThatThrownBy(
+            () ->
+                new TransactionTemplate(transactions)
+                    .executeWithoutResult(
+                        status -> {
+                          permissions.remove(fx.ownerId, fx.spaceId, fx.eventId, fx.staffId);
+                          throw new IllegalStateException("removal failed");
+                        }))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessage("removal failed");
+
+    assertThat(auditRows(fx)).isEqualTo(before);
+    assertThat(auditCount(fx, AuditActions.EVENT_ACCESS_REVOKED)).isZero();
+    assertThat(auditCount(fx, AuditActions.TASK_ASSIGNEE_CLEARED)).isZero();
+    assertThat(role(fx.eventId, fx.staffId)).isEqualTo("STAFF");
+    assertThat(overrideCount(fx.eventId, fx.staffId)).isEqualTo(1);
+    assertThat(assignee(taskId)).isEqualTo(fx.staffId);
+  }
+
+  @Test
+  void forbiddenRemovalWritesNoAudit() {
+    Fixture fx = seed("ACTIVE");
+    UUID spaceOwnerId = user("Space owner");
+    member(fx.spaceId, spaceOwnerId, "OWNER");
+    assertCode(
+        ErrorCode.FORBIDDEN,
+        () -> permissions.remove(spaceOwnerId, fx.spaceId, fx.eventId, fx.staffId));
+    assertThat(auditRows(fx)).isZero();
+    assertThat(role(fx.eventId, fx.staffId)).isEqualTo("STAFF");
   }
 
   @Test
@@ -318,6 +417,48 @@ class OperatorPermissionIT {
         String.class,
         eventId,
         userId);
+  }
+
+  private UUID task(Fixture fx, UUID assignee) {
+    UUID taskId = UUID.randomUUID();
+    jdbc.update(
+        """
+        INSERT INTO tasks (id, space_id, event_id, title, status, assignee_user_id)
+        VALUES (?, ?, ?, 'task', 'TODO', ?)
+        """,
+        taskId,
+        fx.spaceId,
+        fx.eventId,
+        assignee);
+    return taskId;
+  }
+
+  private UUID assignee(UUID taskId) {
+    return jdbc.queryForObject(
+        "SELECT assignee_user_id FROM tasks WHERE id = ?", UUID.class, taskId);
+  }
+
+  private UUID auditActor(Fixture fx, String action) {
+    return jdbc.queryForObject(
+        """
+        SELECT actor_user_id FROM audit_logs
+        WHERE event_id = ? AND action = ?
+        """,
+        UUID.class,
+        fx.eventId,
+        action);
+  }
+
+  private int auditRows(Fixture fx) {
+    return jdbc.queryForObject(
+        "SELECT count(*) FROM audit_logs WHERE event_id = ?", Integer.class, fx.eventId);
+  }
+
+  private String auditText(Fixture fx) {
+    return jdbc.queryForObject(
+        "SELECT coalesce(string_agg(detail::text, ''), '') FROM audit_logs WHERE event_id = ?",
+        String.class,
+        fx.eventId);
   }
 
   private String grantedAt(UUID eventId, UUID userId) {

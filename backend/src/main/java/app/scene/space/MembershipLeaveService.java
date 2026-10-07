@@ -1,5 +1,6 @@
 package app.scene.space;
 
+import app.scene.common.audit.AuditActions;
 import app.scene.common.audit.AuditLogRepository;
 import app.scene.common.error.ErrorCode;
 import app.scene.common.error.SceneException;
@@ -26,9 +27,6 @@ public class MembershipLeaveService {
    * Stored on each cleared-task audit when the person leaves. Operator removal uses its own text.
    */
   static final String LEAVE_REASON = "이탈";
-
-  static final String TASK_ASSIGNEE_CLEARED = "TASK_ASSIGNEE_CLEARED";
-  static final String EVENT_ACCESS_REVOKED = "EVENT_ACCESS_REVOKED";
 
   private final MemberRepository members;
   private final EventUserRepository eventUsers;
@@ -98,7 +96,7 @@ public class MembershipLeaveService {
       if (keepEventIds.contains(event.eventId())) {
         continue;
       }
-      revokeEventAccess(spaceId, event.eventId(), userId, LEAVE_REASON);
+      revokeEventAccess(spaceId, event.eventId(), userId, userId, LEAVE_REASON);
       if (event.handoverAccepted()
           && transfers.updateCompleted(spaceId, event.eventId(), userId) != 1) {
         throw new IllegalStateException("accepted handover was not completed");
@@ -112,10 +110,13 @@ public class MembershipLeaveService {
   /**
    * Drops one event operator. Clears every task assigned to them, including DONE and CANCELLED,
    * records the override rows CASCADE would remove, then deletes {@code event_users}. {@code
-   * reason} is the task-audit text ({@code 이탈} here, {@code 운영자 제거} when operator removal is
-   * added). Kept events must not call this.
+   * userId} is the person who loses access. {@code actorUserId} is who did it: the person leaving,
+   * or the caller of operator removal. {@code reason} is the task-audit text ({@code 이탈} or {@code
+   * 운영자 제거}). The access-revoked detail keeps {@code userId} as the target. Kept events must not
+   * call this.
    */
-  public void revokeEventAccess(UUID spaceId, UUID eventId, UUID userId, String reason) {
+  public void revokeEventAccess(
+      UUID spaceId, UUID eventId, UUID userId, UUID actorUserId, String reason) {
     if (eventUsers.findForUpdate(spaceId, eventId, userId).isEmpty()) {
       throw new IllegalStateException("event operator row was not locked");
     }
@@ -130,7 +131,7 @@ public class MembershipLeaveService {
       detail.put("previousAssigneeUserId", userId);
       detail.put("reason", reason);
       detail.put("version", task.version() + 1);
-      audit(spaceId, eventId, userId, TASK_ASSIGNEE_CLEARED, detail, occurredAt);
+      audit(spaceId, eventId, actorUserId, AuditActions.TASK_ASSIGNEE_CLEARED, detail, occurredAt);
     }
     String snapshot = permissions.findSnapshot(spaceId, eventId, userId);
     if (eventUsers.delete(spaceId, eventId, userId) != 1) {
@@ -139,7 +140,7 @@ public class MembershipLeaveService {
     Map<String, Object> detail = new LinkedHashMap<>();
     detail.put("userId", userId);
     detail.put("deletedOverrides", json.readTree(snapshot));
-    audit(spaceId, eventId, userId, EVENT_ACCESS_REVOKED, detail, occurredAt);
+    audit(spaceId, eventId, actorUserId, AuditActions.EVENT_ACCESS_REVOKED, detail, occurredAt);
   }
 
   private void audit(

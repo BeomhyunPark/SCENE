@@ -3,9 +3,13 @@ package app.scene.common.audit;
 import java.time.Instant;
 import java.util.UUID;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Insert-only audit log. Callers own the action name and the JSON detail. */
+/**
+ * Insert-only audit log. The detail string is stored unchanged. The insert joins the caller
+ * transaction, so a failed command rolls it back.
+ */
 @Component
 public class AuditLogRepository {
 
@@ -15,7 +19,7 @@ public class AuditLogRepository {
     this.logs = logs;
   }
 
-  @Transactional
+  @Transactional(propagation = Propagation.REQUIRED)
   public void save(
       UUID spaceId,
       UUID eventId,
