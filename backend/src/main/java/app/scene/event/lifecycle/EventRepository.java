@@ -2,13 +2,17 @@ package app.scene.event.lifecycle;
 
 import app.scene.common.error.ErrorCode;
 import app.scene.common.error.SceneException;
+import app.scene.common.mybatis.PageParam;
+import app.scene.common.web.PageRequest;
 import app.scene.event.lifecycle.mapper.EventLifecycleTransitionMapper;
 import app.scene.event.lifecycle.mapper.EventLifecycleTransitionQueryMapper;
 import app.scene.event.lifecycle.mapper.EventMapper;
 import app.scene.event.lifecycle.param.EventKey;
 import app.scene.event.lifecycle.param.EventStatusUpdate;
 import app.scene.event.lifecycle.param.LifecycleTransitionInsert;
+import app.scene.event.lifecycle.param.LifecycleTransitionListQuery;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Component;
@@ -51,6 +55,21 @@ public class EventRepository {
 
   public Optional<LifecycleTransitionView> findLatestTransition(UUID spaceId, UUID eventId) {
     return Optional.ofNullable(transitionQueries.findLatest(EventKey.of(spaceId, eventId)));
+  }
+
+  public long countTransitions(UUID spaceId, UUID eventId) {
+    return transitionQueries.count(EventKey.of(spaceId, eventId));
+  }
+
+  public List<LifecycleTransitionRow> findTransitions(
+      UUID spaceId, UUID eventId, PageRequest request, String orderByClause) {
+    long offset = request.offset();
+    if (offset > Integer.MAX_VALUE) {
+      throw new IllegalArgumentException("page offset does not fit an int");
+    }
+    return transitionQueries.findPage(
+        LifecycleTransitionListQuery.of(
+            spaceId, eventId, PageParam.of((int) offset, request.size(), orderByClause)));
   }
 
   @Transactional
