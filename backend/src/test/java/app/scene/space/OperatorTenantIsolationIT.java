@@ -147,7 +147,8 @@ class OperatorTenantIsolationIT {
     operator(spaceId, eventId, userId);
     Cookie session = login(userId);
 
-    leave.revokeEventAccess(spaceId, eventId, userId, "운영자 제거");
+    UUID actorId = user("Remover");
+    leave.revokeEventAccess(spaceId, eventId, userId, actorId, "운영자 제거");
 
     problem(
         mvc.perform(

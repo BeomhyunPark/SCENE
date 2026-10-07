@@ -1,5 +1,6 @@
 package app.scene.event.permission;
 
+import app.scene.common.audit.AuditActions;
 import app.scene.common.audit.AuditLogRepository;
 import app.scene.common.error.ErrorCode;
 import app.scene.common.error.SceneException;
@@ -37,8 +38,6 @@ import tools.jackson.databind.json.JsonMapper;
 @Service
 public class OperatorPermissionService {
 
-  static final String PERMISSIONS_REPLACED = "EVENT_USER_PERMISSIONS_REPLACED";
-  static final String ROLE_CHANGED = "EVENT_USER_ROLE_CHANGED";
   private static final String GRANT = "GRANT";
   private static final String REVOKE = "REVOKE";
   private static final String ARCHIVED = "ARCHIVED";
@@ -125,7 +124,7 @@ public class OperatorPermissionService {
         spaceId,
         eventId,
         actorId,
-        PERMISSIONS_REPLACED,
+        AuditActions.EVENT_USER_PERMISSIONS_REPLACED,
         replacedDetail(targetUserId, grantsBefore, revokesBefore, grantsAfter, revokesAfter),
         clock.instant());
     return view(spaceId, eventId, targetUserId, role);
@@ -163,7 +162,7 @@ public class OperatorPermissionService {
     detail.put("roleBefore", lockedRole);
     detail.put("roleAfter", role);
     detail.put("deletedOverrides", json.readTree(snapshot));
-    audit(spaceId, eventId, actorId, ROLE_CHANGED, detail, clock.instant());
+    audit(spaceId, eventId, actorId, AuditActions.EVENT_USER_ROLE_CHANGED, detail, clock.instant());
     return view(spaceId, eventId, targetUserId, role);
   }
 
@@ -179,7 +178,7 @@ public class OperatorPermissionService {
     if (eventUsers.findRoleForUpdate(spaceId, eventId, targetUserId).isEmpty()) {
       throw new SceneException(ErrorCode.RESOURCE_NOT_FOUND);
     }
-    leave.revokeEventAccess(spaceId, eventId, targetUserId, REMOVAL_REASON);
+    leave.revokeEventAccess(spaceId, eventId, targetUserId, actorId, REMOVAL_REASON);
   }
 
   /** Adds an operator with no overrides. A removed operator's old overrides stay gone. */

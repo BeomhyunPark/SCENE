@@ -52,7 +52,7 @@ class MembershipLeaveRevokeIT {
     item(spaceId, eventId, doing);
     item(spaceId, eventId, done);
 
-    leave.revokeEventAccess(spaceId, eventId, userId, "운영자 제거");
+    leave.revokeEventAccess(spaceId, eventId, userId, ownerId, "운영자 제거");
 
     assertThat(assignee(todo)).isNull();
     assertThat(assignee(doing)).isNull();
@@ -79,6 +79,36 @@ class MembershipLeaveRevokeIT {
     assertThat(details)
         .allSatisfy(
             detail -> assertThat(detail).contains(userId.toString(), "운영자 제거", "\"version\": 1"));
+    List<UUID> taskActors =
+        jdbc.query(
+            """
+            SELECT actor_user_id FROM audit_logs
+            WHERE event_id = ? AND action = 'TASK_ASSIGNEE_CLEARED'
+            """,
+            (rs, row) -> rs.getObject(1, UUID.class),
+            eventId);
+    assertThat(taskActors).containsOnly(ownerId);
+    UUID revokedActor =
+        jdbc.queryForObject(
+            """
+            SELECT actor_user_id FROM audit_logs
+            WHERE event_id = ? AND action = 'EVENT_ACCESS_REVOKED'
+            """,
+            UUID.class,
+            eventId);
+    String revoked =
+        jdbc.queryForObject(
+            """
+            SELECT detail::text FROM audit_logs
+            WHERE event_id = ? AND action = 'EVENT_ACCESS_REVOKED'
+            """,
+            String.class,
+            eventId);
+    assertThat(revokedActor).isEqualTo(ownerId);
+    assertThat(revoked.replace(" ", ""))
+        .contains("\"userId\":\"" + userId + "\"")
+        .contains("\"deletedOverrides\":[]")
+        .doesNotContain(ownerId.toString());
   }
 
   private UUID task(UUID spaceId, UUID eventId, UUID assignee, String status) {

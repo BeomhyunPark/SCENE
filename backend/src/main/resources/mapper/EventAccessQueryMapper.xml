@@ -11,8 +11,8 @@
              SELECT 1 FROM audit_logs a
              WHERE a.space_id = e.space_id
                AND a.event_id = e.id
-               AND a.actor_user_id = #{userId}
                AND a.action = #{revokedAction}
+               AND CAST(a.detail ->> 'userId' AS uuid) = #{userId}
            ) AS access_revoked,
            o.role AS event_role,
            CASE

@@ -111,6 +111,7 @@ class LifecycleAndTaskIT {
     LifecycleResult again = lifecycle.end(fx.spaceId, fx.eventId, req(0), fx.ownerActor());
     assertThat(again.outcome()).isEqualTo("ALREADY_IN_STATE");
     assertThat(count(fx, "event_lifecycle_transitions")).isEqualTo(1);
+    assertThat(auditCount(fx, "EVENT_END")).isEqualTo(1);
   }
 
   @Test
@@ -128,6 +129,8 @@ class LifecycleAndTaskIT {
                 archived.eventId,
                 new LifecycleRequest(0, null, "잘못", null),
                 archived.ownerActor()));
+    assertThat(count(active, "audit_logs")).isZero();
+    assertThat(count(archived, "audit_logs")).isZero();
   }
 
   @Test
@@ -954,6 +957,8 @@ class LifecycleAndTaskIT {
     assertThat(auditCount(fx, "TASK_ASSIGNEE_CLEARED")).isEqualTo(2);
     assertThat(auditDetail(fx, "TASK_ASSIGNEE_CLEARED").replace(" ", ""))
         .contains(fx.managerId.toString(), "이탈", "\"version\":1");
+    assertThat(auditActors(fx, "TASK_ASSIGNEE_CLEARED")).containsOnly(fx.managerId);
+    assertThat(auditActors(fx, "EVENT_ACCESS_REVOKED")).containsExactly(fx.managerId);
     assertThat(count(fx, "tasks")).isEqualTo(3);
     assertThat(count(fx, "task_checklist_items")).isEqualTo(1);
 
@@ -1199,6 +1204,22 @@ class LifecycleAndTaskIT {
         fx.spaceId, fx.eventId, new LifecycleRequest(0, null, null, "준비를 마쳤다"), spaceOwner);
     lifecycle.end(
         fx.spaceId, fx.eventId, new LifecycleRequest(1, true, null, "행사를 끝낸다"), spaceOwner);
+    String activateReason =
+        jdbc.queryForObject(
+            """
+            SELECT reason FROM event_lifecycle_transitions
+            WHERE event_id = ? AND command = 'ACTIVATE'
+            """,
+            String.class,
+            fx.eventId);
+    String endReason =
+        jdbc.queryForObject(
+            """
+            SELECT reason FROM event_lifecycle_transitions
+            WHERE event_id = ? AND command = 'END'
+            """,
+            String.class,
+            fx.eventId);
     String activate =
         jdbc.queryForObject(
             "SELECT detail::text FROM audit_logs WHERE event_id = ? AND action = 'EVENT_ACTIVATE'",
@@ -1209,8 +1230,12 @@ class LifecycleAndTaskIT {
             "SELECT detail::text FROM audit_logs WHERE event_id = ? AND action = 'EVENT_END'",
             String.class,
             fx.eventId);
+    assertThat(activateReason).isEqualTo("준비를 마쳤다");
+    assertThat(endReason).isEqualTo("행사를 끝낸다");
     assertThat(activate).contains("SPACE_OWNER_OVERRIDE").contains("준비를 마쳤다");
     assertThat(end).contains("SPACE_OWNER_OVERRIDE").contains("행사를 끝낸다");
+    assertThat(auditActors(fx, "EVENT_ACTIVATE")).containsExactly(fx.spaceOwnerId);
+    assertThat(auditActors(fx, "EVENT_END")).containsExactly(fx.spaceOwnerId);
   }
 
   @Test
@@ -1444,6 +1469,14 @@ class LifecycleAndTaskIT {
     return Boolean.TRUE.equals(
         jdbc.queryForObject(
             "SELECT checked FROM task_checklist_items WHERE id = ?", Boolean.class, itemId));
+  }
+
+  private List<UUID> auditActors(Fixture fx, String action) {
+    return jdbc.query(
+        "SELECT actor_user_id FROM audit_logs WHERE event_id = ? AND action = ?",
+        (rs, row) -> rs.getObject(1, UUID.class),
+        fx.eventId,
+        action);
   }
 
   private int auditCount(Fixture fx, String action) {

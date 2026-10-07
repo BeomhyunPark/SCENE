@@ -1,5 +1,6 @@
 package app.scene.common.tenant;
 
+import app.scene.common.audit.AuditActions;
 import app.scene.common.mybatis.AuthorityStatuses;
 import app.scene.common.permission.Permission;
 import app.scene.common.tenant.mapper.EventAccessQueryMapper;
@@ -11,8 +12,6 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class OperatorAccessRepository {
-
-  static final String ACCESS_REVOKED = "EVENT_ACCESS_REVOKED";
 
   private final EventAccessQueryMapper events;
   private final SpaceAccessQueryMapper spaces;
@@ -29,7 +28,7 @@ public class OperatorAccessRepository {
                 spaceId,
                 eventId,
                 userId,
-                ACCESS_REVOKED,
+                AuditActions.EVENT_ACCESS_REVOKED,
                 Permission.EVENT_READ.name(),
                 AuthorityStatuses.ENDED)));
   }
