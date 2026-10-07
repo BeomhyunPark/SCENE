@@ -3,12 +3,44 @@
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="app.scene.event.transfer.mapper.OwnerTransferMapper">
 
+  <sql id="rowColumns">
+    id, space_id, event_id, from_user_id, to_user_id, status, recipient_prior_role,
+    accepted_at, handover_ends_at, CAST(permission_snapshot AS text) AS permission_snapshot
+  </sql>
+
+  <select id="findEventById" resultType="app.scene.event.transfer.TransferRow">
+    SELECT <include refid="rowColumns"/>
+    FROM owner_transfers
+    WHERE id = #{id} AND event_id IS NOT NULL
+  </select>
+
   <select id="findForUpdate" resultType="app.scene.event.transfer.TransferRow">
-    SELECT id, event_id, from_user_id, to_user_id, status, handover_ends_at
+    SELECT <include refid="rowColumns"/>
     FROM owner_transfers
     WHERE id = #{id} AND space_id = #{spaceId} AND event_id IS NOT NULL
     FOR UPDATE
   </select>
+
+  <select id="findView" resultType="app.scene.event.transfer.TransferView">
+    SELECT t.id AS transfer_id, t.space_id, s.name AS space_name,
+           t.event_id, e.name AS event_name,
+           t.from_user_id, fu.display_name AS from_display_name,
+           t.to_user_id, tu.display_name AS to_display_name,
+           t.status, t.accepted_at, t.handover_ends_at
+    FROM owner_transfers t
+    JOIN spaces s ON s.id = t.space_id
+    JOIN events e ON e.id = t.event_id AND e.space_id = t.space_id
+    JOIN users fu ON fu.id = t.from_user_id
+    JOIN users tu ON tu.id = t.to_user_id
+    WHERE t.id = #{id} AND t.space_id = #{spaceId} AND t.event_id IS NOT NULL
+  </select>
+
+  <insert id="insertPending">
+    INSERT INTO owner_transfers (
+      id, space_id, event_id, from_user_id, to_user_id, status, permission_snapshot)
+    VALUES (
+      #{id}, #{spaceId}, #{eventId}, #{fromUserId}, #{toUserId}, 'PENDING', '[]'::jsonb)
+  </insert>
 
   <update id="updateAccepted">
     UPDATE owner_transfers
@@ -17,5 +49,22 @@
         permission_snapshot = CAST(#{snapshot} AS jsonb)
     WHERE id = #{id} AND space_id = #{spaceId} AND status = #{pendingStatus}
   </update>
+
+  <update id="updateStatus">
+    UPDATE owner_transfers
+    SET status = #{status}
+    WHERE id = #{id} AND space_id = #{spaceId} AND status = #{expectedStatus}
+  </update>
+
+  <insert id="restoreOverrides">
+    INSERT INTO event_user_permissions (
+      space_id, event_id, user_id, permission, effect, granted_by, granted_at)
+    SELECT #{spaceId}, #{eventId}, #{userId},
+           item->>'permission',
+           item->>'effect',
+           (item->>'grantedBy')::uuid,
+           (item->>'grantedAt')::timestamptz
+    FROM jsonb_array_elements(CAST(#{snapshot} AS jsonb)) AS item
+  </insert>
 
 </mapper>
