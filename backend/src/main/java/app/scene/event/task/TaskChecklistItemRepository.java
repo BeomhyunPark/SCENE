@@ -6,6 +6,7 @@ import app.scene.event.task.param.ChecklistItemKey;
 import app.scene.event.task.param.ChecklistItemUpdate;
 import app.scene.event.task.param.TaskKey;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Component;
@@ -26,6 +27,10 @@ public class TaskChecklistItemRepository {
   public Optional<Boolean> findChecked(UUID spaceId, UUID eventId, UUID taskId, UUID itemId) {
     return Optional.ofNullable(
         queries.findChecked(ChecklistItemKey.of(spaceId, eventId, taskId, itemId)));
+  }
+
+  public List<ChecklistItemRow> findAll(UUID spaceId, UUID eventId, UUID taskId) {
+    return queries.findAll(TaskKey.of(spaceId, eventId, taskId));
   }
 
   public ChecklistCounts count(UUID spaceId, UUID eventId, UUID taskId) {
