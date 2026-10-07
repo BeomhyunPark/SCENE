@@ -3,6 +3,25 @@
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="app.scene.event.task.mapper.TaskMapper">
 
+  <insert id="insert">
+    INSERT INTO tasks (id, space_id, event_id, title, status, version, assignee_user_id)
+    VALUES (#{id}, #{spaceId}, #{eventId}, #{title}, 'TODO', 0, #{assigneeUserId})
+  </insert>
+
+  <update id="updateFields">
+    UPDATE tasks
+    SET title = #{title},
+        assignee_user_id = #{assigneeUserId},
+        status = #{status},
+        version = version + #{versionDelta}
+    WHERE id = #{taskId} AND space_id = #{spaceId} AND event_id = #{eventId}
+  </update>
+
+  <delete id="delete">
+    DELETE FROM tasks
+    WHERE id = #{taskId} AND space_id = #{spaceId} AND event_id = #{eventId}
+  </delete>
+
   <update id="updateStatus">
     UPDATE tasks
     SET status = #{status}, version = version + 1

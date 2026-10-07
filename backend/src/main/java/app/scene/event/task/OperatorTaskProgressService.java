@@ -22,8 +22,8 @@ import tools.jackson.databind.JsonNode;
 /**
  * Task progress HTTP on {@link TaskProgressService}. This class resolves the event and shapes the
  * response. It does not check, complete, or reopen on its own. A 409 body is read after the command
- * transaction rolls back, so these methods stay non-transactional. {@code PATCH /tasks/{taskId}}
- * and {@code GET /tasks} are not created here. {@code Idempotency-Key} is not read.
+ * transaction rolls back, so these methods stay non-transactional. List, detail, create, patch, and
+ * delete are {@link TaskCommandController}. {@code Idempotency-Key} is not read.
  */
 @Service
 public class OperatorTaskProgressService {

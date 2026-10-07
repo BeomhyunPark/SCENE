@@ -38,6 +38,11 @@ public class TaskChecklistItemRepository {
   }
 
   @Transactional
+  public int deleteByTask(UUID spaceId, UUID eventId, UUID taskId) {
+    return items.deleteByTask(TaskKey.of(spaceId, eventId, taskId));
+  }
+
+  @Transactional
   public int updateChecked(
       UUID spaceId,
       UUID eventId,

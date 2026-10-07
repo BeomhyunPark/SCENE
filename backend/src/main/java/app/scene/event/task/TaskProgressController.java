@@ -11,8 +11,8 @@ import org.springframework.web.bind.annotation.RestController;
 import tools.jackson.databind.JsonNode;
 
 /**
- * Checklist progress commands. List, detail, structure edit, and {@code PATCH /tasks/{taskId}} stay
- * out. These routes do not read {@code Idempotency-Key}.
+ * Checklist progress commands. These routes do not read {@code Idempotency-Key}. Create, patch,
+ * delete, list, and detail are separate routes.
  */
 @RestController
 public class TaskProgressController {

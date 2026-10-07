@@ -32,8 +32,8 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * DEC-062 checklist progress HTTP. Rows 30–35 stay out because {@code PATCH /tasks/{taskId}} is not
- * added. Rows 19 and 23 do not call a task read: this slice does not add {@code GET /tasks}.
+ * DEC-062 checklist progress HTTP. List, detail, create, patch, and delete are covered by {@link
+ * TaskCommandHttpIT}.
  */
 @SpringBootTest
 @Import(PostgresTestcontainer.class)
