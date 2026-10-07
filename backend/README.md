@@ -2,6 +2,8 @@
 
 Modular monolith (`architecture-v0.1.md` §2): Java 25, Spring Boot 4.0, MyBatis, PostgreSQL, Flyway.
 
+소스 위치와 읽는 순서는 [소스 안내](docs/source-guide.md)에 있다.
+
 ## 요구 사항
 - JDK 25 (Temurin). 로컬에 없으면 Gradle toolchain(foojay)이 내려받는다.
 - Docker: 통합 테스트가 Testcontainers `postgres:17`을 띄운다.
