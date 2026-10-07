@@ -14,7 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.json.JsonMapper;
 
-/** DEC-063 lifecycle commands. HTTP stays unwired until operator sessions exist. */
+/** DEC-063 lifecycle commands. HTTP calls these methods and does not transition on its own. */
 @Service
 public class EventLifecycleService {
 
@@ -87,11 +87,20 @@ public class EventLifecycleService {
     if (command == LifecycleCommand.REOPEN) {
       requireReason(request.reason(), "reason");
     }
+    if (request.invalidField() != null) {
+      throw new SceneException(
+          ErrorCode.VALIDATION_FAILED, Map.of("field", request.invalidField()));
+    }
+    Integer expectedVersion = request.expectedLifecycleVersion();
+    if (expectedVersion == null) {
+      throw new SceneException(
+          ErrorCode.VALIDATION_FAILED, Map.of("field", "expectedLifecycleVersion"));
+    }
     if (row.lifecycleStatus().equals(command.toStatus())) {
       return new LifecycleResult(
           "ALREADY_IN_STATE", row.lifecycleStatus(), row.lifecycleVersion(), actedAs);
     }
-    if (row.lifecycleVersion() != request.expectedLifecycleVersion()) {
+    if (row.lifecycleVersion() != expectedVersion) {
       throw concurrent(spaceId, eventId, row);
     }
     if (!row.lifecycleStatus().equals(command.fromStatus())) {
@@ -107,9 +116,7 @@ public class EventLifecycleService {
       throw new SceneException(ErrorCode.CONFIRMATION_REQUIRED, Map.of("warnings", warnings));
     }
     Instant now = clock.instant();
-    int updated =
-        events.updateStatus(
-            spaceId, eventId, request.expectedLifecycleVersion(), command.toStatus());
+    int updated = events.updateStatus(spaceId, eventId, expectedVersion, command.toStatus());
     if (updated != 1) {
       throw concurrent(spaceId, eventId, row);
     }

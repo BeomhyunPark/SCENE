@@ -11,4 +11,18 @@
     LIMIT 1
   </select>
 
+  <select id="count" resultType="long">
+    SELECT count(*)
+    FROM event_lifecycle_transitions
+    WHERE space_id = #{spaceId} AND event_id = #{eventId}
+  </select>
+
+  <select id="findPage" resultType="app.scene.event.lifecycle.LifecycleTransitionRow">
+    SELECT command, from_status, to_status, acted_as, actor_user_id, reason, occurred_at,
+           warnings_snapshot::text AS warnings_snapshot
+    FROM event_lifecycle_transitions
+    WHERE space_id = #{spaceId} AND event_id = #{eventId}
+    <include refid="app.scene.common.mybatis.CommonMapper.orderByAndPage"/>
+  </select>
+
 </mapper>
