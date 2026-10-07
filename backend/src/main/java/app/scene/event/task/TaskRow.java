@@ -6,6 +6,7 @@ import java.util.UUID;
 public record TaskRow(
     UUID id,
     UUID eventId,
+    String title,
     String status,
     int version,
     UUID assigneeUserId,

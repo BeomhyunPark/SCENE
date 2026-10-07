@@ -12,4 +12,9 @@
       AND space_id = #{spaceId} AND event_id = #{eventId}
   </update>
 
+  <delete id="deleteByTask">
+    DELETE FROM task_checklist_items
+    WHERE space_id = #{spaceId} AND event_id = #{eventId} AND task_id = #{taskId}
+  </delete>
+
 </mapper>
