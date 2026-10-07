@@ -10,6 +10,15 @@
       AND space_id = #{spaceId} AND event_id = #{eventId}
   </select>
 
+  <select id="findAll" resultType="app.scene.event.task.ChecklistItemRow">
+    SELECT i.id, i.label, i.position, i.checked, i.checked_by_user_id,
+           u.display_name AS checked_by_display_name, i.checked_at
+    FROM task_checklist_items i
+    LEFT JOIN users u ON u.id = i.checked_by_user_id
+    WHERE i.task_id = #{taskId} AND i.space_id = #{spaceId} AND i.event_id = #{eventId}
+    ORDER BY i.position, i.id
+  </select>
+
   <select id="count" resultType="app.scene.event.task.ChecklistCounts">
     SELECT (count(*) FILTER (WHERE checked))::int AS done, count(*)::int AS total
     FROM task_checklist_items

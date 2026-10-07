@@ -31,6 +31,10 @@ public class TaskRepository {
     this.queries = queries;
   }
 
+  public Optional<TaskRow> find(UUID spaceId, UUID eventId, UUID taskId) {
+    return Optional.ofNullable(queries.find(TaskKey.of(spaceId, eventId, taskId)));
+  }
+
   public Optional<TaskRow> findForUpdate(UUID spaceId, UUID eventId, UUID taskId) {
     return Optional.ofNullable(queries.findForUpdate(TaskKey.of(spaceId, eventId, taskId)));
   }

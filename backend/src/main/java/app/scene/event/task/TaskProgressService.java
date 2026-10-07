@@ -19,13 +19,14 @@ import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * DEC-062 checklist writes. Judgment order is DEC-065: missing task or item, permission, archived
- * event, already-done or no-change, version, then task state.
+ * DEC-062 checklist writes. Judgment order is DEC-065: missing task or item, permission, request
+ * values, archived event, already-done or no-change, version, then task state.
  */
 @Service
 public class TaskProgressService {
 
   private static final String TASK_WRITE = "TASK_WRITE";
+  private static final int REASON_MAX = 500;
 
   private final TaskRepository tasks;
   private final TaskChecklistItemRepository items;
@@ -55,6 +56,18 @@ public class TaskProgressService {
   @Transactional
   public TaskWriteResult setChecked(
       UUID spaceId, UUID eventId, UUID taskId, UUID itemId, boolean checked, OperatorActor actor) {
+    return setChecked(spaceId, eventId, taskId, itemId, Boolean.valueOf(checked), null, actor);
+  }
+
+  @Transactional
+  public TaskWriteResult setChecked(
+      UUID spaceId,
+      UUID eventId,
+      UUID taskId,
+      UUID itemId,
+      Boolean checked,
+      String invalidField,
+      OperatorActor actor) {
     TaskRow task = tasks.getForUpdate(spaceId, eventId, taskId);
     Optional<Boolean> stored = items.findChecked(spaceId, eventId, taskId, itemId);
     if (stored.isEmpty()) {
@@ -62,6 +75,10 @@ public class TaskProgressService {
     }
     boolean checkedNow = stored.get();
     authorize(spaceId, eventId, task, actor);
+    rejectRequest(invalidField);
+    if (checked == null) {
+      throw new SceneException(ErrorCode.VALIDATION_FAILED, Map.of("field", "checked"));
+    }
     if ("ARCHIVED".equals(task.lifecycleStatus())) {
       throw new SceneException(ErrorCode.EVENT_ARCHIVED);
     }
@@ -107,8 +124,23 @@ public class TaskProgressService {
   @Transactional
   public TaskWriteResult complete(
       UUID spaceId, UUID eventId, UUID taskId, int version, OperatorActor actor) {
+    return complete(spaceId, eventId, taskId, Integer.valueOf(version), null, actor);
+  }
+
+  @Transactional
+  public TaskWriteResult complete(
+      UUID spaceId,
+      UUID eventId,
+      UUID taskId,
+      Integer version,
+      String invalidField,
+      OperatorActor actor) {
     TaskRow task = tasks.getForUpdate(spaceId, eventId, taskId);
     authorize(spaceId, eventId, task, actor);
+    rejectRequest(invalidField);
+    if (version == null) {
+      throw new SceneException(ErrorCode.VALIDATION_FAILED, Map.of("field", "version"));
+    }
     if ("ARCHIVED".equals(task.lifecycleStatus())) {
       throw new SceneException(ErrorCode.EVENT_ARCHIVED);
     }
@@ -143,8 +175,27 @@ public class TaskProgressService {
   @Transactional
   public TaskWriteResult reopen(
       UUID spaceId, UUID eventId, UUID taskId, int version, OperatorActor actor) {
+    return reopen(spaceId, eventId, taskId, Integer.valueOf(version), null, null, actor);
+  }
+
+  @Transactional
+  public TaskWriteResult reopen(
+      UUID spaceId,
+      UUID eventId,
+      UUID taskId,
+      Integer version,
+      String reason,
+      String invalidField,
+      OperatorActor actor) {
     TaskRow task = tasks.getForUpdate(spaceId, eventId, taskId);
     authorize(spaceId, eventId, task, actor);
+    rejectRequest(invalidField);
+    if (version == null) {
+      throw new SceneException(ErrorCode.VALIDATION_FAILED, Map.of("field", "version"));
+    }
+    if (reason != null && reason.length() > REASON_MAX) {
+      throw new SceneException(ErrorCode.VALIDATION_FAILED, Map.of("field", "reason"));
+    }
     if ("ARCHIVED".equals(task.lifecycleStatus())) {
       throw new SceneException(ErrorCode.EVENT_ARCHIVED);
     }
@@ -168,7 +219,7 @@ public class TaskProgressService {
         eventId,
         actor.userId(),
         "TASK_REOPENED",
-        statusDetail(taskId, task.status(), task.version(), "DOING", nextVersion),
+        statusDetail(taskId, task.status(), task.version(), "DOING", nextVersion, reason),
         now);
     return result("REOPENED", "DOING", nextVersion, counts);
   }
@@ -188,6 +239,12 @@ public class TaskProgressService {
             permissions.findEffect(spaceId, eventId, actor.userId(), TASK_WRITE).orElse(null));
     if (!assignee && !taskWrite) {
       throw new SceneException(ErrorCode.FORBIDDEN);
+    }
+  }
+
+  private static void rejectRequest(String invalidField) {
+    if (invalidField != null) {
+      throw new SceneException(ErrorCode.VALIDATION_FAILED, Map.of("field", invalidField));
     }
   }
 
@@ -229,10 +286,23 @@ public class TaskProgressService {
 
   private Map<String, Object> statusDetail(
       UUID taskId, String statusBefore, int versionBefore, String statusAfter, int versionAfter) {
+    return statusDetail(taskId, statusBefore, versionBefore, statusAfter, versionAfter, null);
+  }
+
+  private Map<String, Object> statusDetail(
+      UUID taskId,
+      String statusBefore,
+      int versionBefore,
+      String statusAfter,
+      int versionAfter,
+      String reason) {
     Map<String, Object> detail = new LinkedHashMap<>();
     detail.put("taskId", taskId);
     detail.put("before", state(null, statusBefore, versionBefore));
     detail.put("after", state(null, statusAfter, versionAfter));
+    if (reason != null && !reason.isBlank()) {
+      detail.put("reason", reason);
+    }
     return detail;
   }
 

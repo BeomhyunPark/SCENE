@@ -8,6 +8,8 @@ import org.apache.ibatis.annotations.Mapper;
 @Mapper
 public interface TaskQueryMapper {
 
+  TaskRow find(TaskKey key);
+
   TaskRow findForUpdate(TaskKey key);
 
   int countOpen(OpenTaskQuery query);
