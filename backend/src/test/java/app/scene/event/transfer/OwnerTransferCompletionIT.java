@@ -3,6 +3,8 @@ package app.scene.event.transfer;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import app.scene.common.audit.AuditActions;
+import app.scene.common.permission.Permission;
+import app.scene.common.permission.RoleDefaults;
 import app.scene.support.PostgresTestcontainer;
 import java.time.Clock;
 import java.time.Duration;
@@ -13,10 +15,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
- * Permission row 36, status and overrides only. The role half stays blocked. Lifecycle rows 1–19
- * stay out. An accepted handover is opened through {@link OwnerTransferService#accept}.
+ * Permission row 36, including the role half. Lifecycle rows 1–19 stay out. An accepted handover is
+ * opened through {@link OwnerTransferService#accept}.
  */
 @SpringBootTest
 @Import(PostgresTestcontainer.class)
@@ -24,6 +28,7 @@ class OwnerTransferCompletionIT {
 
   @Autowired JdbcTemplate jdbc;
   @Autowired OwnerTransferService transfers;
+  @Autowired JsonMapper json;
   @Autowired Clock clock;
 
   @Test
@@ -49,6 +54,7 @@ class OwnerTransferCompletionIT {
     member(world.spaceId, coOwnerId, "MEMBER");
     eventUser(world.spaceId, world.eventId, coOwnerId, "OWNER");
     UUID transferId = accept(world, world.eventId, world.ownerId, world.managerId);
+    grant(world.spaceId, world.eventId, world.ownerId, "DATA_EXPORT");
     grant(world.spaceId, world.eventId, world.ownerId, "TASK_WRITE");
     Instant endsAt = endsAt(transferId);
 
@@ -80,7 +86,8 @@ class OwnerTransferCompletionIT {
     assertThat(endsAt(transferId)).isEqualTo(endsAt);
     assertThat(role(world.eventId, world.managerId)).isEqualTo("OWNER");
     assertThat(role(world.eventId, coOwnerId)).isEqualTo("OWNER");
-    assertThat(role(world.eventId, world.ownerId)).isEqualTo("OWNER");
+    assertThat(role(world.eventId, world.ownerId)).isEqualTo("STAFF");
+    assertThat(RoleDefaults.of("STAFF")).containsExactly(Permission.EVENT_READ);
     assertThat(overrides(world.eventId, world.ownerId)).isZero();
     assertThat(status(laterId)).isEqualTo("HANDOVER");
     assertThat(role(laterEventId, world.ownerId)).isEqualTo("OWNER");
@@ -92,14 +99,34 @@ class OwnerTransferCompletionIT {
     assertThat(status(cancelledId)).isEqualTo("CANCELLED");
     assertThat(memberStatus(world.spaceId, world.ownerId)).isEqualTo("ACTIVE");
     assertThat(auditCount(world.eventId, "OWNER_TRANSFER_ACCEPTED")).isEqualTo(acceptAudits);
-    assertThat(auditCount(world.eventId, AuditActions.EVENT_USER_ROLE_CHANGED)).isZero();
+    assertThat(auditCount(world.eventId, AuditActions.EVENT_USER_ROLE_CHANGED)).isEqualTo(1);
+    JsonNode audit = roleAudit(world.eventId);
+    assertThat(audit.propertyNames())
+        .containsExactlyInAnyOrder(
+            "transferId", "userId", "fromRole", "toRole", "deletedOverrides");
+    assertThat(audit.get("transferId").asString()).isEqualTo(transferId.toString());
+    assertThat(audit.get("userId").asString()).isEqualTo(world.ownerId.toString());
+    assertThat(audit.get("fromRole").asString()).isEqualTo("OWNER");
+    assertThat(audit.get("toRole").asString()).isEqualTo("STAFF");
+    assertThat(audit.get("deletedOverrides")).hasSize(2);
+    assertThat(audit.get("deletedOverrides").get(0).get("permission").asString())
+        .isEqualTo("DATA_EXPORT");
+    assertThat(audit.get("deletedOverrides").get(1).get("permission").asString())
+        .isEqualTo("TASK_WRITE");
+    assertThat(audit.get("deletedOverrides").get(0).get("effect").asString()).isEqualTo("GRANT");
+    assertThat(audit.get("deletedOverrides").get(0).get("grantedBy").asString())
+        .isEqualTo(world.ownerId.toString());
+    assertThat(audit.get("deletedOverrides").get(0).has("grantedAt")).isTrue();
+    assertThat(audit.toString()).doesNotContain("token").doesNotContain("contact");
+    assertThat(auditActor(world.eventId)).isEqualTo(world.ownerId);
 
     transfers.completeDue(endsAt);
 
     assertThat(status(transferId)).isEqualTo("COMPLETED");
     assertThat(endsAt(transferId)).isEqualTo(endsAt);
+    assertThat(role(world.eventId, world.ownerId)).isEqualTo("STAFF");
     assertThat(auditCount(world.eventId, "OWNER_TRANSFER_ACCEPTED")).isEqualTo(acceptAudits);
-    assertThat(auditCount(world.eventId, AuditActions.EVENT_USER_ROLE_CHANGED)).isZero();
+    assertThat(auditCount(world.eventId, AuditActions.EVENT_USER_ROLE_CHANGED)).isEqualTo(1);
     assertThat(auditCount(laterEventId, AuditActions.EVENT_USER_ROLE_CHANGED)).isZero();
   }
 
@@ -113,10 +140,27 @@ class OwnerTransferCompletionIT {
     transfers.completeDue(endsAt);
 
     assertThat(status(transferId)).isEqualTo("COMPLETED");
-    assertThat(role(world.eventId, world.ownerId)).isEqualTo("OWNER");
+    assertThat(role(world.eventId, world.ownerId)).isEqualTo("STAFF");
     assertThat(role(world.eventId, world.managerId)).isEqualTo("OWNER");
     assertThat(overrides(world.eventId, world.ownerId)).isZero();
     assertThat(endsAt(transferId)).isEqualTo(endsAt);
+    assertThat(auditCount(world.eventId, AuditActions.EVENT_USER_ROLE_CHANGED)).isEqualTo(1);
+    assertThat(roleAudit(world.eventId).get("toRole").asString()).isEqualTo("STAFF");
+  }
+
+  @Test
+  void missingSenderRowStoresCompletedWithoutARoleAudit() {
+    World world = world("ACTIVE");
+    UUID transferId = accept(world, world.eventId, world.ownerId, world.managerId);
+    Instant endsAt = endsAt(transferId);
+    jdbc.update(
+        "DELETE FROM event_users WHERE event_id = ? AND user_id = ?", world.eventId, world.ownerId);
+
+    transfers.completeDue(endsAt);
+
+    assertThat(status(transferId)).isEqualTo("COMPLETED");
+    assertThat(eventUserCount(world.eventId, world.ownerId)).isZero();
+    assertThat(role(world.eventId, world.managerId)).isEqualTo("OWNER");
     assertThat(auditCount(world.eventId, AuditActions.EVENT_USER_ROLE_CHANGED)).isZero();
   }
 
@@ -258,12 +302,38 @@ class OwnerTransferCompletionIT {
         userId);
   }
 
+  private int eventUserCount(UUID eventId, UUID userId) {
+    return jdbc.queryForObject(
+        "SELECT count(*) FROM event_users WHERE event_id = ? AND user_id = ?",
+        Integer.class,
+        eventId,
+        userId);
+  }
+
   private int auditCount(UUID eventId, String action) {
     return jdbc.queryForObject(
         "SELECT count(*) FROM audit_logs WHERE event_id = ? AND action = ?",
         Integer.class,
         eventId,
         action);
+  }
+
+  private JsonNode roleAudit(UUID eventId) {
+    String detail =
+        jdbc.queryForObject(
+            "SELECT detail::text FROM audit_logs WHERE event_id = ? AND action = ?",
+            String.class,
+            eventId,
+            AuditActions.EVENT_USER_ROLE_CHANGED);
+    return json.readTree(detail);
+  }
+
+  private UUID auditActor(UUID eventId) {
+    return jdbc.queryForObject(
+        "SELECT actor_user_id FROM audit_logs WHERE event_id = ? AND action = ?",
+        UUID.class,
+        eventId,
+        AuditActions.EVENT_USER_ROLE_CHANGED);
   }
 
   private record World(UUID spaceId, UUID eventId, UUID ownerId, UUID managerId, UUID staffId) {}
