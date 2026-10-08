@@ -28,10 +28,22 @@ describe("public shell", () => {
     const login = screen.getByRole("link", { name: "로그인" });
     expect(login).toHaveAttribute("href", "/login");
 
-    const main = document.querySelector("main");
-    expect(main).not.toBeNull();
-    expect(main?.textContent).toBe("");
-    expect(document.querySelector("img")).toBeNull();
+    expect(
+      screen.getByRole("heading", {
+        name: /함께하는 순간에,\s*더 집중할 수 있도록\./,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("교회와 공동체를 위한 행사 운영, SCENE.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "시작하기" })).toHaveAttribute("href", "/signup");
+
+    const images = document.querySelectorAll("img");
+    expect(images).toHaveLength(1);
+    expect(images[0]).toHaveAttribute("aria-hidden", "true");
+    expect(images[0]).toHaveAttribute("alt", "");
+    expect(document.body.textContent).not.toContain("2026 가을 공동체 행사");
+    expect(document.body.textContent).not.toContain("2026년 10월 24일");
+    expect(document.body.textContent).not.toContain("드림공동체");
+    expect(screen.queryByRole("textbox")).toBeNull();
     expect(screen.queryAllByRole("button")).toHaveLength(0);
     expect(document.querySelector("[data-theme]")).toBeNull();
   });
@@ -52,10 +64,20 @@ describe("public shell", () => {
     expect(screen.queryByText("SCENE")).toBeInTheDocument();
   });
 
+  it("renders the same header and an empty main on /signup", () => {
+    renderAt("/signup");
+
+    expect(screen.getByRole("link", { name: "로그인" })).toHaveAttribute("href", "/login");
+    expect(document.querySelector("main")?.textContent).toBe("");
+    expect(screen.queryByRole("textbox")).toBeNull();
+    expect(document.querySelector("img")).toBeNull();
+  });
+
   it("does not call fetch", () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch");
     renderAt("/");
     renderAt("/login");
+    renderAt("/signup");
     renderAt("/missing");
     expect(fetchSpy).not.toHaveBeenCalled();
     fetchSpy.mockRestore();

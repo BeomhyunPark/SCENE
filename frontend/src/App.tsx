@@ -2,8 +2,18 @@ import { useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Route, Routes } from "react-router";
 import { PublicHeader } from "./components/PublicHeader";
+import { PublicHome } from "./components/PublicHome";
 
-function Shell() {
+function Home() {
+  return (
+    <>
+      <PublicHeader />
+      <PublicHome />
+    </>
+  );
+}
+
+function EmptyMain() {
   return (
     <>
       <PublicHeader />
@@ -29,8 +39,9 @@ export function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <Routes>
-        <Route path="/" element={<Shell />} />
-        <Route path="/login" element={<Shell />} />
+        <Route path="/" element={<Home />} />
+        <Route path="/login" element={<EmptyMain />} />
+        <Route path="/signup" element={<EmptyMain />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </QueryClientProvider>

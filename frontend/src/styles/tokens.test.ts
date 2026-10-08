@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 const root = process.cwd();
 const tokensCss = readFileSync(join(root, "src/styles/tokens.css"), "utf8");
 const headerCss = readFileSync(join(root, "src/components/PublicHeader.css"), "utf8");
+const homeCss = readFileSync(join(root, "src/components/PublicHome.css"), "utf8");
 const globalCss = readFileSync(join(root, "src/styles/global.css"), "utf8");
 const packageJson = JSON.parse(readFileSync(join(root, "package.json"), "utf8")) as {
   packageManager: string;
@@ -151,6 +152,14 @@ describe("tokens", () => {
     expect(globalCss).toContain("word-break: keep-all");
     expect(headerCss).toContain('font-family: "Geist"');
     expect(tokensCss).not.toContain("theme-toggle");
+    expect(homeCss).toContain("min-width: 1280px");
+    expect(homeCss).toContain("max-width: 390px");
+    expect(homeCss).toContain("width: 940px");
+    expect(homeCss).toContain("width: calc(100% - 40px)");
+    expect(homeCss).toContain("min-height: 48px");
+    expect(homeCss).toContain("var(--color-text-primary)");
+    expect(homeCss).toContain("var(--color-text-tertiary)");
+    expect(homeCss).not.toContain("data-theme");
   });
 
   it("declares the architecture toolchain without calling the API", () => {
