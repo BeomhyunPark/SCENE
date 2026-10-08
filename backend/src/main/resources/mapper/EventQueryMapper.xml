@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="app.scene.event.lifecycle.mapper.EventQueryMapper">
+
+  <sql id="operatedByCaller">
+    <if test="userId != null">
+      AND EXISTS (
+        SELECT 1 FROM event_users eu
+        WHERE eu.space_id = e.space_id
+          AND eu.event_id = e.id
+          AND eu.user_id = #{userId}
+      )
+    </if>
+  </sql>
+
+  <select id="count" resultType="long">
+    SELECT count(*)
+    FROM events e
+    WHERE e.space_id = #{spaceId}
+    <include refid="operatedByCaller"/>
+  </select>
+
+  <select id="findPage" resultType="app.scene.event.lifecycle.EventListRow">
+    SELECT e.id AS event_id, e.name, e.lifecycle_status
+    FROM events e
+    WHERE e.space_id = #{spaceId}
+    <include refid="operatedByCaller"/>
+    <include refid="app.scene.common.mybatis.CommonMapper.orderByAndPage"/>
+  </select>
+
+</mapper>
