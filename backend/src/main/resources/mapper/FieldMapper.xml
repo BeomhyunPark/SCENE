@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="app.scene.event.form.mapper.FieldMapper">
+
+  <insert id="save">
+    INSERT INTO fields (
+      id, space_id, event_id, form_id, kind, system_key, label, position)
+    VALUES (
+      #{id}, #{spaceId}, #{eventId}, #{formId}, #{kind}, #{systemKey}, #{label}, #{position})
+  </insert>
+
+  <update id="updateLabel">
+    UPDATE fields
+    SET label = #{label}
+    WHERE id = #{fieldId}
+      AND form_id = #{formId}
+      AND space_id = #{spaceId}
+      AND event_id = #{eventId}
+  </update>
+
+  <delete id="delete">
+    DELETE FROM fields
+    WHERE id = #{fieldId}
+      AND form_id = #{formId}
+      AND space_id = #{spaceId}
+      AND event_id = #{eventId}
+      AND kind = 'CUSTOM'
+  </delete>
+
+</mapper>

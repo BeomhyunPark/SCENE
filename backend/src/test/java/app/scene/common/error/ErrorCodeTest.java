@@ -16,6 +16,7 @@ class ErrorCodeTest {
     assertThat(ErrorCode.NOT_A_MEMBER.httpStatus()).isEqualTo(403);
     assertThat(ErrorCode.OVERRIDE_REQUIRED.httpStatus()).isEqualTo(403);
     assertThat(ErrorCode.RESOURCE_NOT_FOUND.httpStatus()).isEqualTo(404);
+    assertThat(ErrorCode.CONFLICT.httpStatus()).isEqualTo(409);
     assertThat(ErrorCode.EVENT_ARCHIVED.httpStatus()).isEqualTo(409);
     assertThat(ErrorCode.EVENT_ENDED.httpStatus()).isEqualTo(409);
     assertThat(ErrorCode.TASK_VERSION_CONFLICT.httpStatus()).isEqualTo(409);
