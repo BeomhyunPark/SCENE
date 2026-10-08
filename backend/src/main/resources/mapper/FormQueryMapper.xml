@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="app.scene.event.form.mapper.FormQueryMapper">
+
+  <select id="findByEvent" resultType="app.scene.event.form.FormRow">
+    SELECT id, space_id, event_id, accepting_applications
+    FROM forms
+    WHERE space_id = #{spaceId} AND event_id = #{eventId}
+  </select>
+
+  <select id="find" resultType="app.scene.event.form.FormRow">
+    SELECT id, space_id, event_id, accepting_applications
+    FROM forms
+    WHERE id = #{formId} AND space_id = #{spaceId} AND event_id = #{eventId}
+  </select>
+
+  <select id="countByEvent" resultType="long">
+    SELECT count(*)
+    FROM forms
+    WHERE space_id = #{spaceId} AND event_id = #{eventId}
+  </select>
+
+  <select id="findPage" resultType="app.scene.event.form.FormListRow">
+    SELECT id AS form_id, accepting_applications
+    FROM forms
+    WHERE space_id = #{spaceId} AND event_id = #{eventId}
+    <include refid="app.scene.common.mybatis.CommonMapper.orderByAndPage"/>
+  </select>
+
+  <select id="findFields" resultType="app.scene.event.form.FormFieldRow">
+    SELECT id AS field_id, kind, system_key, label, position
+    FROM fields
+    WHERE space_id = #{spaceId} AND event_id = #{eventId} AND form_id = #{formId}
+    ORDER BY ${orderByClause}
+  </select>
+
+  <select id="findField" resultType="app.scene.event.form.FormFieldRow">
+    SELECT id AS field_id, kind, system_key, label, position
+    FROM fields
+    WHERE id = #{fieldId}
+      AND form_id = #{formId}
+      AND space_id = #{spaceId}
+      AND event_id = #{eventId}
+  </select>
+
+  <select id="countCustom" resultType="int">
+    SELECT count(*)
+    FROM fields
+    WHERE space_id = #{spaceId}
+      AND event_id = #{eventId}
+      AND form_id = #{formId}
+      AND kind = 'CUSTOM'
+  </select>
+
+  <select id="maxPosition" resultType="int">
+    SELECT COALESCE(MAX(position), -1)
+    FROM fields
+    WHERE space_id = #{spaceId} AND event_id = #{eventId} AND form_id = #{formId}
+  </select>
+
+</mapper>
