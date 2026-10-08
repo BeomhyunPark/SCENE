@@ -1,0 +1,21 @@
+@font-face {
+  font-family: "Geist";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("../../node_modules/@fontsource/geist-sans/files/geist-sans-latin-600-normal.woff2")
+    format("woff2");
+}
+
+.scene-wordmark {
+  font-family: "Geist", sans-serif;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+.public-header__text {
+  font: var(--scene-label-m);
+  letter-spacing: 0;
+}
