@@ -1,0 +1,224 @@
+/* Light on :root. Dark under the theme selector from fe-handoff §2. No toggle in this slice. */
+
+:root {
+  --color-bg-canvas: #f4f7f8;
+  --color-bg-surface: #ffffff;
+  --color-bg-subtle: #edf2f3;
+  --color-bg-brand-subtle: #e4f1f3;
+  --color-bg-raised: #ffffff;
+  --color-bg-hover-row: #f4f7f8;
+  --color-bg-selected: #d6ecef;
+
+  --color-text-primary: #132125;
+  --color-text-secondary: #4a5b5f;
+  --color-text-tertiary: #59696d;
+  --color-text-disabled: #98a6a9;
+  --color-text-brand: #0b5866;
+  --color-text-on-accent: #ffffff;
+  --color-text-on-danger: #ffffff;
+
+  --color-border-default: #dae2e4;
+  --color-border-control: #6f8185;
+  --color-border-strong: #6f8185;
+  --color-border-selected: #0e6a7a;
+  --color-border-raised: #dae2e4;
+  --color-border-hover-row: #b9c6c9;
+
+  --color-accent: #0e6a7a;
+  --color-action-primary-bg: #0e6a7a;
+  --color-selected-indicator: #0e6a7a;
+  --color-accent-hover: #0b5866;
+  --color-action-primary-bg-hover: #0b5866;
+  --color-accent-pressed: #084652;
+  --color-action-primary-bg-pressed: #084652;
+  --color-action-primary-bg-disabled: #e3e9ea;
+  --color-action-primary-on: #ffffff;
+  --color-action-primary-on-disabled: #8d9b9e;
+  --color-focus-ring: #2f6feb;
+
+  --color-success-fg: #24702a;
+  --color-success-bg: #e8f5e6;
+  --color-warning-fg: #995700;
+  --color-warning-bg: #fdf1de;
+  --color-danger-fg: #b42318;
+  --color-danger-bg: #fdecea;
+  --color-info-fg: #3756b8;
+  --color-info-bg: #ebeffb;
+  --color-danger-hover: #951d13;
+  --color-danger-pressed: #77170f;
+  --color-warning-bg-large: #fdf1de;
+
+  --color-attendance-full: #2a7a32;
+  --color-attendance-partial: #b87500;
+  --color-attendance-partial-tint: #fde8cd;
+  --color-attendance-absent: transparent;
+  --color-attendance-absent-border: #778688;
+
+  --color-badge-attendance-full-fg: #24702a;
+  --color-badge-attendance-full-bg: #e8f5e6;
+  --color-badge-attendance-partial-fg: #965900;
+  --color-badge-attendance-partial-bg: #fdf1de;
+  --color-badge-over-capacity-fg: #b42318;
+  --color-badge-over-capacity-bg: #fdecea;
+  --color-badge-new-family-fg: #0b5866;
+  --color-badge-new-family-bg: #e4f1f3;
+
+  --color-chip-default-bg: #ffffff;
+  --color-chip-default-border: #6f8185;
+  --color-chip-default-text: #4a5b5f;
+  --color-chip-hover-bg: #edf2f3;
+  --color-chip-hover-border: #6f8185;
+  --color-chip-hover-text: #132125;
+  --color-chip-selected-bg: #e4f1f3;
+  --color-chip-selected-border: #0e6a7a;
+  --color-chip-selected-text: #0b5866;
+
+  --color-drag-row-raised-bg: #ffffff;
+  --color-drag-row-raised-border: #dae2e4;
+  --color-drag-origin-placeholder-border: #6f8185;
+  --color-drag-origin-placeholder-bg: transparent;
+  --color-sticky-unsaved-bg: #ffffff;
+  --color-sticky-unsaved-border: #dae2e4;
+  --color-sticky-unsaved-icon: #995700;
+  --color-leader-icon: #0e6a7a;
+  --color-drop-hover-bg: #d7e4e7;
+  --color-drop-hover-border: #0e6a7a;
+  --color-drop-rest-border: #6f8185;
+  --color-drop-empty-group-border: #6f8185;
+  --color-drop-empty-group-icon: #6f8185;
+  --color-drop-rest-text: #4a5b5f;
+  --color-drop-empty-group-text: #4a5b5f;
+  --color-drop-over-capacity-border: #b42318;
+  --color-drop-over-capacity-bg: #fbe3e0;
+  --color-group-over-capacity-border: #b42318;
+  --color-group-over-capacity-count: #b42318;
+
+  --color-overlay-scrim: rgb(11 26 30 / 48%);
+  --color-shadow-raised-sm: rgb(11 26 30 / 8%);
+  --color-shadow-popover: rgb(11 26 30 / 14%);
+  --color-shadow-dialog: rgb(11 26 30 / 18%);
+  --color-shadow-drag-1: rgb(11 26 30 / 16%);
+  --color-shadow-drag-2: rgb(11 26 30 / 10%);
+  --color-shadow-sticky: rgb(11 26 30 / 10%);
+  --color-shadow-color: #0b1a1e;
+
+  --scene-display: 700 28px/36px "Noto Sans KR", sans-serif;
+  --scene-heading-l: 700 24px/32px "Noto Sans KR", sans-serif;
+  --scene-heading-m: 700 20px/28px "Noto Sans KR", sans-serif;
+  --scene-heading-s: 700 18px/26px "Noto Sans KR", sans-serif;
+  --scene-title: 700 16px/24px "Noto Sans KR", sans-serif;
+  --scene-body-l: 400 16px/24px "Noto Sans KR", sans-serif;
+  --scene-body-l-strong: 500 16px/24px "Noto Sans KR", sans-serif;
+  --scene-body-m: 400 14px/21px "Noto Sans KR", sans-serif;
+  --scene-body-m-strong: 700 14px/21px "Noto Sans KR", sans-serif;
+  --scene-body-s: 400 13px/20px "Noto Sans KR", sans-serif;
+  --scene-body-s-strong: 700 13px/20px "Noto Sans KR", sans-serif;
+  --scene-label-l: 500 18px/26px "Noto Sans KR", sans-serif;
+  --scene-label-m: 500 14px/21px "Noto Sans KR", sans-serif;
+  --scene-label-s: 500 12px/17px "Noto Sans KR", sans-serif;
+  --scene-caption-m: 400 12px/18px "Noto Sans KR", sans-serif;
+  --scene-caption-s: 400 11px/16px "Noto Sans KR", sans-serif;
+}
+
+[data-theme="dark"] {
+  --color-bg-canvas: #0e1416;
+  --color-bg-surface: #182226;
+  --color-bg-subtle: #232e31;
+  --color-bg-brand-subtle: #123a41;
+  --color-bg-raised: #2e393c;
+  --color-bg-hover-row: #2c383c;
+  --color-bg-selected: #123a41;
+
+  --color-text-primary: #e6eeef;
+  --color-text-secondary: #a9b8bb;
+  --color-text-tertiary: #94a4a7;
+  --color-text-disabled: #56666a;
+  --color-text-brand: #6cc4d2;
+  --color-text-on-accent: #05252b;
+  --color-text-on-danger: #2a0907;
+
+  --color-border-default: #374246;
+  --color-border-control: #7a8d92;
+  --color-border-strong: #71858a;
+  --color-border-selected: #4db3c3;
+  --color-border-raised: #4e5d62;
+  --color-border-hover-row: #4e5d62;
+
+  --color-accent: #4db3c3;
+  --color-action-primary-bg: #4db3c3;
+  --color-selected-indicator: #4db3c3;
+  --color-accent-hover: #6cc4d2;
+  --color-action-primary-bg-hover: #6cc4d2;
+  --color-accent-pressed: #3a9aaa;
+  --color-action-primary-bg-pressed: #3a9aaa;
+  --color-action-primary-bg-disabled: #2a3539;
+  --color-action-primary-on: #05252b;
+  --color-action-primary-on-disabled: #6b7b7f;
+  --color-focus-ring: #7fa8ff;
+
+  --color-success-fg: #58be6e;
+  --color-success-bg: #12301f;
+  --color-warning-fg: #e9a23b;
+  --color-warning-bg: #36270d;
+  --color-danger-fg: #ff8a7f;
+  --color-danger-bg: #3d1a17;
+  --color-info-fg: #93acff;
+  --color-info-bg: #1b2646;
+  --color-danger-hover: #ffa59c;
+  --color-danger-pressed: #f2766a;
+  --color-warning-bg-large: #2b2414;
+
+  --color-attendance-full: #3e9f5a;
+  --color-attendance-partial: #dc9d36;
+  --color-attendance-partial-tint: #483618;
+  --color-attendance-absent: transparent;
+  --color-attendance-absent-border: #738589;
+
+  --color-badge-attendance-full-fg: #58be6e;
+  --color-badge-attendance-full-bg: #12301f;
+  --color-badge-attendance-partial-fg: #dc9d36;
+  --color-badge-attendance-partial-bg: #36270d;
+  --color-badge-over-capacity-fg: #ff8a7f;
+  --color-badge-over-capacity-bg: #3d1a17;
+  --color-badge-new-family-fg: #6cc4d2;
+  --color-badge-new-family-bg: #123a41;
+
+  --color-chip-default-bg: #182226;
+  --color-chip-default-border: #7a8d92;
+  --color-chip-default-text: #a9b8bb;
+  --color-chip-hover-bg: #2c383c;
+  --color-chip-hover-border: #71858a;
+  --color-chip-hover-text: #e6eeef;
+  --color-chip-selected-bg: #123a41;
+  --color-chip-selected-border: #4db3c3;
+  --color-chip-selected-text: #6cc4d2;
+
+  --color-drag-row-raised-bg: #2e393c;
+  --color-drag-row-raised-border: #4e5d62;
+  --color-drag-origin-placeholder-border: #71858a;
+  --color-drag-origin-placeholder-bg: transparent;
+  --color-sticky-unsaved-bg: #2e393c;
+  --color-sticky-unsaved-border: #4e5d62;
+  --color-sticky-unsaved-icon: #e9a23b;
+  --color-leader-icon: #4db3c3;
+  --color-drop-hover-bg: #294145;
+  --color-drop-hover-border: #4db3c3;
+  --color-drop-rest-border: #71858a;
+  --color-drop-empty-group-border: #71858a;
+  --color-drop-empty-group-icon: #71858a;
+  --color-drop-rest-text: #a9b8bb;
+  --color-drop-empty-group-text: #a9b8bb;
+  --color-drop-over-capacity-border: #ff8a7f;
+  --color-drop-over-capacity-bg: #42201c;
+  --color-group-over-capacity-border: #ff8a7f;
+  --color-group-over-capacity-count: #ff8a7f;
+
+  --color-overlay-scrim: rgb(0 0 0 / 60%);
+  --color-shadow-raised-sm: rgb(0 0 0 / 30%);
+  --color-shadow-popover: rgb(0 0 0 / 45%);
+  --color-shadow-dialog: rgb(0 0 0 / 60%);
+  --color-shadow-drag-1: rgb(0 0 0 / 55%);
+  --color-shadow-drag-2: rgb(0 0 0 / 40%);
+  --color-shadow-sticky: rgb(0 0 0 / 50%);
+  --color-shadow-color: #000000;
+}
