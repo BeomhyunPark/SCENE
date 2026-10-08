@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="app.scene.event.application.mapper.ApplicationQueryMapper">
+
+  <select id="countByEvent" resultType="long">
+    SELECT count(*)
+    FROM applications
+    WHERE space_id = #{spaceId} AND event_id = #{eventId}
+  </select>
+
+  <select id="findPage" resultType="app.scene.event.application.ApplicationRow">
+    SELECT id AS application_id, form_id, status, submitted_at
+    FROM applications
+    WHERE space_id = #{spaceId} AND event_id = #{eventId}
+    <include refid="app.scene.common.mybatis.CommonMapper.orderByAndPage"/>
+  </select>
+
+  <select id="find" resultType="app.scene.event.application.ApplicationRow">
+    SELECT id AS application_id, form_id, status, submitted_at
+    FROM applications
+    WHERE id = #{applicationId} AND space_id = #{spaceId} AND event_id = #{eventId}
+  </select>
+
+  <select id="findAnswers" resultType="app.scene.event.application.ApplicationAnswerRow">
+    SELECT f.id AS field_id, f.kind, f.system_key, f.label, f.position, a.value::text AS value
+    FROM answers a
+    JOIN fields f
+      ON f.space_id = a.space_id
+     AND f.event_id = a.event_id
+     AND f.id = a.field_id
+    WHERE a.space_id = #{spaceId}
+      AND a.event_id = #{eventId}
+      AND a.application_id = #{applicationId}
+    ORDER BY ${orderByClause}
+  </select>
+
+</mapper>
