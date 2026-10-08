@@ -2,12 +2,15 @@ package app.scene.event.transfer;
 
 import app.scene.event.transfer.mapper.OwnerTransferMapper;
 import app.scene.event.transfer.param.TransferAcceptUpdate;
+import app.scene.event.transfer.param.TransferCompletion;
+import app.scene.event.transfer.param.TransferDueQuery;
 import app.scene.event.transfer.param.TransferId;
 import app.scene.event.transfer.param.TransferInsert;
 import app.scene.event.transfer.param.TransferLockKey;
 import app.scene.event.transfer.param.TransferSnapshotRestore;
 import app.scene.event.transfer.param.TransferStatusUpdate;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Component;
@@ -18,6 +21,7 @@ public class OwnerTransferRepository {
 
   private static final String HANDOVER = "HANDOVER";
   private static final String PENDING = "PENDING";
+  private static final String COMPLETED = "COMPLETED";
 
   private final OwnerTransferMapper transfers;
 
@@ -33,6 +37,10 @@ public class OwnerTransferRepository {
     return Optional.ofNullable(transfers.findForUpdate(TransferLockKey.of(spaceId, transferId)));
   }
 
+  public List<DueTransfer> findDueForUpdate(Instant now) {
+    return transfers.findDueForUpdate(TransferDueQuery.of(now, HANDOVER));
+  }
+
   public Optional<TransferView> findView(UUID spaceId, UUID transferId) {
     return Optional.ofNullable(transfers.findView(TransferLockKey.of(spaceId, transferId)));
   }
@@ -42,6 +50,12 @@ public class OwnerTransferRepository {
       UUID transferId, UUID spaceId, UUID eventId, UUID fromUserId, UUID toUserId) {
     return transfers.insertPending(
         TransferInsert.of(transferId, spaceId, eventId, fromUserId, toUserId));
+  }
+
+  @Transactional
+  public int updateCompleted(UUID spaceId, UUID transferId) {
+    return transfers.updateCompleted(
+        TransferCompletion.of(spaceId, transferId, COMPLETED, HANDOVER));
   }
 
   @Transactional
