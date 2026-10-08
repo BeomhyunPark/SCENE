@@ -1,0 +1,90 @@
+.public-home__stack,
+.public-home__copy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.public-home__stack {
+  gap: 20px;
+  width: min(940px, calc(100% - 48px));
+  margin: 101px auto 85px;
+}
+
+.public-home__copy {
+  gap: 20px;
+  width: 100%;
+}
+
+.public-home__title {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-family: "Noto Sans KR", sans-serif;
+  font-size: 46px;
+  font-weight: 500;
+  line-height: normal;
+  letter-spacing: 0;
+  text-align: center;
+}
+
+.public-home__support {
+  margin: 0;
+  color: var(--color-text-tertiary);
+  font: var(--scene-body-l);
+  letter-spacing: 0;
+  text-align: center;
+}
+
+.public-home__start {
+  text-decoration: none;
+}
+
+.marketing-preview {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 10px;
+  box-shadow:
+    0 1px 3px var(--color-shadow-raised-sm),
+    0 4px 16px var(--color-shadow-popover);
+}
+
+@media (min-width: 1280px) {
+  .public-home__stack {
+    width: 940px;
+  }
+}
+
+@media (max-width: 390px) {
+  .public-home__stack {
+    gap: 0;
+    width: 100%;
+    margin: 0;
+  }
+
+  .public-home__copy {
+    gap: 16px;
+    box-sizing: border-box;
+    padding: 40px 24px 28px;
+  }
+
+  .public-home__title {
+    font-size: 28px;
+    line-height: 38px;
+  }
+
+  .public-home__support {
+    font: var(--scene-body-m);
+    letter-spacing: 0;
+  }
+
+  .public-home__start {
+    min-height: 48px;
+    padding: 10px 18px;
+    font: var(--scene-label-l);
+  }
+
+  .marketing-preview {
+    width: calc(100% - 40px);
+  }
+}
