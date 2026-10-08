@@ -4,7 +4,11 @@ import app.scene.event.transfer.mapper.OwnerTransferMapper;
 import app.scene.event.transfer.param.TransferAcceptUpdate;
 import app.scene.event.transfer.param.TransferCompletion;
 import app.scene.event.transfer.param.TransferDueQuery;
+import app.scene.event.transfer.param.TransferId;
+import app.scene.event.transfer.param.TransferInsert;
 import app.scene.event.transfer.param.TransferLockKey;
+import app.scene.event.transfer.param.TransferSnapshotRestore;
+import app.scene.event.transfer.param.TransferStatusUpdate;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -25,12 +29,27 @@ public class OwnerTransferRepository {
     this.transfers = transfers;
   }
 
+  public Optional<TransferRow> findEvent(UUID transferId) {
+    return Optional.ofNullable(transfers.findEventById(TransferId.of(transferId)));
+  }
+
   public Optional<TransferRow> findForUpdate(UUID spaceId, UUID transferId) {
     return Optional.ofNullable(transfers.findForUpdate(TransferLockKey.of(spaceId, transferId)));
   }
 
   public List<DueTransfer> findDueForUpdate(Instant now) {
     return transfers.findDueForUpdate(TransferDueQuery.of(now, HANDOVER));
+  }
+
+  public Optional<TransferView> findView(UUID spaceId, UUID transferId) {
+    return Optional.ofNullable(transfers.findView(TransferLockKey.of(spaceId, transferId)));
+  }
+
+  @Transactional
+  public int insertPending(
+      UUID transferId, UUID spaceId, UUID eventId, UUID fromUserId, UUID toUserId) {
+    return transfers.insertPending(
+        TransferInsert.of(transferId, spaceId, eventId, fromUserId, toUserId));
   }
 
   @Transactional
@@ -50,5 +69,17 @@ public class OwnerTransferRepository {
     return transfers.updateAccepted(
         TransferAcceptUpdate.of(
             spaceId, transferId, priorRole, acceptedAt, endsAt, snapshot, HANDOVER, PENDING));
+  }
+
+  @Transactional
+  public int updateStatus(UUID spaceId, UUID transferId, String status, String expectedStatus) {
+    return transfers.updateStatus(
+        TransferStatusUpdate.of(spaceId, transferId, status, expectedStatus));
+  }
+
+  @Transactional
+  public int restoreOverrides(UUID spaceId, UUID eventId, UUID userId, String snapshot) {
+    return transfers.restoreOverrides(
+        TransferSnapshotRestore.of(spaceId, eventId, userId, snapshot));
   }
 }

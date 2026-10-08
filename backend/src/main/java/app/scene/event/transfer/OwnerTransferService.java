@@ -19,10 +19,12 @@ import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * Accepts an event-owner handover and stores a due handover as COMPLETED. A repeated accept keeps
- * the original end time (DEC-063). Completion does not rename the sender's role: permission row 36
- * leaves that role unnamed, and the 10/6 decision keeps the {@code event_users} row until that name
- * exists. No completion route and no scheduler.
+ * Event owner handover. Accept, request, decline, and cancel stay on this service. {@code
+ * completeDue} stores a due handover as COMPLETED. A repeated accept keeps the original end time
+ * (DEC-063). Completion does not rename the sender's role: permission row 36 leaves that role
+ * unnamed, and the 10/6 decision keeps the {@code event_users} row until that name exists. No
+ * completion route and no scheduler. Decline stores {@code DECLINED}. Request, decline, and cancel
+ * write no audit: the contract names an action only for accept.
  */
 @Service
 public class OwnerTransferService {
@@ -30,6 +32,12 @@ public class OwnerTransferService {
   static final String ACCEPTED = "ACCEPTED";
   static final String ALREADY_ACCEPTED = "ALREADY_ACCEPTED";
   static final String AUDIT_ACTION = "OWNER_TRANSFER_ACCEPTED";
+
+  private static final String PENDING = "PENDING";
+  private static final String HANDOVER = "HANDOVER";
+  private static final String DECLINED = "DECLINED";
+  private static final String CANCELLED = "CANCELLED";
+  private static final String COMPLETED = "COMPLETED";
 
   private final OwnerTransferRepository transfers;
   private final MemberRepository members;
@@ -56,6 +64,20 @@ public class OwnerTransferService {
     this.clock = clock;
   }
 
+  /**
+   * Opens one {@code PENDING} row. The recipient's role and overrides stay as they are. A second
+   * pending row from the same sender fails on {@code owner_transfers_one_pending}.
+   */
+  @Transactional
+  public UUID request(UUID spaceId, UUID eventId, UUID fromUserId, UUID toUserId) {
+    if (members.countActive(spaceId, toUserId) == 0) {
+      throw new SceneException(ErrorCode.VALIDATION_FAILED, Map.of("field", "toUserId"));
+    }
+    UUID transferId = UUID.randomUUID();
+    transfers.insertPending(transferId, spaceId, eventId, fromUserId, toUserId);
+    return transferId;
+  }
+
   @Transactional
   public TransferAcceptResult accept(UUID spaceId, UUID transferId, UUID actorUserId) {
     TransferRow row =
@@ -65,13 +87,13 @@ public class OwnerTransferService {
     if (!actorUserId.equals(row.toUserId())) {
       throw new SceneException(ErrorCode.RESOURCE_NOT_FOUND);
     }
-    if ("HANDOVER".equals(row.status())) {
+    if (HANDOVER.equals(row.status())) {
       return new TransferAcceptResult(ALREADY_ACCEPTED, row.handoverEndsAt());
     }
-    if ("DECLINED".equals(row.status()) || "CANCELLED".equals(row.status())) {
+    if (DECLINED.equals(row.status()) || CANCELLED.equals(row.status())) {
       throw new SceneException(ErrorCode.TRANSFER_NOT_PENDING);
     }
-    if ("COMPLETED".equals(row.status())) {
+    if (COMPLETED.equals(row.status())) {
       throw new SceneException(ErrorCode.TRANSFER_COMPLETED);
     }
     if (members.countActive(spaceId, actorUserId) == 0) {
@@ -117,6 +139,92 @@ public class OwnerTransferService {
       eventUsers.findRoleForUpdate(row.spaceId(), row.eventId(), row.fromUserId());
       permissions.delete(row.spaceId(), row.eventId(), row.fromUserId());
     }
+  }
+
+  /** Recipient only, and only while {@code PENDING}. Stores {@code DECLINED}. */
+  @Transactional
+  public void decline(UUID spaceId, UUID transferId, UUID actorUserId) {
+    TransferRow row = locked(spaceId, transferId);
+    if (!actorUserId.equals(row.toUserId())) {
+      throw new SceneException(ErrorCode.RESOURCE_NOT_FOUND);
+    }
+    if (DECLINED.equals(row.status())
+        || CANCELLED.equals(row.status())
+        || HANDOVER.equals(row.status())) {
+      throw new SceneException(ErrorCode.TRANSFER_NOT_PENDING);
+    }
+    if (COMPLETED.equals(row.status())) {
+      throw new SceneException(ErrorCode.TRANSFER_COMPLETED);
+    }
+    if (transfers.updateStatus(spaceId, transferId, DECLINED, PENDING) != 1) {
+      throw new SceneException(ErrorCode.TRANSFER_NOT_PENDING);
+    }
+  }
+
+  /**
+   * Pending cancel is the sender. Handover cancel is the sender or the recipient, and puts the
+   * recipient's prior role and stored overrides back in this transaction. Task rows are not
+   * changed. A stored {@code COMPLETED} is not derived from {@code handover_ends_at}.
+   */
+  @Transactional
+  public void cancel(UUID spaceId, UUID transferId, UUID actorUserId) {
+    TransferRow row = locked(spaceId, transferId);
+    boolean sender = actorUserId.equals(row.fromUserId());
+    boolean recipient = actorUserId.equals(row.toUserId());
+    if (!sender && !recipient) {
+      throw new SceneException(ErrorCode.RESOURCE_NOT_FOUND);
+    }
+    if (DECLINED.equals(row.status()) || CANCELLED.equals(row.status())) {
+      throw new SceneException(ErrorCode.TRANSFER_NOT_PENDING);
+    }
+    if (COMPLETED.equals(row.status())) {
+      throw new SceneException(ErrorCode.TRANSFER_COMPLETED);
+    }
+    if (PENDING.equals(row.status())) {
+      if (!sender) {
+        throw new SceneException(ErrorCode.FORBIDDEN);
+      }
+      if (transfers.updateStatus(spaceId, transferId, CANCELLED, PENDING) != 1) {
+        throw new SceneException(ErrorCode.TRANSFER_NOT_PENDING);
+      }
+      return;
+    }
+    if (!HANDOVER.equals(row.status())) {
+      throw new SceneException(ErrorCode.TRANSFER_NOT_PENDING);
+    }
+    if (transfers.updateStatus(spaceId, transferId, CANCELLED, HANDOVER) != 1) {
+      throw new SceneException(ErrorCode.TRANSFER_NOT_PENDING);
+    }
+    restoreRecipient(spaceId, row);
+  }
+
+  private TransferRow locked(UUID spaceId, UUID transferId) {
+    return transfers
+        .findForUpdate(spaceId, transferId)
+        .orElseThrow(() -> new SceneException(ErrorCode.RESOURCE_NOT_FOUND));
+  }
+
+  private void restoreRecipient(UUID spaceId, TransferRow row) {
+    UUID eventId = row.eventId();
+    UUID userId = row.toUserId();
+    eventUsers.findRoleForUpdate(spaceId, eventId, userId);
+    String prior = row.recipientPriorRole();
+    if (prior == null) {
+      eventUsers.delete(spaceId, eventId, userId);
+      return;
+    }
+    if (eventUsers.updateRole(spaceId, eventId, userId, prior) == 0) {
+      eventUsers.save(spaceId, eventId, userId, prior);
+    }
+    permissions.delete(spaceId, eventId, userId);
+    transfers.restoreOverrides(spaceId, eventId, userId, snapshotOrEmpty(row.permissionSnapshot()));
+  }
+
+  private static String snapshotOrEmpty(String snapshot) {
+    if (snapshot == null || snapshot.isBlank()) {
+      return "[]";
+    }
+    return snapshot;
   }
 
   private String auditDetail(UUID transferId, UUID toUserId, String priorRole, String snapshot) {
