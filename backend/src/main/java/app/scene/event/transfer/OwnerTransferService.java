@@ -1,5 +1,6 @@
 package app.scene.event.transfer;
 
+import app.scene.common.audit.AuditActions;
 import app.scene.common.audit.AuditLogRepository;
 import app.scene.common.error.ErrorCode;
 import app.scene.common.error.SceneException;
@@ -20,11 +21,10 @@ import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Event owner handover. Accept, request, decline, and cancel stay on this service. {@code
- * completeDue} stores a due handover as COMPLETED. A repeated accept keeps the original end time
- * (DEC-063). Completion does not rename the sender's role: permission row 36 leaves that role
- * unnamed, and the 10/6 decision keeps the {@code event_users} row until that name exists. No
- * completion route and no scheduler. Decline stores {@code DECLINED}. Request, decline, and cancel
- * write no audit: the contract names an action only for accept.
+ * completeDue} stores a due handover as COMPLETED and sets that sender's role to STAFF. A repeated
+ * accept keeps the original end time (DEC-063). No completion route and no scheduler. Decline
+ * stores {@code DECLINED}. Request, decline, and cancel write no audit: the contract names an
+ * action only for accept.
  */
 @Service
 public class OwnerTransferService {
@@ -38,6 +38,8 @@ public class OwnerTransferService {
   private static final String DECLINED = "DECLINED";
   private static final String CANCELLED = "CANCELLED";
   private static final String COMPLETED = "COMPLETED";
+  private static final String OWNER = "OWNER";
+  private static final String STAFF = "STAFF";
 
   private final OwnerTransferRepository transfers;
   private final MemberRepository members;
@@ -124,9 +126,10 @@ public class OwnerTransferService {
 
   /**
    * Stores COMPLETED for each event HANDOVER whose {@code handoverEndsAt} is at or before {@code
-   * now}, and deletes that sender's overrides on that event. The sender's {@code event_users} row
-   * and role stay. A later row, and PENDING, DECLINED, or CANCELLED, stay as stored. A second call
-   * finds nothing left to complete and writes no audit. Leave does not call this.
+   * now}, deletes that sender's overrides, and sets the sender's role on that event to STAFF. A
+   * missing sender row stays missing and writes no role audit. A later row, and PENDING, DECLINED,
+   * or CANCELLED, stay as stored. A second call finds nothing left to complete. Leave does not call
+   * this.
    */
   @Transactional
   public void completeDue(Instant now) {
@@ -135,9 +138,26 @@ public class OwnerTransferService {
       if (transfers.updateCompleted(row.spaceId(), row.id()) != 1) {
         continue;
       }
-      // Hold the sender row. The role is unnamed, so this does not update it.
-      eventUsers.findRoleForUpdate(row.spaceId(), row.eventId(), row.fromUserId());
+      String current =
+          eventUsers.findRoleForUpdate(row.spaceId(), row.eventId(), row.fromUserId()).orElse(null);
+      String snapshot = permissions.findSnapshot(row.spaceId(), row.eventId(), row.fromUserId());
       permissions.delete(row.spaceId(), row.eventId(), row.fromUserId());
+      if (current == null || STAFF.equals(current)) {
+        continue;
+      }
+      if (eventUsers.updateRole(row.spaceId(), row.eventId(), row.fromUserId(), STAFF) != 1) {
+        throw new IllegalStateException("sender role was not stored as STAFF");
+      }
+      if (!OWNER.equals(current)) {
+        continue;
+      }
+      auditLogs.save(
+          row.spaceId(),
+          row.eventId(),
+          row.fromUserId(),
+          AuditActions.EVENT_USER_ROLE_CHANGED,
+          senderRoleDetail(row.id(), row.fromUserId(), snapshot),
+          now);
     }
   }
 
@@ -225,6 +245,16 @@ public class OwnerTransferService {
       return "[]";
     }
     return snapshot;
+  }
+
+  private String senderRoleDetail(UUID transferId, UUID userId, String snapshot) {
+    Map<String, Object> detail = new LinkedHashMap<>();
+    detail.put("transferId", transferId);
+    detail.put("userId", userId);
+    detail.put("fromRole", OWNER);
+    detail.put("toRole", STAFF);
+    detail.put("deletedOverrides", json.readTree(snapshot));
+    return json.writeValueAsString(detail);
   }
 
   private String auditDetail(UUID transferId, UUID toUserId, String priorRole, String snapshot) {
