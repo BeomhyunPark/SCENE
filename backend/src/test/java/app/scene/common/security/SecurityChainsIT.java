@@ -100,8 +100,8 @@ class SecurityChainsIT {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.chain").value("operator"));
     mvc.perform(get("/api/v1/participant/probe").cookie(participant))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.chain").value("participant"));
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
 
     mvc.perform(get("/api/v1/participant/probe").cookie(operator))
         .andExpect(status().isUnauthorized())

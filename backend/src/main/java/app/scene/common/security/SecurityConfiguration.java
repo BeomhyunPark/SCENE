@@ -5,7 +5,6 @@ import app.scene.common.error.ProblemBodies;
 import app.scene.common.web.RequestIds;
 import java.util.ArrayList;
 import java.util.List;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -19,7 +18,6 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.NullSecurityContextRepository;
-import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.session.web.http.DefaultCookieSerializer;
@@ -29,7 +27,9 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 /**
  * Three filter chains. The operator chain stores its session in Spring Session JDBC. The
- * participant chain keeps its own in-memory cookie. Public does not require either session.
+ * participant chain does not load that session or the in-memory stand-in. {@code /participant/me}
+ * and logout read a separate cookie. Every other participant path stays unauthenticated. Public
+ * does not require either session.
  */
 @Configuration(proxyBeanMethods = false)
 @EnableWebSecurity
@@ -86,16 +86,23 @@ class SecurityConfiguration {
 
   @Bean
   @Order(2)
-  SecurityFilterChain participantChain(
-      HttpSecurity http,
-      SecurityProperties properties,
-      @Qualifier("participantSessions") ChainSessionRegistry participantSessions)
+  SecurityFilterChain participantChain(HttpSecurity http, SecurityProperties properties)
       throws Exception {
-    return authenticated(
-        http,
-        "/api/v1/participant/**",
-        properties,
-        new ChainSecurityContextRepository(participantSessions));
+    shared(http, "/api/v1/participant/**", properties);
+    http.securityContext(
+        context -> context.securityContextRepository(new NullSecurityContextRepository()));
+    http.sessionManagement(
+        session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+    http.authorizeHttpRequests(
+        authorize ->
+            authorize
+                .requestMatchers(HttpMethod.GET, "/api/v1/participant/me")
+                .permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/participant/auth/logout")
+                .permitAll()
+                .anyRequest()
+                .authenticated());
+    return http.build();
   }
 
   @Bean
@@ -109,20 +116,6 @@ class SecurityConfiguration {
     http.sessionManagement(
         session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
     http.authorizeHttpRequests(authorize -> authorize.anyRequest().permitAll());
-    return http.build();
-  }
-
-  private static SecurityFilterChain authenticated(
-      HttpSecurity http,
-      String pattern,
-      SecurityProperties properties,
-      SecurityContextRepository repository)
-      throws Exception {
-    shared(http, pattern, properties);
-    http.securityContext(context -> context.securityContextRepository(repository));
-    http.sessionManagement(
-        session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
-    http.authorizeHttpRequests(authorize -> authorize.anyRequest().authenticated());
     return http.build();
   }
 

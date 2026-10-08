@@ -12,8 +12,9 @@ import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 /**
- * In-memory stand-in for the participant chain. The operator chain stores sessions in Spring
- * Session JDBC and does not use this registry. There is no participant login route.
+ * In-memory stand-in kept for tests. The operator chain stores sessions in Spring Session JDBC and
+ * does not use this registry. The participant filter chain does not load it either. A participant
+ * session is a database row and a separate cookie.
  */
 final class ChainSessionRegistry {
 

@@ -8,7 +8,10 @@ import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.web.context.HttpRequestResponseHolder;
 import org.springframework.security.web.context.SecurityContextRepository;
 
-/** Loads only the cookie owned by one chain. The other chain's cookie is ignored. */
+/**
+ * Loads only the cookie owned by one in-memory registry. The participant filter chain does not use
+ * this repository. Operator sessions stay in Spring Session JDBC.
+ */
 final class ChainSecurityContextRepository implements SecurityContextRepository {
 
   private final ChainSessionRegistry sessions;

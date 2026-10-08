@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="app.scene.event.participant.mapper.ParticipantSessionQueryMapper">
+
+  <select id="findByTokenHash" resultType="app.scene.event.participant.ParticipantSelf">
+    SELECT s.participant_id, s.event_id, s.space_id, p.name
+    FROM participant_sessions s
+    JOIN participants p
+      ON p.space_id = s.space_id
+     AND p.event_id = s.event_id
+     AND p.id = s.participant_id
+    WHERE s.token_hash = #{tokenHash}
+  </select>
+
+</mapper>

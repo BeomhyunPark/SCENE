@@ -10,6 +10,10 @@ class ErrorCodeTest {
   @Test
   void confirmedCodesKeepTheirHttpStatus() {
     assertThat(ErrorCode.AUTHENTICATION_REQUIRED.httpStatus()).isEqualTo(401);
+    assertThat(ErrorCode.PARTICIPANT_ACCESS_INVALID.httpStatus()).isEqualTo(401);
+    assertThat(ErrorCode.PARTICIPANT_ACCESS_INVALID.type())
+        .hasToString("urn:scene:problem:participant-access-invalid");
+    assertThat(ErrorCode.PARTICIPANT_ACCESS_INVALID.detail()).isEqualTo("참여자 접근 키가 올바르지 않습니다.");
     assertThat(ErrorCode.VALIDATION_FAILED.httpStatus()).isEqualTo(400);
     assertThat(ErrorCode.PAGE_SIZE_EXCEEDED.httpStatus()).isEqualTo(400);
     assertThat(ErrorCode.FORBIDDEN.httpStatus()).isEqualTo(403);

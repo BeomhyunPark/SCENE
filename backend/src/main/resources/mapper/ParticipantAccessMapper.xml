@@ -10,4 +10,12 @@
       #{id}, #{spaceId}, #{eventId}, #{participantId}, #{keyHash}, #{createdAt})
   </insert>
 
+  <select id="findByKeyHash" resultType="app.scene.event.participant.ParticipantAccessMatch">
+    SELECT id, participant_id
+    FROM participant_access
+    WHERE space_id = #{spaceId}
+      AND event_id = #{eventId}
+      AND key_hash = #{keyHash}
+  </select>
+
 </mapper>

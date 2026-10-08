@@ -36,7 +36,8 @@ import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Public first submit. The form is opened with the existing activate command. A repeated phone
- * creates another participant. No participant session route is registered.
+ * creates another participant. A missing event on the session route follows the public
+ * event-missing code.
  */
 @SpringBootTest
 @Import(PostgresTestcontainer.class)
@@ -164,10 +165,9 @@ class PublicApplicationSubmitHttpIT {
   }
 
   @Test
-  void participantSessionRouteIsNotAdded() throws Exception {
+  void missingEventSessionIsNotFound() throws Exception {
     for (RequestMappingInfo info : handlers.getHandlerMethods().keySet()) {
       for (String pattern : info.getPatternValues()) {
-        assertThat(pattern).doesNotContain("participant-sessions");
         if (pattern.contains("/applications")) {
           for (RequestMethod method : info.getMethodsCondition().getMethods()) {
             if (pattern.startsWith("/api/v1/public/")) {
@@ -183,8 +183,9 @@ class PublicApplicationSubmitHttpIT {
                 .header(CSRF_HEADER, CSRF)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"accessKey\":\"not-a-stored-key\"}"))
-        .andExpect(status().is5xxServerError())
-        .andExpect(jsonPath("$.type").value("urn:scene:problem:unexpected"));
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND"))
+        .andExpect(jsonPath("$.type").value("urn:scene:problem:resource-not-found"));
   }
 
   private String answers(UUID nameId, String name, UUID phoneId, String phone) {
