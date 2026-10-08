@@ -28,4 +28,15 @@
     WHERE id = #{eventId} AND space_id = #{spaceId} AND lifecycle_version = #{expectedVersion}
   </update>
 
+  <insert id="save">
+    INSERT INTO events (id, space_id, name, lifecycle_status, lifecycle_version)
+    VALUES (#{id}, #{spaceId}, #{name}, 'DRAFT', 0)
+  </insert>
+
+  <update id="updateName">
+    UPDATE events
+    SET name = #{name}
+    WHERE id = #{eventId} AND space_id = #{spaceId}
+  </update>
+
 </mapper>

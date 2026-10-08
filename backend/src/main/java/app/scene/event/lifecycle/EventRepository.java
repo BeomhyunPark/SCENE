@@ -7,7 +7,11 @@ import app.scene.common.web.PageRequest;
 import app.scene.event.lifecycle.mapper.EventLifecycleTransitionMapper;
 import app.scene.event.lifecycle.mapper.EventLifecycleTransitionQueryMapper;
 import app.scene.event.lifecycle.mapper.EventMapper;
+import app.scene.event.lifecycle.mapper.EventQueryMapper;
+import app.scene.event.lifecycle.param.EventInsert;
 import app.scene.event.lifecycle.param.EventKey;
+import app.scene.event.lifecycle.param.EventListQuery;
+import app.scene.event.lifecycle.param.EventNameUpdate;
 import app.scene.event.lifecycle.param.EventStatusUpdate;
 import app.scene.event.lifecycle.param.LifecycleTransitionInsert;
 import app.scene.event.lifecycle.param.LifecycleTransitionListQuery;
@@ -22,15 +26,21 @@ import org.springframework.transaction.annotation.Transactional;
 @Component
 public class EventRepository {
 
+  /** Events have no created-at column. Client sort is rejected before this clause is used. */
+  static final String LIST_ORDER = "e.name ASC, e.id ASC";
+
   private final EventMapper events;
+  private final EventQueryMapper eventQueries;
   private final EventLifecycleTransitionMapper transitions;
   private final EventLifecycleTransitionQueryMapper transitionQueries;
 
   public EventRepository(
       EventMapper events,
+      EventQueryMapper eventQueries,
       EventLifecycleTransitionMapper transitions,
       EventLifecycleTransitionQueryMapper transitionQueries) {
     this.events = events;
+    this.eventQueries = eventQueries;
     this.transitions = transitions;
     this.transitionQueries = transitionQueries;
   }
@@ -59,6 +69,34 @@ public class EventRepository {
 
   public long countTransitions(UUID spaceId, UUID eventId) {
     return transitionQueries.count(EventKey.of(spaceId, eventId));
+  }
+
+  /**
+   * Events in the space. {@code operatorUserId} limits the rows to events that person operates. A
+   * null value returns every event in the space.
+   */
+  public long countInSpace(UUID spaceId, UUID operatorUserId) {
+    return eventQueries.count(EventListQuery.of(spaceId, operatorUserId, null));
+  }
+
+  public List<EventListRow> listInSpace(UUID spaceId, UUID operatorUserId, PageRequest request) {
+    long offset = request.offset();
+    if (offset > Integer.MAX_VALUE) {
+      throw new IllegalArgumentException("page offset does not fit an int");
+    }
+    return eventQueries.findPage(
+        EventListQuery.of(
+            spaceId, operatorUserId, PageParam.of((int) offset, request.size(), LIST_ORDER)));
+  }
+
+  @Transactional
+  public int save(UUID id, UUID spaceId, String name) {
+    return events.save(EventInsert.of(id, spaceId, name));
+  }
+
+  @Transactional
+  public int updateName(UUID spaceId, UUID eventId, String name) {
+    return events.updateName(EventNameUpdate.of(spaceId, eventId, name));
   }
 
   public List<LifecycleTransitionRow> findTransitions(

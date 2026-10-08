@@ -35,7 +35,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 /**
  * DEC-063 lifecycle HTTP. Rows 10 and 12–16 stay out: application submit, owner transfer, and
- * leave. {@code PATCH /events/{eventId}} is not added in this slice.
+ * leave. Name patch is covered by {@code EventCommandHttpIT}, not this class.
  */
 @SpringBootTest
 @Import(PostgresTestcontainer.class)
