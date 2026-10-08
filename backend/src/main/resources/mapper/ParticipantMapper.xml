@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="app.scene.event.participant.mapper.ParticipantMapper">
+
+  <insert id="save">
+    INSERT INTO participants (
+      id, space_id, event_id, name, phone, phone_hash, phone_last4, created_at, updated_at)
+    VALUES (
+      #{id}, #{spaceId}, #{eventId}, #{name}, #{phone}, #{phoneHash}, #{phoneLast4},
+      #{createdAt}, #{updatedAt})
+  </insert>
+
+</mapper>

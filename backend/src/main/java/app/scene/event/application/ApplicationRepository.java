@@ -69,6 +69,9 @@ public class ApplicationRepository {
    */
   @Transactional
   public void save(ApplicationInsert application, List<AnswerInsert> answerRows) {
+    if (application.getParticipantId() == null) {
+      throw new IllegalArgumentException("participant is required");
+    }
     if (application.getStatus() == null || !STATUSES.contains(application.getStatus())) {
       throw new IllegalArgumentException("application status is not a stored value");
     }

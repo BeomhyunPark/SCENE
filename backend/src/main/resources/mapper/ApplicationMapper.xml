@@ -5,9 +5,9 @@
 
   <insert id="save">
     INSERT INTO applications (
-      id, space_id, event_id, form_id, status, submitted_at)
+      id, space_id, event_id, form_id, participant_id, status, submitted_at)
     VALUES (
-      #{id}, #{spaceId}, #{eventId}, #{formId}, #{status}, #{submittedAt})
+      #{id}, #{spaceId}, #{eventId}, #{formId}, #{participantId}, #{status}, #{submittedAt})
   </insert>
 
 </mapper>

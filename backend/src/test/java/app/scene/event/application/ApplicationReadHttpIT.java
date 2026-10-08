@@ -14,6 +14,7 @@ import app.scene.event.application.param.ApplicationInsert;
 import app.scene.event.form.FormRepository;
 import app.scene.support.PostgresTestcontainer;
 import jakarta.servlet.http.Cookie;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -153,7 +154,8 @@ class ApplicationReadHttpIT {
     assertThat(applicationPatterns())
         .containsExactlyInAnyOrder(
             "GET /api/v1/operator/events/{eventId}/applications",
-            "GET /api/v1/operator/events/{eventId}/applications/{applicationId}");
+            "GET /api/v1/operator/events/{eventId}/applications/{applicationId}",
+            "POST /api/v1/public/events/{eventId}/forms/{formId}/applications");
 
     String publicBody =
         mvc.perform(
@@ -251,10 +253,29 @@ class ApplicationReadHttpIT {
     forms.saveField(nameId, event.spaceId, event.eventId, formId, "SYSTEM", "NAME", "이름", 0);
     forms.saveField(phoneId, event.spaceId, event.eventId, formId, "SYSTEM", "PHONE", "전화", 1);
     forms.saveField(customId, event.spaceId, event.eventId, formId, "CUSTOM", null, "식사", 2);
+    UUID participantId = UUID.randomUUID();
+    jdbc.update(
+        """
+        INSERT INTO participants (
+          id, space_id, event_id, name, phone, phone_hash, phone_last4, created_at, updated_at)
+        VALUES (?, ?, ?, '김', '01012345678', ?, '5678', ?, ?)
+        """,
+        participantId,
+        event.spaceId,
+        event.eventId,
+        "0".repeat(64),
+        Timestamp.from(SUBMITTED),
+        Timestamp.from(SUBMITTED));
     UUID applicationId = UUID.randomUUID();
     applications.save(
         ApplicationInsert.of(
-            applicationId, event.spaceId, event.eventId, formId, "SUBMITTED", SUBMITTED),
+            applicationId,
+            event.spaceId,
+            event.eventId,
+            formId,
+            participantId,
+            "SUBMITTED",
+            SUBMITTED),
         List.of(
             AnswerInsert.of(
                 UUID.randomUUID(),
@@ -303,9 +324,13 @@ class ApplicationReadHttpIT {
         if (!pattern.contains("applications")) {
           continue;
         }
-        assertThat(pattern).startsWith("/api/v1/operator/events/");
-        assertThat(pattern).doesNotContain("/api/v1/public/");
         assertThat(pattern).doesNotContain("/api/v1/participant/");
+        if (pattern.startsWith("/api/v1/public/")) {
+          assertThat(pattern)
+              .isEqualTo("/api/v1/public/events/{eventId}/forms/{formId}/applications");
+        } else {
+          assertThat(pattern).startsWith("/api/v1/operator/events/");
+        }
         for (RequestMethod method : info.getMethodsCondition().getMethods()) {
           patterns.add(method.name() + " " + pattern);
         }

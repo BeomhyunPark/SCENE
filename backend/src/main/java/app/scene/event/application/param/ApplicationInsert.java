@@ -10,22 +10,36 @@ public final class ApplicationInsert {
   private final UUID spaceId;
   private final UUID eventId;
   private final UUID formId;
+  private final UUID participantId;
   private final String status;
   private final Instant submittedAt;
 
   private ApplicationInsert(
-      UUID id, UUID spaceId, UUID eventId, UUID formId, String status, Instant submittedAt) {
+      UUID id,
+      UUID spaceId,
+      UUID eventId,
+      UUID formId,
+      UUID participantId,
+      String status,
+      Instant submittedAt) {
     this.id = id;
     this.spaceId = spaceId;
     this.eventId = eventId;
     this.formId = formId;
+    this.participantId = participantId;
     this.status = status;
     this.submittedAt = submittedAt;
   }
 
   public static ApplicationInsert of(
-      UUID id, UUID spaceId, UUID eventId, UUID formId, String status, Instant submittedAt) {
-    return new ApplicationInsert(id, spaceId, eventId, formId, status, submittedAt);
+      UUID id,
+      UUID spaceId,
+      UUID eventId,
+      UUID formId,
+      UUID participantId,
+      String status,
+      Instant submittedAt) {
+    return new ApplicationInsert(id, spaceId, eventId, formId, participantId, status, submittedAt);
   }
 
   public UUID getId() {
@@ -42,6 +56,10 @@ public final class ApplicationInsert {
 
   public UUID getFormId() {
     return formId;
+  }
+
+  public UUID getParticipantId() {
+    return participantId;
   }
 
   public String getStatus() {
