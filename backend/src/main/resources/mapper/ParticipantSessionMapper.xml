@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="app.scene.event.participant.mapper.ParticipantSessionMapper">
+
+  <insert id="save">
+    INSERT INTO participant_sessions (
+      id, space_id, event_id, participant_id, participant_access_id, token_hash, created_at)
+    VALUES (
+      #{id}, #{spaceId}, #{eventId}, #{participantId}, #{participantAccessId},
+      #{tokenHash}, #{createdAt})
+  </insert>
+
+  <delete id="deleteByTokenHash">
+    DELETE FROM participant_sessions
+    WHERE token_hash = #{tokenHash}
+  </delete>
+
+</mapper>

@@ -9,6 +9,7 @@ import java.util.Locale;
  */
 public enum ErrorCode {
   AUTHENTICATION_REQUIRED(401, "Authentication required", "로그인이 필요합니다."),
+  PARTICIPANT_ACCESS_INVALID(401, "Participant access invalid", "참여자 접근 키가 올바르지 않습니다."),
   FORBIDDEN(403, "Forbidden", "이 작업을 할 수 없습니다."),
   NOT_A_MEMBER(403, "Not a member", "이 공간 또는 행사의 접근이 없습니다."),
   OVERRIDE_REQUIRED(403, "Override required", "대신 실행하려면 사유가 필요합니다."),
