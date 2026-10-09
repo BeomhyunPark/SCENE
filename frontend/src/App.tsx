@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Route, Routes } from "react-router";
 import { PublicHeader } from "./components/PublicHeader";
 import { PublicHome } from "./components/PublicHome";
+import { PublicLogin } from "./components/PublicLogin";
 
 function Home() {
   return (
@@ -40,7 +41,7 @@ export function App() {
     <QueryClientProvider client={queryClient}>
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/login" element={<EmptyMain />} />
+        <Route path="/login" element={<PublicLogin />} />
         <Route path="/signup" element={<EmptyMain />} />
         <Route path="*" element={<NotFound />} />
       </Routes>

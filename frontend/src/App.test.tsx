@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 import { App } from "./App";
@@ -53,13 +53,45 @@ describe("public shell", () => {
     expect(document.querySelector("[data-theme]")).toBeNull();
   });
 
-  it("renders the same header and an empty main on /login", () => {
+  it("renders the public login form on /login without calling the server", () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
     renderAt("/login");
 
-    expect(screen.getByText("SCENE")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "로그인" })).toHaveAttribute("href", "/login");
-    expect(document.querySelector("main")?.textContent).toBe("");
-    expect(screen.queryByRole("textbox")).toBeNull();
+    expect(screen.getByRole("heading", { name: "다시 만나서 반가워요" })).toBeInTheDocument();
+    expect(screen.getByText("로그인하고 운영을 이어가요")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "이메일" })).toHaveAttribute(
+      "placeholder",
+      "이메일을 입력해 주세요",
+    );
+    const password = screen.getByLabelText("비밀번호");
+    expect(password).toHaveAttribute("type", "password");
+    expect(password).toHaveAttribute("placeholder", "비밀번호를 입력해 주세요");
+
+    expect(screen.getByRole("checkbox", { name: "로그인 유지" })).not.toBeChecked();
+    const recover = screen.getByText("비밀번호 찾기");
+    expect(recover.tagName).not.toBe("A");
+    expect(recover.closest("a")).toBeNull();
+    expect(recover.closest("button")).toBeNull();
+
+    expect(screen.getByRole("button", { name: "로그인" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Google로 로그인" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "계정 만들기" })).toHaveAttribute("href", "/signup");
+
+    expect(screen.queryByText("서비스")).toBeNull();
+    expect(screen.queryByRole("link", { name: "로그인" })).toBeNull();
+    expect(document.body.textContent).not.toContain("운영은 더 단순하게");
+    expect(document.body.textContent).not.toContain("Search");
+    expect(document.body.textContent).not.toContain("Notes");
+
+    fireEvent.click(screen.getByRole("button", { name: "비밀번호 보기" }));
+    expect(screen.getByLabelText("비밀번호")).toHaveAttribute("type", "text");
+    fireEvent.click(screen.getByRole("checkbox", { name: "로그인 유지" }));
+    expect(screen.getByRole("checkbox", { name: "로그인 유지" })).toBeChecked();
+    fireEvent.click(screen.getByRole("button", { name: "로그인" }));
+    fireEvent.click(screen.getByRole("button", { name: "Google로 로그인" }));
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(screen.getByRole("heading", { name: "다시 만나서 반가워요" })).toBeInTheDocument();
+    fetchSpy.mockRestore();
   });
 
   it("renders a short not-found line for an unmatched path", () => {
