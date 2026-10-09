@@ -10,7 +10,7 @@ public final class SceneException extends RuntimeException {
   private static final long serialVersionUID = 1L;
 
   private final ErrorCode code;
-  private final Map<String, Object> details;
+  private final LinkedHashMap<String, Object> details;
 
   public SceneException(ErrorCode code) {
     this(code, Map.of());
@@ -19,7 +19,7 @@ public final class SceneException extends RuntimeException {
   public SceneException(ErrorCode code, Map<String, Object> details) {
     super(code.name());
     this.code = code;
-    this.details = Collections.unmodifiableMap(new LinkedHashMap<>(details));
+    this.details = new LinkedHashMap<>(details);
   }
 
   public ErrorCode code() {
@@ -27,6 +27,6 @@ public final class SceneException extends RuntimeException {
   }
 
   public Map<String, Object> details() {
-    return details;
+    return Collections.unmodifiableMap(details);
   }
 }
