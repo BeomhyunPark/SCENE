@@ -36,10 +36,15 @@ describe("public shell", () => {
     expect(screen.getByText("교회와 공동체를 위한 행사 운영, SCENE.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "시작하기" })).toHaveAttribute("href", "/signup");
 
-    const images = document.querySelectorAll("img");
-    expect(images).toHaveLength(1);
-    expect(images[0]).toHaveAttribute("aria-hidden", "true");
-    expect(images[0]).toHaveAttribute("alt", "");
+    const images = [...document.querySelectorAll("img")];
+    expect(images).toHaveLength(2);
+    const logo = document.querySelector(".public-header__brand img");
+    expect(logo).toHaveAttribute("aria-hidden", "true");
+    expect(logo).toHaveAttribute("alt", "");
+    expect(logo).toHaveAttribute("width", "35.712");
+    const preview = images.find((image) => image !== logo);
+    expect(preview).toHaveAttribute("aria-hidden", "true");
+    expect(preview).toHaveAttribute("alt", "");
     expect(document.body.textContent).not.toContain("2026 가을 공동체 행사");
     expect(document.body.textContent).not.toContain("2026년 10월 24일");
     expect(document.body.textContent).not.toContain("드림공동체");
@@ -70,7 +75,7 @@ describe("public shell", () => {
     expect(screen.getByRole("link", { name: "로그인" })).toHaveAttribute("href", "/login");
     expect(document.querySelector("main")?.textContent).toBe("");
     expect(screen.queryByRole("textbox")).toBeNull();
-    expect(document.querySelector("img")).toBeNull();
+    expect(document.querySelector("main img")).toBeNull();
   });
 
   it("does not call fetch", () => {
