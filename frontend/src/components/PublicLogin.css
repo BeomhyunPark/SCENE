@@ -220,7 +220,8 @@
 }
 
 .public-login__switch a {
-  color: inherit;
+  color: var(--color-text-brand);
+  font: var(--scene-label-m);
   text-decoration: none;
 }
 
