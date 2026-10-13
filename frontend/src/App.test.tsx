@@ -101,13 +101,82 @@ describe("public shell", () => {
     expect(screen.queryByText("SCENE")).toBeInTheDocument();
   });
 
-  it("renders the same header and an empty main on /signup", () => {
+  it("renders the account form on /signup without calling the server", () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
     renderAt("/signup");
 
+    expect(screen.getByRole("heading", { name: "계정 만들기" })).toBeInTheDocument();
+    expect(screen.getByText("SCENE과 함께 행사 운영을 시작해요")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "이름" })).toHaveAttribute(
+      "placeholder",
+      "이름을 입력해 주세요",
+    );
+    expect(screen.getByRole("textbox", { name: "이메일" })).toHaveAttribute(
+      "placeholder",
+      "이메일을 입력해 주세요",
+    );
+    const password = screen.getByLabelText("비밀번호");
+    const confirm = screen.getByLabelText("비밀번호 확인");
+    expect(password).toHaveAttribute("type", "password");
+    expect(password).toHaveAttribute("placeholder", "비밀번호");
+    expect(confirm).toHaveAttribute("type", "password");
+    expect(confirm).toHaveAttribute("placeholder", "다시 입력");
+
+    const showPassword = screen.getByRole("button", { name: "비밀번호 보기" });
+    const showConfirm = screen.getByRole("button", { name: "비밀번호 확인 보기" });
+    expect(showPassword).toHaveAttribute("tabindex", "-1");
+    expect(showConfirm).toHaveAttribute("tabindex", "-1");
+
+    expect(screen.getByRole("checkbox", { name: "이용약관 동의 (필수)" })).not.toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "개인정보 수집·이용 동의 (필수)" })).not.toBeChecked();
+    for (const view of screen.getAllByText("보기")) {
+      expect(view.tagName).not.toBe("A");
+      expect(view.closest("a")).toBeNull();
+      expect(view.closest("button")).toBeNull();
+    }
+
+    const submit = screen.getByRole("button", { name: "계정 만들기" });
+    expect(submit).toBeDisabled();
     expect(screen.getByRole("link", { name: "로그인" })).toHaveAttribute("href", "/login");
-    expect(document.querySelector("main")?.textContent).toBe("");
-    expect(screen.queryByRole("textbox")).toBeNull();
-    expect(document.querySelector("main img")).toBeNull();
+    expect(document.querySelector(".public-header")).toBeNull();
+    expect(screen.queryByText("서비스")).toBeNull();
+    expect(document.body.textContent).not.toContain("행사를 함께 운영할");
+    expect(document.body.textContent).not.toContain("Search");
+    expect(document.body.textContent).not.toContain("Dashboard");
+
+    fireEvent.change(screen.getByRole("textbox", { name: "이름" }), { target: { value: "   " } });
+    fireEvent.change(screen.getByRole("textbox", { name: "이메일" }), {
+      target: { value: "ada@scene.test" },
+    });
+    fireEvent.change(password, { target: { value: "secret" } });
+    fireEvent.change(confirm, { target: { value: "secret" } });
+    fireEvent.click(screen.getByRole("checkbox", { name: "이용약관 동의 (필수)" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "개인정보 수집·이용 동의 (필수)" }));
+    expect(submit).toBeDisabled();
+
+    fireEvent.change(screen.getByRole("textbox", { name: "이름" }), { target: { value: "아다" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "이메일" }), { target: { value: "   " } });
+    expect(submit).toBeDisabled();
+
+    fireEvent.change(screen.getByRole("textbox", { name: "이메일" }), {
+      target: { value: "ada@scene.test" },
+    });
+    expect(submit).toBeEnabled();
+    fireEvent.click(screen.getByRole("checkbox", { name: "이용약관 동의 (필수)" }));
+    expect(submit).toBeDisabled();
+    fireEvent.click(screen.getByRole("checkbox", { name: "이용약관 동의 (필수)" }));
+    expect(submit).toBeEnabled();
+
+    fireEvent.click(showPassword);
+    expect(screen.getByLabelText("비밀번호")).toHaveAttribute("type", "text");
+    expect(screen.getByLabelText("비밀번호 확인")).toHaveAttribute("type", "password");
+    fireEvent.click(showConfirm);
+    expect(screen.getByLabelText("비밀번호 확인")).toHaveAttribute("type", "text");
+
+    fireEvent.click(submit);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(screen.getByRole("heading", { name: "계정 만들기" })).toBeInTheDocument();
+    fetchSpy.mockRestore();
   });
 
   it("does not call fetch", () => {

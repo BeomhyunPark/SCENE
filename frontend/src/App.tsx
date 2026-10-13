@@ -4,21 +4,13 @@ import { Route, Routes } from "react-router";
 import { PublicHeader } from "./components/PublicHeader";
 import { PublicHome } from "./components/PublicHome";
 import { PublicLogin } from "./components/PublicLogin";
+import { PublicSignup } from "./components/PublicSignup";
 
 function Home() {
   return (
     <>
       <PublicHeader />
       <PublicHome />
-    </>
-  );
-}
-
-function EmptyMain() {
-  return (
-    <>
-      <PublicHeader />
-      <main />
     </>
   );
 }
@@ -42,7 +34,7 @@ export function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<PublicLogin />} />
-        <Route path="/signup" element={<EmptyMain />} />
+        <Route path="/signup" element={<PublicSignup />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </QueryClientProvider>
