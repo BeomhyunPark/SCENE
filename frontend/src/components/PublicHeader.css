@@ -33,6 +33,38 @@
   letter-spacing: 0;
 }
 
+.public-header--account {
+  height: 85px;
+}
+
+.public-header--account .public-header__brand {
+  grid-column: 1;
+}
+
+.public-header--account .public-header__nav {
+  grid-column: 2;
+  gap: 40px;
+}
+
+.public-header__actions {
+  grid-column: 3;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+}
+
+.public-header__login {
+  color: var(--color-text-brand);
+  font: var(--scene-label-m);
+  letter-spacing: 0;
+  text-decoration: none;
+}
+
+.public-header__start {
+  text-decoration: none;
+}
+
 @media (max-width: 390px) {
   .public-header__nav {
     display: none;

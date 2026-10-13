@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import visual from "../assets/p01-03-auth-visual.png";
 import symbol from "../assets/scene-symbol-login.svg";
 import eye from "../assets/icon-eye.svg";
@@ -15,6 +15,7 @@ export function PublicSignup() {
   const [privacy, setPrivacy] = useState(false);
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [confirmVisible, setConfirmVisible] = useState(false);
+  const navigate = useNavigate();
 
   const ready =
     name.trim() !== "" &&
@@ -26,6 +27,10 @@ export function PublicSignup() {
 
   function hold(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!ready) {
+      return;
+    }
+    navigate("/verify-email", { state: { email: email.trim() } });
   }
 
   return (
