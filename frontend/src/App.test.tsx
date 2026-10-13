@@ -236,8 +236,49 @@ describe("public shell", () => {
     renderAt("/login");
     renderAt("/signup");
     renderAt("/verify-email");
+    renderAt("/find-organization");
     renderAt("/missing");
     expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
+  });
+
+  it("renders organization search without calling the server", () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    renderAt("/find-organization");
+
+    expect(screen.getByRole("heading", { name: "소속 교회나 단체를 찾아주세요" })).toBeInTheDocument();
+    expect(screen.getByText("가입할 교회·단체를 검색하고 요청을 보낼 수 있어요.")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "교회·단체 검색" })).toHaveAttribute(
+      "placeholder",
+      "이름 또는 지역을 입력해 주세요",
+    );
+    expect(screen.getByRole("link", { name: "로그인" })).toHaveAttribute("href", "/login");
+    const start = screen.getByRole("link", { name: "시작하기" });
+    expect(start).toHaveAttribute("href", "/signup");
+    expect(start).toHaveClass("scene-button--primary");
+    for (const label of ["서비스", "운영 방식", "도움말"]) {
+      const text = screen.getByText(label);
+      expect(text.tagName).not.toBe("A");
+      expect(text.closest("a")).toBeNull();
+    }
+
+    expect(screen.getByRole("button", { name: /드림공동체/ })).toBeInTheDocument();
+    const register = screen.getByRole("button", { name: "새로 등록하기" });
+    expect(register.closest("a")).toBeNull();
+
+    fireEvent.change(screen.getByRole("textbox", { name: "교회·단체 검색" }), {
+      target: { value: "부산" },
+    });
+    expect(screen.queryByText("드림공동체")).toBeNull();
+    fireEvent.change(screen.getByRole("textbox", { name: "교회·단체 검색" }), {
+      target: { value: "서울" },
+    });
+    expect(screen.getByText("드림공동체")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /가입 요청/ }));
+    fireEvent.click(register);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(screen.getByRole("heading", { name: "소속 교회나 단체를 찾아주세요" })).toBeInTheDocument();
     fetchSpy.mockRestore();
   });
 });
