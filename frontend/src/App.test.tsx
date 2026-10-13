@@ -175,7 +175,38 @@ describe("public shell", () => {
 
     fireEvent.click(submit);
     expect(fetchSpy).not.toHaveBeenCalled();
-    expect(screen.getByRole("heading", { name: "계정 만들기" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "이메일을 확인해 주세요" })).toBeInTheDocument();
+    expect(screen.getByText("ada@scene.test으로 확인 코드를 보냈어요.")).toBeInTheDocument();
+    fetchSpy.mockRestore();
+  });
+
+  it("renders the email check on /verify-email without calling the server", () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    renderAt("/verify-email");
+
+    expect(screen.getByRole("heading", { name: "이메일을 확인해 주세요" })).toBeInTheDocument();
+    expect(screen.getByText("example@email.com으로 확인 코드를 보냈어요.")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "확인 코드" })).toHaveAttribute(
+      "placeholder",
+      "6자리 확인 코드를 입력해 주세요",
+    );
+    expect(screen.getByRole("link", { name: "로그인" })).toHaveAttribute("href", "/login");
+    expect(screen.getByRole("link", { name: "시작하기" })).toHaveAttribute("href", "/signup");
+    for (const label of ["서비스", "운영 방식", "도움말"]) {
+      const text = screen.getByText(label);
+      expect(text.tagName).not.toBe("A");
+      expect(text.closest("a")).toBeNull();
+    }
+    const again = screen.getByText("다시 보내기");
+    expect(again.tagName).not.toBe("A");
+    expect(again.closest("a")).toBeNull();
+    expect(again.closest("button")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "나중에 하기" }));
+    fireEvent.click(screen.getByRole("button", { name: "확인" }));
+    fireEvent.click(again);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(screen.getByRole("heading", { name: "이메일을 확인해 주세요" })).toBeInTheDocument();
     fetchSpy.mockRestore();
   });
 
@@ -184,6 +215,7 @@ describe("public shell", () => {
     renderAt("/");
     renderAt("/login");
     renderAt("/signup");
+    renderAt("/verify-email");
     renderAt("/missing");
     expect(fetchSpy).not.toHaveBeenCalled();
     fetchSpy.mockRestore();
