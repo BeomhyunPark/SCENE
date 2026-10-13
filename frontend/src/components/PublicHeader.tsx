@@ -5,9 +5,10 @@ import "./PublicHeader.css";
 
 type PublicHeaderProps = {
   accountActions?: boolean;
+  primaryStart?: boolean;
 };
 
-export function PublicHeader({ accountActions = false }: PublicHeaderProps) {
+export function PublicHeader({ accountActions = false, primaryStart = false }: PublicHeaderProps) {
   return (
     <header
       className={`grid h-16 grid-cols-[1fr_auto_1fr] items-center bg-[var(--color-bg-surface)] px-6 text-[var(--color-text-primary)]${
@@ -29,7 +30,9 @@ export function PublicHeader({ accountActions = false }: PublicHeaderProps) {
             로그인
           </Link>
           <Link
-            className="scene-button scene-button--secondary scene-button--size-40 public-header__start"
+            className={`scene-button scene-button--size-40 public-header__start ${
+              primaryStart ? "scene-button--primary" : "scene-button--secondary"
+            }`}
             to="/signup"
           >
             <span className="scene-button__label">시작하기</span>

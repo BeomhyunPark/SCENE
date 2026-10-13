@@ -1,0 +1,232 @@
+.public-find {
+  position: relative;
+  min-height: calc(100vh - 85px);
+  overflow: hidden;
+  background: var(--color-bg-canvas);
+}
+
+.public-find__pattern {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.public-find__hex {
+  position: absolute;
+  width: 563px;
+  height: 560px;
+  opacity: 0.85;
+  transform: translate(-50%, -50%) rotate(-30deg);
+}
+
+.public-find__hex--1 {
+  left: 291px;
+  top: -130px;
+}
+
+.public-find__hex--2 {
+  left: 701px;
+  top: 0;
+}
+
+.public-find__hex--3 {
+  left: 351px;
+  top: 410px;
+}
+
+.public-find__hex--4 {
+  left: 941px;
+  top: 380px;
+}
+
+.public-find__content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-sizing: border-box;
+  width: min(760px, calc(100% - 48px));
+  margin: 0 auto;
+  padding: 110px 0 80px;
+}
+
+.public-find__title {
+  margin: 0;
+  width: 100%;
+  color: var(--color-text-primary);
+  font-family: "Noto Sans KR", sans-serif;
+  font-size: 32px;
+  font-weight: 500;
+  line-height: normal;
+  letter-spacing: 0;
+  text-align: center;
+}
+
+.public-find__support {
+  margin: 8px 0 0;
+  width: 100%;
+  color: var(--color-text-tertiary);
+  font: var(--scene-body-l);
+  letter-spacing: 0;
+  text-align: center;
+}
+
+.public-find__search {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 560px;
+  max-width: 100%;
+  margin-top: 47px;
+}
+
+.public-find__field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.public-find__label,
+.public-find__results {
+  margin: 0;
+  color: var(--color-text-primary);
+  letter-spacing: 0;
+}
+
+.public-find__label {
+  font: var(--scene-body-m);
+}
+
+.public-find__results {
+  font: var(--scene-label-m);
+}
+
+.public-find__control {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border-control);
+  border-radius: 4px;
+  background: var(--color-bg-surface);
+}
+
+.public-find__control:has(:focus-visible) {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.public-find__control input {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-primary);
+  font: var(--scene-body-m);
+  letter-spacing: 0;
+}
+
+.public-find__control input:focus {
+  outline: none;
+}
+
+.public-find__control input::placeholder {
+  color: var(--color-text-tertiary);
+  opacity: 1;
+}
+
+.public-find__result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 68px;
+  margin: 0;
+  padding: 11px 16px 11px 15px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 4px;
+  background: var(--color-bg-surface);
+  text-align: left;
+  cursor: pointer;
+}
+
+.public-find__result:focus {
+  outline: none;
+}
+
+.public-find__result:focus-visible,
+.public-find__register:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.public-find__org {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.public-find__name {
+  color: var(--color-text-primary);
+  font: var(--scene-body-l-strong);
+  letter-spacing: 0;
+}
+
+.public-find__region {
+  color: var(--color-text-tertiary);
+  font: var(--scene-body-s);
+  letter-spacing: 0;
+}
+
+.public-find__ask {
+  flex: none;
+  color: var(--color-text-primary);
+  font: var(--scene-label-m);
+  letter-spacing: 0;
+}
+
+.public-find__missing {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 24px;
+  margin: 0;
+  color: var(--color-text-tertiary);
+  font: var(--scene-body-m);
+  letter-spacing: 0;
+}
+
+.public-find__register {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-primary);
+  font: var(--scene-label-m);
+  letter-spacing: 0;
+  cursor: pointer;
+}
+
+.public-find__register:focus {
+  outline: none;
+}
+
+@media (max-width: 390px) {
+  .public-find__content {
+    width: 100%;
+    padding: 40px 24px 48px;
+  }
+
+  .public-find__search {
+    width: 100%;
+  }
+}
