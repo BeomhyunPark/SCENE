@@ -156,11 +156,31 @@ describe("public shell", () => {
 
     fireEvent.change(screen.getByRole("textbox", { name: "이름" }), { target: { value: "아다" } });
     fireEvent.change(screen.getByRole("textbox", { name: "이메일" }), { target: { value: "   " } });
+    expect(screen.queryByText("이메일 형식을 확인해 주세요.")).toBeNull();
     expect(submit).toBeDisabled();
 
     fireEvent.change(screen.getByRole("textbox", { name: "이메일" }), {
       target: { value: "ada@scene.test" },
     });
+    expect(submit).toBeEnabled();
+    expect(screen.queryByText("비밀번호가 서로 달라요.")).toBeNull();
+    fireEvent.change(confirm, { target: { value: "secret2" } });
+    expect(screen.getByText("비밀번호가 서로 달라요.")).toBeInTheDocument();
+    expect(confirm).toHaveAttribute("aria-invalid", "true");
+    expect(submit).toBeDisabled();
+    fireEvent.change(confirm, { target: { value: "" } });
+    expect(screen.queryByText("비밀번호가 서로 달라요.")).toBeNull();
+    expect(submit).toBeDisabled();
+    fireEvent.change(confirm, { target: { value: "secret" } });
+    expect(screen.queryByText("비밀번호가 서로 달라요.")).toBeNull();
+    expect(submit).toBeEnabled();
+    const email = screen.getByRole("textbox", { name: "이메일" });
+    fireEvent.change(email, { target: { value: "ada" } });
+    expect(screen.getByText("이메일 형식을 확인해 주세요.")).toBeInTheDocument();
+    expect(email).toHaveAttribute("aria-invalid", "true");
+    expect(submit).toBeDisabled();
+    fireEvent.change(email, { target: { value: "ada@scene.test" } });
+    expect(screen.queryByText("이메일 형식을 확인해 주세요.")).toBeNull();
     expect(submit).toBeEnabled();
     fireEvent.click(screen.getByRole("checkbox", { name: "이용약관 동의 (필수)" }));
     expect(submit).toBeDisabled();

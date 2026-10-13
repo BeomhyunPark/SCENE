@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Link } from "react-router";
-import visual from "../assets/p01-02-auth-visual.png";
+import visual from "../assets/p01-02-auth-visual.svg";
 import symbol from "../assets/scene-symbol-login.svg";
 import eye from "../assets/icon-eye.svg";
 import { Button } from "./Button";

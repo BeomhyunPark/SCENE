@@ -1,10 +1,14 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router";
-import visual from "../assets/p01-03-auth-visual.png";
+import visual from "../assets/p01-03-auth-visual.svg";
 import symbol from "../assets/scene-symbol-login.svg";
 import eye from "../assets/icon-eye.svg";
 import { Button } from "./Button";
 import "./PublicSignup.css";
+
+function isEmailAddress(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
 
 export function PublicSignup() {
   const [name, setName] = useState("");
@@ -17,11 +21,15 @@ export function PublicSignup() {
   const [confirmVisible, setConfirmVisible] = useState(false);
   const navigate = useNavigate();
 
+  const emailValue = email.trim();
+  const emailInvalid = emailValue !== "" && !isEmailAddress(emailValue);
+  const passwordMismatch = passwordConfirm !== "" && password !== passwordConfirm;
   const ready =
     name.trim() !== "" &&
-    email.trim() !== "" &&
+    isEmailAddress(emailValue) &&
     password !== "" &&
     passwordConfirm !== "" &&
+    password === passwordConfirm &&
     terms &&
     privacy;
 
@@ -72,7 +80,11 @@ export function PublicSignup() {
               <label className="public-signup__label" htmlFor="signup-email">
                 이메일
               </label>
-              <span className="public-signup__control">
+              <span
+                className={`public-signup__control${
+                  emailInvalid ? " public-signup__control--invalid" : ""
+                }`}
+              >
                 <input
                   id="signup-email"
                   type="email"
@@ -80,9 +92,16 @@ export function PublicSignup() {
                   autoComplete="email"
                   placeholder="이메일을 입력해 주세요"
                   value={email}
+                  aria-invalid={emailInvalid}
+                  aria-describedby={emailInvalid ? "signup-email-invalid" : undefined}
                   onChange={(event) => setEmail(event.target.value)}
                 />
               </span>
+              {emailInvalid ? (
+                <p id="signup-email-invalid" className="public-signup__error" role="alert">
+                  이메일 형식을 확인해 주세요.
+                </p>
+              ) : null}
             </div>
             <div className="public-signup__passwords">
               <div className="public-signup__field">
@@ -115,7 +134,11 @@ export function PublicSignup() {
                 <label className="public-signup__label" htmlFor="signup-password-confirm">
                   비밀번호 확인
                 </label>
-                <span className="public-signup__control">
+                <span
+                  className={`public-signup__control${
+                    passwordMismatch ? " public-signup__control--invalid" : ""
+                  }`}
+                >
                   <input
                     id="signup-password-confirm"
                     type={confirmVisible ? "text" : "password"}
@@ -123,6 +146,8 @@ export function PublicSignup() {
                     autoComplete="new-password"
                     placeholder="다시 입력"
                     value={passwordConfirm}
+                    aria-invalid={passwordMismatch}
+                    aria-describedby={passwordMismatch ? "signup-password-mismatch" : undefined}
                     onChange={(event) => setPasswordConfirm(event.target.value)}
                   />
                   <button
@@ -137,6 +162,15 @@ export function PublicSignup() {
                   </button>
                 </span>
               </div>
+              {passwordMismatch ? (
+                <p
+                  id="signup-password-mismatch"
+                  className="public-signup__error public-signup__mismatch"
+                  role="alert"
+                >
+                  비밀번호가 서로 달라요.
+                </p>
+              ) : null}
             </div>
             <div className="public-signup__agreement">
               <label className="public-signup__agree">
