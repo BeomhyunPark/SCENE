@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { Link } from "react-router";
 import pattern from "../assets/p01-04-hex-pattern.png";
 import search from "../assets/icon-search.svg";
 import { PublicHeader } from "./PublicHeader";
@@ -71,9 +72,9 @@ export function PublicFindOrganization() {
             ) : null}
             <p className="public-find__missing">
               찾는 교회·단체가 없나요?
-              <button className="public-find__register" type="button">
+              <Link className="public-find__register" to="/register-organization">
                 새로 등록하기
-              </button>
+              </Link>
             </p>
           </form>
         </div>

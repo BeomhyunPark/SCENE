@@ -6,6 +6,7 @@ import { PublicHome } from "./components/PublicHome";
 import { PublicLogin } from "./components/PublicLogin";
 import { PublicSignup } from "./components/PublicSignup";
 import { PublicFindOrganization } from "./components/PublicFindOrganization";
+import { PublicRegisterOrganization } from "./components/PublicRegisterOrganization";
 import { PublicVerifyEmail } from "./components/PublicVerifyEmail";
 
 function Home() {
@@ -39,6 +40,7 @@ export function App() {
         <Route path="/signup" element={<PublicSignup />} />
         <Route path="/verify-email" element={<PublicVerifyEmail />} />
         <Route path="/find-organization" element={<PublicFindOrganization />} />
+        <Route path="/register-organization" element={<PublicRegisterOrganization />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </QueryClientProvider>
