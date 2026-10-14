@@ -1,0 +1,114 @@
+.public-terms {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: var(--color-overlay-scrim);
+}
+
+.public-terms__dialog {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  width: min(560px, 100%);
+  height: 400px;
+  padding: 32px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 6px;
+  background: var(--color-bg-surface);
+  box-shadow:
+    0 1px 1.5px var(--color-shadow-raised-sm),
+    0 4px 8px var(--color-shadow-popover);
+  outline: none;
+}
+
+.public-terms__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.public-terms__title {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-family: "Noto Sans KR", sans-serif;
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 26px;
+  letter-spacing: 0;
+}
+
+.public-terms__dismiss {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-tertiary);
+  font-family: "Noto Sans KR", sans-serif;
+  width: 22px;
+  font-size: 22px;
+  font-weight: 400;
+  line-height: 26px;
+  cursor: pointer;
+}
+
+.public-terms__dismiss:focus {
+  outline: none;
+}
+
+.public-terms__dismiss:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.public-terms__rule {
+  height: 1px;
+  margin: 17px 0 23px;
+  background: var(--color-border-default);
+}
+
+.public-terms__blocks {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.public-terms__block {
+  box-sizing: border-box;
+  min-height: 72px;
+  padding: 12px 14px;
+  border-radius: 4px;
+  background: var(--color-bg-subtle);
+}
+
+.public-terms__term {
+  margin: 0;
+  color: var(--color-text-primary);
+  font: var(--scene-body-l-strong);
+  letter-spacing: 0;
+}
+
+.public-terms__detail {
+  margin: 3px 0 0;
+  color: var(--color-text-tertiary);
+  font: var(--scene-body-s);
+  letter-spacing: 0;
+}
+
+.public-terms__footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: auto;
+}
+
+.public-terms__close {
+  width: 86px;
+}
+
+@media (max-width: 390px) {
+  .public-terms__dialog {
+    height: auto;
+  }
+}
