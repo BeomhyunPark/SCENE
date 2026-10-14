@@ -4,6 +4,7 @@ import visual from "../assets/p01-03-auth-visual.svg";
 import symbol from "../assets/scene-symbol-login.svg";
 import eye from "../assets/icon-eye.svg";
 import { Button } from "./Button";
+import { PublicTermsDialog } from "./PublicTermsDialog";
 import "./PublicSignup.css";
 
 function isEmailAddress(value: string): boolean {
@@ -17,6 +18,7 @@ export function PublicSignup() {
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [terms, setTerms] = useState(false);
   const [privacy, setPrivacy] = useState(false);
+  const [termsOpen, setTermsOpen] = useState(false);
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [confirmVisible, setConfirmVisible] = useState(false);
   const navigate = useNavigate();
@@ -182,7 +184,9 @@ export function PublicSignup() {
                 />
                 이용약관 동의 (필수)
               </label>
-              <span className="public-signup__view">보기</span>
+              <button className="public-signup__view" type="button" onClick={() => setTermsOpen(true)}>
+                보기
+              </button>
             </div>
             <div className="public-signup__agreement">
               <label className="public-signup__agree">
@@ -194,8 +198,11 @@ export function PublicSignup() {
                 />
                 개인정보 수집·이용 동의 (필수)
               </label>
-              <span className="public-signup__view">보기</span>
+              <button className="public-signup__view" type="button" onClick={() => setTermsOpen(true)}>
+                보기
+              </button>
             </div>
+            {termsOpen ? <PublicTermsDialog onClose={() => setTermsOpen(false)} /> : null}
             <Button
               type="submit"
               variant="primary"

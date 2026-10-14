@@ -130,11 +130,23 @@ describe("public shell", () => {
 
     expect(screen.getByRole("checkbox", { name: "이용약관 동의 (필수)" })).not.toBeChecked();
     expect(screen.getByRole("checkbox", { name: "개인정보 수집·이용 동의 (필수)" })).not.toBeChecked();
-    for (const view of screen.getAllByText("보기")) {
-      expect(view.tagName).not.toBe("A");
-      expect(view.closest("a")).toBeNull();
-      expect(view.closest("button")).toBeNull();
-    }
+    const views = screen.getAllByRole("button", { name: "보기" });
+    expect(views).toHaveLength(2);
+    fireEvent.click(views[0]);
+    expect(screen.getByRole("dialog", { name: "약관 확인" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "이용약관" })).toBeInTheDocument();
+    expect(
+      screen.getByText("서비스 이용과 계정 관리, 이용 제한, 탈퇴 및 책임 범위를 확인했어요."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "개인정보 수집·이용" })).toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole("button", { name: "닫기" }).find((button) => button.textContent === "닫기")!);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.getByRole("checkbox", { name: "이용약관 동의 (필수)" })).not.toBeChecked();
+    fireEvent.click(views[1]);
+    const dialog = screen.getByRole("dialog", { name: "약관 확인" });
+    fireEvent.keyDown(dialog, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(fetchSpy).not.toHaveBeenCalled();
 
     const submit = screen.getByRole("button", { name: "계정 만들기" });
     expect(submit).toBeDisabled();

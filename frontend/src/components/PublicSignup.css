@@ -227,9 +227,23 @@
 
 .public-signup__view {
   flex: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
   color: var(--color-text-primary);
   font: var(--scene-label-m);
   letter-spacing: 0;
+  cursor: pointer;
+}
+
+.public-signup__view:focus {
+  outline: none;
+}
+
+.public-signup__view:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
 }
 
 .public-signup__submit {
