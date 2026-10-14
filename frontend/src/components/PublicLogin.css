@@ -205,6 +205,16 @@
   color: var(--color-text-primary);
   font: var(--scene-label-m);
   letter-spacing: 0;
+  text-decoration: none;
+}
+
+.public-login__recover:focus {
+  outline: none;
+}
+
+.public-login__recover:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
 }
 
 .public-login__submit {

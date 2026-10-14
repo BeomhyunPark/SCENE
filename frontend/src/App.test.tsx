@@ -68,10 +68,8 @@ describe("public shell", () => {
     expect(password).toHaveAttribute("placeholder", "비밀번호를 입력해 주세요");
 
     expect(screen.getByRole("checkbox", { name: "로그인 유지" })).not.toBeChecked();
-    const recover = screen.getByText("비밀번호 찾기");
-    expect(recover.tagName).not.toBe("A");
-    expect(recover.closest("a")).toBeNull();
-    expect(recover.closest("button")).toBeNull();
+    const recover = screen.getByRole("link", { name: "비밀번호 찾기" });
+    expect(recover).toHaveAttribute("href", "/forgot-password");
 
     expect(screen.getByRole("button", { name: "로그인" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Google로 로그인" })).toBeInTheDocument();
@@ -91,6 +89,9 @@ describe("public shell", () => {
     fireEvent.click(screen.getByRole("button", { name: "Google로 로그인" }));
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(screen.getByRole("heading", { name: "다시 만나서 반가워요" })).toBeInTheDocument();
+    fireEvent.click(recover);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(screen.getByRole("heading", { name: "비밀번호를 잊으셨나요?" })).toBeInTheDocument();
     fetchSpy.mockRestore();
   });
 
@@ -238,6 +239,7 @@ describe("public shell", () => {
     renderAt("/verify-email");
     renderAt("/find-organization");
     renderAt("/register-organization");
+    renderAt("/forgot-password");
     renderAt("/missing");
     expect(fetchSpy).not.toHaveBeenCalled();
     fetchSpy.mockRestore();
@@ -341,6 +343,41 @@ describe("public shell", () => {
     fireEvent.click(submit);
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(screen.getByRole("heading", { name: "새 교회·단체 등록" })).toBeInTheDocument();
+    fetchSpy.mockRestore();
+  });
+
+  it("renders password recovery without calling the server", () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    renderAt("/forgot-password");
+
+    expect(screen.getByRole("heading", { name: "비밀번호를 잊으셨나요?" })).toBeInTheDocument();
+    expect(screen.getByText("가입한 이메일로 재설정 코드를 보내드려요.")).toBeInTheDocument();
+    const email = screen.getByRole("textbox", { name: "이메일" });
+    expect(email).toHaveAttribute("placeholder", "가입한 이메일을 입력해 주세요");
+    expect(screen.getByRole("link", { name: /^로그인$/ })).toHaveAttribute("href", "/login");
+    const start = screen.getByRole("link", { name: "시작하기" });
+    expect(start).toHaveAttribute("href", "/signup");
+    expect(start).toHaveClass("scene-button--secondary");
+    const back = screen.getByRole("link", { name: "로그인으로 돌아가기" });
+    expect(back).toHaveAttribute("href", "/login");
+
+    const submit = screen.getByRole("button", { name: "재설정 코드 보내기" });
+    expect(submit).toBeDisabled();
+    fireEvent.change(email, { target: { value: "   " } });
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(submit).toBeDisabled();
+    fireEvent.change(email, { target: { value: "ada" } });
+    expect(screen.getByRole("alert")).toHaveTextContent("이메일 형식을 확인해 주세요.");
+    expect(submit).toBeDisabled();
+    fireEvent.change(email, { target: { value: "ada@scene.test" } });
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(submit).toBeEnabled();
+    fireEvent.click(submit);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(screen.getByRole("heading", { name: "비밀번호를 잊으셨나요?" })).toBeInTheDocument();
+    fireEvent.click(back);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(screen.getByRole("heading", { name: "다시 만나서 반가워요" })).toBeInTheDocument();
     fetchSpy.mockRestore();
   });
 });
