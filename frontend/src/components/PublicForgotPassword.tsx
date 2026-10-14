@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import pattern from "../assets/p01-04-hex-pattern.png";
 import { PublicHeader } from "./PublicHeader";
 import { Button } from "./Button";
@@ -10,6 +10,7 @@ function isEmailAddress(value: string): boolean {
 }
 
 export function PublicForgotPassword() {
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const emailValue = email.trim();
   const emailInvalid = emailValue !== "" && !isEmailAddress(emailValue);
@@ -17,6 +18,10 @@ export function PublicForgotPassword() {
 
   function hold(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!ready) {
+      return;
+    }
+    navigate("/reset-password", { state: { email: emailValue } });
   }
 
   return (
