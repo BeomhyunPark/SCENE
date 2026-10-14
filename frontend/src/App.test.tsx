@@ -240,6 +240,7 @@ describe("public shell", () => {
     renderAt("/find-organization");
     renderAt("/register-organization");
     renderAt("/forgot-password");
+    renderAt("/reset-password");
     renderAt("/missing");
     expect(fetchSpy).not.toHaveBeenCalled();
     fetchSpy.mockRestore();
@@ -372,10 +373,59 @@ describe("public shell", () => {
     fireEvent.change(email, { target: { value: "ada@scene.test" } });
     expect(screen.queryByRole("alert")).toBeNull();
     expect(submit).toBeEnabled();
-    fireEvent.click(submit);
-    expect(fetchSpy).not.toHaveBeenCalled();
-    expect(screen.getByRole("heading", { name: "비밀번호를 잊으셨나요?" })).toBeInTheDocument();
     fireEvent.click(back);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(screen.getByRole("heading", { name: "다시 만나서 반가워요" })).toBeInTheDocument();
+    fetchSpy.mockRestore();
+  });
+
+  it("opens a new password from recovery and returns to login without calling the server", () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    renderAt("/forgot-password");
+    fireEvent.change(screen.getByRole("textbox", { name: "이메일" }), {
+      target: { value: " ada@scene.test " },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "재설정 코드 보내기" }));
+    expect(screen.getByRole("heading", { name: "새 비밀번호 설정" })).toBeInTheDocument();
+    expect(
+      screen.getByText("이메일로 받은 확인 코드와 새 비밀번호를 입력해 주세요."),
+    ).toBeInTheDocument();
+
+    const email = screen.getByRole("textbox", { name: "이메일" });
+    expect(email).toHaveValue("ada@scene.test");
+    expect(email).toHaveAttribute("placeholder", "이메일을 입력해 주세요");
+    const code = screen.getByRole("textbox", { name: "확인 코드" });
+    expect(code).toHaveAttribute("placeholder", "확인 코드를 입력해 주세요");
+    const password = screen.getByLabelText("새 비밀번호", { exact: true, selector: "input" });
+    expect(password).toHaveAttribute("type", "password");
+    expect(password).toHaveAttribute("placeholder", "새 비밀번호를 입력해 주세요");
+    const confirm = screen.getByLabelText("새 비밀번호 확인", { exact: true, selector: "input" });
+    expect(confirm).toHaveAttribute("placeholder", "새 비밀번호를 다시 입력해 주세요");
+    const start = screen.getByRole("link", { name: "시작하기" });
+    expect(start).toHaveAttribute("href", "/signup");
+    expect(start).toHaveClass("scene-button--secondary");
+
+    const submit = screen.getByRole("button", { name: "비밀번호 변경" });
+    expect(submit).toBeDisabled();
+    fireEvent.change(code, { target: { value: "   " } });
+    expect(submit).toBeDisabled();
+    fireEvent.change(email, { target: { value: "ada" } });
+    expect(screen.getByRole("alert")).toHaveTextContent("이메일 형식을 확인해 주세요.");
+    fireEvent.change(email, { target: { value: "ada@scene.test" } });
+    expect(screen.queryByRole("alert")).toBeNull();
+    fireEvent.change(code, { target: { value: "123456" } });
+    fireEvent.change(password, { target: { value: "scene-pass" } });
+    fireEvent.change(confirm, { target: { value: "other-pass" } });
+    expect(screen.getByRole("alert")).toHaveTextContent("비밀번호가 서로 달라요.");
+    expect(submit).toBeDisabled();
+    fireEvent.change(confirm, { target: { value: "" } });
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(submit).toBeDisabled();
+    fireEvent.change(confirm, { target: { value: "scene-pass" } });
+    expect(submit).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: "새 비밀번호 보기" }));
+    expect(password).toHaveAttribute("type", "text");
+    fireEvent.click(submit);
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(screen.getByRole("heading", { name: "다시 만나서 반가워요" })).toBeInTheDocument();
     fetchSpy.mockRestore();

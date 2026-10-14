@@ -8,6 +8,7 @@ import { PublicSignup } from "./components/PublicSignup";
 import { PublicFindOrganization } from "./components/PublicFindOrganization";
 import { PublicForgotPassword } from "./components/PublicForgotPassword";
 import { PublicRegisterOrganization } from "./components/PublicRegisterOrganization";
+import { PublicResetPassword } from "./components/PublicResetPassword";
 import { PublicVerifyEmail } from "./components/PublicVerifyEmail";
 
 function Home() {
@@ -43,6 +44,7 @@ export function App() {
         <Route path="/find-organization" element={<PublicFindOrganization />} />
         <Route path="/register-organization" element={<PublicRegisterOrganization />} />
         <Route path="/forgot-password" element={<PublicForgotPassword />} />
+        <Route path="/reset-password" element={<PublicResetPassword />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </QueryClientProvider>
