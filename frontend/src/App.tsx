@@ -6,6 +6,7 @@ import { PublicHome } from "./components/PublicHome";
 import { PublicLogin } from "./components/PublicLogin";
 import { PublicSignup } from "./components/PublicSignup";
 import { PublicFindOrganization } from "./components/PublicFindOrganization";
+import { PublicForgotPassword } from "./components/PublicForgotPassword";
 import { PublicRegisterOrganization } from "./components/PublicRegisterOrganization";
 import { PublicVerifyEmail } from "./components/PublicVerifyEmail";
 
@@ -41,6 +42,7 @@ export function App() {
         <Route path="/verify-email" element={<PublicVerifyEmail />} />
         <Route path="/find-organization" element={<PublicFindOrganization />} />
         <Route path="/register-organization" element={<PublicRegisterOrganization />} />
+        <Route path="/forgot-password" element={<PublicForgotPassword />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </QueryClientProvider>

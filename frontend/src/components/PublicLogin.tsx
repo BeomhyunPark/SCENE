@@ -80,7 +80,9 @@ export function PublicLogin() {
                 />
                 로그인 유지
               </label>
-              <span className="public-login__recover">비밀번호 찾기</span>
+              <Link className="public-login__recover" to="/forgot-password">
+                비밀번호 찾기
+              </Link>
             </div>
             <Button type="submit" variant="primary" size={40} className="public-login__submit">
               로그인
