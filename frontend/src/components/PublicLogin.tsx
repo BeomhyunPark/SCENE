@@ -62,6 +62,7 @@ export function PublicLogin() {
                 <button
                   className="public-login__eye"
                   type="button"
+                  tabIndex={-1}
                   aria-pressed={passwordVisible}
                   aria-label={passwordVisible ? "비밀번호 숨기기" : "비밀번호 보기"}
                   onClick={() => setPasswordVisible((visible) => !visible)}
