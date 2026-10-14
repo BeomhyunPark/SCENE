@@ -237,6 +237,7 @@ describe("public shell", () => {
     renderAt("/signup");
     renderAt("/verify-email");
     renderAt("/find-organization");
+    renderAt("/register-organization");
     renderAt("/missing");
     expect(fetchSpy).not.toHaveBeenCalled();
     fetchSpy.mockRestore();
@@ -263,8 +264,8 @@ describe("public shell", () => {
     }
 
     expect(screen.getByRole("button", { name: /드림공동체/ })).toBeInTheDocument();
-    const register = screen.getByRole("button", { name: "새로 등록하기" });
-    expect(register.closest("a")).toBeNull();
+    const register = screen.getByRole("link", { name: "새로 등록하기" });
+    expect(register).toHaveAttribute("href", "/register-organization");
 
     fireEvent.change(screen.getByRole("textbox", { name: "교회·단체 검색" }), {
       target: { value: "부산" },
@@ -276,9 +277,70 @@ describe("public shell", () => {
     expect(screen.getByText("드림공동체")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /가입 요청/ }));
-    fireEvent.click(register);
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(screen.getByRole("heading", { name: "소속 교회나 단체를 찾아주세요" })).toBeInTheDocument();
+    fireEvent.click(register);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(screen.getByRole("heading", { name: "새 교회·단체 등록" })).toBeInTheDocument();
+    fetchSpy.mockRestore();
+  });
+
+  it("renders organization registration without calling the server", () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    renderAt("/register-organization");
+
+    expect(screen.getByRole("heading", { name: "새 교회·단체 등록" })).toBeInTheDocument();
+    expect(screen.getByText("조직을 만들면 이 계정이 첫 Owner가 돼요.")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "교회·단체명" })).toHaveAttribute(
+      "placeholder",
+      "교회·단체명을 입력해 주세요",
+    );
+    expect(screen.getByRole("textbox", { name: "지역" })).toHaveAttribute(
+      "placeholder",
+      "지역을 입력해 주세요",
+    );
+    expect(screen.getByRole("textbox", { name: "대표 연락처" })).toHaveAttribute(
+      "placeholder",
+      "연락처를 입력해 주세요",
+    );
+    expect(screen.getByRole("textbox", { name: "대표자 또는 담당 목회자 성명" })).toHaveAttribute(
+      "placeholder",
+      "성명을 입력해 주세요",
+    );
+    expect(screen.getByText("이미 등록된 교회일 수 있어요")).toBeInTheDocument();
+    expect(screen.getByText("사랑교회")).toBeInTheDocument();
+    expect(screen.getByText("서울 서초구 · 김성민 목사")).toBeInTheDocument();
+    const start = screen.getByRole("link", { name: "시작하기" });
+    expect(start).toHaveAttribute("href", "/signup");
+    expect(start).toHaveClass("scene-button--secondary");
+
+    const submit = screen.getByRole("button", { name: "교회·단체 만들기" });
+    expect(submit).toBeDisabled();
+    fireEvent.change(screen.getByRole("textbox", { name: "교회·단체명" }), {
+      target: { value: "드림" },
+    });
+    expect(screen.queryByText("사랑교회")).toBeNull();
+    fireEvent.change(screen.getByRole("textbox", { name: "교회·단체명" }), {
+      target: { value: "   " },
+    });
+    expect(screen.getByText("사랑교회")).toBeInTheDocument();
+    expect(submit).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "가입 요청" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "교회·단체명" }), {
+      target: { value: "새빛교회" },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: "지역" }), { target: { value: "부산" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "대표 연락처" }), {
+      target: { value: "010-0000-0000" },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: "대표자 또는 담당 목회자 성명" }), {
+      target: { value: "이하나" },
+    });
+    expect(screen.queryByText("사랑교회")).toBeNull();
+    expect(submit).toBeEnabled();
+    fireEvent.click(submit);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(screen.getByRole("heading", { name: "새 교회·단체 등록" })).toBeInTheDocument();
     fetchSpy.mockRestore();
   });
 });

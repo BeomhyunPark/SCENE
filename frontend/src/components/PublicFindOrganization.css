@@ -213,6 +213,7 @@
   color: var(--color-text-primary);
   font: var(--scene-label-m);
   letter-spacing: 0;
+  text-decoration: none;
   cursor: pointer;
 }
 
