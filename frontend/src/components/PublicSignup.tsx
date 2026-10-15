@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router";
 import visual from "../assets/p01-03-auth-visual.svg";
 import symbol from "../assets/scene-symbol-login.svg";
 import eye from "../assets/icon-eye.svg";
+import eyeOff from "../assets/icon-eye-off.svg";
 import { Button } from "./Button";
 import { PublicTermsDialog } from "./PublicTermsDialog";
 import "./PublicSignup.css";
@@ -128,7 +129,7 @@ export function PublicSignup() {
                     aria-label={passwordVisible ? "비밀번호 숨기기" : "비밀번호 보기"}
                     onClick={() => setPasswordVisible((visible) => !visible)}
                   >
-                    <img src={eye} alt="" width={20} height={20} />
+                    <img src={passwordVisible ? eyeOff : eye} alt="" width={20} height={20} />
                   </button>
                 </span>
               </div>
@@ -160,7 +161,7 @@ export function PublicSignup() {
                     aria-label={confirmVisible ? "비밀번호 확인 숨기기" : "비밀번호 확인 보기"}
                     onClick={() => setConfirmVisible((visible) => !visible)}
                   >
-                    <img src={eye} alt="" width={20} height={20} />
+                    <img src={confirmVisible ? eyeOff : eye} alt="" width={20} height={20} />
                   </button>
                 </span>
               </div>
