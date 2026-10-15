@@ -1,0 +1,9 @@
+.mock-banner {
+  margin: 0;
+  padding: 8px 16px;
+  background: var(--color-warning-bg);
+  color: var(--color-warning-fg);
+  font: var(--scene-body-s);
+  text-align: center;
+  word-break: keep-all;
+}
