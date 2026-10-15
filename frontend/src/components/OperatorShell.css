@@ -1,0 +1,206 @@
+.operator-shell {
+  display: flex;
+  min-height: 100vh;
+  background: var(--color-bg-canvas);
+  color: var(--color-text-primary);
+}
+
+.operator-shell__sidebar {
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  width: 248px;
+  background: var(--color-bg-surface);
+  border-right: 1px solid var(--color-border-default);
+}
+
+.operator-shell__brand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-sizing: border-box;
+  height: 72px;
+  padding: 0 16px 0 17px;
+  border-bottom: 1px solid var(--color-border-default);
+}
+
+.operator-shell__logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.operator-shell__collapse {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 4px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.operator-shell__collapse-icon {
+  transform: rotate(90deg);
+}
+
+.operator-shell__collapse:focus,
+.operator-shell__item:focus {
+  outline: none;
+}
+
+.operator-shell__collapse:focus-visible,
+.operator-shell__item:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.operator-shell__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 20px 0 0;
+}
+
+.operator-shell__group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0 16px;
+  list-style: none;
+}
+
+.operator-shell__section {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding-top: 20px;
+  border-top: 1px solid var(--color-border-default);
+}
+
+.operator-shell__section-label {
+  margin: 0;
+  padding: 4px 24px;
+  color: var(--color-text-secondary);
+  font: var(--scene-label-s);
+  letter-spacing: 0;
+}
+
+.operator-shell__nav > .operator-shell__group:last-child {
+  padding-top: 20px;
+  border-top: 1px solid var(--color-border-default);
+}
+
+.operator-shell__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 36px;
+  padding: 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font: var(--scene-label-m);
+  letter-spacing: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.operator-shell__item-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.operator-shell__item--current {
+  background: var(--color-bg-selected);
+  color: var(--color-text-brand);
+}
+
+.operator-shell__item:hover:not(.operator-shell__item--current) {
+  background: var(--color-bg-hover-row);
+}
+
+.operator-shell__org {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+  padding: 20px 16px;
+  border-top: 1px solid var(--color-border-default);
+}
+
+.operator-shell__org-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.operator-shell__avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  background: var(--color-bg-subtle);
+  color: var(--color-text-primary);
+  font: var(--scene-label-m);
+}
+
+.operator-shell__org-name {
+  font: var(--scene-body-l-strong);
+  letter-spacing: 0;
+}
+
+.operator-shell__main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.operator-shell__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-sizing: border-box;
+  height: 72px;
+  padding: 0 32px;
+  background: var(--color-bg-surface);
+  border-bottom: 1px solid var(--color-border-default);
+}
+
+.operator-shell__heading {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+
+.operator-shell__title {
+  margin: 0;
+  font-family: "Noto Sans KR", sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+@media (max-width: 1023px) {
+  .operator-shell__sidebar {
+    display: none;
+  }
+
+  .operator-shell__header {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+}

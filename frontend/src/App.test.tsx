@@ -115,7 +115,16 @@ describe("public shell", () => {
     expect(screen.getByText("0개의 행사")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "행사" })).toHaveAttribute("aria-current", "page");
     fireEvent.click(screen.getByRole("button", { name: "첫 행사 만들기" }));
+    expect(screen.getByRole("heading", { name: "새 행사 만들기" })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "행사명" })).toHaveValue("2026 가을 공동체 행사");
+    fireEvent.click(screen.getByRole("button", { name: "행사 만들기" }));
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(screen.getByRole("heading", { name: "새 행사 만들기" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "취소" }));
+    expect(screen.getByRole("heading", { name: "행사" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "새 행사" }));
+    expect(screen.getByRole("heading", { name: "새 행사 만들기" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("link", { name: "행사 목록" }));
     expect(screen.getByRole("heading", { name: "행사" })).toBeInTheDocument();
 
     cleanup();
