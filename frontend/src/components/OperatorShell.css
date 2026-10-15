@@ -118,6 +118,12 @@
   min-width: 0;
 }
 
+.operator-shell__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .operator-shell__item--current {
   background: var(--color-bg-selected);
   color: var(--color-text-brand);
@@ -165,6 +171,16 @@
   flex-direction: column;
   flex: 1;
   min-width: 0;
+}
+
+@media (min-width: 1024px) {
+  .operator-shell__main--framed .operator-shell__header,
+  .operator-shell__main--framed .event-home {
+    box-sizing: border-box;
+    width: 100%;
+    padding-left: max(32px, calc((100% - 1128px) / 2));
+    padding-right: max(32px, calc((100% - 1128px) / 2));
+  }
 }
 
 .operator-shell__header {

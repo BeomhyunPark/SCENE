@@ -39,11 +39,15 @@ export function OperatorShell({
   title,
   leading,
   action,
+  eventName,
+  framed,
   children,
 }: {
   title: string;
   leading?: ReactNode;
   action?: ReactNode;
+  eventName?: string;
+  framed?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -59,30 +63,50 @@ export function OperatorShell({
           </button>
         </div>
         <nav className="operator-shell__nav" aria-label="운영 메뉴">
-          <ul className="operator-shell__group">
-            {primary.map((item) => (
-              <li key={item.label}>
-                <NavItem item={item} />
-              </li>
-            ))}
-          </ul>
-          <div className="operator-shell__section">
-            <p className="operator-shell__section-label">행사 운영</p>
-            <ul className="operator-shell__group">
-              {operation.map((item) => (
-                <li key={item.label}>
-                  <NavItem item={item} />
+          {eventName ? (
+            <>
+              <ul className="operator-shell__group">
+                <li>
+                  <NavItem item={{ label: eventName, icon: events, current: true }} />
                 </li>
-              ))}
-            </ul>
-          </div>
-          <ul className="operator-shell__group">
-            {system.map((item) => (
-              <li key={item.label}>
-                <NavItem item={item} />
-              </li>
-            ))}
-          </ul>
+              </ul>
+              <ul className="operator-shell__group">
+                <li>
+                  <NavItem item={{ label: "다른 운영 시작", icon: squares, current: false }} />
+                </li>
+                <li>
+                  <NavItem item={{ label: "설정", icon: gear, current: false }} />
+                </li>
+              </ul>
+            </>
+          ) : (
+            <>
+              <ul className="operator-shell__group">
+                {primary.map((item) => (
+                  <li key={item.label}>
+                    <NavItem item={item} />
+                  </li>
+                ))}
+              </ul>
+              <div className="operator-shell__section">
+                <p className="operator-shell__section-label">행사 운영</p>
+                <ul className="operator-shell__group">
+                  {operation.map((item) => (
+                    <li key={item.label}>
+                      <NavItem item={item} />
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <ul className="operator-shell__group">
+                {system.map((item) => (
+                  <li key={item.label}>
+                    <NavItem item={item} />
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
         </nav>
         <div className="operator-shell__org">
           <span className="operator-shell__org-main">
@@ -94,7 +118,7 @@ export function OperatorShell({
           <img src={caretVertical} alt="" aria-hidden="true" />
         </div>
       </aside>
-      <main className="operator-shell__main">
+      <main className={framed ? "operator-shell__main operator-shell__main--framed" : "operator-shell__main"}>
         <header className="operator-shell__header">
           <div className="operator-shell__heading">
             {leading}
@@ -108,8 +132,12 @@ export function OperatorShell({
   );
 }
 
-function NavItem({ item }: { item: { label: string; icon: string; caret?: boolean } }) {
-  const current = item.label === "행사";
+function NavItem({
+  item,
+}: {
+  item: { label: string; icon: string; caret?: boolean; current?: boolean };
+}) {
+  const current = item.current ?? item.label === "행사";
   return (
     <button
       className={`operator-shell__item${current ? " operator-shell__item--current" : ""}`}
@@ -118,7 +146,7 @@ function NavItem({ item }: { item: { label: string; icon: string; caret?: boolea
     >
       <span className="operator-shell__item-main">
         <img src={item.icon} alt="" />
-        {item.label}
+        <span className="operator-shell__label">{item.label}</span>
       </span>
       {item.caret ? <img src={caret} alt="" /> : null}
     </button>
