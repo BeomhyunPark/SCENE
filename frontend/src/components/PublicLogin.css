@@ -106,6 +106,10 @@
   background: var(--color-bg-surface);
 }
 
+.public-login__control--invalid {
+  border-color: var(--color-danger-fg);
+}
+
 .public-login__control:has(:focus-visible) {
   outline: 2px solid var(--color-focus-ring);
   outline-offset: 2px;
@@ -130,6 +134,13 @@
 .public-login__control input::placeholder {
   color: var(--color-text-tertiary);
   opacity: 1;
+}
+
+.public-login__error {
+  margin: 0;
+  color: var(--color-danger-fg);
+  font: var(--scene-body-s);
+  letter-spacing: 0;
 }
 
 .public-login__eye {

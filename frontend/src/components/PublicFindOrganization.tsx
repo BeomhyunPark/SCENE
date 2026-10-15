@@ -3,6 +3,7 @@ import { Link } from "react-router";
 import pattern from "../assets/p01-04-hex-pattern.png";
 import search from "../assets/icon-search.svg";
 import { PublicHeader } from "./PublicHeader";
+import { PublicJoinRequestDialog } from "./PublicJoinRequestDialog";
 import "./PublicFindOrganization.css";
 
 const sample = {
@@ -23,6 +24,7 @@ function matches(query: string) {
 
 export function PublicFindOrganization() {
   const [query, setQuery] = useState("");
+  const [joinOpen, setJoinOpen] = useState(false);
   const visible = matches(query);
 
   function hold(event: FormEvent<HTMLFormElement>) {
@@ -62,7 +64,7 @@ export function PublicFindOrganization() {
             </div>
             <p className="public-find__results">검색 결과</p>
             {visible ? (
-              <button className="public-find__result" type="button">
+              <button className="public-find__result" type="button" onClick={() => setJoinOpen(true)}>
                 <span className="public-find__org">
                   <span className="public-find__name">{sample.name}</span>
                   <span className="public-find__region">{sample.region}</span>
@@ -79,6 +81,9 @@ export function PublicFindOrganization() {
           </form>
         </div>
       </main>
+      {joinOpen ? (
+        <PublicJoinRequestDialog organizationName={sample.name} onClose={() => setJoinOpen(false)} />
+      ) : null}
     </>
   );
 }

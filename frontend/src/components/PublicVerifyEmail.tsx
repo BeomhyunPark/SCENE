@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { useLocation } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import pattern from "../assets/p01-04-hex-pattern.png";
 import { PublicHeader } from "./PublicHeader";
 import { Button } from "./Button";
@@ -19,11 +19,17 @@ function shownEmail(state: unknown) {
 
 export function PublicVerifyEmail() {
   const location = useLocation();
+  const navigate = useNavigate();
   const email = shownEmail(location.state);
   const [code, setCode] = useState("");
 
+  function continueToOrganization() {
+    navigate("/find-organization");
+  }
+
   function hold(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    continueToOrganization();
   }
 
   return (
@@ -58,7 +64,13 @@ export function PublicVerifyEmail() {
               </span>
             </div>
             <div className="public-verify__actions">
-              <Button type="button" variant="secondary" size={40} className="public-verify__action">
+              <Button
+                type="button"
+                variant="secondary"
+                size={40}
+                className="public-verify__action"
+                onClick={continueToOrganization}
+              >
                 나중에 하기
               </Button>
               <Button type="submit" variant="primary" size={40} className="public-verify__action">
