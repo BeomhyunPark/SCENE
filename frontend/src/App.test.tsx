@@ -115,7 +115,48 @@ describe("public shell", () => {
     expect(screen.getByText("0개의 행사")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "행사" })).toHaveAttribute("aria-current", "page");
     fireEvent.click(screen.getByRole("button", { name: "첫 행사 만들기" }));
+    expect(screen.getByRole("heading", { name: "새 행사 만들기" })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "시작일" })).toHaveAttribute("placeholder", "2026. 10. 24");
+    expect(screen.getByRole("textbox", { name: "장소" })).toHaveAttribute("placeholder", "드림공동체");
+    const eventName = screen.getByRole("textbox", { name: "행사명" });
+    expect(eventName).toHaveValue("");
+    expect(eventName).toHaveAttribute("placeholder", "2026 가을 공동체 행사");
+    fireEvent.click(screen.getByRole("button", { name: "행사 만들기" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("행사명을 입력해 주세요.");
+    const eventType = screen.getByRole("combobox", { name: "행사 유형 (선택)" });
+    fireEvent.change(eventType, { target: { value: "수련회" } });
+    fireEvent.change(eventName, { target: { value: "가을 수련회" } });
+    fireEvent.change(document.getElementById("event-start-picker")!, { target: { value: "2026-10-24" } });
+    fireEvent.change(document.getElementById("event-end-picker")!, { target: { value: "2026-10-25" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "장소" }), { target: { value: "드림홀" } });
+    fireEvent.click(screen.getByRole("button", { name: "행사 만들기" }));
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(screen.getByRole("heading", { name: "가을 수련회" })).toBeInTheDocument();
+    expect(screen.getByText("2026년 10월 24일 – 2026년 10월 25일 · 드림홀")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "필요한 업무부터 시작해 보세요." })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "가을 수련회" })).toHaveAttribute("aria-current", "page");
+    expect(screen.queryByText("조 편성")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /참가자 받기/ }));
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(screen.getByRole("heading", { name: "가을 수련회" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("link", { name: "행사 목록" }));
+    expect(screen.getByRole("heading", { name: "행사" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "새 행사" }));
+    fireEvent.change(screen.getByRole("combobox", { name: "행사 유형 (선택)" }), {
+      target: { value: "비전트립" },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: "행사명" }), { target: { value: "여름 트립" } });
+    fireEvent.click(screen.getByRole("button", { name: "행사 만들기" }));
+    expect(screen.getByRole("heading", { name: "여름 트립" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "여름 트립" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("button", { name: /준비 업무/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /일정 정리/ })).toBeInTheDocument();
+    expect(screen.queryByText("항공")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("link", { name: "행사 목록" }));
+    expect(screen.getByRole("heading", { name: "행사" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "새 행사" }));
+    expect(screen.getByRole("heading", { name: "새 행사 만들기" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("link", { name: "행사 목록" }));
     expect(screen.getByRole("heading", { name: "행사" })).toBeInTheDocument();
 
     cleanup();
