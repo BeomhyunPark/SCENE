@@ -22,11 +22,30 @@
   </select>
 
   <select id="findPage" resultType="app.scene.event.lifecycle.EventListRow">
-    SELECT e.id AS event_id, e.name, e.lifecycle_status
+    SELECT e.id AS event_id,
+           e.name,
+           e.lifecycle_status,
+           e.start_date,
+           e.end_date,
+           e.place,
+           e.event_type
     FROM events e
     WHERE e.space_id = #{spaceId}
     <include refid="operatedByCaller"/>
     <include refid="app.scene.common.mybatis.CommonMapper.orderByAndPage"/>
+  </select>
+
+  <select id="findProfile" resultType="app.scene.event.lifecycle.EventProfile">
+    SELECT e.id AS event_id,
+           e.name,
+           e.lifecycle_status,
+           e.lifecycle_version,
+           e.start_date,
+           e.end_date,
+           e.place,
+           e.event_type
+    FROM events e
+    WHERE e.id = #{eventId}
   </select>
 
 </mapper>

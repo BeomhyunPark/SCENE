@@ -29,8 +29,10 @@
   </update>
 
   <insert id="save">
-    INSERT INTO events (id, space_id, name, lifecycle_status, lifecycle_version)
-    VALUES (#{id}, #{spaceId}, #{name}, 'DRAFT', 0)
+    INSERT INTO events (
+      id, space_id, name, lifecycle_status, lifecycle_version, start_date, end_date, place, event_type)
+    VALUES (
+      #{id}, #{spaceId}, #{name}, 'DRAFT', 0, #{startDate}, #{endDate}, #{place}, #{eventType})
   </insert>
 
   <update id="updateName">

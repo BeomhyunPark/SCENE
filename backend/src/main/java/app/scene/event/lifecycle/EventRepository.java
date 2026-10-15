@@ -16,6 +16,7 @@ import app.scene.event.lifecycle.param.EventStatusUpdate;
 import app.scene.event.lifecycle.param.LifecycleTransitionInsert;
 import app.scene.event.lifecycle.param.LifecycleTransitionListQuery;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -54,6 +55,11 @@ public class EventRepository {
     return Optional.ofNullable(events.findLocation(eventId));
   }
 
+  /** Detail columns, including period, place, and type. Missing events are empty. */
+  public Optional<EventProfile> findProfile(UUID eventId) {
+    return Optional.ofNullable(eventQueries.findProfile(eventId));
+  }
+
   public Optional<EventRow> findForUpdate(UUID spaceId, UUID eventId) {
     return Optional.ofNullable(events.findForUpdate(EventKey.of(spaceId, eventId)));
   }
@@ -90,8 +96,15 @@ public class EventRepository {
   }
 
   @Transactional
-  public int save(UUID id, UUID spaceId, String name) {
-    return events.save(EventInsert.of(id, spaceId, name));
+  public int save(
+      UUID id,
+      UUID spaceId,
+      String name,
+      LocalDate startDate,
+      LocalDate endDate,
+      String place,
+      String eventType) {
+    return events.save(EventInsert.of(id, spaceId, name, startDate, endDate, place, eventType));
   }
 
   @Transactional
