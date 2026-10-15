@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { Route, Routes } from "react-router";
+import { createQueryClient } from "./api/queryClient";
 import { EventCreate } from "./components/EventCreate";
 import { EventHome } from "./components/EventHome";
 import { EventList } from "./components/EventList";
@@ -38,7 +39,7 @@ function NotFound() {
 }
 
 export function App() {
-  const [queryClient] = useState(() => new QueryClient());
+  const [queryClient] = useState(() => createQueryClient());
 
   return (
     <QueryClientProvider client={queryClient}>
