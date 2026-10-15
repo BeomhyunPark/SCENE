@@ -1,4 +1,4 @@
-import { Link, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 import arrowLeft from "../assets/event-create/arrow-left.svg";
 import calendarCheck from "../assets/event-home/calendar-check.svg";
 import checklist from "../assets/event-home/checklist.svg";
@@ -16,14 +16,18 @@ const starts = [
 
 export function EventHome() {
   const { eventId = "" } = useParams();
+  const navigate = useNavigate();
   const draft = readEventDraft(eventId);
   const title = draft?.name || "행사";
   const context = draft ? eventContext(draft) : "";
+  const areas = draft?.areas ?? [];
 
   return (
     <OperatorShell
       title={title}
       eventName={title}
+      eventAreas={areas}
+      participantsHref={eventId ? `/events/${eventId}/participants` : undefined}
       framed
       leading={
         <Link className="event-home__back" to="/events" aria-label="행사 목록">
@@ -62,7 +66,17 @@ export function EventHome() {
         </div>
         <div className="event-home__cards">
           {starts.map((item) => (
-            <button key={item.title} className="event-home__card" type="button" aria-label={item.title}>
+            <button
+              key={item.title}
+              className="event-home__card"
+              type="button"
+              aria-label={item.title}
+              onClick={
+                item.title === "참가자 받기" && eventId
+                  ? () => navigate(`/events/${eventId}/participants`)
+                  : undefined
+              }
+            >
               <span className="event-home__chip">{item.badge}</span>
               <span className="event-home__card-title">{item.title}</span>
               <span className="event-home__card-meta">

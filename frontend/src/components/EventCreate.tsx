@@ -26,8 +26,9 @@ export function EventCreate() {
       setNameMissing(true);
       return;
     }
+    if (start && end && end < start) return;
     const id = crypto.randomUUID();
-    saveEventDraft(id, { name: trimmed, type: kind, start, end, place: place.trim() });
+    saveEventDraft(id, { name: trimmed, type: kind, start, end, place: place.trim(), areas: [] });
     navigate(`/events/${id}`);
   }
 
@@ -70,8 +71,26 @@ export function EventCreate() {
             ) : null}
           </div>
           <div className="event-create__dates">
-            <DateField label="시작일" id="event-start" value={start} onChange={setStart} />
-            <DateField label="종료일" id="event-end" value={end} onChange={setEnd} />
+            <DateField
+              label="시작일"
+              id="event-start"
+              value={start}
+              max={end}
+              onChange={(value) => {
+                if (end && value > end) return;
+                setStart(value);
+              }}
+            />
+            <DateField
+              label="종료일"
+              id="event-end"
+              value={end}
+              min={start}
+              onChange={(value) => {
+                if (start && value < start) return;
+                setEnd(value);
+              }}
+            />
           </div>
           <div className="event-create__field">
             <label className="event-create__label" htmlFor="event-place">
@@ -125,11 +144,15 @@ function DateField({
   label,
   id,
   value,
+  min,
+  max,
   onChange,
 }: {
   label: string;
   id: string;
   value: string;
+  min?: string;
+  max?: string;
   onChange: (value: string) => void;
 }) {
   const picker = useRef<HTMLInputElement>(null);
@@ -171,8 +194,17 @@ function DateField({
           type="date"
           tabIndex={-1}
           aria-hidden="true"
+          min={min || undefined}
+          max={max || undefined}
           value={value}
-          onChange={(event) => onChange(event.target.value)}
+          onChange={(event) => {
+            const next = event.target.value;
+            if ((min && next && next < min) || (max && next && next > max)) {
+              event.target.value = value;
+              return;
+            }
+            onChange(next);
+          }}
         />
         <button className="event-create__calendar" type="button" aria-label={`${label} 선택`} onClick={open}>
           <img src={calendar} alt="" />
