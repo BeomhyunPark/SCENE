@@ -7,9 +7,16 @@ import eyeOff from "../assets/icon-eye-off.svg";
 import { Button } from "./Button";
 import "./PublicLogin.css";
 
+function isEmailAddress(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
 export function PublicLogin() {
+  const [email, setEmail] = useState("");
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [remember, setRemember] = useState(false);
+  const emailValue = email.trim();
+  const emailInvalid = emailValue !== "" && !isEmailAddress(emailValue);
 
   function hold(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -38,15 +45,26 @@ export function PublicLogin() {
               <label className="public-login__label" htmlFor="login-email">
                 이메일
               </label>
-              <span className="public-login__control">
+              <span
+                className={`public-login__control${emailInvalid ? " public-login__control--invalid" : ""}`}
+              >
                 <input
                   id="login-email"
                   type="email"
                   name="email"
                   autoComplete="email"
                   placeholder="이메일을 입력해 주세요"
+                  aria-invalid={emailInvalid || undefined}
+                  aria-describedby={emailInvalid ? "login-email-invalid" : undefined}
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
                 />
               </span>
+              {emailInvalid ? (
+                <p id="login-email-invalid" className="public-login__error" role="alert">
+                  이메일 형식을 확인해 주세요.
+                </p>
+              ) : null}
             </div>
             <div className="public-login__field">
               <label className="public-login__label" htmlFor="login-password">

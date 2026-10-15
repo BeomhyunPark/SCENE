@@ -2,6 +2,8 @@ import { useState, type FormEvent } from "react";
 import pattern from "../assets/p01-04-hex-pattern.png";
 import { PublicHeader } from "./PublicHeader";
 import { Button } from "./Button";
+import { PublicCreateAuthorityDialog } from "./PublicCreateAuthorityDialog";
+import { PublicJoinRequestDialog } from "./PublicJoinRequestDialog";
 import "./PublicRegisterOrganization.css";
 
 const sample = {
@@ -23,12 +25,18 @@ export function PublicRegisterOrganization() {
   const [region, setRegion] = useState("");
   const [phone, setPhone] = useState("");
   const [leader, setLeader] = useState("");
+  const [joinOpen, setJoinOpen] = useState(false);
+  const [authorityOpen, setAuthorityOpen] = useState(false);
   const match = showsSample(name);
   const ready =
     name.trim() !== "" && region.trim() !== "" && phone.trim() !== "" && leader.trim() !== "";
 
   function hold(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!ready) {
+      return;
+    }
+    setAuthorityOpen(true);
   }
 
   return (
@@ -117,7 +125,7 @@ export function PublicRegisterOrganization() {
                 <div className="public-register__match-row">
                   <span className="public-register__match-name">{sample.name}</span>
                   <span className="public-register__match-detail">{sample.detail}</span>
-                  <button className="public-register__ask" type="button">
+                  <button className="public-register__ask" type="button" onClick={() => setJoinOpen(true)}>
                     가입 요청
                   </button>
                 </div>
@@ -135,6 +143,15 @@ export function PublicRegisterOrganization() {
           </form>
         </div>
       </main>
+      {joinOpen ? (
+        <PublicJoinRequestDialog organizationName={sample.name} onClose={() => setJoinOpen(false)} />
+      ) : null}
+      {authorityOpen ? (
+        <PublicCreateAuthorityDialog
+          organizationName={name.trim()}
+          onClose={() => setAuthorityOpen(false)}
+        />
+      ) : null}
     </>
   );
 }

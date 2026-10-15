@@ -6,6 +6,7 @@ import { PublicHome } from "./components/PublicHome";
 import { PublicLogin } from "./components/PublicLogin";
 import { PublicSignup } from "./components/PublicSignup";
 import { PublicFindOrganization } from "./components/PublicFindOrganization";
+import { PublicJoinPending } from "./components/PublicJoinPending";
 import { PublicForgotPassword } from "./components/PublicForgotPassword";
 import { PublicRegisterOrganization } from "./components/PublicRegisterOrganization";
 import { PublicResetPassword } from "./components/PublicResetPassword";
@@ -42,6 +43,7 @@ export function App() {
         <Route path="/signup" element={<PublicSignup />} />
         <Route path="/verify-email" element={<PublicVerifyEmail />} />
         <Route path="/find-organization" element={<PublicFindOrganization />} />
+        <Route path="/join-pending" element={<PublicJoinPending />} />
         <Route path="/register-organization" element={<PublicRegisterOrganization />} />
         <Route path="/forgot-password" element={<PublicForgotPassword />} />
         <Route path="/reset-password" element={<PublicResetPassword />} />

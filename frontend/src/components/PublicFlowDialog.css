@@ -1,0 +1,87 @@
+.public-flow {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: var(--color-overlay-scrim);
+}
+
+.public-flow__dialog {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  width: min(480px, 100%);
+  padding: 32px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 6px;
+  background: var(--color-bg-surface);
+  box-shadow:
+    0 1px 1.5px var(--color-shadow-raised-sm),
+    0 4px 8px var(--color-shadow-popover);
+  outline: none;
+}
+
+.public-flow__dialog--wide {
+  width: min(560px, 100%);
+}
+
+.public-flow__eyebrow + .public-flow__title {
+  margin-top: 8px;
+}
+
+.public-flow__title {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-family: "Noto Sans KR", sans-serif;
+  font-size: 20px;
+  font-weight: 500;
+  line-height: normal;
+  letter-spacing: 0;
+}
+
+.public-flow__body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.public-flow__eyebrow {
+  margin: 0;
+  color: var(--color-text-primary);
+  font: var(--scene-label-m);
+  letter-spacing: 0;
+}
+
+.public-flow__copy {
+  margin: 0;
+  color: var(--color-text-tertiary);
+  font: var(--scene-body-m);
+  letter-spacing: 0;
+  white-space: pre-line;
+}
+
+.public-flow__status {
+  margin: 0;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--color-bg-subtle);
+  color: var(--color-text-primary);
+  font: var(--scene-label-s);
+  letter-spacing: 0;
+}
+
+.public-flow__rule {
+  height: 1px;
+  margin: 24px 0 20px;
+  background: var(--color-border-default);
+}
+
+.public-flow__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}

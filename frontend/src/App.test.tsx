@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 import { App } from "./App";
@@ -92,6 +92,14 @@ describe("public shell", () => {
     );
     fireEvent.click(screen.getByRole("checkbox", { name: "로그인 유지" }));
     expect(screen.getByRole("checkbox", { name: "로그인 유지" })).toBeChecked();
+    fireEvent.change(screen.getByRole("textbox", { name: "이메일" }), {
+      target: { value: "not-email" },
+    });
+    expect(screen.getByRole("alert")).toHaveTextContent("이메일 형식을 확인해 주세요.");
+    fireEvent.change(screen.getByRole("textbox", { name: "이메일" }), {
+      target: { value: "ada@scene.test" },
+    });
+    expect(screen.queryByRole("alert")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "로그인" }));
     fireEvent.click(screen.getByRole("button", { name: "Google로 로그인" }));
     expect(fetchSpy).not.toHaveBeenCalled();
@@ -261,11 +269,16 @@ describe("public shell", () => {
     expect(again.closest("a")).toBeNull();
     expect(again.closest("button")).toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: "나중에 하기" }));
-    fireEvent.click(screen.getByRole("button", { name: "확인" }));
     fireEvent.click(again);
-    expect(fetchSpy).not.toHaveBeenCalled();
     expect(screen.getByRole("heading", { name: "이메일을 확인해 주세요" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "확인" }));
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(screen.getByRole("heading", { name: "소속 교회나 단체를 찾아주세요" })).toBeInTheDocument();
+    cleanup();
+    renderAt("/verify-email");
+    fireEvent.click(screen.getByRole("button", { name: "나중에 하기" }));
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(screen.getByRole("heading", { name: "소속 교회나 단체를 찾아주세요" })).toBeInTheDocument();
     fetchSpy.mockRestore();
   });
 
@@ -318,9 +331,33 @@ describe("public shell", () => {
     expect(screen.getByText("드림공동체")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /가입 요청/ }));
+    expect(screen.getByRole("dialog", { name: "이 교회·단체에 가입을 요청할까요?" })).toBeInTheDocument();
+    expect(screen.getByText("드림공동체에 운영자 가입 요청을 보내요.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "취소" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /가입 요청/ }));
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "가입 요청" }));
+    expect(screen.getByRole("dialog", { name: "가입 요청을 보냈어요" })).toBeInTheDocument();
+    expect(screen.getByText("승인 대기")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "확인" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.getByRole("heading", { name: "가입 승인을 기다리고 있어요" })).toBeInTheDocument();
+    expect(screen.getByText(/드림공동체에 가입 요청을 보냈어요/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "상태 다시 확인" }));
+    expect(screen.getByRole("heading", { name: "아직 승인 대기 중이에요" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "대기 화면으로" }));
+    expect(screen.getByRole("heading", { name: "가입 승인을 기다리고 있어요" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "요청 취소" }));
+    expect(screen.getByRole("heading", { name: "가입 요청을 취소할까요?" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "계속 대기" }));
+    expect(screen.getByRole("heading", { name: "가입 승인을 기다리고 있어요" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "요청 취소" }));
+    fireEvent.click(screen.getByRole("button", { name: "요청 취소" }));
+    expect(screen.getByRole("heading", { name: "가입 요청을 취소했어요" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "가입 안내" }));
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(screen.getByRole("heading", { name: "소속 교회나 단체를 찾아주세요" })).toBeInTheDocument();
-    fireEvent.click(register);
+    fireEvent.click(screen.getByRole("link", { name: "새로 등록하기" }));
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(screen.getByRole("heading", { name: "새 교회·단체 등록" })).toBeInTheDocument();
     fetchSpy.mockRestore();
@@ -367,6 +404,10 @@ describe("public shell", () => {
     expect(screen.getByText("사랑교회")).toBeInTheDocument();
     expect(submit).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: "가입 요청" }));
+    expect(screen.getByRole("dialog", { name: "이 교회·단체에 가입을 요청할까요?" })).toBeInTheDocument();
+    expect(screen.getByText("사랑교회에 운영자 가입 요청을 보내요.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "취소" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
     fireEvent.change(screen.getByRole("textbox", { name: "교회·단체명" }), {
       target: { value: "새빛교회" },
     });
@@ -380,6 +421,19 @@ describe("public shell", () => {
     expect(screen.queryByText("사랑교회")).toBeNull();
     expect(submit).toBeEnabled();
     fireEvent.click(submit);
+    const authority = screen.getByRole("dialog", { name: "조직을 만들 권한이 있나요?" });
+    expect(authority).toBeInTheDocument();
+    expect(screen.getByText("새빛교회")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "등록 화면으로" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    fireEvent.click(submit);
+    fireEvent.click(screen.getByRole("button", { name: "권한이 있어요" }));
+    expect(screen.getByRole("dialog", { name: "대표·운영 권한이 있다고 알려 주셨어요" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "다시 선택" }));
+    expect(screen.getByRole("dialog", { name: "조직을 만들 권한이 있나요?" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "권한이 있어요" }));
+    fireEvent.click(screen.getByRole("button", { name: "조직 만들기" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(screen.getByRole("heading", { name: "새 교회·단체 등록" })).toBeInTheDocument();
     fetchSpy.mockRestore();
