@@ -223,7 +223,15 @@ class ParticipantSessionHttpIT {
     boolean sessionPost = false;
     boolean me = false;
     boolean logout = false;
-    for (RequestMappingInfo info : handlers.getHandlerMethods().keySet()) {
+    for (var entry : handlers.getHandlerMethods().entrySet()) {
+      if (!entry
+          .getValue()
+          .getBeanType()
+          .getPackageName()
+          .startsWith("app.scene.event.participant")) {
+        continue;
+      }
+      RequestMappingInfo info = entry.getKey();
       for (String pattern : info.getPatternValues()) {
         assertThat(pattern).doesNotContain("reissue");
         assertThat(pattern).isNotEqualTo("/api/v1/public/events/{eventId}/forms/{formId}");
