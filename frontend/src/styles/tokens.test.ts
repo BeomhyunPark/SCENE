@@ -153,7 +153,7 @@ describe("tokens", () => {
     expect(headerCss).toContain('font-family: "Geist"');
     expect(tokensCss).not.toContain("theme-toggle");
     expect(homeCss).toContain("min-width: 1280px");
-    expect(homeCss).toContain("max-width: 390px");
+    expect(homeCss).toContain("max-width: 639px");
     expect(homeCss).toContain("width: 940px");
     expect(homeCss).toContain("width: calc(100% - 40px)");
     expect(homeCss).toContain("min-height: 48px");

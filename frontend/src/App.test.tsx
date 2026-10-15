@@ -72,6 +72,7 @@ describe("public shell", () => {
     expect(recover).toHaveAttribute("href", "/forgot-password");
 
     expect(screen.getByRole("button", { name: "로그인" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "비밀번호 보기" })).toHaveAttribute("tabindex", "-1");
     expect(screen.getByRole("button", { name: "Google로 로그인" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "계정 만들기" })).toHaveAttribute("href", "/signup");
 
@@ -132,8 +133,16 @@ describe("public shell", () => {
     expect(screen.getByRole("checkbox", { name: "개인정보 수집·이용 동의 (필수)" })).not.toBeChecked();
     const views = screen.getAllByRole("button", { name: "보기" });
     expect(views).toHaveLength(2);
+    views[0].focus();
     fireEvent.click(views[0]);
     expect(screen.getByRole("dialog", { name: "약관 확인" })).toBeInTheDocument();
+    const closeButtons = screen.getAllByRole("button", { name: "닫기" });
+    closeButtons[1].focus();
+    fireEvent.keyDown(document, { key: "Tab" });
+    expect(closeButtons[0]).toHaveFocus();
+    expect(screen.getByRole("link", { name: "로그인" })).not.toHaveFocus();
+    fireEvent.keyDown(document, { key: "Tab", shiftKey: true });
+    expect(closeButtons[1]).toHaveFocus();
     expect(screen.getByRole("heading", { name: "이용약관" })).toBeInTheDocument();
     expect(
       screen.getByText("서비스 이용과 계정 관리, 이용 제한, 탈퇴 및 책임 범위를 확인했어요."),
@@ -141,6 +150,7 @@ describe("public shell", () => {
     expect(screen.getByRole("heading", { name: "개인정보 수집·이용" })).toBeInTheDocument();
     fireEvent.click(screen.getAllByRole("button", { name: "닫기" }).find((button) => button.textContent === "닫기")!);
     expect(screen.queryByRole("dialog")).toBeNull();
+    expect(views[0]).toHaveFocus();
     expect(screen.getByRole("checkbox", { name: "이용약관 동의 (필수)" })).not.toBeChecked();
     fireEvent.click(views[1]);
     const dialog = screen.getByRole("dialog", { name: "약관 확인" });
