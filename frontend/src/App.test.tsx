@@ -96,17 +96,33 @@ describe("public shell", () => {
       target: { value: "not-email" },
     });
     expect(screen.getByRole("alert")).toHaveTextContent("이메일 형식을 확인해 주세요.");
-    fireEvent.change(screen.getByRole("textbox", { name: "이메일" }), {
-      target: { value: "ada@scene.test" },
-    });
-    expect(screen.queryByRole("alert")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "로그인" }));
-    fireEvent.click(screen.getByRole("button", { name: "Google로 로그인" }));
-    expect(fetchSpy).not.toHaveBeenCalled();
     expect(screen.getByRole("heading", { name: "다시 만나서 반가워요" })).toBeInTheDocument();
     fireEvent.click(recover);
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(screen.getByRole("heading", { name: "비밀번호를 잊으셨나요?" })).toBeInTheDocument();
+
+    cleanup();
+    renderAt("/login");
+    fireEvent.change(screen.getByRole("textbox", { name: "이메일" }), {
+      target: { value: "ada@scene.test" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "로그인" }));
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(screen.getByRole("heading", { name: "행사" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "드림공동체의 행사" })).toBeInTheDocument();
+    expect(screen.getByText("아직 만든 행사가 없어요")).toBeInTheDocument();
+    expect(screen.getByText("0개의 행사")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "행사" })).toHaveAttribute("aria-current", "page");
+    fireEvent.click(screen.getByRole("button", { name: "첫 행사 만들기" }));
+    fireEvent.click(screen.getByRole("button", { name: "새 행사" }));
+    expect(screen.getByRole("heading", { name: "행사" })).toBeInTheDocument();
+
+    cleanup();
+    renderAt("/login");
+    fireEvent.click(screen.getByRole("button", { name: "Google로 로그인" }));
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(screen.getByRole("heading", { name: "행사" })).toBeInTheDocument();
     fetchSpy.mockRestore();
   });
 
