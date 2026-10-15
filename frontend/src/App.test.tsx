@@ -82,8 +82,14 @@ describe("public shell", () => {
     expect(document.body.textContent).not.toContain("Search");
     expect(document.body.textContent).not.toContain("Notes");
 
-    fireEvent.click(screen.getByRole("button", { name: "비밀번호 보기" }));
+    const showPassword = screen.getByRole("button", { name: "비밀번호 보기" });
+    const hiddenEye = showPassword.querySelector("img")?.getAttribute("src");
+    fireEvent.click(showPassword);
     expect(screen.getByLabelText("비밀번호")).toHaveAttribute("type", "text");
+    expect(screen.getByRole("button", { name: "비밀번호 숨기기" }).querySelector("img")).not.toHaveAttribute(
+      "src",
+      hiddenEye,
+    );
     fireEvent.click(screen.getByRole("checkbox", { name: "로그인 유지" }));
     expect(screen.getByRole("checkbox", { name: "로그인 유지" })).toBeChecked();
     fireEvent.click(screen.getByRole("button", { name: "로그인" }));
@@ -210,11 +216,21 @@ describe("public shell", () => {
     fireEvent.click(screen.getByRole("checkbox", { name: "이용약관 동의 (필수)" }));
     expect(submit).toBeEnabled();
 
+    const hiddenEye = showPassword.querySelector("img")?.getAttribute("src");
     fireEvent.click(showPassword);
     expect(screen.getByLabelText("비밀번호")).toHaveAttribute("type", "text");
     expect(screen.getByLabelText("비밀번호 확인")).toHaveAttribute("type", "password");
+    expect(screen.getByRole("button", { name: "비밀번호 숨기기" }).querySelector("img")).not.toHaveAttribute(
+      "src",
+      hiddenEye,
+    );
+    expect(showConfirm.querySelector("img")).toHaveAttribute("src", hiddenEye);
     fireEvent.click(showConfirm);
     expect(screen.getByLabelText("비밀번호 확인")).toHaveAttribute("type", "text");
+    expect(screen.getByRole("button", { name: "비밀번호 확인 숨기기" }).querySelector("img")).not.toHaveAttribute(
+      "src",
+      hiddenEye,
+    );
 
     fireEvent.click(submit);
     expect(fetchSpy).not.toHaveBeenCalled();
@@ -445,8 +461,14 @@ describe("public shell", () => {
     expect(submit).toBeDisabled();
     fireEvent.change(confirm, { target: { value: "scene-pass" } });
     expect(submit).toBeEnabled();
-    fireEvent.click(screen.getByRole("button", { name: "새 비밀번호 보기" }));
+    const showNewPassword = screen.getByRole("button", { name: "새 비밀번호 보기" });
+    const hiddenEye = showNewPassword.querySelector("img")?.getAttribute("src");
+    fireEvent.click(showNewPassword);
     expect(password).toHaveAttribute("type", "text");
+    expect(screen.getByRole("button", { name: "새 비밀번호 숨기기" }).querySelector("img")).not.toHaveAttribute(
+      "src",
+      hiddenEye,
+    );
     fireEvent.click(submit);
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(screen.getByRole("heading", { name: "다시 만나서 반가워요" })).toBeInTheDocument();

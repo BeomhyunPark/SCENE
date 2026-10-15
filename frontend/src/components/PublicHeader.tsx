@@ -39,7 +39,7 @@ export function PublicHeader({ accountActions = false, primaryStart = false }: P
           </Link>
         </div>
       ) : (
-        <Link className="public-header__text justify-self-end no-underline" to="/login">
+        <Link className="public-header__text col-start-3 justify-self-end no-underline" to="/login">
           로그인
         </Link>
       )}

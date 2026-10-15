@@ -3,6 +3,7 @@ import { Link } from "react-router";
 import visual from "../assets/p01-02-auth-visual.svg";
 import symbol from "../assets/scene-symbol-login.svg";
 import eye from "../assets/icon-eye.svg";
+import eyeOff from "../assets/icon-eye-off.svg";
 import { Button } from "./Button";
 import "./PublicLogin.css";
 
@@ -67,7 +68,7 @@ export function PublicLogin() {
                   aria-label={passwordVisible ? "비밀번호 숨기기" : "비밀번호 보기"}
                   onClick={() => setPasswordVisible((visible) => !visible)}
                 >
-                  <img src={eye} alt="" width={20} height={20} />
+                  <img src={passwordVisible ? eyeOff : eye} alt="" width={20} height={20} />
                 </button>
               </span>
             </div>

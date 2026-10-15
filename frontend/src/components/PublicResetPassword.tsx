@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useLocation, useNavigate } from "react-router";
 import pattern from "../assets/p01-04-hex-pattern.png";
 import eye from "../assets/icon-eye.svg";
+import eyeOff from "../assets/icon-eye-off.svg";
 import { PublicHeader } from "./PublicHeader";
 import { Button } from "./Button";
 import "./PublicResetPassword.css";
@@ -126,7 +127,7 @@ export function PublicResetPassword() {
                   aria-label={passwordVisible ? "새 비밀번호 숨기기" : "새 비밀번호 보기"}
                   onClick={() => setPasswordVisible((visible) => !visible)}
                 >
-                  <img src={eye} alt="" width={20} height={20} />
+                  <img src={passwordVisible ? eyeOff : eye} alt="" width={20} height={20} />
                 </button>
               </span>
             </div>
@@ -158,7 +159,7 @@ export function PublicResetPassword() {
                   aria-label={confirmVisible ? "새 비밀번호 확인 숨기기" : "새 비밀번호 확인 보기"}
                   onClick={() => setConfirmVisible((visible) => !visible)}
                 >
-                  <img src={eye} alt="" width={20} height={20} />
+                  <img src={confirmVisible ? eyeOff : eye} alt="" width={20} height={20} />
                 </button>
               </span>
               {passwordMismatch ? (
