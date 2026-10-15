@@ -5,6 +5,7 @@ import { EventCreate } from "./components/EventCreate";
 import { EventHome } from "./components/EventHome";
 import { EventList } from "./components/EventList";
 import { EventParticipation } from "./components/EventParticipation";
+import { EventRegistrationSetup } from "./components/EventRegistrationSetup";
 import { PublicHeader } from "./components/PublicHeader";
 import { PublicHome } from "./components/PublicHome";
 import { PublicLogin } from "./components/PublicLogin";
@@ -46,6 +47,7 @@ export function App() {
         <Route path="/login" element={<PublicLogin />} />
         <Route path="/events" element={<EventList />} />
         <Route path="/events/new" element={<EventCreate />} />
+        <Route path="/events/:eventId/participants/setup" element={<EventRegistrationSetup />} />
         <Route path="/events/:eventId/participants" element={<EventParticipation />} />
         <Route path="/events/:eventId" element={<EventHome />} />
         <Route path="/signup" element={<PublicSignup />} />

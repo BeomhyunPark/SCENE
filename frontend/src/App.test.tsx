@@ -156,6 +156,16 @@ describe("public shell", () => {
     expect(screen.queryByText("조 편성")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /신청 링크 만들기/ }));
     expect(fetchSpy).not.toHaveBeenCalled();
+    expect(screen.getByRole("heading", { name: "참가 신청을 준비해 보세요." })).toBeInTheDocument();
+    expect(screen.getByText("참가 신청 · 공개 전")).toBeInTheDocument();
+    expect(screen.getByText("아직 정하지 않았어요")).toBeInTheDocument();
+    expect(screen.getByText("이름 · 연락처 · 참석 여부")).toBeInTheDocument();
+    expect(screen.queryByText("9월 1일–10월 18일")).not.toBeInTheDocument();
+    expect(screen.queryByText("조 편성")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "신청 열기" }));
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(screen.getByRole("heading", { name: "참가 신청을 준비해 보세요." })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("link", { name: "참가 운영" }));
     expect(screen.getByRole("heading", { name: "아직 참가자가 없어요." })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("link", { name: "행사 목록" }));
     expect(screen.getByRole("heading", { name: "행사" })).toBeInTheDocument();
@@ -173,6 +183,10 @@ describe("public shell", () => {
     fireEvent.click(screen.getByRole("button", { name: /참가자 받기/ }));
     expect(screen.getByRole("heading", { name: "아직 참가자가 없어요." })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /참가자 직접 추가/ })).toBeInTheDocument();
+    expect(screen.queryByText("항공")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "참가 신청 준비" }));
+    expect(screen.getByRole("heading", { name: "참가 신청을 준비해 보세요." })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /완료 안내/ })).toBeInTheDocument();
     expect(screen.queryByText("항공")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("link", { name: "여름 트립" }));
     expect(screen.getByRole("heading", { name: "필요한 업무부터 시작해 보세요." })).toBeInTheDocument();
