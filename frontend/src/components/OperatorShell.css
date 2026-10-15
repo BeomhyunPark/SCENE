@@ -94,6 +94,11 @@
   border-top: 1px solid var(--color-border-default);
 }
 
+a.operator-shell__item {
+  text-decoration: none;
+  box-sizing: border-box;
+}
+
 .operator-shell__item {
   display: flex;
   align-items: center;

@@ -4,6 +4,7 @@ export type EventDraft = {
   start: string;
   end: string;
   place: string;
+  areas: string[];
 };
 
 export function formatSceneDate(iso: string): string {
@@ -30,6 +31,13 @@ export function saveEventDraft(id: string, draft: EventDraft) {
   sessionStorage.setItem(key(id), JSON.stringify(draft));
 }
 
+export function markEventArea(id: string, area: string) {
+  const draft = readEventDraft(id);
+  const areas = draft?.areas ?? [];
+  if (!draft || areas.includes(area)) return;
+  saveEventDraft(id, { ...draft, areas: [...areas, area] });
+}
+
 export function readEventDraft(id: string): EventDraft | null {
   const raw = sessionStorage.getItem(key(id));
   if (!raw) return null;
@@ -42,6 +50,7 @@ export function readEventDraft(id: string): EventDraft | null {
       start: typeof parsed.start === "string" ? parsed.start : "",
       end: typeof parsed.end === "string" ? parsed.end : "",
       place: typeof parsed.place === "string" ? parsed.place : "",
+      areas: Array.isArray(parsed.areas) ? parsed.areas.filter((area) => typeof area === "string") : [],
     };
   } catch {
     return null;

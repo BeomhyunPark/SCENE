@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Link } from "react-router";
 import symbol from "../assets/scene-symbol-header.svg";
 import events from "../assets/event-nav/events.svg";
 import bell from "../assets/event-nav/bell.svg";
@@ -40,6 +41,9 @@ export function OperatorShell({
   leading,
   action,
   eventName,
+  eventHref,
+  eventAreas = [],
+  participantsHref,
   framed,
   children,
 }: {
@@ -47,6 +51,9 @@ export function OperatorShell({
   leading?: ReactNode;
   action?: ReactNode;
   eventName?: string;
+  eventHref?: string;
+  eventAreas?: string[];
+  participantsHref?: string;
   framed?: boolean;
   children: ReactNode;
 }) {
@@ -67,9 +74,25 @@ export function OperatorShell({
             <>
               <ul className="operator-shell__group">
                 <li>
-                  <NavItem item={{ label: eventName, icon: events, current: true }} />
+                  <NavItem item={{ label: eventName, icon: events, current: true, to: eventHref }} />
                 </li>
               </ul>
+              {eventAreas.includes("participants") ? (
+                <div className="operator-shell__section">
+                  <p className="operator-shell__section-label">행사 운영</p>
+                  <ul className="operator-shell__group">
+                    <li>
+                      <NavItem
+                        item={{
+                          label: "참가자",
+                          icon: address,
+                          to: participantsHref,
+                        }}
+                      />
+                    </li>
+                  </ul>
+                </div>
+              ) : null}
               <ul className="operator-shell__group">
                 <li>
                   <NavItem item={{ label: "다른 운영 시작", icon: squares, current: false }} />
@@ -135,20 +158,29 @@ export function OperatorShell({
 function NavItem({
   item,
 }: {
-  item: { label: string; icon: string; caret?: boolean; current?: boolean };
+  item: { label: string; icon: string; caret?: boolean; current?: boolean; to?: string };
 }) {
   const current = item.current ?? item.label === "행사";
-  return (
-    <button
-      className={`operator-shell__item${current ? " operator-shell__item--current" : ""}`}
-      type="button"
-      aria-current={current ? "page" : undefined}
-    >
+  const className = `operator-shell__item${current ? " operator-shell__item--current" : ""}`;
+  const content = (
+    <>
       <span className="operator-shell__item-main">
         <img src={item.icon} alt="" />
         <span className="operator-shell__label">{item.label}</span>
       </span>
       {item.caret ? <img src={caret} alt="" /> : null}
+    </>
+  );
+  if (item.to) {
+    return (
+      <Link className={className} to={item.to} aria-current={current ? "page" : undefined}>
+        {content}
+      </Link>
+    );
+  }
+  return (
+    <button className={className} type="button" aria-current={current ? "page" : undefined}>
+      {content}
     </button>
   );
 }
