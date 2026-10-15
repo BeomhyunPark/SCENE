@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Link, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 import arrowLeft from "../assets/event-create/arrow-left.svg";
 import calendarCheck from "../assets/event-home/calendar-check.svg";
 import checklist from "../assets/event-home/checklist.svg";
@@ -17,7 +17,9 @@ const ways = [
 
 export function EventParticipation() {
   const { eventId = "" } = useParams();
+  const navigate = useNavigate();
   const draft = readEventDraft(eventId);
+  const setupPath = eventId ? `/events/${eventId}/participants/setup` : "";
   const title = draft?.name || "행사";
   const context = draft ? eventContext(draft) : "";
 
@@ -60,7 +62,7 @@ export function EventParticipation() {
             <h2>아직 참가자가 없어요.</h2>
             <p>신청을 열거나 운영자가 직접 추가할 수 있어요.</p>
           </div>
-          <Button type="button" variant="primary" size={40}>
+          <Button type="button" variant="primary" size={40} onClick={() => setupPath && navigate(setupPath)}>
             참가 신청 준비
           </Button>
         </section>
@@ -70,7 +72,13 @@ export function EventParticipation() {
         </div>
         <div className="event-home__cards">
           {ways.map((item) => (
-            <button key={item.title} className="event-home__card" type="button" aria-label={item.title}>
+            <button
+              key={item.title}
+              className="event-home__card"
+              type="button"
+              aria-label={item.title}
+              onClick={item.title === "신청 링크 만들기" && setupPath ? () => navigate(setupPath) : undefined}
+            >
               <span className="event-home__chip">{item.badge}</span>
               <span className="event-home__card-title">{item.title}</span>
               <span className="event-home__card-meta">
