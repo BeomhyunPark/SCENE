@@ -294,7 +294,7 @@ Participant가 제공한 응답은 중요한 Source다. 그러나 운영자는 �
 - 역할·권한 및 정보 접근의 상세 모델
 - 공통 State Model과 상태 전이 규칙
 - Integration Strategy와 Native App 필요 여부
-- Offline 지원 수준과 AI 기능 포함 여부
+- Offline 지원 수준과 AI 기능 포함 여부 (2026-10-15: AI 기능 포함은 [DEC-066](PRODUCT_DECISIONS.md#dec-066--scene은-ai-기능을-포함하고-첫-ai-범위는-c1과-c7이다)에서 확정, 첫 범위 C1·C7)
 - Pricing, Packaging과 Billing Unit
 - Domain Model, Entity, Database Schema, API
 - Technical Architecture, Infrastructure와 구현 기술

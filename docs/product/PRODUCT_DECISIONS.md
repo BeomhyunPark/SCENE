@@ -1,6 +1,6 @@
 # Church Event Operations Platform — Product Decisions
 
-> **2026-09-30 baseline:** DEC-001~027의 기존 본문·Status 보존. 최초 정리 당시에는 새 DEC를 만들지 않았고, 이후 검토에서 DEC-028~059를 추가했다. 2026-10-01 #11·#12 기술 계약으로 DEC-060~061을, 2026-10-02 #31 업무·체크리스트 저장 계약으로 DEC-062를, #30 행사 lifecycle command 계약으로 DEC-063을, 2026-10-06 MVP 참여자 인증 결정으로 DEC-064를, 같은 날 업무 오류 판정 순서·Override 사유 저장 보강으로 DEC-065를 추가했다(현재 마지막 번호 DEC-065). 최신 요청의 제품명 SCENE 및 Technical Design / implementation 전 상태가 현재 기준이다. DEC-024/027의 단계와 §17 Product Name OPEN은 이전 이력이며 기술 기준은 [Architecture](../architecture/architecture-v0.1.md)를 따른다. 공식 Decision Log 정합화는 검토 필요.
+> **2026-09-30 baseline:** DEC-001~027의 기존 본문·Status 보존. 최초 정리 당시에는 새 DEC를 만들지 않았고, 이후 검토에서 DEC-028~059를 추가했다. 2026-10-01 #11·#12 기술 계약으로 DEC-060~061을, 2026-10-02 #31 업무·체크리스트 저장 계약으로 DEC-062를, #30 행사 lifecycle command 계약으로 DEC-063을, 2026-10-06 MVP 참여자 인증 결정으로 DEC-064를, 같은 날 업무 오류 판정 순서·Override 사유 저장 보강으로 DEC-065를, 2026-10-15 AI 기능 포함과 첫 AI 범위(C1·C7) 결정으로 DEC-066을 추가했다(현재 마지막 번호 DEC-066). 최신 요청의 제품명 SCENE 및 Technical Design / implementation 전 상태가 현재 기준이다. DEC-024/027의 단계와 §17 Product Name OPEN은 이전 이력이며 기술 기준은 [Architecture](../architecture/architecture-v0.1.md)를 따른다. 공식 Decision Log 정합화는 검토 필요.
 >
 > DEC-027은 단계 설명에 한해 DEC-024를 대체한다고 기록하지만 DEC-024의 원래 CONFIRMED 표기는 보존한다. Evidence Type의 HYPOTHESIS 용어 충돌도 [검토 기록](../architecture/architecture-v0.1.md)에 남긴다.
 > [Product Definition](PRODUCT_DEFINITION.md) · [Research](RESEARCH.md)
@@ -580,7 +580,7 @@ Technical Design은 충분한 Product Definition 이후 진행한다.
 - Integration Strategy
 - Native App 필요 여부
 - Offline 지원 수준
-- AI 기능 포함 여부
+- ~~AI 기능 포함 여부~~ → 2026-10-15 포함으로 확정. [DEC-066](#dec-066--scene은-ai-기능을-포함하고-첫-ai-범위는-c1과-c7이다) 참고(공급자·재위탁 등 세부는 DEC-066의 OPEN)
 
 별도 Research와 Product Definition을 통해 결정한다.
 
@@ -1996,3 +1996,52 @@ lifecycle command(DEC-063)의 `ALREADY_IN_STATE` → `CONCURRENT_MODIFICATION` �
 ### Evidence
 
 현 결정 2026-10-06. [#31](https://github.com/BeomhyunPark/SCENE/issues/31), [#30](https://github.com/BeomhyunPark/SCENE/issues/30).
+
+---
+
+## DEC-066 — SCENE은 AI 기능을 포함하고 첫 AI 범위는 C1과 C7이다
+
+**Date:** 2026-10-15
+
+**Status:** CONFIRMED (현 결정 2026-10-15) — §17 OPEN "AI 기능 포함 여부" 해소
+
+### Context
+
+§17과 [Product Definition](PRODUCT_DEFINITION.md) §10은 "AI 기능 포함 여부"를 OPEN으로 두었다. SCENE Product가 `main` @ `94be076` 기준으로 [AI 기능 제안](ai-feature-proposal.md)(후보 C1~C8, 비교, 추천 범위, 현 결정 항목)을 작성했다. 제약은 §5.5(사람의 운영 판단을 빼앗지 않고 조 편성에 Algorithmic Assignment를 전제하지 않음), DEC-025(Not Used ≠ Incomplete), DEC-060(협력자 연락처 비공개), DEC-061(참가자 데이터는 교회가 개인정보처리자, SCENE은 수탁자), DEC-064(접근 키 비노출)다.
+
+### Decision
+
+- SCENE은 AI 기능을 포함한다.
+- 첫 AI 범위(MVP+AI)는 다음 두 기능이다.
+  - **C1** 행사 작성 시 시작 업무·체크리스트 추천(운영자).
+  - **C7** 신청서 빌더의 개인정보 가드레일: 신청 질문이 민감정보를 묻으면 경고한다(차단하지 않음).
+- **Hard rule (C1·C7):** 참가자 개인정보(PII)를 AI 공급자에게 보내지 않는다. C1은 행사 메타데이터(유형, 코드에서 계산한 기간 구간 등)만, C7은 필드 라벨만 보낸다.
+- AI는 제안하고 사람이 확정한다. AI 출력이 스스로 상태를 쓰지 않으며, 실패·지연 시 현재의 수동 화면으로 돌아간다. C1 추천은 선택 사항이며 "미완료"로 표시하지 않는다(DEC-025).
+- 모델 방향: TypeSafe **Jev 우선**. 생성이 아니라 분류·typed decision(Choice/Score/Noul)으로 쓰고, 버전이 고정된 model ID(예: `jev-1.13.0`)를 쓴다. 움직이는 alias(`jev-latest`)는 쓰지 않는다.
+- C2~C6, C8은 backlog다. C3(조 편성 균형 힌트)는 AI 없이 코드로만 한다(§5.5, Algorithmic Assignment 없음).
+
+### OPEN (이 DEC에서 정하지 않음)
+
+- 최종 공급자 선택(Jev 단독 또는 LLM과의 hybrid).
+- 미국 공급자에 대한 재위탁 동의와 처리위탁 계약 변경. TypeSafe DPA에는 PIPA 조항이 없어 법률 검토가 필요하다.
+- 행사·조직별 비용 상한.
+- 기능별 전송 필드 allowlist와 redaction 정책.
+- 조직별 AI on/off(제안: 기본 off).
+- 한국어 평가 기준. Jev 문서가 영어 외 품질이 낮을 수 있다고 하므로 도입 확정 전에 한국어 test set이 필요하다.
+- 의존성: C1은 체크 항목 추가 HTTP route가 필요하며 아직 API에 없다(설계는 후속).
+
+### Alternatives
+
+AI 없이 출시하는 안은 시장 기대에 맞지 않아 채택하지 않았다. 제안서의 3순위 C8(참가자 질문 라우터)은 참가자 데이터가 공급자로 가 재위탁 결정이 먼저 필요해 backlog로 두었다. C3의 AI 편성은 §5.5와 충돌해 채택하지 않았다.
+
+### Reason
+
+시장이 AI 기능을 기대하며, AI가 없으면 사용자가 도입하지 않는다(현). C1·C7은 참가자 PII 없이 기존 API 위에서 첫날 가치("AI가 시작을 돕는다")와 교회 관리자의 신뢰를 함께 만든다.
+
+### Consequence
+
+후보·비교·근거는 [AI 기능 제안](ai-feature-proposal.md)에 둔다. 위 OPEN과 C1의 체크 항목 추가 route는 후속 결정·설계다. 문서만 바꿨으며 코드는 없다.
+
+### Evidence
+
+현 결정 2026-10-15. [AI 기능 제안](ai-feature-proposal.md)(SCENE Product, `main` @ `94be076`).
