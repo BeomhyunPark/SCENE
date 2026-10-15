@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Route, Routes } from "react-router";
+import { EventList } from "./components/EventList";
 import { PublicHeader } from "./components/PublicHeader";
 import { PublicHome } from "./components/PublicHome";
 import { PublicLogin } from "./components/PublicLogin";
@@ -40,6 +41,7 @@ export function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<PublicLogin />} />
+        <Route path="/events" element={<EventList />} />
         <Route path="/signup" element={<PublicSignup />} />
         <Route path="/verify-email" element={<PublicVerifyEmail />} />
         <Route path="/find-organization" element={<PublicFindOrganization />} />

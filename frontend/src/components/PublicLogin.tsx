@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import visual from "../assets/p01-02-auth-visual.svg";
 import symbol from "../assets/scene-symbol-login.svg";
 import eye from "../assets/icon-eye.svg";
@@ -12,14 +12,23 @@ function isEmailAddress(value: string): boolean {
 }
 
 export function PublicLogin() {
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [remember, setRemember] = useState(false);
   const emailValue = email.trim();
   const emailInvalid = emailValue !== "" && !isEmailAddress(emailValue);
 
+  function openEvents() {
+    navigate("/events");
+  }
+
   function hold(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (emailInvalid) {
+      return;
+    }
+    openEvents();
   }
 
   return (
@@ -107,7 +116,7 @@ export function PublicLogin() {
             <Button type="submit" variant="primary" size={40} className="public-login__submit">
               로그인
             </Button>
-            <Button type="button" variant="secondary" size={40} className="public-login__submit">
+            <Button type="button" variant="secondary" size={40} className="public-login__submit" onClick={openEvents}>
               Google로 로그인
             </Button>
             <p className="public-login__switch">
