@@ -42,6 +42,8 @@
 | 업무 저장 | `event/task/TaskCommandService` 또는 `TaskProgressService` |
 | 감사 로그 이름 | `common/audit/AuditActions`. 업무 진행 네 이름은 `TaskProgressService`, 수락 이름은 `OwnerTransferService` 안에 있다 |
 | 공간 탈퇴 | `space/OperatorLeaveController`, `space/MembershipLeaveService` |
+| 내 공간 목록 | `space/OperatorSpaceController`, `space/OperatorSpaceListService`, `mapper/SpaceAccessQueryMapper.xml` |
+| 행사 기간·장소·유형 | `event/EventType`, `event/OperatorEventCommandService`, `db/migration/V7__event_period_place_type.sql` |
 | 행사 소유권 이전 | `event/transfer/OwnerTransferController`, `event/transfer/OwnerTransferService` |
 | 공간 소유자 대신 실행 알림 | `event/lifecycle/OperatorNoticeRepository` |
 | SQL | `src/main/resources/mapper/`의 같은 이름 XML |
@@ -168,7 +170,8 @@ CSRF 쿠키는 `XSRF-TOKEN`, 헤더는 `X-XSRF-TOKEN`이다. 변경 요청은 �
 | 하는 일 | 컨트롤러 |
 | --- | --- |
 | 로그인, `GET /me`, 로그아웃 | `identity/OperatorSessionController` |
-| 공간 이름 조회 | `space/OperatorSpaceController` |
+| 공간 이름 조회, 내 공간 목록 | `space/OperatorSpaceController` |
+| 행사 만들기, 목록, 상세, 이름 변경 | `event/OperatorEventCommandController` |
 | 공간 탈퇴 미리보기, 탈퇴 | `space/OperatorLeaveController` |
 | 행사 한 건 조회 | `event/OperatorEventController` |
 | 활성화, 종료, 다시 열기, 보관, 보관 해제, 전이 목록 | `event/lifecycle/EventLifecycleController` |
@@ -192,7 +195,7 @@ CSRF 쿠키는 `XSRF-TOKEN`, 헤더는 `X-XSRF-TOKEN`이다. 변경 요청은 �
 
 Flyway만 스키마를 쓴다. `V1__baseline.sql`이 제품 테이블이고, `V2__spring_session.sql`이 운영자 세션이다.
 
-`V1`에 있는 테이블은 `users`, `spaces`, `members`, `events`, `event_users`, `event_user_permissions`, `event_invitations`, `event_lifecycle_transitions`, `operator_notices`, `owner_transfers`, `tasks`, `task_checklist_items`, `audit_logs`다.
+`V1`에 있는 테이블은 `users`, `spaces`, `members`, `events`, `event_users`, `event_user_permissions`, `event_invitations`, `event_lifecycle_transitions`, `operator_notices`, `owner_transfers`, `tasks`, `task_checklist_items`, `audit_logs`다. `V7__event_period_place_type.sql`이 `events`에 `start_date`, `end_date`, `place`, `event_type`을 더한다.
 
 행사 아래 행은 `space_id`와 `event_id`를 같이 가진다. 조회도 그 둘을 같이 넘긴다. id 하나만으로 찾은 뒤 서비스에서 공간을 비교하는 형태를 기본으로 두지 않는다.
 
