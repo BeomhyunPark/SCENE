@@ -246,6 +246,13 @@
   text-decoration: none;
 }
 
+.public-login__dev-hint {
+  margin: 24px 0 0;
+  color: var(--color-text-secondary);
+  font: var(--scene-body-s);
+  word-break: keep-all;
+}
+
 @media (max-width: 1279px) {
   .public-login {
     display: block;

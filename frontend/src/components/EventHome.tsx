@@ -3,9 +3,12 @@ import arrowLeft from "../assets/event-create/arrow-left.svg";
 import calendarCheck from "../assets/event-home/calendar-check.svg";
 import checklist from "../assets/event-home/checklist.svg";
 import dateIcon from "../assets/event-home/date.svg";
+import type { EventDetail } from "../api/events";
 import { Button } from "./Button";
+import { EventScreen } from "./EventScreen";
 import { OperatorShell } from "./OperatorShell";
-import { eventContext, readEventDraft } from "./eventDraft";
+import { eventContext, lifecycleLabel } from "./eventFormat";
+import { readEventAreas } from "./eventLocalState";
 import "./EventHome.css";
 
 const starts = [
@@ -16,15 +19,35 @@ const starts = [
 
 export function EventHome() {
   const { eventId = "" } = useParams();
+  const areas = readEventAreas(eventId);
+  return (
+    <EventScreen eventId={eventId}>
+      {(event, spaceName) => (
+        <EventHomeBody event={event} spaceName={spaceName} areas={areas} />
+      )}
+    </EventScreen>
+  );
+}
+
+function EventHomeBody({
+  event,
+  spaceName,
+  areas,
+}: {
+  event: EventDetail;
+  spaceName?: string;
+  areas: string[];
+}) {
   const navigate = useNavigate();
-  const draft = readEventDraft(eventId);
-  const title = draft?.name || "행사";
-  const context = draft ? eventContext(draft) : "";
-  const areas = draft?.areas ?? [];
+  const eventId = event.eventId;
+  const title = event.name;
+  const context = eventContext(event);
+  const draftStatus = event.lifecycleStatus === "DRAFT";
 
   return (
     <OperatorShell
       title={title}
+      spaceName={spaceName}
       eventName={title}
       eventAreas={areas}
       participantsHref={eventId ? `/events/${eventId}/participants` : undefined}
@@ -44,9 +67,9 @@ export function EventHome() {
         <div className="event-home__context">
           <div>
             {context ? <p className="event-home__facts">{context}</p> : null}
-            <p className="event-home__state">새로 만든 행사</p>
+            <p className="event-home__state">{draftStatus ? "새로 만든 행사" : lifecycleLabel(event.lifecycleStatus)}</p>
           </div>
-          <span className="event-home__badge">준비 시작</span>
+          <span className="event-home__badge">{draftStatus ? "준비 시작" : lifecycleLabel(event.lifecycleStatus)}</span>
         </div>
         <section className="event-home__welcome">
           <span className="event-home__mark" aria-hidden="true">

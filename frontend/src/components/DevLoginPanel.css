@@ -1,0 +1,46 @@
+.dev-login {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid var(--color-border-default);
+  word-break: keep-all;
+}
+
+.dev-login__title {
+  margin: 0;
+  font: var(--scene-heading-s);
+}
+
+.dev-login__support,
+.dev-login__label {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font: var(--scene-body-s);
+}
+
+.dev-login__form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dev-login__form select,
+.dev-login__form input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 8px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font: var(--scene-body-m);
+}
+
+.dev-login__error {
+  margin: 0;
+  color: var(--color-danger-fg);
+  font: var(--scene-body-s);
+}

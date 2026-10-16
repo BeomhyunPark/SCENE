@@ -8,6 +8,10 @@ function retry(failureCount: number, error: unknown): boolean {
   return failureCount < 1;
 }
 
+export function reloadQuery(query: { refetch: () => Promise<unknown> }): void {
+  void query["refetch"]();
+}
+
 export function createQueryClient(): QueryClient {
   return new QueryClient({
     defaultOptions: {

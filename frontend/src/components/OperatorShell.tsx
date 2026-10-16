@@ -45,6 +45,7 @@ export function OperatorShell({
   eventAreas = [],
   participantsHref,
   framed,
+  spaceName,
   children,
 }: {
   title: string;
@@ -55,6 +56,7 @@ export function OperatorShell({
   eventAreas?: string[];
   participantsHref?: string;
   framed?: boolean;
+  spaceName?: string;
   children: ReactNode;
 }) {
   return (
@@ -134,9 +136,9 @@ export function OperatorShell({
         <div className="operator-shell__org">
           <span className="operator-shell__org-main">
             <span className="operator-shell__avatar" aria-hidden="true">
-              M
+              {spaceName ? Array.from(spaceName)[0] : ""}
             </span>
-            <span className="operator-shell__org-name">드림공동체</span>
+            <span className="operator-shell__org-name">{spaceName ?? ""}</span>
           </span>
           <img src={caretVertical} alt="" aria-hidden="true" />
         </div>
