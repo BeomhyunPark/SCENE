@@ -14,4 +14,21 @@
       AND m.user_id = #{userId}
   </select>
 
+  <select id="count" resultType="long">
+    SELECT count(*)
+    FROM members m
+    JOIN spaces s ON s.id = m.space_id
+    WHERE m.user_id = #{userId}
+      AND m.status = 'ACTIVE'
+  </select>
+
+  <select id="findAll" resultType="app.scene.common.tenant.SpaceMembershipListRow">
+    SELECT s.id AS space_id, s.name AS name, m.role AS role
+    FROM members m
+    JOIN spaces s ON s.id = m.space_id
+    WHERE m.user_id = #{userId}
+      AND m.status = 'ACTIVE'
+    <include refid="app.scene.common.mybatis.CommonMapper.orderByAndPage"/>
+  </select>
+
 </mapper>

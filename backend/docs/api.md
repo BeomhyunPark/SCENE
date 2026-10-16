@@ -1,10 +1,10 @@
-# Operator API
+# API
 
-지금 서버가 받는 HTTP 계약이다. 설계 초안은 저장소 루트의 [API Architecture](../../docs/architecture/api-architecture-v0.1.md)에 있고, 파일을 찾는 순서는 [소스 안내](source-guide.md)에 있다. 이 문서와 코드가 다르면 코드를 따른다.
+지금 서버가 받는 operator, public, participant HTTP 계약이다. 설계 초안은 저장소 루트의 [API Architecture](../../docs/architecture/api-architecture-v0.1.md)에 있고, 파일을 찾는 순서는 [소스 안내](source-guide.md)에 있다. 이 문서와 코드가 다르면 코드를 따른다.
 
-관련 이슈: [#89](https://github.com/BeomhyunPark/SCENE/issues/89), [#93](https://github.com/BeomhyunPark/SCENE/issues/93), [#97](https://github.com/BeomhyunPark/SCENE/issues/97), [#99](https://github.com/BeomhyunPark/SCENE/issues/99), [#103](https://github.com/BeomhyunPark/SCENE/issues/103).
+관련 이슈: [#89](https://github.com/BeomhyunPark/SCENE/issues/89), [#93](https://github.com/BeomhyunPark/SCENE/issues/93), [#97](https://github.com/BeomhyunPark/SCENE/issues/97), [#99](https://github.com/BeomhyunPark/SCENE/issues/99), [#103](https://github.com/BeomhyunPark/SCENE/issues/103), [#176](https://github.com/BeomhyunPark/SCENE/issues/176).
 
-참가자 API와 공개 API는 아직 없다. `/api/v1/participant/**`와 `/api/v1/public/**`는 필터 체인만 있고 제품 컨트롤러가 없다. 아래 경로는 모두 `/api/v1/operator`다.
+operator 경로는 운영자 세션이 필요하다. public 경로는 세션을 만들지 않는다. participant 경로는 참가자 세션 쿠키가 필요하다. 로그인 없는 공개 온보딩과 비밀번호 로그인은 없다.
 
 로컬 기준 주소는 `http://localhost:8080`이다. 시드 사용자 id는 [README](../README.md)에 있다.
 
@@ -78,8 +78,13 @@
 | `OVERRIDE_REQUIRED` | 403 | 공간 소유자가 대신 실행하는데 `override.reason`이 없다 |
 | `INVITATION_EMAIL_MISMATCH` | 403 | 세션 이메일과 초대 이메일이 다르다 |
 | `VALIDATION_FAILED` | 400 | 본문, 쿼리, 경로 형식이 계약과 다르다 |
+| `APPLICATION_VALIDATION_FAILED` | 400 | 공개 신청 답변이 계약과 다르다 |
+| `PARTICIPANT_ACCESS_INVALID` | 401 | 참가자 접근 키가 없거나, 틀리거나, 그 행사 것과 같지 않다 |
 | `PAGE_SIZE_EXCEEDED` | 400 | `size`가 100을 넘는다 |
 | `RESOURCE_NOT_FOUND` | 404 | 행사가 없거나, 테넌트 밖에 있거나, 그 사람에게 존재를 보여 주지 않는다 |
+| `FORM_NOT_FOUND` | 404 | 그 행사의 신청서가 아니다 |
+| `FORM_CLOSED` | 409 | 신청을 받지 않는 신청서다 |
+| `CONFLICT` | 409 | 행사에 신청서가 이미 있거나, SYSTEM 필드를 지울 수 없다 |
 | `INVITATION_NOT_FOUND` | 404 | 토큰에 해당하는 초대가 없다 |
 | `INVITATION_REVOKED` | 410 | 초대가 취소되었다 |
 | `INVITATION_EXPIRED` | 410 | 초대 시각이 지났다 |
@@ -159,7 +164,22 @@ curl -sS \
 
 세션을 버린다. `204`이고 본문이 없다. 세션이 없어도 `204`다.
 
-## 공간과 행사 이름
+## 공간과 행사
+
+### `GET /api/v1/operator/spaces`
+
+로그인한 운영자의 활성 멤버십이다. `members.status`가 `ACTIVE`인 행만 `spaces`와 조인한다. `LEFT`는 빠진다. 순서는 공간 이름, 그다음 `spaceId`다. `sort` 허용 필드는 없다. `sort`를 주면 `400 VALIDATION_FAILED`이고 필드는 `sort`다. 세션이 없으면 `401 AUTHENTICATION_REQUIRED`다. 공간이 없으면 `200`이고 `items`는 `[]`다.
+
+`200`
+
+```json
+{
+  "items": [{ "spaceId": "…", "name": "Local space", "role": "OWNER" }],
+  "page": { "number": 0, "size": 50, "totalItems": 1, "totalPages": 1 }
+}
+```
+
+`role`은 그 공간에서 호출자의 역할이다. `OWNER`, `ADMIN`, `MEMBER` 중 하나다.
 
 ### `GET /api/v1/operator/spaces/{spaceId}`
 
@@ -184,6 +204,80 @@ curl -sS \
 ```
 
 행사 운영자가 아니며 접근 취소 기록도 없으면 `404`다. 접근이 제거된 운영자는 `403 NOT_A_MEMBER`다. 운영자인데 `EVENT_READ`가 없으면 `403 FORBIDDEN`이다. 공간 소유자라는 이유만으로 이 경로는 열리지 않는다.
+
+### `POST /api/v1/operator/spaces/{spaceId}/events`
+
+활성 공간 멤버가 행사를 만든다. 만든 사람은 그 행사의 `OWNER`가 된다. `EVENT_CREATE` 권한 키는 없다. `Idempotency-Key`는 읽지 않는다. 멤버 행이 없으면 `404 RESOURCE_NOT_FOUND`다. 멤버십이 `ACTIVE`가 아니면 `403 NOT_A_MEMBER`다.
+
+```json
+{
+  "name": "2026 가을 수련회",
+  "startDate": "2026-11-06",
+  "endDate": "2026-11-08",
+  "place": "양평 수양관",
+  "eventType": "RETREAT"
+}
+```
+
+| 필드 | 규칙 |
+| --- | --- |
+| `name` | 필수. 앞뒤 공백을 자르고 1–200자 |
+| `startDate`, `endDate` | 생략하거나 `null`, 또는 `YYYY-MM-DD`. 형식이 틀리면 `400`이고 필드는 그 키다. 둘 다 있을 때 끝 날이 시작 날보다 앞이면 필드는 `endDate`다. 하나만 있어도 된다. 시각이 아니다 |
+| `place` | 생략하거나 `null`, 또는 문자열. 앞뒤 공백을 자른 뒤 빈 값은 `null`이다. 200자를 넘으면 필드는 `place`다 |
+| `eventType` | 생략하거나 `null`, 또는 아래 8개 코드. 대소문자가 다르거나, 빈 문자열, 한국어 라벨, 숫자는 필드는 `eventType`이다 |
+| 그 밖의 키 | `400`이고 필드는 그 키다. `lifecycleStatus`도 그렇다 |
+
+`eventType`은 선택이다. 없는 값은 `null`이다. 서버는 이 값으로 권한, 검증, 상태 전이를 바꾸지 않는다(DEC-003). 화면 라벨은 클라이언트가 매핑한다.
+
+| 코드 | 화면 라벨 |
+| --- | --- |
+| `RETREAT` | 수련회 |
+| `VISION_TRIP` | 비전트립 |
+| `OUTREACH` | 아웃리치 |
+| `SHORT_TERM_MISSION` | 단기선교 |
+| `BIBLE_SCHOOL` | 성경학교 |
+| `CAMP` | 캠프 |
+| `WORKSHOP` | 워크숍 |
+| `OTHER` | 기타 |
+
+`201`. `Location` 헤더는 없다.
+
+```json
+{
+  "eventId": "…",
+  "name": "2026 가을 수련회",
+  "lifecycleStatus": "DRAFT",
+  "lifecycleVersion": 0,
+  "startDate": "2026-11-06",
+  "endDate": "2026-11-08",
+  "place": "양평 수양관",
+  "eventType": "RETREAT"
+}
+```
+
+없는 기간·장소·유형은 `null`이다. 감사 로그와 권한 override는 만들지 않는다.
+
+### `GET /api/v1/operator/spaces/{spaceId}/events`
+
+그 공간의 행사 목록이다. 활성 멤버만 연다. 공간 `OWNER`와 `ADMIN`은 공간의 행사를 모두 본다. 그 외는 자신이 `event_users`에 있는 행사만 본다. `sort` 허용 필드는 없다. 순서는 이름, 그다음 `eventId`다.
+
+항목은 `{ "eventId", "name", "lifecycleStatus", "startDate", "endDate", "place", "eventType" }`다. `lifecycleVersion`은 없다.
+
+### `GET /api/v1/operator/events/{eventId}`
+
+행사 상세다. 읽기는 유효한 `EVENT_READ`, 또는 활성 공간 `OWNER`·`ADMIN`이다. 공간 소유자·관리자는 이 읽기 때문에 `event_users` 행이 생기지 않는다.
+
+`200` 필드는 만들기 응답과 같다. 행사가 없으면 `404 RESOURCE_NOT_FOUND`다. 접근이 제거되었거나 공간 멤버십이 끝났으면 `403 NOT_A_MEMBER`다. 보여 주지만 읽기 권한이 없으면 `403 FORBIDDEN`이다.
+
+### `PATCH /api/v1/operator/events/{eventId}`
+
+이름만 바꾼다. 유효한 `EVENT_UPDATE`가 필요하다. 공간 `OWNER`라는 이유만으로는 바꾸지 못한다.
+
+```json
+{ "name": "바뀐 이름" }
+```
+
+`name` 규칙은 만들기와 같다. `place`, `eventType`, `startDate`, `endDate`, `lifecycleStatus`를 포함한 다른 키는 `400`이고 필드는 그 키다. 성공 `200`은 상세와 같다. 기간, 장소, 유형, `lifecycleStatus`, `lifecycleVersion`은 그대로다. 감사 로그는 없다.
 
 ## 공간 탈퇴
 
@@ -408,6 +502,26 @@ curl -sS \
 
 권한 검사를 통과한 뒤에 필드 형식을 본다. 권한이 없으면 본문이 잘못되어도 `403`이다.
 
+### `POST /api/v1/operator/events/{eventId}/activate`
+
+`DRAFT`를 `ACTIVE`로 옮긴다. 권한, 본문, `200`, 오류는 [상태 변경](#상태-변경)과 같다. 이미 `ACTIVE`이면 `outcome`은 `ALREADY_IN_STATE`다.
+
+### `POST /api/v1/operator/events/{eventId}/end`
+
+`ACTIVE`를 `ENDED`로 옮긴다. 열린 업무가 있으면 `acknowledgeWarnings`가 `true`여야 한다. 나머지 계약은 [상태 변경](#상태-변경)과 같다.
+
+### `POST /api/v1/operator/events/{eventId}/reopen`
+
+`ENDED`를 `ACTIVE`로 옮긴다. `reason`이 필수다. 나머지 계약은 [상태 변경](#상태-변경)과 같다.
+
+### `POST /api/v1/operator/events/{eventId}/archive`
+
+`ENDED`를 `ARCHIVED`로 옮긴다. 그 행사의 `PENDING` 초대를 `REVOKED`로 바꾼다. 열린 업무가 있으면 `acknowledgeWarnings`가 `true`여야 한다. 나머지 계약은 [상태 변경](#상태-변경)과 같다.
+
+### `POST /api/v1/operator/events/{eventId}/unarchive`
+
+`ARCHIVED`를 `ENDED`로 옮긴다. 나머지 계약은 [상태 변경](#상태-변경)과 같다.
+
 ## 초대
 
 초대 변경은 행사 `OWNER`만 한다. `EVENT_USER_MANAGE`다. 클래스는 `event/invitation/EventInvitationController`다. 보관된 행사에서는 만들거나 다시 보내지 못한다.
@@ -481,7 +595,7 @@ curl -sS \
 
 `EVENT_UPDATE`, `EVENT_USER_READ`, `PARTICIPANT_READ`, `PARTICIPANT_CONTACT_READ`, `PARTICIPANT_WRITE`, `FORM_WRITE`, `APPLICATION_READ`, `APPLICATION_MANAGE`, `TASK_WRITE`, `SCHEDULE_WRITE`, `NOTICE_WRITE`, `FINANCE_READ`, `FINANCE_WRITE`, `GROUP_WRITE`, `ROOM_WRITE`, `RIDE_WRITE`, `CLASS_WRITE`, `CHECKIN_WRITE`, `MISSION_WRITE`, `GUARDIAN_WRITE`, `GUARDIAN_CONTACT_READ`, `PRIVACY_LOG_READ`, `AUDIT_LOG_READ`, `DATA_EXPORT`, `EVENT_READ`, `EVENT_LIFECYCLE`, `EVENT_USER_MANAGE`.
 
-`OWNER`는 이 키를 모두 기본으로 가진다. `MANAGER`의 기본은 `EVENT_READ`와 `TASK_WRITE`다. `STAFF`의 기본은 `EVENT_READ`다. 키가 있다고 그 업무의 API가 열려 있는 것은 아니다. 지금 HTTP가 `PermissionEvaluator`로 보는 키는 `EVENT_READ`, `TASK_WRITE`, `EVENT_USER_MANAGE`다. 행사 상태 변경은 그 키 대신 행사 역할 `OWNER`와 공간 역할 `OWNER`를 본다. `EVENT_LIFECYCLE`은 소유자 전용이라 다른 역할에 `GRANT`되지 않는다.
+`OWNER`는 이 키를 모두 기본으로 가진다. `MANAGER`의 기본은 `EVENT_READ`와 `TASK_WRITE`다. `STAFF`의 기본은 `EVENT_READ`다. 키가 있다고 그 업무의 API가 열려 있는 것은 아니다. 지금 HTTP가 `PermissionEvaluator`로 보는 키는 `EVENT_READ`, `EVENT_UPDATE`, `FORM_WRITE`, `TASK_WRITE`, `EVENT_USER_MANAGE`다. 행사 이름 변경은 `EVENT_UPDATE`다. 신청서 쓰기는 `FORM_WRITE`다. 신청 읽기는 `APPLICATION_READ`가 아니라 `EVENT_READ`다. 행사 상태 변경은 그 키 대신 행사 역할 `OWNER`와 공간 역할 `OWNER`를 본다. `EVENT_LIFECYCLE`은 소유자 전용이라 다른 역할에 `GRANT`되지 않는다.
 
 ### `GET /api/v1/operator/events/{eventId}/operators`
 
@@ -687,6 +801,176 @@ curl -sS \
 
 `200`의 `outcome`은 `REOPENED` 또는 `ALREADY_OPEN`이다. `TODO`나 `DOING`이면 `ALREADY_OPEN`이다. 다시 열리면 상태는 `DOING`, `version`은 1 증가, 완료자와 완료 시각은 비운다. `CANCELLED`는 `409 INVALID_TASK_STATE`이고 `reason`은 `TASK_CANCELLED`다. 버전 불일치는 `409 TASK_VERSION_CONFLICT`다.
 
+## 신청서
+
+컨트롤러는 `event/form/OperatorFormController`다. 행사당 신청서는 하나다. 읽기는 유효한 `EVENT_READ`, 또는 활성 공간 `OWNER`·`ADMIN`이다. 쓰기는 유효한 `FORM_WRITE`다. 공간 역할만으로는 쓰지 못한다. `sort` 허용 필드는 없다. `Idempotency-Key`는 읽지 않는다. 감사 로그는 없다.
+
+필드 `kind`는 `SYSTEM` 또는 `CUSTOM`이다. `systemKey`는 `NAME`, `PHONE`, 또는 CUSTOM의 `null`이다.
+
+### `GET /api/v1/operator/events/{eventId}/forms`
+
+목록이다. 항목은 `{ "formId", "acceptingApplications" }`다.
+
+### `POST /api/v1/operator/events/{eventId}/forms`
+
+```json
+{ "customLabel": "비고" }
+```
+
+본문을 생략하거나 `customLabel`을 생략·`null`로 두면 CUSTOM 필드 없이 만든다. `customLabel`이 있으면 앞뒤 공백을 자르고 1–200자다. 다른 키는 `400`이고 필드는 그 키다.
+
+`201`은 상세다. `acceptingApplications`는 `false`다. SYSTEM 필드 `NAME` 라벨 "이름"(position 0)과 `PHONE` 라벨 "전화"(position 1)가 생긴다. `customLabel`이 있으면 CUSTOM 필드가 position 2다. 두 번째 POST는 `409 CONFLICT`다. 데이터베이스 인덱스 `forms_one_per_event`도 같은 코드로 막는다.
+
+### `GET /api/v1/operator/events/{eventId}/forms/{formId}`
+
+`200`
+
+```json
+{
+  "formId": "…",
+  "acceptingApplications": false,
+  "fields": [
+    {
+      "fieldId": "…",
+      "kind": "SYSTEM",
+      "systemKey": "NAME",
+      "label": "이름",
+      "position": 0
+    }
+  ]
+}
+```
+
+그 행사의 신청서가 아니면, 권한보다 먼저 `404 RESOURCE_NOT_FOUND`다.
+
+### `PATCH /api/v1/operator/events/{eventId}/forms/{formId}`
+
+```json
+{ "acceptingApplications": true }
+```
+
+`acceptingApplications`만 받는 boolean이다. `true`는 행사가 `ACTIVE`일 때만 된다. 아니면 `409 INVALID_STATE_TRANSITION`이다. `false`는 상태와 상관없이 된다. `200`은 상세다.
+
+### `POST /api/v1/operator/events/{eventId}/forms/{formId}/fields`
+
+```json
+{ "label": "비고" }
+```
+
+`label`만 받는다. 앞뒤 공백을 자르고 1–200자다. `kind`와 `systemKey`는 `400`이다. CUSTOM 필드는 최대 하나다. 두 번째 추가는 `400 VALIDATION_FAILED`다. 데이터베이스 인덱스 `fields_one_custom`도 같은 코드로 막는다. `201`은 신청서 상세다.
+
+### `PATCH /api/v1/operator/events/{eventId}/forms/{formId}/fields/{fieldId}`
+
+```json
+{ "label": "이름" }
+```
+
+라벨만 바꾼다. 규칙은 추가와 같다. SYSTEM 라벨도 바꿀 수 있다. `200`은 신청서 상세다. 필드가 없으면 `404 RESOURCE_NOT_FOUND`다.
+
+### `DELETE /api/v1/operator/events/{eventId}/forms/{formId}/fields/{fieldId}`
+
+CUSTOM 필드를 지운다. `204`이고 본문이 없다. SYSTEM 필드 삭제는 `409 CONFLICT`다. 없는 필드는 `404 RESOURCE_NOT_FOUND`다.
+
+## 신청 읽기
+
+컨트롤러는 `event/application/OperatorApplicationController`다. 읽기는 신청서와 같다. `EVENT_READ` 또는 활성 공간 `OWNER`·`ADMIN`이다. `APPLICATION_READ`는 보지 않는다. `sort` 허용 필드는 없다. 순서는 신청 id다.
+
+`status` 쿼리는 `SUBMITTED`, `SUPERSEDED`, `WITHDRAWN`만 받는다. 다른 값은 `400`이고 필드는 `status`다. 아는 값이어도 목록을 거르지 않는다. 순서는 `submittedAt`, 그다음 신청 id다.
+
+### `GET /api/v1/operator/events/{eventId}/applications`
+
+항목은 `{ "applicationId", "formId", "status", "submittedAt" }`다. 답변, 이름, 전화는 없다.
+
+### `GET /api/v1/operator/events/{eventId}/applications/{applicationId}`
+
+그 행사에 신청이 없으면, 권한보다 먼저 `404 RESOURCE_NOT_FOUND`다.
+
+`200`
+
+```json
+{
+  "applicationId": "…",
+  "formId": "…",
+  "status": "SUBMITTED",
+  "submittedAt": "2026-10-15T00:00:00Z",
+  "answers": [
+    {
+      "fieldId": "…",
+      "kind": "SYSTEM",
+      "systemKey": "NAME",
+      "label": "이름",
+      "position": 0,
+      "value": { "text": "김" }
+    }
+  ]
+}
+```
+
+`answers`는 필드 position 순이다.
+
+## 공개 신청서
+
+세션이 없다. 변경 요청은 CSRF가 필요하다. 조회 `GET`은 CSRF가 필요 없다.
+
+### `GET /api/v1/public/events/{eventId}/forms/{formId}`
+
+신청을 받는 신청서의 필드 목록이다. 행사가 없으면 `404 RESOURCE_NOT_FOUND`다. 그 행사의 신청서가 아니면 `404 FORM_NOT_FOUND`다. `acceptingApplications`가 false이면 `409 FORM_CLOSED`다.
+
+`200`은 `{ "formId", "fields" }`다. `fields` 항목은 운영자 상세의 필드와 같다. `acceptingApplications` 키는 없다.
+
+### `POST /api/v1/public/events/{eventId}/forms/{formId}/applications`
+
+CSRF가 필요하다. `Idempotency-Key`는 읽지 않는다.
+
+```json
+{
+  "answers": [
+    { "fieldId": "…", "text": "김" },
+    { "fieldId": "…", "text": "010-1234-5678" }
+  ]
+}
+```
+
+`answers`만 받는다. 각 항목은 `fieldId`와 `text`만이다. `NAME`과 `PHONE`은 필수다. CUSTOM은 빼도 된다. `text`는 앞뒤 공백을 자르고 1–200자다. 전화는 50자 이하이고 숫자가 4개 이상이어야 한다. 형식이 틀리면 `400 APPLICATION_VALIDATION_FAILED`다. `errors`는 없다. 닫힌 신청서는 `409 FORM_CLOSED`다. 없는 신청서는 `404 FORM_NOT_FOUND`다. 없는 행사는 `404 RESOURCE_NOT_FOUND`다.
+
+`201`. `Location` 헤더는 없다.
+
+```json
+{
+  "applicationId": "…",
+  "participantId": "…",
+  "accessKey": "…"
+}
+```
+
+`accessKey`는 256비트 hex다. raw key는 이 응답에서 한 번만 나온다. 서버는 해시만 저장한다. 응답과 로그에 키를 다시 넣지 않는다.
+
+## 참가자 세션
+
+### `POST /api/v1/public/events/{eventId}/participant-sessions`
+
+본문은 `{ "accessKey": "…" }`다. 앞뒤 공백은 자른다. CSRF가 필요하다. 행사가 없으면 `404 RESOURCE_NOT_FOUND`다. 키가 없거나, 그 행사에 맞는 접근이 하나가 아니면 `401 PARTICIPANT_ACCESS_INVALID`다. 맞는 키와 틀린 키를 본문으로 구분하지 않는다.
+
+성공은 `204`다. 본문은 없다. `Set-Cookie` 이름은 `placeholder-participant-session`이다. `HttpOnly`, `Secure`, `SameSite=Lax`, 경로 `/api/v1/participant`다. 값은 세션 토큰이고 응답 본문에는 없다. 서버는 토큰 해시만 저장한다.
+
+키를 링크 fragment로 두고 읽은 뒤 지우는 규칙은 [DEC-064](../../docs/product/PRODUCT_DECISIONS.md)다. 이 경로의 구현 단계는 [결정 문서와 다른 점](#결정-문서와-다른-점)에 있다.
+
+### `GET /api/v1/participant/me`
+
+참가자 세션 쿠키가 필요하다. CSRF는 필요 없다.
+
+`200`
+
+```json
+{ "participantId": "…", "eventId": "…", "spaceId": "…", "name": "김" }
+```
+
+쿠키가 없거나 저장된 세션이 아니면 `401 AUTHENTICATION_REQUIRED`다. 운영자 세션 쿠키로는 열리지 않는다. 전화와 접근 키는 없다.
+
+### `POST /api/v1/participant/auth/logout`
+
+CSRF가 필요하다. 그 쿠키의 세션 행만 지운다. `204`이고 본문이 없다. 쿠키가 없거나 모르는 값이면 지울 행이 없고 역시 `204`다. 다른 참가자의 세션은 남는다.
+
 ## 응답에 안 나오는 기록
 
 일부 성공은 응답 밖에 행을 남긴다. 그 행을 읽는 URL은 없다.
@@ -721,12 +1005,20 @@ curl -sS \
 
 다음을 이 서버에서 호출하면 제품 동작이 없다.
 
-- `/api/v1/participant/**`, `/api/v1/public/**`의 신청, 조회, 로그인
 - 비밀번호 로그인
 - SMTP. 초대 링크는 프로세스 메모리에만 남는다
-- 행사 생성·수정, 공간 설정
 - 체크 항목 추가
-- 참가자, 신청, 회비, 조, 방, 차량, 체크인
+- 참가자 조회(`GET /api/v1/participant/me` 밖)
+- 회비, 조, 방, 차량, 체크인
+- Export, 회고, 공간 설정
+- 행사 기간·장소·유형을 바꾸는 `PATCH`. 이름만 바꾼다
 - 공간 소유권 이전의 전용 URL
 
 `Permission` enum에 키가 있는 것은 그 업무의 API가 열렸다는 뜻이 아니다.
+
+## 결정 문서와 다른 점
+
+결정 문서는 이 변경에서 고치지 않는다.
+
+- [DEC-064](../../docs/product/PRODUCT_DECISIONS.md)와 [API Architecture](../../docs/architecture/api-architecture-v0.1.md), [Security](../../docs/architecture/security-privacy-v0.1.md)는 참가자 세션 발급을 Phase 3로 적는다. 이 서버는 `POST /api/v1/public/events/{eventId}/participant-sessions`, `GET /api/v1/participant/me`, `POST /api/v1/participant/auth/logout`를 이미 연다.
+- DEC-064는 public 세션 POST의 CSRF를 구현 때 정할 메모로 둔다. 이 서버의 public 체인은 다른 변경 요청과 같이 CSRF 쿠키 `XSRF-TOKEN`과 헤더 `X-XSRF-TOKEN`을 요구한다.

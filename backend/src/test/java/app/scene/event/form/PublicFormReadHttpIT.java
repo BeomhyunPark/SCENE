@@ -26,14 +26,13 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
-import org.springframework.web.servlet.mvc.method.RequestMappingInfo;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Public form field list. A closed form returns {@code FORM_CLOSED} and no fields. Submit stays
- * available. No participant session route is registered.
+ * available. The form package does not register a participant session route.
  */
 @SpringBootTest
 @Import(PostgresTestcontainer.class)
@@ -128,8 +127,11 @@ class PublicFormReadHttpIT {
 
   @Test
   void participantSessionRouteIsNotAdded() {
-    for (RequestMappingInfo info : handlers.getHandlerMethods().keySet()) {
-      for (String pattern : info.getPatternValues()) {
+    for (var entry : handlers.getHandlerMethods().entrySet()) {
+      if (!entry.getValue().getBeanType().getPackageName().equals("app.scene.event.form")) {
+        continue;
+      }
+      for (String pattern : entry.getKey().getPatternValues()) {
         assertThat(pattern).doesNotContain("participant-sessions");
       }
     }

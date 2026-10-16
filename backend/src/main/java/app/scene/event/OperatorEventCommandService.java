@@ -11,10 +11,12 @@ import app.scene.common.web.PageRequest;
 import app.scene.common.web.Sorts;
 import app.scene.event.lifecycle.EventAccessGate;
 import app.scene.event.lifecycle.EventListRow;
-import app.scene.event.lifecycle.EventLocation;
+import app.scene.event.lifecycle.EventProfile;
 import app.scene.event.lifecycle.EventRepository;
 import app.scene.space.EventUserPermissionRepository;
 import app.scene.space.EventUserRepository;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -36,6 +38,9 @@ import tools.jackson.databind.JsonNode;
 public class OperatorEventCommandService {
 
   private static final int NAME_MAX = 200;
+  private static final int PLACE_MAX = 200;
+  private static final Set<String> CREATE_KEYS =
+      Set.of("name", "startDate", "endDate", "place", "eventType");
 
   private final OperatorAccess access;
   private final EventAccessGate gate;
@@ -59,19 +64,23 @@ public class OperatorEventCommandService {
   @Transactional
   public EventDetail create(UUID actorId, UUID spaceId, JsonNode body) {
     requireActiveMember(actorId, spaceId);
-    String name = parseName(body);
+    ParsedCreate parsed = parseCreate(body);
     UUID eventId = UUID.randomUUID();
-    if (events.save(eventId, spaceId, name) != 1) {
+    if (events.save(
+            eventId,
+            spaceId,
+            parsed.name(),
+            parsed.startDate(),
+            parsed.endDate(),
+            parsed.place(),
+            parsed.eventType() == null ? null : parsed.eventType().name())
+        != 1) {
       throw new IllegalStateException("event was not stored");
     }
     if (eventUsers.saveOwner(spaceId, eventId, actorId) != 1) {
       throw new IllegalStateException("event owner was not stored");
     }
-    EventLocation stored =
-        events
-            .findLocation(eventId)
-            .orElseThrow(() -> new IllegalStateException("event disappeared after it was stored"));
-    return detail(stored);
+    return storedDetail(eventId, "event disappeared after it was stored");
   }
 
   public ItemPage<EventListItem> list(
@@ -83,7 +92,15 @@ public class OperatorEventCommandService {
     long total = events.countInSpace(spaceId, operatedBy);
     List<EventListItem> items = new ArrayList<>();
     for (EventListRow row : events.listInSpace(spaceId, operatedBy, request)) {
-      items.add(new EventListItem(row.eventId(), row.name(), row.lifecycleStatus()));
+      items.add(
+          new EventListItem(
+              row.eventId(),
+              row.name(),
+              row.lifecycleStatus(),
+              row.startDate(),
+              row.endDate(),
+              row.place(),
+              eventType(row.eventType())));
     }
     return ItemPage.of(items, request, total);
   }
@@ -93,7 +110,7 @@ public class OperatorEventCommandService {
     if (!mayRead(opened, actorId)) {
       throw new SceneException(ErrorCode.FORBIDDEN);
     }
-    return detail(opened.location());
+    return storedDetail(eventId, "event disappeared after it was opened");
   }
 
   @Transactional
@@ -105,9 +122,9 @@ public class OperatorEventCommandService {
     if (events.updateName(spaceId, eventId, name) != 1) {
       throw new IllegalStateException("event name was not stored");
     }
-    EventLocation stored =
+    EventProfile stored =
         events
-            .findLocation(eventId)
+            .findProfile(eventId)
             .orElseThrow(() -> new IllegalStateException("event disappeared after it was renamed"));
     if (!stored.lifecycleStatus().equals(opened.location().lifecycleStatus())
         || stored.lifecycleVersion() != opened.location().lifecycleVersion()) {
@@ -161,10 +178,105 @@ public class OperatorEventCommandService {
         permission, opened.eventRole(), opened.authorityEnded(), effect);
   }
 
-  private static EventDetail detail(EventLocation location) {
-    return new EventDetail(
-        location.id(), location.name(), location.lifecycleStatus(), location.lifecycleVersion());
+  private EventDetail storedDetail(UUID eventId, String missing) {
+    return detail(
+        events.findProfile(eventId).orElseThrow(() -> new IllegalStateException(missing)));
   }
+
+  private static EventDetail detail(EventProfile profile) {
+    return new EventDetail(
+        profile.eventId(),
+        profile.name(),
+        profile.lifecycleStatus(),
+        profile.lifecycleVersion(),
+        profile.startDate(),
+        profile.endDate(),
+        profile.place(),
+        eventType(profile.eventType()));
+  }
+
+  private static EventType eventType(String raw) {
+    if (raw == null) {
+      return null;
+    }
+    return EventType.valueOf(raw);
+  }
+
+  /**
+   * Create body. {@code name} is required. Period, place, and type may be omitted. Any other field,
+   * including {@code lifecycleStatus}, is rejected. The stored type does not change later checks.
+   */
+  private static ParsedCreate parseCreate(JsonNode body) {
+    if (body == null || !body.isObject()) {
+      throw field("name");
+    }
+    for (String key : body.propertyNames()) {
+      if (!CREATE_KEYS.contains(key)) {
+        throw field(key);
+      }
+    }
+    LocalDate startDate = parseDate(body.get("startDate"), "startDate");
+    LocalDate endDate = parseDate(body.get("endDate"), "endDate");
+    if (startDate != null && endDate != null && endDate.isBefore(startDate)) {
+      throw field("endDate");
+    }
+    return new ParsedCreate(
+        parseRequiredName(body.get("name")),
+        parsePlace(body.get("place")),
+        startDate,
+        endDate,
+        parseEventType(body.get("eventType")));
+  }
+
+  private static LocalDate parseDate(JsonNode node, String name) {
+    if (node == null || node.isNull()) {
+      return null;
+    }
+    if (!node.isString()) {
+      throw field(name);
+    }
+    try {
+      return LocalDate.parse(node.asString());
+    } catch (DateTimeParseException exception) {
+      throw field(name);
+    }
+  }
+
+  private static String parsePlace(JsonNode node) {
+    if (node == null || node.isNull()) {
+      return null;
+    }
+    if (!node.isString()) {
+      throw field("place");
+    }
+    String place = node.asString().strip();
+    if (place.isEmpty()) {
+      return null;
+    }
+    if (place.length() > PLACE_MAX) {
+      throw field("place");
+    }
+    return place;
+  }
+
+  private static EventType parseEventType(JsonNode node) {
+    if (node == null || node.isNull()) {
+      return null;
+    }
+    if (!node.isString()) {
+      throw field("eventType");
+    }
+    String raw = node.asString();
+    for (EventType type : EventType.values()) {
+      if (type.name().equals(raw)) {
+        return type;
+      }
+    }
+    throw field("eventType");
+  }
+
+  private record ParsedCreate(
+      String name, String place, LocalDate startDate, LocalDate endDate, EventType eventType) {}
 
   /**
    * The body is {@code name} only. Any other field, including {@code lifecycleStatus}, is rejected.
@@ -178,7 +290,10 @@ public class OperatorEventCommandService {
         throw field(key);
       }
     }
-    JsonNode nameNode = body.get("name");
+    return parseRequiredName(body.get("name"));
+  }
+
+  private static String parseRequiredName(JsonNode nameNode) {
     if (nameNode == null || nameNode.isNull() || !nameNode.isString()) {
       throw field("name");
     }
