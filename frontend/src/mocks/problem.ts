@@ -9,6 +9,8 @@ export function problem(
     reason?: string;
     task?: unknown;
     detail?: string;
+    lifecycleVersion?: number;
+    currentStatus?: string;
   },
 ): Response {
   return HttpResponse.json(

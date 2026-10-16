@@ -1,0 +1,109 @@
+.registration-setup__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.registration-setup__panel,
+.registration-setup__inert {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  box-sizing: border-box;
+  padding: 18px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 4px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+}
+
+.registration-setup__panel {
+  grid-column: 1 / -1;
+}
+
+.registration-setup__heading,
+.registration-setup__row,
+.registration-setup__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.registration-setup__heading {
+  justify-content: space-between;
+  width: 100%;
+}
+
+.registration-setup__panel h3,
+.registration-setup__inert h3 {
+  margin: 0;
+  font: var(--scene-label-m);
+  letter-spacing: 0;
+}
+
+.registration-setup__inert p,
+.registration-setup__note,
+.registration-setup__heading span {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font: var(--scene-body-m);
+  letter-spacing: 0;
+}
+
+.registration-setup__fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.registration-setup__chip {
+  padding: 4px 6px;
+  border-radius: 4px;
+  background: var(--color-bg-subtle);
+  color: var(--color-text-secondary);
+  font: var(--scene-label-s);
+  letter-spacing: 0;
+}
+
+.registration-setup__form {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+}
+
+.registration-setup__form label {
+  font: var(--scene-label-l);
+  letter-spacing: 0;
+}
+
+.registration-setup__form input {
+  width: min(100%, 420px);
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 8px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font: var(--scene-body-m);
+}
+
+.registration-setup__alert {
+  margin: 0;
+  color: var(--color-danger-fg);
+  font: var(--scene-body-m);
+  letter-spacing: 0;
+}
+
+@media (max-width: 1023px) {
+  .registration-setup__grid {
+    grid-template-columns: 1fr;
+  }
+}

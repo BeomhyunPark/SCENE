@@ -8,4 +8,6 @@ export const queryKeys = {
   operators: (eventId: string) => ["events", eventId, "operators"] as const,
   permissions: (eventId: string, userId: string) =>
     ["events", eventId, "operators", userId, "permissions"] as const,
+  forms: (eventId: string, page: number) => ["events", eventId, "forms", page] as const,
+  form: (eventId: string, formId: string) => ["events", eventId, "forms", formId] as const,
 };

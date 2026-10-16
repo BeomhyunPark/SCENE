@@ -57,6 +57,13 @@ export function addEvent(event: StoredEvent): void {
   events.push(event);
 }
 
+export function setLifecycle(eventId: string, lifecycleStatus: LifecycleStatus, lifecycleVersion: number): void {
+  const event = events.find((item) => item.eventId === eventId);
+  if (!event) return;
+  event.lifecycleStatus = lifecycleStatus;
+  event.lifecycleVersion = lifecycleVersion;
+}
+
 export function isEventType(value: unknown): value is EventType {
   return typeof value === "string" && (EVENT_TYPES as readonly string[]).includes(value);
 }
