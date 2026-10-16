@@ -44,6 +44,7 @@ export function OperatorShell({
   eventHref,
   eventAreas = [],
   participantsHref,
+  tasksHref,
   framed,
   spaceName,
   children,
@@ -55,6 +56,7 @@ export function OperatorShell({
   eventHref?: string;
   eventAreas?: string[];
   participantsHref?: string;
+  tasksHref?: string;
   framed?: boolean;
   spaceName?: string;
   children: ReactNode;
@@ -79,19 +81,26 @@ export function OperatorShell({
                   <NavItem item={{ label: eventName, icon: events, current: true, to: eventHref }} />
                 </li>
               </ul>
-              {eventAreas.includes("participants") ? (
+              {eventAreas.includes("participants") || eventAreas.includes("tasks") ? (
                 <div className="operator-shell__section">
                   <p className="operator-shell__section-label">행사 운영</p>
                   <ul className="operator-shell__group">
-                    <li>
-                      <NavItem
-                        item={{
-                          label: "참가자",
-                          icon: address,
-                          to: participantsHref,
-                        }}
-                      />
-                    </li>
+                    {eventAreas.includes("tasks") ? (
+                      <li>
+                        <NavItem item={{ label: "준비 업무", icon: clipboard, to: tasksHref }} />
+                      </li>
+                    ) : null}
+                    {eventAreas.includes("participants") ? (
+                      <li>
+                        <NavItem
+                          item={{
+                            label: "참가자",
+                            icon: address,
+                            to: participantsHref,
+                          }}
+                        />
+                      </li>
+                    ) : null}
                   </ul>
                 </div>
               ) : null}

@@ -51,6 +51,7 @@ function EventHomeBody({
       eventName={title}
       eventAreas={areas}
       participantsHref={eventId ? `/events/${eventId}/participants` : undefined}
+      tasksHref={areas.includes("tasks") && eventId ? `/events/${eventId}/tasks` : undefined}
       framed
       leading={
         <Link className="event-home__back" to="/events" aria-label="행사 목록">
@@ -97,7 +98,9 @@ function EventHomeBody({
               onClick={
                 item.title === "참가자 받기" && eventId
                   ? () => navigate(`/events/${eventId}/participants`)
-                  : undefined
+                  : item.title === "준비 업무" && eventId
+                    ? () => navigate(`/events/${eventId}/tasks`)
+                    : undefined
               }
             >
               <span className="event-home__chip">{item.badge}</span>
