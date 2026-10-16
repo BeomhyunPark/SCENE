@@ -8,6 +8,8 @@ import { EventHome } from "./components/EventHome";
 import { EventList } from "./components/EventList";
 import { EventParticipation } from "./components/EventParticipation";
 import { EventRegistrationSetup } from "./components/EventRegistrationSetup";
+import { EventTasks } from "./components/EventTasks";
+import { TaskDetail } from "./components/TaskDetail";
 import { RequireOperator } from "./components/RequireOperator";
 import { PublicHeader } from "./components/PublicHeader";
 import { PublicHome } from "./components/PublicHome";
@@ -52,6 +54,8 @@ export function App() {
         <Route element={<RequireOperator />}>
           <Route path="/events" element={<EventList />} />
           <Route path="/events/new" element={<EventCreate />} />
+          <Route path="/events/:eventId/tasks/:taskId" element={<TaskDetail />} />
+          <Route path="/events/:eventId/tasks" element={<EventTasks />} />
           <Route path="/events/:eventId/participants/setup" element={<EventRegistrationSetup />} />
           <Route path="/events/:eventId/participants" element={<EventParticipation />} />
           <Route path="/events/:eventId" element={<EventHome />} />

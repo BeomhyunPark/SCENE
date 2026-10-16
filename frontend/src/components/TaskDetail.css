@@ -1,0 +1,48 @@
+.task-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 28px 32px 32px;
+}
+
+.task-detail__badge {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font: var(--scene-label-l);
+}
+
+.task-detail__title,
+.task-detail__actions,
+.task-detail__assignee {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.task-detail input,
+.task-detail select {
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 8px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font: var(--scene-body-m);
+}
+
+.task-detail__items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.task-detail__items label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: var(--scene-body-m);
+}

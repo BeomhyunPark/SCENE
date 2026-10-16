@@ -1,0 +1,64 @@
+.event-tasks {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 28px 32px 32px;
+}
+
+.event-tasks__support {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font: var(--scene-body-m);
+}
+
+.event-tasks__create {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.event-tasks__create label {
+  font: var(--scene-label-l);
+}
+
+.event-tasks__create input {
+  min-width: 240px;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 8px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font: var(--scene-body-m);
+}
+
+.event-tasks__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.event-tasks__rows button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 12px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font: var(--scene-body-m);
+  text-align: left;
+}
+
+.event-tasks__badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--color-bg-subtle);
+  font: var(--scene-label-s);
+}

@@ -3,7 +3,13 @@ import { HttpResponse } from "msw";
 export function problem(
   status: number,
   code: string,
-  extra?: { errors?: { field: string }[]; eventStatus?: string },
+  extra?: {
+    errors?: { field: string }[];
+    eventStatus?: string;
+    reason?: string;
+    task?: unknown;
+    detail?: string;
+  },
 ): Response {
   return HttpResponse.json(
     {
