@@ -35,7 +35,14 @@
   text-align: center;
 }
 
-.public-home__start {
+.public-home__actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.public-home__actions a {
   text-decoration: none;
 }
 
@@ -78,7 +85,7 @@
     letter-spacing: 0;
   }
 
-  .public-home__start {
+  .public-home__actions .scene-button {
     min-height: 48px;
     padding: 10px 18px;
     font: var(--scene-label-l);

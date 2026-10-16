@@ -25,8 +25,11 @@ describe("public shell", () => {
       expect(text.closest("a")).toBeNull();
     }
 
-    const login = screen.getByRole("link", { name: "로그인" });
-    expect(login).toHaveAttribute("href", "/login");
+    const logins = screen.getAllByRole("link", { name: "로그인" });
+    expect(logins).toHaveLength(2);
+    for (const login of logins) {
+      expect(login).toHaveAttribute("href", "/login");
+    }
 
     expect(
       screen.getByRole("heading", {

@@ -14,12 +14,14 @@ export function PublicHome() {
             더 집중할 수 있도록.
           </h1>
           <p className="public-home__support">교회와 공동체를 위한 행사 운영, SCENE.</p>
-          <Link
-            className="scene-button scene-button--primary scene-button--size-40 public-home__start"
-            to="/signup"
-          >
-            <span className="scene-button__label">시작하기</span>
-          </Link>
+          <div className="public-home__actions">
+            <Link className="scene-button scene-button--secondary scene-button--size-40" to="/login">
+              <span className="scene-button__label">로그인</span>
+            </Link>
+            <Link className="scene-button scene-button--primary scene-button--size-40" to="/signup">
+              <span className="scene-button__label">시작하기</span>
+            </Link>
+          </div>
         </div>
         <MarketingPreview />
       </div>
