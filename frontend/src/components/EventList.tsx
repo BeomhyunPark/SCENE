@@ -35,7 +35,7 @@ export function EventList() {
   }
   if (!spaces.space) {
     return (
-      <OperatorShell title="행사">
+      <OperatorShell title="행사" framed>
         <div className="event-list__body">
           <section className="event-list__empty">
             <h3 className="event-list__empty-title">아직 들어간 조직이 없어요</h3>
@@ -61,6 +61,7 @@ function EventRows({ spaceId, spaceName }: { spaceId: string; spaceName: string 
     <OperatorShell
       title="행사"
       spaceName={spaceName}
+      framed
       action={
         <Button
           type="button"
