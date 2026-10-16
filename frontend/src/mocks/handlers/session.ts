@@ -1,8 +1,7 @@
 import { http, HttpResponse } from "msw";
+import { csrfMatches } from "../csrf";
 import { localUsers } from "../fixtures/seed";
 
-const CSRF_HEADER = "X-XSRF-TOKEN";
-const CSRF_COOKIE = "XSRF-TOKEN";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 type OperatorSession = {
@@ -14,6 +13,10 @@ let operatorSession: OperatorSession | null = null;
 
 export function resetOperatorSession(): void {
   operatorSession = null;
+}
+
+export function currentOperator(): OperatorSession | null {
+  return operatorSession;
 }
 
 export const sessionHandlers = [
@@ -46,12 +49,6 @@ export const sessionHandlers = [
     return new HttpResponse(null, { status: 204 });
   }),
 ];
-
-function csrfMatches(request: Request, cookies: Record<string, string>): boolean {
-  const header = request.headers.get(CSRF_HEADER);
-  const cookie = cookies[CSRF_COOKIE];
-  return Boolean(header && cookie && header === cookie);
-}
 
 function forbidden(): Response {
   return problem("FORBIDDEN");

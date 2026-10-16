@@ -5,7 +5,9 @@ import checklist from "../assets/event-home/checklist.svg";
 import dateIcon from "../assets/event-home/date.svg";
 import { Button } from "./Button";
 import { OperatorShell } from "./OperatorShell";
-import { eventContext, readEventDraft } from "./eventDraft";
+import type { EventDetail } from "../api/events";
+import { EventScreen } from "./EventScreen";
+import { eventContext, lifecycleLabel } from "./eventFormat";
 import "./EventHome.css";
 
 const checks = [
@@ -16,13 +18,23 @@ const checks = [
 
 export function EventRegistrationSetup() {
   const { eventId = "" } = useParams();
-  const draft = readEventDraft(eventId);
-  const title = draft?.name || "행사";
-  const context = draft ? eventContext(draft) : "";
+  return (
+    <EventScreen eventId={eventId}>
+      {(event, spaceName) => <SetupBody event={event} spaceName={spaceName} />}
+    </EventScreen>
+  );
+}
+
+function SetupBody({ event, spaceName }: { event: EventDetail; spaceName?: string }) {
+  const eventId = event.eventId;
+  const title = event.name;
+  const context = eventContext(event);
+  const draftStatus = event.lifecycleStatus === "DRAFT";
 
   return (
     <OperatorShell
       title={title}
+      spaceName={spaceName}
       eventName={title}
       eventHref={eventId ? `/events/${eventId}` : undefined}
       eventAreas={["participants"]}
@@ -43,7 +55,7 @@ export function EventRegistrationSetup() {
         <div className="event-home__context">
           <div>
             {context ? <p className="event-home__facts">{context}</p> : null}
-            <p className="event-home__state">참가 신청 · 공개 전</p>
+            <p className="event-home__state">{draftStatus ? "새로 만든 행사" : lifecycleLabel(event.lifecycleStatus)}</p>
           </div>
           <span className="event-home__badge">설정 중</span>
         </div>

@@ -8,6 +8,7 @@ import { EventHome } from "./components/EventHome";
 import { EventList } from "./components/EventList";
 import { EventParticipation } from "./components/EventParticipation";
 import { EventRegistrationSetup } from "./components/EventRegistrationSetup";
+import { RequireOperator } from "./components/RequireOperator";
 import { PublicHeader } from "./components/PublicHeader";
 import { PublicHome } from "./components/PublicHome";
 import { PublicLogin } from "./components/PublicLogin";
@@ -48,11 +49,13 @@ export function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<PublicLogin />} />
-        <Route path="/events" element={<EventList />} />
-        <Route path="/events/new" element={<EventCreate />} />
-        <Route path="/events/:eventId/participants/setup" element={<EventRegistrationSetup />} />
-        <Route path="/events/:eventId/participants" element={<EventParticipation />} />
-        <Route path="/events/:eventId" element={<EventHome />} />
+        <Route element={<RequireOperator />}>
+          <Route path="/events" element={<EventList />} />
+          <Route path="/events/new" element={<EventCreate />} />
+          <Route path="/events/:eventId/participants/setup" element={<EventRegistrationSetup />} />
+          <Route path="/events/:eventId/participants" element={<EventParticipation />} />
+          <Route path="/events/:eventId" element={<EventHome />} />
+        </Route>
         <Route path="/signup" element={<PublicSignup />} />
         <Route path="/verify-email" element={<PublicVerifyEmail />} />
         <Route path="/find-organization" element={<PublicFindOrganization />} />

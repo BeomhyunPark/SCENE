@@ -1,40 +1,91 @@
 import { useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router";
 import arrowLeft from "../assets/event-create/arrow-left.svg";
 import calendar from "../assets/event-create/calendar.svg";
 import caret from "../assets/event-nav/caret.svg";
+import { createEvent, type EventType } from "../api/events";
+import { EVENT_TYPE_OPTIONS } from "../api/eventTypes";
+import { isApiError } from "../api/errors";
+import { queryKeys } from "../api/queryKeys";
+import { useCurrentSpace } from "../api/useCurrentSpace";
 import { Button } from "./Button";
 import { OperatorShell } from "./OperatorShell";
-import { formatSceneDate, saveEventDraft } from "./eventDraft";
+import { OperatorStatus } from "./RequireOperator";
+import { formatSceneDate } from "./eventFormat";
 import "./EventCreate.css";
 
-const eventTypes = ["수련회", "비전트립", "아웃리치", "단기선교", "성경학교", "캠프", "워크숍", "기타"];
+const fieldMessage: Record<string, string> = {
+  name: "행사명을 확인해 주세요.",
+  startDate: "시작일을 확인해 주세요.",
+  endDate: "종료일을 확인해 주세요.",
+  place: "장소를 확인해 주세요.",
+  eventType: "행사 유형을 다시 골라 주세요.",
+};
 
 export function EventCreate() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const spaces = useCurrentSpace();
   const [name, setName] = useState("");
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
   const [place, setPlace] = useState("");
   const [kind, setKind] = useState("");
   const [nameMissing, setNameMissing] = useState(false);
+  const [fieldError, setFieldError] = useState("");
+  const [formError, setFormError] = useState("");
+  const [pending, setPending] = useState(false);
 
-  function create(event: FormEvent<HTMLFormElement>) {
+  if (spaces.isPending) return <OperatorStatus busy message="불러오는 중이에요." />;
+  if (!spaces.space) {
+    return <OperatorStatus message="아직 들어간 조직이 없어요" />;
+  }
+  const space = spaces.space;
+
+  async function create(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const trimmed = name.trim();
+    setFieldError("");
+    setFormError("");
     if (!trimmed) {
       setNameMissing(true);
       return;
     }
     if (start && end && end < start) return;
-    const id = crypto.randomUUID();
-    saveEventDraft(id, { name: trimmed, type: kind, start, end, place: place.trim(), areas: [] });
-    navigate(`/events/${id}`);
+    setPending(true);
+    try {
+      const created = await createEvent(space.spaceId, {
+        name: trimmed,
+        startDate: start || undefined,
+        endDate: end || undefined,
+        place: place.trim() || undefined,
+        eventType: kind ? (kind as EventType) : undefined,
+      });
+      queryClient.setQueryData(queryKeys.event(created.eventId), created);
+      await queryClient.invalidateQueries({ queryKey: ["spaces", space.spaceId, "events"] });
+      navigate(`/events/${created.eventId}`);
+    } catch (caught) {
+      if (isApiError(caught, "VALIDATION_FAILED")) {
+        const field = caught.errors?.[0]?.field;
+        setFieldError(field && fieldMessage[field] ? field : "");
+        if (!field || !fieldMessage[field]) setFormError("저장하지 못했어요. 다시 시도해 주세요.");
+        return;
+      }
+      if (isApiError(caught, "NOT_A_MEMBER") || (isApiError(caught) && caught.status === 404)) {
+        setFormError("이 조직에서 행사를 만들 수 없어요.");
+        return;
+      }
+      setFormError("저장하지 못했어요. 다시 시도해 주세요.");
+    } finally {
+      setPending(false);
+    }
   }
 
   return (
     <OperatorShell
       title="새 행사 만들기"
+      spaceName={space.name}
       leading={
         <Link className="event-create__back" to="/events" aria-label="행사 목록">
           <img src={arrowLeft} alt="" />
@@ -69,6 +120,11 @@ export function EventCreate() {
                 행사명을 입력해 주세요.
               </p>
             ) : null}
+            {fieldError === "name" ? (
+              <p className="event-create__error" role="alert">
+                {fieldMessage.name}
+              </p>
+            ) : null}
           </div>
           <div className="event-create__dates">
             <DateField
@@ -92,6 +148,16 @@ export function EventCreate() {
               }}
             />
           </div>
+          {fieldError === "startDate" ? (
+            <p className="event-create__error" role="alert">
+              {fieldMessage.startDate}
+            </p>
+          ) : null}
+          {fieldError === "endDate" ? (
+            <p className="event-create__error" role="alert">
+              {fieldMessage.endDate}
+            </p>
+          ) : null}
           <div className="event-create__field">
             <label className="event-create__label" htmlFor="event-place">
               장소
@@ -104,6 +170,11 @@ export function EventCreate() {
                 onChange={(event) => setPlace(event.target.value)}
               />
             </span>
+            {fieldError === "place" ? (
+              <p className="event-create__error" role="alert">
+                {fieldMessage.place}
+              </p>
+            ) : null}
           </div>
           <div className="event-create__field">
             <label className="event-create__label" htmlFor="event-kind">
@@ -117,20 +188,30 @@ export function EventCreate() {
                 onChange={(event) => setKind(event.target.value)}
               >
                 <option value="">선택하지 않음</option>
-                {eventTypes.map((type) => (
-                  <option key={type} value={type}>
-                    {type}
+                {EVENT_TYPE_OPTIONS.map((type) => (
+                  <option key={type.value} value={type.value}>
+                    {type.label}
                   </option>
                 ))}
               </select>
               <img src={caret} alt="" aria-hidden="true" />
             </span>
+            {fieldError === "eventType" ? (
+              <p className="event-create__error" role="alert">
+                {fieldMessage.eventType}
+              </p>
+            ) : null}
           </div>
+          {formError ? (
+            <p className="event-create__error" role="alert">
+              {formError}
+            </p>
+          ) : null}
           <div className="event-create__actions">
             <Button type="button" variant="secondary" size={40} onClick={() => navigate("/events")}>
               취소
             </Button>
-            <Button type="submit" variant="primary" size={40}>
+            <Button type="submit" variant="primary" size={40} loading={pending}>
               행사 만들기
             </Button>
           </div>
