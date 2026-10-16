@@ -1,5 +1,5 @@
 import { readFileSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const root = process.cwd();
@@ -174,11 +174,26 @@ describe("tokens", () => {
 
     const files = sourceFiles(join(root, "src"));
     const combined = files.map((file) => readFileSync(file, "utf8")).join("\n");
-    expect(combined.includes(["/api", "v1"].join("/"))).toBe(false);
-    expect(combined.includes("fetch(")).toBe(false);
     expect(combined.includes("react-hook-form")).toBe(false);
     expect(combined.includes("from \"zod\"")).toBe(false);
     expect(combined.includes("from 'zod'")).toBe(false);
+  });
+
+  it("calls the API only through src/api", () => {
+    const files = sourceFiles(join(root, "src"));
+    for (const file of files) {
+      const text = readFileSync(file, "utf8");
+      const rel = relative(root, file).split("\\").join("/");
+      if (rel !== "src/api/client.ts") {
+        expect(text.includes("fetch("), rel).toBe(false);
+        expect(text.includes("XMLHttpRequest"), rel).toBe(false);
+        expect(text.includes("axios"), rel).toBe(false);
+      }
+      const allowed = rel.startsWith("src/api/") || rel.startsWith("src/mocks/");
+      if (!allowed) {
+        expect(text.includes("/api/v1"), rel).toBe(false);
+      }
+    }
   });
 });
 

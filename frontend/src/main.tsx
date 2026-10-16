@@ -15,10 +15,19 @@ if (!root) {
   throw new Error("root element is missing");
 }
 
-createRoot(root).render(
-  <StrictMode>
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
-  </StrictMode>,
-);
+async function start(appRoot: HTMLElement): Promise<void> {
+  if (import.meta.env.DEV && import.meta.env.VITE_API_MOCK === "1") {
+    const { worker } = await import("./mocks/browser");
+    await worker.start({ onUnhandledFrame: "bypass" });
+  }
+
+  createRoot(appRoot).render(
+    <StrictMode>
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
+    </StrictMode>,
+  );
+}
+
+void start(root);
