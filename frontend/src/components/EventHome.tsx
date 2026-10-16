@@ -49,6 +49,7 @@ function EventHomeBody({
       title={title}
       spaceName={spaceName}
       eventName={title}
+      eventHref={eventId ? `/events/${eventId}` : undefined}
       eventAreas={areas}
       participantsHref={eventId ? `/events/${eventId}/participants` : undefined}
       tasksHref={areas.includes("tasks") && eventId ? `/events/${eventId}/tasks` : undefined}

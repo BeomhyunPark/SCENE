@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Link } from "react-router";
+import { Link, useLocation } from "react-router";
 import symbol from "../assets/scene-symbol-header.svg";
 import events from "../assets/event-nav/events.svg";
 import bell from "../assets/event-nav/bell.svg";
@@ -15,6 +15,11 @@ import squares from "../assets/event-nav/squares.svg";
 import gear from "../assets/event-nav/gear.svg";
 import caretVertical from "../assets/event-nav/caret-vertical.svg";
 import "./OperatorShell.css";
+
+function matchesPath(pathname: string, href?: string): boolean {
+  if (!href) return false;
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 const primary = [
   { label: "행사", icon: events },
@@ -61,6 +66,9 @@ export function OperatorShell({
   spaceName?: string;
   children: ReactNode;
 }) {
+  const { pathname } = useLocation();
+  const onParticipants = matchesPath(pathname, participantsHref);
+  const onTasks = matchesPath(pathname, tasksHref);
   return (
     <div className="operator-shell">
       <aside className="operator-shell__sidebar">
@@ -78,7 +86,14 @@ export function OperatorShell({
             <>
               <ul className="operator-shell__group">
                 <li>
-                  <NavItem item={{ label: eventName, icon: events, current: true, to: eventHref }} />
+                  <NavItem
+                    item={{
+                      label: eventName,
+                      icon: events,
+                      current: Boolean(eventHref) && pathname === eventHref,
+                      to: eventHref,
+                    }}
+                  />
                 </li>
               </ul>
               {eventAreas.includes("participants") || eventAreas.includes("tasks") ? (
@@ -87,7 +102,7 @@ export function OperatorShell({
                   <ul className="operator-shell__group">
                     {eventAreas.includes("tasks") ? (
                       <li>
-                        <NavItem item={{ label: "준비 업무", icon: clipboard, to: tasksHref }} />
+                        <NavItem item={{ label: "준비 업무", icon: clipboard, current: onTasks, to: tasksHref }} />
                       </li>
                     ) : null}
                     {eventAreas.includes("participants") ? (
@@ -96,6 +111,7 @@ export function OperatorShell({
                           item={{
                             label: "참가자",
                             icon: address,
+                            current: onParticipants,
                             to: participantsHref,
                           }}
                         />
