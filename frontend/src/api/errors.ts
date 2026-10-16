@@ -1,4 +1,7 @@
-/** Names from `ErrorCode.java`, plus client-only network and uncoded failures. */
+/**
+ * Names from `ErrorCode.java`, plus client-only network and uncoded failures.
+ * `EMAIL_NOT_VERIFIED` is a planned invitation code. The server does not emit it yet.
+ */
 export const API_ERROR_CODES = [
   "AUTHENTICATION_REQUIRED",
   "PARTICIPANT_ACCESS_INVALID",
@@ -23,6 +26,7 @@ export const API_ERROR_CODES = [
   "INVITATION_SUPERSEDED",
   "INVITATION_ALREADY_ACCEPTED",
   "INVITATION_NOT_FOUND",
+  "EMAIL_NOT_VERIFIED",
   "RATE_LIMITED",
   "TRANSFER_NOT_PENDING",
   "TRANSFER_COMPLETED",

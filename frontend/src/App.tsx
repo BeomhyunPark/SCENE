@@ -10,6 +10,7 @@ import { EventParticipation } from "./components/EventParticipation";
 import { EventRegistrationSetup } from "./components/EventRegistrationSetup";
 import { EventTasks } from "./components/EventTasks";
 import { TaskDetail } from "./components/TaskDetail";
+import { InvitationAccept } from "./components/InvitationAccept";
 import { RequireOperator } from "./components/RequireOperator";
 import { PublicHeader } from "./components/PublicHeader";
 import { PublicHome } from "./components/PublicHome";
@@ -67,6 +68,7 @@ export function App() {
         <Route path="/register-organization" element={<PublicRegisterOrganization />} />
         <Route path="/forgot-password" element={<PublicForgotPassword />} />
         <Route path="/reset-password" element={<PublicResetPassword />} />
+        <Route path="/operator/invitations" element={<InvitationAccept />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </QueryClientProvider>
