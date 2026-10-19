@@ -79,6 +79,9 @@ function EventRows({ spaceId, spaceName }: { spaceId: string; spaceName: string 
           <div>
             <h2 className="event-list__title">{spaceName}의 행사</h2>
             <p className="event-list__support">준비 중인 행사와 종료된 기록을 한곳에서 관리해요.</p>
+            <Link className="event-list__leave" to={`/spaces/${spaceId}/leave`}>
+              조직에서 나가기
+            </Link>
           </div>
           <p className="event-list__count">{events.data ? `${events.data.page.totalItems}개의 행사` : ""}</p>
         </div>
