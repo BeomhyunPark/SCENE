@@ -22,6 +22,7 @@
   box-sizing: border-box;
   padding: 28px 32px 32px;
   background: var(--color-bg-surface);
+  word-break: keep-all;
 }
 
 .event-home__context {
@@ -30,6 +31,32 @@
   justify-content: space-between;
   gap: 16px;
   min-height: 68px;
+}
+
+.event-home__retrospective {
+  display: inline-block;
+  margin-top: 8px;
+  color: var(--color-text-brand);
+  font: var(--scene-label-m);
+  letter-spacing: 0;
+  text-decoration: none;
+}
+
+.event-home__ended {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.event-home__ended h2,
+.event-home__ended p {
+  margin: 0;
+}
+
+.event-home__ended p {
+  color: var(--color-text-secondary);
+  font: var(--scene-body-m);
 }
 
 .event-home__facts {
