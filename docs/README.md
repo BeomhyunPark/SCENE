@@ -24,6 +24,7 @@
 ## 진행 관리
 
 - [GitHub Projects 운영 기준](project-management.md)
+- [2026-10-20 인수인계](handover/2026-10-20.md)
 - [진행 보드](https://github.com/users/BeomhyunPark/projects/5/views/1)
 - [프로토타입 감사 수정 현황·검증 자료](test_results/repair-status.md)
 
