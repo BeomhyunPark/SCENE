@@ -14,6 +14,8 @@ import { EventRegistrationSetup } from "./components/EventRegistrationSetup";
 import { EventTasks } from "./components/EventTasks";
 import { TaskDetail } from "./components/TaskDetail";
 import { InvitationAccept } from "./components/InvitationAccept";
+import { ParticipantEnter } from "./components/ParticipantEnter";
+import { PublicApply } from "./components/PublicApply";
 import { SpaceLeave } from "./components/SpaceLeave";
 import { SpaceSettings } from "./components/SpaceSettings";
 import { RequireOperator } from "./components/RequireOperator";
@@ -79,6 +81,8 @@ export function App() {
         <Route path="/forgot-password" element={<PublicForgotPassword />} />
         <Route path="/reset-password" element={<PublicResetPassword />} />
         <Route path="/operator/invitations" element={<InvitationAccept />} />
+        <Route path="/apply/:eventId/:formId" element={<PublicApply />} />
+        <Route path="/participate/:eventId" element={<ParticipantEnter />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </QueryClientProvider>
