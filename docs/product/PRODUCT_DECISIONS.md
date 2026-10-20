@@ -2030,6 +2030,14 @@ lifecycle command(DEC-063)의 `ALREADY_IN_STATE` → `CONCURRENT_MODIFICATION` �
 - 한국어 평가 기준. Jev 문서가 영어 외 품질이 낮을 수 있다고 하므로 도입 확정 전에 한국어 test set이 필요하다.
 - 의존성: C1은 체크 항목 추가 HTTP route가 필요하며 아직 API에 없다(설계는 후속).
 
+### Follow-up (2026-10-20): Laya 나중에 검토
+
+- 나중에 검토할 후보 모델은 [Laya](https://laya.convaiinnovations.com/)다(Apache 2.0, 자체 호스팅, [모델](https://huggingface.co/convaiinnovations/laya)). 주 대상은 C7이다.
+- 지금은 C1을 고정 템플릿으로, C7을 로컬 규칙으로 출시한다. 교체 지점은 `suggestTasks` / `checkFieldPrivacy` 인터페이스다.
+- 나중 검토의 전제: 한국어 gold set(라벨 약 200개), 파인튜닝, 규칙 대비 PoC.
+- 제안 기준: 규칙 대비 재현율 +10%p 이상, 오탐률 ≤10%, 높은 신뢰도 오답 ≤3%, p95 ≤300ms, CPU 전용 호스트에서 RAM ≤3GB.
+- 붙인다면 Spring만 호출하는 sidecar로 두고, provider adapter 뒤에 둔다.
+
 ### Alternatives
 
 AI 없이 출시하는 안은 시장 기대에 맞지 않아 채택하지 않았다. 제안서의 3순위 C8(참가자 질문 라우터)은 참가자 데이터가 공급자로 가 재위탁 결정이 먼저 필요해 backlog로 두었다. C3의 AI 편성은 §5.5와 충돌해 채택하지 않았다.
