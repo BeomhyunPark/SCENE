@@ -32,15 +32,6 @@
   letter-spacing: 0;
 }
 
-.event-list__leave {
-  display: inline-block;
-  margin-top: 8px;
-  color: var(--color-text-brand);
-  font: var(--scene-label-m);
-  letter-spacing: 0;
-  text-decoration: none;
-}
-
 .event-list__count {
   margin: 0;
   color: var(--color-text-secondary);

@@ -106,7 +106,9 @@ describe("space leave", () => {
         <App />
       </MemoryRouter>,
     );
-    fireEvent.click(await screen.findByRole("link", { name: "조직에서 나가기" }, { timeout: 4000 }));
+    fireEvent.click(await screen.findByRole("link", { name: "설정" }, { timeout: 4000 }));
+    expect(await screen.findByRole("heading", { name: "설정" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "조직에서 나가기" }));
     expect(await screen.findByRole("heading", { name: "조직에서 나갈까요?" })).toBeInTheDocument();
     expect(screen.getByText("참여 중인 행사가 없어요. 나가면 이 조직에서 빠져요.")).toBeInTheDocument();
   });
