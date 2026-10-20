@@ -64,6 +64,13 @@ export function createForm(eventId: string, actorId: string, body: unknown): For
   return toDetail(form);
 }
 
+export function publicForm(eventId: string, formId: string): FormDetail | FormFailure {
+  const found = forms.find((form) => form.eventId === eventId && form.formId === formId);
+  if (!found) return { status: 404, code: "FORM_NOT_FOUND" };
+  if (!found.acceptingApplications) return { status: 409, code: "FORM_CLOSED" };
+  return toDetail(found);
+}
+
 export function readForm(eventId: string, formId: string, actorId: string): FormDetail | FormFailure {
   const found = forms.find((form) => form.eventId === eventId && form.formId === formId);
   if (!found) return { status: 404, code: "RESOURCE_NOT_FOUND" };

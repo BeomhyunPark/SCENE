@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router";
 import arrowLeft from "../assets/event-create/arrow-left.svg";
 import calendarCheck from "../assets/event-home/calendar-check.svg";
@@ -7,6 +8,9 @@ import dateIcon from "../assets/event-home/date.svg";
 import { Button } from "./Button";
 import { OperatorShell } from "./OperatorShell";
 import type { EventDetail } from "../api/events";
+import { listForms } from "../api/forms";
+import { reloadQuery } from "../api/queryClient";
+import { queryKeys } from "../api/queryKeys";
 import { EventScreen } from "./EventScreen";
 import { eventContext, lifecycleLabel } from "./eventFormat";
 import { markEventArea } from "./eventLocalState";
@@ -27,6 +31,53 @@ export function EventParticipation() {
     <EventScreen eventId={eventId}>
       {(event, spaceName) => <ParticipationBody event={event} spaceName={spaceName} />}
     </EventScreen>
+  );
+}
+
+function ApplyAddress({ eventId }: { eventId: string }) {
+  const forms = useQuery({
+    queryKey: queryKeys.forms(eventId, 0),
+    queryFn: () => listForms(eventId, { page: 0, size: 20 }),
+    enabled: eventId.length > 0,
+  });
+  const [copied, setCopied] = useState(false);
+  const open = forms.data?.items.find((item) => item.acceptingApplications);
+  const address = open ? `${window.location.origin}/apply/${eventId}/${open.formId}` : "";
+
+  return (
+    <section className="event-home__apply">
+      <h2>신청 주소</h2>
+      {forms.isPending ? <p>불러오는 중이에요.</p> : null}
+      {forms.isError ? (
+        <>
+          <p>불러오지 못했어요.</p>
+          <Button type="button" variant="secondary" size={40} onClick={() => reloadQuery(forms)}>
+            다시 시도
+          </Button>
+        </>
+      ) : null}
+      {forms.isSuccess && open ? (
+        <>
+          <p>이 주소를 보내면 참가자가 신청할 수 있어요.</p>
+          <input className="event-home__address" readOnly aria-label="신청 주소" value={address} />
+          {copied ? <p>복사했어요.</p> : null}
+          <Button
+            type="button"
+            variant="secondary"
+            size={40}
+            onClick={() => {
+              void navigator.clipboard.writeText(address).then(
+                () => setCopied(true),
+                () => setCopied(false),
+              );
+            }}
+          >
+            복사
+          </Button>
+        </>
+      ) : null}
+      {forms.isSuccess && !open ? <p>신청을 열면 주소를 복사할 수 있어요.</p> : null}
+    </section>
   );
 }
 
@@ -78,6 +129,7 @@ function ParticipationBody({ event, spaceName }: { event: EventDetail; spaceName
             참가 신청 준비
           </Button>
         </section>
+        <ApplyAddress eventId={eventId} />
         <div className="event-home__work-intro">
           <h2>참가자를 받는 방법</h2>
           <p>행사에 맞는 방법으로 시작해 보세요.</p>

@@ -1,0 +1,120 @@
+.participant-gate {
+  min-height: 100vh;
+  background: var(--color-bg-canvas);
+  color: var(--color-text-primary);
+  word-break: keep-all;
+}
+
+.participant-gate__header {
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  height: 64px;
+  padding: 0 24px;
+  background: var(--color-bg-surface);
+  border-bottom: 1px solid var(--color-border-default);
+}
+
+.participant-gate__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text-primary);
+  text-decoration: none;
+}
+
+.participant-gate__main {
+  display: flex;
+  justify-content: center;
+  padding: 48px 24px;
+}
+
+.participant-gate__panel {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  width: min(480px, 100%);
+  padding: 28px;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: 12px;
+}
+
+.participant-gate__title {
+  margin: 0;
+  font: var(--scene-heading-m);
+  letter-spacing: 0;
+}
+
+.participant-gate__body {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font: var(--scene-body-m);
+  letter-spacing: 0;
+}
+
+.participant-gate__form,
+.participant-gate__fields {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+}
+
+.participant-gate__field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.participant-gate__label {
+  font: var(--scene-label-m);
+  letter-spacing: 0;
+}
+
+.participant-gate__input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 12px 14px;
+  color: var(--color-text-primary);
+  font: var(--scene-body-m);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: 12px;
+}
+
+.participant-gate__input:focus {
+  outline: none;
+}
+
+.participant-gate__input:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.participant-gate__error {
+  margin: 0;
+  color: var(--color-danger-fg);
+  font: var(--scene-body-s);
+  letter-spacing: 0;
+}
+
+.participant-gate__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+@media (max-width: 390px) {
+  .participant-gate__main {
+    padding: 24px 20px;
+  }
+
+  .participant-gate__panel {
+    padding: 24px 20px;
+  }
+}
