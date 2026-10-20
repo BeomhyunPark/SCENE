@@ -181,6 +181,7 @@ a.operator-shell__item {
 @media (min-width: 1024px) {
   .operator-shell__main--framed .operator-shell__header,
   .operator-shell__main--framed .event-home,
+  .operator-shell__main--framed .event-flow,
   .operator-shell__main--framed .event-list__body,
   .operator-shell__main--framed .space-leave,
   .operator-shell__main--framed .space-settings,

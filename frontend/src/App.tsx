@@ -4,7 +4,10 @@ import { Route, Routes } from "react-router";
 import { createQueryClient } from "./api/queryClient";
 import { MockBanner } from "./components/MockBanner";
 import { EventCreate } from "./components/EventCreate";
+import { EventEnd } from "./components/EventEnd";
 import { EventHome } from "./components/EventHome";
+import { EventRetrospective } from "./components/EventRetrospective";
+import { EventSettings } from "./components/EventSettings";
 import { EventList } from "./components/EventList";
 import { EventParticipation } from "./components/EventParticipation";
 import { EventRegistrationSetup } from "./components/EventRegistrationSetup";
@@ -59,6 +62,9 @@ export function App() {
           <Route path="/settings" element={<SpaceSettings />} />
           <Route path="/spaces/:spaceId/leave" element={<SpaceLeave />} />
           <Route path="/events/new" element={<EventCreate />} />
+          <Route path="/events/:eventId/settings" element={<EventSettings />} />
+          <Route path="/events/:eventId/end" element={<EventEnd />} />
+          <Route path="/events/:eventId/retrospective" element={<EventRetrospective />} />
           <Route path="/events/:eventId/tasks/:taskId" element={<TaskDetail />} />
           <Route path="/events/:eventId/tasks" element={<EventTasks />} />
           <Route path="/events/:eventId/participants/setup" element={<EventRegistrationSetup />} />

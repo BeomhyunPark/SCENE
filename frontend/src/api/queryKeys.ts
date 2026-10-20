@@ -5,6 +5,7 @@ export const queryKeys = {
   eventNames: (spaceId: string) => ["spaces", spaceId, "event-names"] as const,
   leavePreview: (spaceId: string) => ["spaces", spaceId, "leave-preview"] as const,
   event: (eventId: string) => ["events", eventId] as const,
+  retrospective: (eventId: string) => ["events", eventId, "retrospective"] as const,
   tasks: (eventId: string, page: number) => ["events", eventId, "tasks", page] as const,
   task: (eventId: string, taskId: string) => ["events", eventId, "tasks", taskId] as const,
   operators: (eventId: string) => ["events", eventId, "operators"] as const,
