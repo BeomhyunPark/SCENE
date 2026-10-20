@@ -38,9 +38,11 @@ export type CreateEventInput = {
 export function listEvents(
   spaceId: string,
   query: { page: number; size: number },
+  signal?: AbortSignal,
 ): Promise<ItemPage<EventListItem>> {
   return apiRequest<ItemPage<EventListItem>>(`/api/v1/operator/spaces/${spaceId}/events`, {
     query: { page: query.page, size: query.size },
+    signal,
   });
 }
 

@@ -182,6 +182,8 @@ a.operator-shell__item {
   .operator-shell__main--framed .operator-shell__header,
   .operator-shell__main--framed .event-home,
   .operator-shell__main--framed .event-list__body,
+  .operator-shell__main--framed .space-leave,
+  .operator-shell__main--framed .space-settings,
   .operator-shell__main--framed .event-tasks,
   .operator-shell__main--framed .task-detail {
     box-sizing: border-box;

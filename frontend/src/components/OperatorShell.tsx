@@ -134,7 +134,13 @@ export function OperatorShell({
               <ul className="operator-shell__group">
                 {primary.map((item) => (
                   <li key={item.label}>
-                    <NavItem item={item} />
+                    <NavItem
+                      item={
+                        item.label === "행사"
+                          ? { ...item, current: pathname !== "/settings" }
+                          : item
+                      }
+                    />
                   </li>
                 ))}
               </ul>
@@ -151,7 +157,13 @@ export function OperatorShell({
               <ul className="operator-shell__group">
                 {system.map((item) => (
                   <li key={item.label}>
-                    <NavItem item={item} />
+                    <NavItem
+                      item={
+                        item.label === "설정"
+                          ? { ...item, to: "/settings", current: pathname === "/settings" }
+                          : item
+                      }
+                    />
                   </li>
                 ))}
               </ul>

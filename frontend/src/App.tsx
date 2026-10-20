@@ -11,6 +11,8 @@ import { EventRegistrationSetup } from "./components/EventRegistrationSetup";
 import { EventTasks } from "./components/EventTasks";
 import { TaskDetail } from "./components/TaskDetail";
 import { InvitationAccept } from "./components/InvitationAccept";
+import { SpaceLeave } from "./components/SpaceLeave";
+import { SpaceSettings } from "./components/SpaceSettings";
 import { RequireOperator } from "./components/RequireOperator";
 import { PublicHeader } from "./components/PublicHeader";
 import { PublicHome } from "./components/PublicHome";
@@ -54,6 +56,8 @@ export function App() {
         <Route path="/login" element={<PublicLogin />} />
         <Route element={<RequireOperator />}>
           <Route path="/events" element={<EventList />} />
+          <Route path="/settings" element={<SpaceSettings />} />
+          <Route path="/spaces/:spaceId/leave" element={<SpaceLeave />} />
           <Route path="/events/new" element={<EventCreate />} />
           <Route path="/events/:eventId/tasks/:taskId" element={<TaskDetail />} />
           <Route path="/events/:eventId/tasks" element={<EventTasks />} />
