@@ -27,12 +27,20 @@ class SecurityPropertiesTest {
 
   @Test
   void rejectsConceptualCookieNames() {
-    assertThatThrownBy(() -> session("scene_operator_session", "placeholder-participant-session"))
+    assertThatThrownBy(() -> session("scene_operator_session", "SCENE_PSESSION"))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("not approved");
-    assertThatThrownBy(() -> session("placeholder-operator-session", "scene_participant_session"))
+    assertThatThrownBy(() -> session("SCENE_SESSION", "scene_participant_session"))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("not approved");
+  }
+
+  @Test
+  void acceptsTheDecidedCookieNames() {
+    SecurityProperties.Session session = session("SCENE_SESSION", "SCENE_PSESSION");
+    assertThat(session.operatorCookieName()).isEqualTo("SCENE_SESSION");
+    assertThat(session.participantCookieName()).isEqualTo("SCENE_PSESSION");
+    assertThat(session.sameSite()).isEqualTo("Lax");
   }
 
   @Test

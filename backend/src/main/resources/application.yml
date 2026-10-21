@@ -22,17 +22,19 @@ server:
     include-stacktrace: never
     include-binding-errors: never
 
-# Session cookie names are placeholders. scene_operator_session and scene_participant_session
-# are conceptual names in security-privacy §2 and are not cookie names.
-# SameSite's token is not decided; Lax only makes the attribute present.
+# DEC-067. Operator cookie SCENE_SESSION, participant cookie SCENE_PSESSION.
+# Both are HttpOnly, Secure, and SameSite=Lax. The serializers set HttpOnly and Secure.
+# scene_operator_session and scene_participant_session stay conceptual names in
+# security-privacy §2 and are not cookie names.
+# Session TTL is still OPEN. spring.session.timeout of 30 minutes is the library default.
 # The CORS origin is not a SCENE frontend. dev, stg, and prod replace it from the environment.
 scene:
   security:
     cors:
       allowed-origins: http://scene-frontend.placeholder.invalid
     session:
-      operator-cookie-name: placeholder-operator-session
-      participant-cookie-name: placeholder-participant-session
+      operator-cookie-name: SCENE_SESSION
+      participant-cookie-name: SCENE_PSESSION
       same-site: Lax
 
 logging:

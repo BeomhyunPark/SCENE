@@ -45,8 +45,8 @@ import tools.jackson.databind.json.JsonMapper;
 @Import(PostgresTestcontainer.class)
 class ParticipantSessionHttpIT {
 
-  private static final String OPERATOR_COOKIE = "placeholder-operator-session";
-  private static final String PARTICIPANT_COOKIE = "placeholder-participant-session";
+  private static final String OPERATOR_COOKIE = "SCENE_SESSION";
+  private static final String PARTICIPANT_COOKIE = "SCENE_PSESSION";
   private static final String CSRF_COOKIE = "XSRF-TOKEN";
   private static final String CSRF_HEADER = "X-XSRF-TOKEN";
   private static final String CSRF = "csrf-token";
@@ -85,6 +85,7 @@ class ParticipantSessionHttpIT {
     String setCookie = participantCookieHeader(issued);
     String token = cookieValue(setCookie);
     assertThat(issued.getResponse().getContentAsString()).isEmpty();
+    assertThat(setCookie).startsWith(PARTICIPANT_COOKIE + "=");
     assertThat(setCookie).contains("HttpOnly", "Secure", "SameSite=Lax");
     assertThat(setCookie).contains("Path=/api/v1/participant");
     assertThat(setCookie).doesNotContain("Max-Age", "Expires=", "Domain=");

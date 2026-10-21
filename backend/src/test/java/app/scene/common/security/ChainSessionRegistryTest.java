@@ -14,13 +14,13 @@ class ChainSessionRegistryTest {
 
   @Test
   void cookieIsHttpOnlySecureAndSameSiteAndNotAConceptualName() {
-    ChainSessionRegistry registry = new ChainSessionRegistry("placeholder-operator-session", "Lax");
+    ChainSessionRegistry registry = new ChainSessionRegistry("SCENE_SESSION", "Lax");
     MockHttpServletResponse response = new MockHttpServletResponse();
 
     registry.establish(new ProbeAuthentication("operator"), response);
 
     String header = response.getHeader(HttpHeaders.SET_COOKIE);
-    assertThat(header).startsWith("placeholder-operator-session=");
+    assertThat(header).startsWith("SCENE_SESSION=");
     assertThat(header).contains("HttpOnly");
     assertThat(header).contains("Secure");
     assertThat(header).contains("SameSite=Lax");
@@ -32,9 +32,8 @@ class ChainSessionRegistryTest {
 
   @Test
   void operatorAndParticipantRegistriesDoNotReadEachOthersIds() {
-    ChainSessionRegistry operator = new ChainSessionRegistry("placeholder-operator-session", "Lax");
-    ChainSessionRegistry participant =
-        new ChainSessionRegistry("placeholder-participant-session", "Lax");
+    ChainSessionRegistry operator = new ChainSessionRegistry("SCENE_SESSION", "Lax");
+    ChainSessionRegistry participant = new ChainSessionRegistry("SCENE_PSESSION", "Lax");
     Cookie operatorCookie =
         operator.establish(new ProbeAuthentication("operator"), new MockHttpServletResponse());
     Cookie participantCookie =

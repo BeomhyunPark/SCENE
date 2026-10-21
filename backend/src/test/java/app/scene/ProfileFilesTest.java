@@ -43,8 +43,10 @@ class ProfileFilesTest {
   void defaultSecurityPlaceholdersAreNotConceptualNamesOrAProductionOrigin() throws IOException {
     String text = read("application.yml");
     assertThat(text).contains("http://scene-frontend.placeholder.invalid");
-    assertThat(text).contains("placeholder-operator-session");
-    assertThat(text).contains("placeholder-participant-session");
+    assertThat(text).contains("operator-cookie-name: SCENE_SESSION");
+    assertThat(text).contains("participant-cookie-name: SCENE_PSESSION");
+    assertThat(text).doesNotContain("placeholder-operator-session");
+    assertThat(text).doesNotContain("placeholder-participant-session");
     assertThat(text).doesNotContain("operator-cookie-name: scene_operator_session");
     assertThat(text).doesNotContain("participant-cookie-name: scene_participant_session");
   }
