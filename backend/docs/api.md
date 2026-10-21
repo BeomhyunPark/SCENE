@@ -29,7 +29,7 @@ operator 경로는 운영자 세션이 필요하다. public 경로는 세션을 
 
 ### 세션 쿠키
 
-로그인 성공의 `Set-Cookie` 이름은 `placeholder-operator-session`이다. 값은 Spring Session의 세션 id이고, Base64가 아니다. `HttpOnly`, `Secure`, 경로 `/`, `SameSite=Lax`다. 자리표시자 이름과 `Lax`는 `application.yml`의 `scene.security.session`에 있다. 제품의 쿠키 이름과 세션 만료는 아직 결정이 아니다. `spring.session.timeout` 30분은 라이브러리 기본값이다.
+로그인 성공의 `Set-Cookie` 이름은 `placeholder-operator-session`이다. 값은 Spring Session의 세션 id이고, Base64가 아니다. `HttpOnly`, `Secure`, 경로 `/`, `SameSite=Lax`다. 자리표시자 이름과 `Lax`는 `application.yml`의 `scene.security.session`에 있다. 제품 쿠키 이름은 [DEC-067](../../docs/product/PRODUCT_DECISIONS.md)에서 `SCENE_SESSION`으로 정했고 아직 코드에 반영되지 않았다([결정 문서와 다른 점](#결정-문서와-다른-점)). 세션 만료는 아직 결정이 아니다. `spring.session.timeout` 30분은 라이브러리 기본값이다.
 
 서버는 이 쿠키를 Spring Session JDBC(`spring_session`)에 저장한다. 로그인 이후의 operator 경로는 이 쿠키가 필요하다. 없거나 만료되면 `401 AUTHENTICATION_REQUIRED`다.
 
@@ -143,7 +143,7 @@ curl -sS \
 
 ### `POST /api/v1/operator/auth/login`
 
-세션 없이 호출한다. CSRF는 필요하다.
+세션 없이 호출한다. CSRF는 필요하다. 개발용 로그인이다. [DEC-067](../../docs/product/PRODUCT_DECISIONS.md)은 이 경로를 `local`·`test` profile에서만 열기로 정했다. 지금 코드는 모든 profile에서 연다([결정 문서와 다른 점](#결정-문서와-다른-점)).
 
 ```json
 { "userId": "00000000-0000-4000-8000-000000000001", "email": "Local@Example.com" }
@@ -951,7 +951,7 @@ CSRF가 필요하다. `Idempotency-Key`는 읽지 않는다.
 
 본문은 `{ "accessKey": "…" }`다. 앞뒤 공백은 자른다. CSRF가 필요하다. 행사가 없으면 `404 RESOURCE_NOT_FOUND`다. 키가 없거나, 그 행사에 맞는 접근이 하나가 아니면 `401 PARTICIPANT_ACCESS_INVALID`다. 맞는 키와 틀린 키를 본문으로 구분하지 않는다.
 
-성공은 `204`다. 본문은 없다. `Set-Cookie` 이름은 `placeholder-participant-session`이다. `HttpOnly`, `Secure`, `SameSite=Lax`, 경로 `/api/v1/participant`다. 값은 세션 토큰이고 응답 본문에는 없다. 서버는 토큰 해시만 저장한다.
+성공은 `204`다. 본문은 없다. `Set-Cookie` 이름은 `placeholder-participant-session`이다(DEC-067의 제품 이름은 `SCENE_PSESSION`, 아직 미반영). `HttpOnly`, `Secure`, `SameSite=Lax`, 경로 `/api/v1/participant`다. 값은 세션 토큰이고 응답 본문에는 없다. 서버는 토큰 해시만 저장한다.
 
 키를 링크 fragment로 두고 읽은 뒤 지우는 규칙은 [DEC-064](../../docs/product/PRODUCT_DECISIONS.md)다. 이 경로의 구현 단계는 [결정 문서와 다른 점](#결정-문서와-다른-점)에 있다.
 
@@ -1018,7 +1018,8 @@ CSRF가 필요하다. 그 쿠키의 세션 행만 지운다. `204`이고 본문�
 
 ## 결정 문서와 다른 점
 
-결정 문서는 이 변경에서 고치지 않는다.
-
-- [DEC-064](../../docs/product/PRODUCT_DECISIONS.md)와 [API Architecture](../../docs/architecture/api-architecture-v0.1.md), [Security](../../docs/architecture/security-privacy-v0.1.md)는 참가자 세션 발급을 Phase 3로 적는다. 이 서버는 `POST /api/v1/public/events/{eventId}/participant-sessions`, `GET /api/v1/participant/me`, `POST /api/v1/participant/auth/logout`를 이미 연다.
+- [DEC-064](../../docs/product/PRODUCT_DECISIONS.md) Follow-up (2026-10-21)은 참가자 세션 발급, `GET /api/v1/participant/me`, `POST /api/v1/participant/auth/logout`를 Phase 3보다 앞서 MVP에 넣었다. 이 서버와 맞는다. [API Architecture](../../docs/architecture/api-architecture-v0.1.md)와 [Security](../../docs/architecture/security-privacy-v0.1.md)는 아직 Phase 3로 적는다.
+- [DEC-067](../../docs/product/PRODUCT_DECISIONS.md)은 개발용 로그인(`POST /api/v1/operator/auth/login`)과 로그인 body `email`을 `local`·`test` profile에서만 열고 다른 profile에서는 404로 정했다. 이 서버는 모든 profile에서 연다.
+- DEC-067은 세션 쿠키를 `SCENE_SESSION`(운영자)·`SCENE_PSESSION`(참가자), `SameSite=Lax`·`Secure`·`HttpOnly`, 로그인 시 `changeSessionId()`로 정했다. 이 서버는 `placeholder-` 이름을 쓰고 로그인에서 session id를 바꾸지 않는다.
+- DEC-067은 회고를 draft 전용(mock, `unverified`)으로 두고 저장 API를 만들지 않는다. 서버에 회고 경로는 없다(위 "아직 없는 경로").
 - DEC-064는 public 세션 POST의 CSRF를 구현 때 정할 메모로 둔다. 이 서버의 public 체인은 다른 변경 요청과 같이 CSRF 쿠키 `XSRF-TOKEN`과 헤더 `X-XSRF-TOKEN`을 요구한다.
