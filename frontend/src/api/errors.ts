@@ -1,6 +1,6 @@
 /**
  * Names from `ErrorCode.java`, plus client-only network and uncoded failures.
- * `EMAIL_NOT_VERIFIED` is a planned invitation code. The server does not emit it yet.
+ * `EMAIL_NOT_VERIFIED` is returned when the operator session has no verified email.
  */
 export const API_ERROR_CODES = [
   "AUTHENTICATION_REQUIRED",

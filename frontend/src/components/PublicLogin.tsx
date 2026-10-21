@@ -1,13 +1,15 @@
-import { useState, type FormEvent } from "react";
+import { lazy, Suspense, useState, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import visual from "../assets/p01-02-auth-visual.svg";
 import symbol from "../assets/scene-symbol-login.svg";
 import eye from "../assets/icon-eye.svg";
 import eyeOff from "../assets/icon-eye-off.svg";
 import { Button } from "./Button";
-import { devLoginEnabled } from "../devLogin";
-import { DevLoginPanel } from "./DevLoginPanel";
 import "./PublicLogin.css";
+
+const DevLoginPanel = import.meta.env.DEV
+  ? lazy(() => import("./DevLoginPanel").then((module) => ({ default: module.DevLoginPanel })))
+  : null;
 
 function isEmailAddress(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -126,10 +128,16 @@ export function PublicLogin() {
               계정이 없으신가요? <Link to="/signup">계정 만들기</Link>
             </p>
           </form>
-          {devLoginEnabled() && params.get("next") ? (
-            <p className="public-login__dev-hint">개발 중에는 아래 개발용 로그인으로 들어가요.</p>
+          {DevLoginPanel ? (
+            <>
+              {params.get("next") ? (
+                <p className="public-login__dev-hint">개발 중에는 아래 개발용 로그인으로 들어가요.</p>
+              ) : null}
+              <Suspense fallback={null}>
+                <DevLoginPanel />
+              </Suspense>
+            </>
           ) : null}
-          <DevLoginPanel />
         </div>
       </div>
     </main>
