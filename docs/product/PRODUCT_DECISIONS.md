@@ -1,6 +1,6 @@
 # Church Event Operations Platform — Product Decisions
 
-> **2026-09-30 baseline:** DEC-001~027의 기존 본문·Status 보존. 최초 정리 당시에는 새 DEC를 만들지 않았고, 이후 검토에서 DEC-028~059를 추가했다. 2026-10-01 #11·#12 기술 계약으로 DEC-060~061을, 2026-10-02 #31 업무·체크리스트 저장 계약으로 DEC-062를, #30 행사 lifecycle command 계약으로 DEC-063을, 2026-10-06 MVP 참여자 인증 결정으로 DEC-064를, 같은 날 업무 오류 판정 순서·Override 사유 저장 보강으로 DEC-065를, 2026-10-15 AI 기능 포함과 첫 AI 범위(C1·C7) 결정으로 DEC-066을 추가했다(현재 마지막 번호 DEC-066). 최신 요청의 제품명 SCENE 및 Technical Design / implementation 전 상태가 현재 기준이다. DEC-024/027의 단계와 §17 Product Name OPEN은 이전 이력이며 기술 기준은 [Architecture](../architecture/architecture-v0.1.md)를 따른다. 공식 Decision Log 정합화는 검토 필요.
+> **2026-09-30 baseline:** DEC-001~027의 기존 본문·Status 보존. 최초 정리 당시에는 새 DEC를 만들지 않았고, 이후 검토에서 DEC-028~059를 추가했다. 2026-10-01 #11·#12 기술 계약으로 DEC-060~061을, 2026-10-02 #31 업무·체크리스트 저장 계약으로 DEC-062를, #30 행사 lifecycle command 계약으로 DEC-063을, 2026-10-06 MVP 참여자 인증 결정으로 DEC-064를, 같은 날 업무 오류 판정 순서·Override 사유 저장 보강으로 DEC-065를, 2026-10-15 AI 기능 포함과 첫 AI 범위(C1·C7) 결정으로 DEC-066을, 2026-10-21 개발용 로그인 profile gate·세션 쿠키 결정으로 DEC-067을 추가했다(현재 마지막 번호 DEC-067). 최신 요청의 제품명 SCENE 및 Technical Design / implementation 전 상태가 현재 기준이다. DEC-024/027의 단계와 §17 Product Name OPEN은 이전 이력이며 기술 기준은 [Architecture](../architecture/architecture-v0.1.md)를 따른다. 공식 Decision Log 정합화는 검토 필요.
 >
 > DEC-027은 단계 설명에 한해 DEC-024를 대체한다고 기록하지만 DEC-024의 원래 CONFIRMED 표기는 보존한다. Evidence Type의 HYPOTHESIS 용어 충돌도 [검토 기록](../architecture/architecture-v0.1.md)에 남긴다.
 > [Product Definition](PRODUCT_DEFINITION.md) · [Research](RESEARCH.md)
@@ -1950,6 +1950,14 @@ DEC-054~059와 [#12 사용자 답변](https://github.com/BeomhyunPark/SCENE/issu
 - 전화번호 OTP, SMS vendor 연동. 프로토타입의 인증번호 화면은 MVP 서버 계약이 아니다.
 - 키 TTL, 세션 TTL, 키 복구, rate limit 숫자, 재발급 endpoint 경로와 Permission은 OPEN이다.
 
+### Follow-up (2026-10-21): 참여자 세션을 MVP로 앞당김
+
+- 위 "단계"의 Phase 3 문장을 고친다. 참여자 세션 발급(`POST /api/v1/public/events/{eventId}/participant-sessions`), `GET /api/v1/participant/me`, `POST /api/v1/participant/auth/logout`는 Phase 3보다 앞서 MVP에 넣었다(#194 화면, 서버 경로는 이미 열려 있음).
+- 키·fragment·hash·401 규칙은 그대로다. 세션 쿠키 이름과 속성은 DEC-067을 따른다.
+- 키 TTL, 세션 TTL, 키 복구, rate limit, 재발급 endpoint는 여전히 OPEN이다.
+
+현 결정 2026-10-21.
+
 ### Consequence
 
 상세 계약과 회귀 표는 [API Architecture](../architecture/api-architecture-v0.1.md#2026-10-06-mvp-참여자-인증-dec-064)(§3 포함), 보안 기준은 [Security / Privacy](../architecture/security-privacy-v0.1.md#3-participant-access) §3, 저장은 [Data Model](../architecture/data-model-v0.1.md#6-security-data) §6을 따른다. 서버 구현은 QA·현 확인 뒤다.
@@ -2053,3 +2061,53 @@ AI 없이 출시하는 안은 시장 기대에 맞지 않아 채택하지 않았
 ### Evidence
 
 현 결정 2026-10-15. [AI 기능 제안](ai-feature-proposal.md)(SCENE Product, `main` @ `94be076`).
+
+---
+
+## DEC-067 — 개발용 로그인은 Spring profile로만 열고 세션 쿠키 이름을 `SCENE_SESSION`·`SCENE_PSESSION`으로 정한다
+
+**Date:** 2026-10-21
+
+**Status:** CONFIRMED (현 결정 2026-10-21)
+
+### Context
+
+2026-10-21 구현 리뷰(`main` @ `db67aba`)가 다음을 찾았다.
+
+- `POST /api/v1/operator/auth/login`은 아무 `userId`나 받아 그 사용자로 로그인시키고, `permitAll`이며 profile·flag 제한이 없다. 모든 profile에서 UUID만 알면 그 계정이 된다.
+- 같은 요청의 `email`을 세션에 두고 초대 수락이 이 값과 초대 이메일을 비교한다. 토큰을 가진 사람이 초대받은 이메일을 보내면 초대를 수락할 수 있다.
+- 로그인을 수동으로 처리해 session id가 바뀌지 않는다(session fixation).
+- 프론트엔드는 `VITE_DEV_LOGIN=1`이면 어떤 build에서도 개발용 로그인을 켜고, 개발용 패널이 seed fixture를 import해 production bundle에 seed 사용자와 UUID가 들어간다.
+- 세션 쿠키 이름이 `placeholder-operator-session`·`placeholder-participant-session`이고 prod가 덮어쓰지 않는다.
+- 회고 GET/PUT은 서버에 없고 MSW mock(`unverified`)뿐이다.
+
+### Decision
+
+- **개발용 로그인은 Spring profile로만 연다.** `local`·`test` profile에서만 개발용 로그인 경로가 존재한다. 다른 모든 profile(stg, prod 등)에서는 경로 자체가 없어 404다. 켜는 환경 변수나 property flag는 두지 않는다.
+  - 로그인 body의 `email`도 개발용 로그인과 함께 `local`·`test`에서만 의미가 있다. 다른 profile에서는 클라이언트가 보낸 이메일을 믿지 않으며, 검증된 이메일이 없으면 초대 수락은 `EMAIL_NOT_VERIFIED`다.
+  - 프론트엔드는 `VITE_DEV_LOGIN` production 경로를 없애고 `import.meta.env.DEV`일 때만 개발용 패널을 켠다. 개발용 패널과 seed 데이터는 dev build에서만 lazy-load해 production bundle에 들어가지 않는다.
+  - 실제 인증(비밀번호 로그인 등)과 검증된 이메일은 외부 사용자에게 열기 직전에 넣는다. 그 전까지 서버는 공개 노출하지 않는다.
+- **세션 쿠키:** 운영자 세션은 `SCENE_SESSION`, 참여자 세션은 `SCENE_PSESSION`이다. 둘 다 `SameSite=Lax`, `Secure`, `HttpOnly`다. 로그인 성공 시 `request.changeSessionId()`로 session id를 바꾼다.
+- **회고:** 지금은 draft 전용(mock, `unverified` 표시)으로 둔다. 회고 저장 API는 아직 만들지 않는다.
+- **다음 slice 순서:** (a) 개발용 로그인 gate와 세션 수정 → (b) 신청 목록 → (c) 초대 생성 → (d) 회고 API(나중).
+
+### 범위 밖
+
+- 문구 정리(초대, 나가기, 종료, 회고, 신청, 개인정보 경고)는 진행 중인 UI/UX 리뷰 뒤에 한다. 이 DEC에 넣지 않는다.
+- 비밀번호 로그인·이메일 검증의 방식, 세션 만료 시간은 OPEN이다.
+
+### Alternatives
+
+`scene.dev-login.enabled` 같은 property flag로 켜는 안은 stg·prod 설정 실수 하나로 사칭이 열리므로 채택하지 않았다. `__Host-` 접두 이름은 참여자 쿠키 경로가 `/api/v1/participant`라 `Path=/` 조건과 맞지 않아 쓰지 않았다.
+
+### Reason
+
+실제 인증이 들어오기 전까지 사칭 경로가 운영 환경에 존재하지 않게 하는 가장 단순한 방법이 profile gate다. 쿠키 이름·속성을 지금 정해 자리표시자가 운영에 남지 않게 한다.
+
+### Consequence
+
+서버 구현(profile gate, 404 IT, 이메일 spoof 차단 테스트, 쿠키 이름, `changeSessionId`)과 프론트엔드 정리는 slice (a) PR에서 한다. 그 전까지 [backend/docs/api.md](../../backend/docs/api.md)는 "결정 문서와 다른 점"에 차이를 적는다. 참여자 세션의 단계 변경은 DEC-064 Follow-up (2026-10-21)에 있다. 문서만 바꿨으며 코드는 없다.
+
+### Evidence
+
+현 결정 2026-10-21. SCENE 구현 리뷰 2026-10-21(S1~S6, S8).
