@@ -125,9 +125,9 @@ XML은 Java 패키지와 따로 있다. 인터페이스는 `src/main/java/.../ma
 | 2 | `/api/v1/participant/**` | 서버 메모리의 `ChainSessionRegistry` | 없다. 테스트의 probe만 있다. |
 | 3 | `/api/v1/public/**` | 세션을 만들지 않는다. | 없다. 테스트의 probe만 있다. |
 
-`POST /api/v1/operator/auth/login`만 로그인 없이 열린다. 나머지 operator 경로는 세션이 필요하다. 로그인 본문은 `users.id`다. 비밀번호 검사는 없다. 자격 증명 형식은 아직 정해지지 않았다. 없는 id는 세션을 만들지 않고 401이다.
+`POST /api/v1/operator/auth/login`은 `local`·`test` profile에만 있다(`DevLoginController`). 다른 profile에서는 핸들러가 없어 404다. `me`와 `logout`은 모든 profile에 있다. 로그인 본문은 `users.id`다. 비밀번호 검사는 없다. 자격 증명 형식은 아직 정해지지 않았다. 없는 id는 세션을 만들지 않고 401이다. 성공하면 세션 id를 바꾼다.
 
-쿠키 이름 `placeholder-operator-session`, `placeholder-participant-session`과 CORS origin `http://scene-frontend.placeholder.invalid`은 자리표시자다. `application.yml`이 그 값의 출처다. SameSite는 속성을 넣기 위한 `Lax`다. 제품 결정이 아니다.
+쿠키 이름은 `SCENE_SESSION`(운영자, 경로 `/`)과 `SCENE_PSESSION`(참가자, 경로 `/api/v1/participant`)이다. 둘 다 `HttpOnly`, `Secure`, `SameSite=Lax`다. CORS origin `http://scene-frontend.placeholder.invalid`은 자리표시자다. `application.yml`이 그 값의 출처다.
 
 CSRF 쿠키는 `XSRF-TOKEN`, 헤더는 `X-XSRF-TOKEN`이다. 변경 요청은 둘을 맞춘다.
 

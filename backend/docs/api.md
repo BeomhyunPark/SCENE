@@ -29,7 +29,7 @@ operator 경로는 운영자 세션이 필요하다. public 경로는 세션을 
 
 ### 세션 쿠키
 
-로그인 성공의 `Set-Cookie` 이름은 `placeholder-operator-session`이다. 값은 Spring Session의 세션 id이고, Base64가 아니다. `HttpOnly`, `Secure`, 경로 `/`, `SameSite=Lax`다. 자리표시자 이름과 `Lax`는 `application.yml`의 `scene.security.session`에 있다. 제품 쿠키 이름은 [DEC-067](../../docs/product/PRODUCT_DECISIONS.md)에서 `SCENE_SESSION`으로 정했고 아직 코드에 반영되지 않았다([결정 문서와 다른 점](#결정-문서와-다른-점)). 세션 만료는 아직 결정이 아니다. `spring.session.timeout` 30분은 라이브러리 기본값이다.
+로그인 성공의 `Set-Cookie` 이름은 `SCENE_SESSION`이다. 값은 Spring Session의 세션 id이고, Base64가 아니다. `HttpOnly`, `Secure`, 경로 `/`, `SameSite=Lax`다. 참가자 쿠키 이름은 `SCENE_PSESSION`이고 경로는 `/api/v1/participant`다. 이름은 `application.yml`의 `scene.security.session`에 있다. 로그인 성공 시 서버는 `changeSessionId()`로 세션 id를 바꾼다. 세션 만료는 아직 결정이 아니다. `spring.session.timeout` 30분은 라이브러리 기본값이다.
 
 서버는 이 쿠키를 Spring Session JDBC(`spring_session`)에 저장한다. 로그인 이후의 operator 경로는 이 쿠키가 필요하다. 없거나 만료되면 `401 AUTHENTICATION_REQUIRED`다.
 
@@ -66,7 +66,7 @@ operator 경로는 운영자 세션이 필요하다. public 경로는 세션을 
 
 `errors`와 그 밖의 추가 필드는 해당 오류에만 있다. 필드 검증이 스프링 검증에서 나면 `errors[]`에 `field`, `code`, `message`가 있다. `userId`가 빠지면 `code`는 `REQUIRED`다. 경로의 UUID 형식이 틀리면 `400 VALIDATION_FAILED`이고 `errors`는 없다.
 
-예상하지 못한 예외는 `500`이다. `code`는 없고 `type`은 `urn:scene:problem:unexpected`다. 예외 메시지는 본문에 넣지 않는다.
+예상하지 못한 예외는 `500`이다. `code`는 없고 `type`은 `urn:scene:problem:unexpected`다. 예외 메시지는 본문에 넣지 않는다. 핸들러가 없는 경로는 `404`이고 `code`는 없다. 개발용 로그인이 없는 profile의 `POST /api/v1/operator/auth/login`이 이 경우다.
 
 등록된 코드의 상태와 문장은 `common/error/ErrorCode.java`가 정본이다. 아래 표는 이 문서의 API가 돌려주는 코드다.
 
@@ -76,7 +76,8 @@ operator 경로는 운영자 세션이 필요하다. public 경로는 세션을 
 | `FORBIDDEN` | 403 | 대상은 보이는데 그 작업 권한이 없다. CSRF 불일치는 이 코드로 나간다 |
 | `NOT_A_MEMBER` | 403 | 멤버십이 끝났거나 행사 접근이 제거되었다 |
 | `OVERRIDE_REQUIRED` | 403 | 공간 소유자가 대신 실행하는데 `override.reason`이 없다 |
-| `INVITATION_EMAIL_MISMATCH` | 403 | 세션 이메일과 초대 이메일이 다르다 |
+| `EMAIL_NOT_VERIFIED` | 403 | 세션에 검증된 이메일이 없다 |
+| `INVITATION_EMAIL_MISMATCH` | 403 | 검증된 세션 이메일과 초대 이메일이 다르다 |
 | `VALIDATION_FAILED` | 400 | 본문, 쿼리, 경로 형식이 계약과 다르다 |
 | `APPLICATION_VALIDATION_FAILED` | 400 | 공개 신청 답변이 계약과 다르다 |
 | `PARTICIPANT_ACCESS_INVALID` | 401 | 참가자 접근 키가 없거나, 틀리거나, 그 행사 것과 같지 않다 |
@@ -125,11 +126,11 @@ curl -sS -D - \
   http://localhost:8080/api/v1/operator/auth/login
 
 curl -sS \
-  -H 'Cookie: placeholder-operator-session=여기에-Set-Cookie-값' \
+  -H 'Cookie: SCENE_SESSION=여기에-Set-Cookie-값' \
   http://localhost:8080/api/v1/operator/me
 ```
 
-로그인 `200`은 `userId`와 `displayName`이다. `email`은 응답에 없고 세션에만 있다. 초대를 수락할 때 그 값과 초대 이메일을 비교하므로, 시드 초대 `local-invite@example.com`을 보려면 로그인 본문에 그 이메일을 넣는다. 시드 행의 id `…0030`은 토큰이 아니다. 미리보기와 수락은 그 id로 호출하지 않는다.
+로그인 `200`은 `userId`와 `displayName`이다. `email`은 응답에 없고, `local`·`test`에서만 검증된 세션 이메일이 된다. 초대를 수락할 때 그 값과 초대 이메일을 비교하므로, 시드 초대 `local-invite@example.com`을 보려면 로그인 본문에 그 이메일을 넣는다. 시드 행의 id `…0030`은 토큰이 아니다. 미리보기와 수락은 그 id로 호출하지 않는다.
 
 같은 호출 순서는 `src/test/java/app/scene/event/ServerContractRegressionIT.java`의 `login`이 서버에 대해 검증한 방식이다. 이 문서의 예시는 그 테스트를 로컬 서버에 옮겨 적은 것이고, 이 작성에서 서버를 띄워 다시 호출하지는 않았다.
 
@@ -143,7 +144,7 @@ curl -sS \
 
 ### `POST /api/v1/operator/auth/login`
 
-세션 없이 호출한다. CSRF는 필요하다. 개발용 로그인이다. [DEC-067](../../docs/product/PRODUCT_DECISIONS.md)은 이 경로를 `local`·`test` profile에서만 열기로 정했다. 지금 코드는 모든 profile에서 연다([결정 문서와 다른 점](#결정-문서와-다른-점)).
+`local`과 `test` profile에서만 있다. 다른 profile에서는 핸들러가 없어 `404`다. 켜는 환경 변수나 property는 없다. 세션 없이 호출한다. CSRF는 필요하다. 개발용 로그인이다([DEC-067](../../docs/product/PRODUCT_DECISIONS.md)).
 
 ```json
 { "userId": "00000000-0000-4000-8000-000000000001", "email": "Local@Example.com" }
@@ -152,9 +153,9 @@ curl -sS \
 | 필드 | 규칙 |
 | --- | --- |
 | `userId` | 필수. `users.id`. 비밀번호가 아니다 |
-| `email` | 생략 가능. 앞뒤 공백을 자르고 소문자로 세션에만 둔다. 응답에는 없다. 초대 수락이 이 값과 초대 이메일을 비교한다. `users`에 이메일 컬럼은 없다 |
+| `email` | 생략 가능. 앞뒤 공백을 자르고 소문자로 검증된 세션 이메일에만 둔다. 응답에는 없다. 이 값을 넣는 코드는 `DevLoginController`뿐이다. `users`에 이메일 컬럼은 없다 |
 
-`200` 본문은 `{ "userId", "displayName" }`다. 없는 id는 `401 AUTHENTICATION_REQUIRED`이고 세션을 만들지 않는다. `userId`가 없으면 `400 VALIDATION_FAILED`다.
+`200` 본문은 `{ "userId", "displayName" }`다. `Set-Cookie` 이름은 `SCENE_SESSION`이다. 성공 전후의 세션 id는 다르다. 없는 id는 `401 AUTHENTICATION_REQUIRED`이고 세션을 만들지 않는다. `userId`가 없으면 `400 VALIDATION_FAILED`다.
 
 ### `GET /api/v1/operator/me`
 
@@ -565,7 +566,7 @@ curl -sS \
 
 ### `POST /api/v1/operator/invitations/accept`
 
-로그인한 운영자가 호출한다. 본문은 `{ "token": "…" }`다. 비교하는 이메일은 본문이 아니라 로그인할 때 세션에 넣은 `email`이다.
+로그인한 운영자가 호출한다. 본문은 `{ "token": "…" }`다. 비교하는 이메일은 본문이 아니라 세션의 검증된 `email`이다. 개발용 로그인이 그 값을 넣는다. 세션에 이메일이 없으면 `403 EMAIL_NOT_VERIFIED`다.
 
 미리보기 `200`
 
@@ -583,7 +584,7 @@ curl -sS \
 
 미리보기는 행을 바꾸지 않는다. 수락과 미리보기는 계정마다, 그리고 요청 주소마다 한 시간에 5회다. 두 경로가 한 한도를 같이 쓴다. 한도는 이 프로세스 메모리에만 있다. 넘으면 `429 RATE_LIMITED`다. 한도 숫자는 잠정값이다.
 
-토큰이 없으면 `404 INVITATION_NOT_FOUND`다. 이 코드는 초대가 있는지 알려 주지 않는다. 이메일이 다르면 `403 INVITATION_EMAIL_MISMATCH`다. 다른 사람이 이미 수락했으면 `409 INVITATION_ALREADY_ACCEPTED`다. 취소는 `410 INVITATION_REVOKED`, 만료는 `410 INVITATION_EXPIRED`, 다시 보낸 이전 토큰은 `410 INVITATION_SUPERSEDED`다. 행사가 보관되었으면 `409 EVENT_ARCHIVED`다.
+토큰이 없으면 `404 INVITATION_NOT_FOUND`다. 이 코드는 초대가 있는지 알려 주지 않는다. 세션에 검증된 이메일이 없으면 `403 EMAIL_NOT_VERIFIED`다. 있고 다르면 `403 INVITATION_EMAIL_MISMATCH`다. 다른 사람이 이미 수락했으면 `409 INVITATION_ALREADY_ACCEPTED`다. 취소는 `410 INVITATION_REVOKED`, 만료는 `410 INVITATION_EXPIRED`, 다시 보낸 이전 토큰은 `410 INVITATION_SUPERSEDED`다. 행사가 보관되었으면 `409 EVENT_ARCHIVED`다.
 
 ## 운영자
 
@@ -951,7 +952,7 @@ CSRF가 필요하다. `Idempotency-Key`는 읽지 않는다.
 
 본문은 `{ "accessKey": "…" }`다. 앞뒤 공백은 자른다. CSRF가 필요하다. 행사가 없으면 `404 RESOURCE_NOT_FOUND`다. 키가 없거나, 그 행사에 맞는 접근이 하나가 아니면 `401 PARTICIPANT_ACCESS_INVALID`다. 맞는 키와 틀린 키를 본문으로 구분하지 않는다.
 
-성공은 `204`다. 본문은 없다. `Set-Cookie` 이름은 `placeholder-participant-session`이다(DEC-067의 제품 이름은 `SCENE_PSESSION`, 아직 미반영). `HttpOnly`, `Secure`, `SameSite=Lax`, 경로 `/api/v1/participant`다. 값은 세션 토큰이고 응답 본문에는 없다. 서버는 토큰 해시만 저장한다.
+성공은 `204`다. 본문은 없다. `Set-Cookie` 이름은 `SCENE_PSESSION`이다. `HttpOnly`, `Secure`, `SameSite=Lax`, 경로 `/api/v1/participant`다. 값은 세션 토큰이고 응답 본문에는 없다. 서버는 토큰 해시만 저장한다.
 
 키를 링크 fragment로 두고 읽은 뒤 지우는 규칙은 [DEC-064](../../docs/product/PRODUCT_DECISIONS.md)다. 이 경로의 구현 단계는 [결정 문서와 다른 점](#결정-문서와-다른-점)에 있다.
 
@@ -1019,7 +1020,6 @@ CSRF가 필요하다. 그 쿠키의 세션 행만 지운다. `204`이고 본문�
 ## 결정 문서와 다른 점
 
 - [DEC-064](../../docs/product/PRODUCT_DECISIONS.md) Follow-up (2026-10-21)은 참가자 세션 발급, `GET /api/v1/participant/me`, `POST /api/v1/participant/auth/logout`를 Phase 3보다 앞서 MVP에 넣었다. 이 서버와 맞는다. [API Architecture](../../docs/architecture/api-architecture-v0.1.md)와 [Security](../../docs/architecture/security-privacy-v0.1.md)는 아직 Phase 3로 적는다.
-- [DEC-067](../../docs/product/PRODUCT_DECISIONS.md)은 개발용 로그인(`POST /api/v1/operator/auth/login`)과 로그인 body `email`을 `local`·`test` profile에서만 열고 다른 profile에서는 404로 정했다. 이 서버는 모든 profile에서 연다.
-- DEC-067은 세션 쿠키를 `SCENE_SESSION`(운영자)·`SCENE_PSESSION`(참가자), `SameSite=Lax`·`Secure`·`HttpOnly`, 로그인 시 `changeSessionId()`로 정했다. 이 서버는 `placeholder-` 이름을 쓰고 로그인에서 session id를 바꾸지 않는다.
+- [DEC-067](../../docs/product/PRODUCT_DECISIONS.md)의 개발용 로그인 profile gate, 로그인 body `email`, `SCENE_SESSION`·`SCENE_PSESSION`, 로그인 시 `changeSessionId()`는 이 서버와 맞는다. `local`·`test` 밖에서는 로그인 경로가 404다. 세션에 검증된 이메일이 없으면 초대 미리보기·수락은 `403 EMAIL_NOT_VERIFIED`다.
 - DEC-067은 회고를 draft 전용(mock, `unverified`)으로 두고 저장 API를 만들지 않는다. 서버에 회고 경로는 없다(위 "아직 없는 경로").
 - DEC-064는 public 세션 POST의 CSRF를 구현 때 정할 메모로 둔다. 이 서버의 public 체인은 다른 변경 요청과 같이 CSRF 쿠키 `XSRF-TOKEN`과 헤더 `X-XSRF-TOKEN`을 요구한다.

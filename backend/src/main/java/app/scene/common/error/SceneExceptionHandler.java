@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
  * RFC 9457 body for {@link SceneException} and request-shape failures. Ordered ahead of Boot's
@@ -82,6 +83,16 @@ public class SceneExceptionHandler {
   })
   ResponseEntity<ProblemDetail> malformed(HttpServletRequest request) {
     return response(ProblemBodies.of(ErrorCode.VALIDATION_FAILED, request));
+  }
+
+  /** A path with no controller. The catch-all must not turn this into a 500. */
+  @ExceptionHandler(NoResourceFoundException.class)
+  ResponseEntity<ProblemDetail> missing(HttpServletRequest request) {
+    ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.NOT_FOUND);
+    problem.setTitle("Not Found");
+    problem.setDetail("요청한 경로가 없습니다.");
+    problem.setProperty("traceId", ProblemBodies.traceId(request));
+    return response(problem);
   }
 
   @ExceptionHandler(Exception.class)

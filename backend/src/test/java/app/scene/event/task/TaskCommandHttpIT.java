@@ -41,7 +41,7 @@ import tools.jackson.databind.json.JsonMapper;
 @Import(PostgresTestcontainer.class)
 class TaskCommandHttpIT {
 
-  private static final String OPERATOR_COOKIE = "placeholder-operator-session";
+  private static final String OPERATOR_COOKIE = "SCENE_SESSION";
   private static final String CSRF_COOKIE = "XSRF-TOKEN";
   private static final String CSRF_HEADER = "X-XSRF-TOKEN";
   private static final String CSRF = "csrf-token";

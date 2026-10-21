@@ -26,6 +26,7 @@ class ErrorCodeTest {
     assertThat(ErrorCode.TASK_VERSION_CONFLICT.httpStatus()).isEqualTo(409);
     assertThat(ErrorCode.INVALID_TASK_STATE.httpStatus()).isEqualTo(409);
     assertThat(ErrorCode.INVITATION_REVOKED.httpStatus()).isEqualTo(410);
+    assertThat(ErrorCode.EMAIL_NOT_VERIFIED.httpStatus()).isEqualTo(403);
     assertThat(ErrorCode.INVITATION_EMAIL_MISMATCH.httpStatus()).isEqualTo(403);
     assertThat(ErrorCode.INVITATION_EXPIRED.httpStatus()).isEqualTo(410);
     assertThat(ErrorCode.INVITATION_SUPERSEDED.httpStatus()).isEqualTo(410);

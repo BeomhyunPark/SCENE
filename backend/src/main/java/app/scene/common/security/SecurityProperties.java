@@ -6,8 +6,9 @@ import java.util.Set;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * Placeholder security settings. Cookie names are not the conceptual names in security-privacy §2.
- * SameSite's token and the frontend origin are not decided.
+ * Security settings. Cookie names are {@code SCENE_SESSION} and {@code SCENE_PSESSION} (DEC-067).
+ * The conceptual names in security-privacy §2 are still not cookie names. The frontend origin is
+ * not decided.
  */
 @ConfigurationProperties(prefix = "scene.security")
 public record SecurityProperties(Cors cors, Session session) {
@@ -48,8 +49,8 @@ public record SecurityProperties(Cors cors, Session session) {
   }
 
   /**
-   * {@code sameSite} is a placeholder token so the attribute exists. It is not a product choice.
-   * HttpOnly and Secure are fixed by security-privacy §2 and are not properties.
+   * DEC-067 fixes SameSite at {@code Lax}. HttpOnly and Secure are fixed by the cookie serializers
+   * and are not properties.
    */
   public record Session(String operatorCookieName, String participantCookieName, String sameSite) {
 
@@ -71,8 +72,8 @@ public record SecurityProperties(Cors cors, Session session) {
       throw new IllegalArgumentException(
           "cookie name is a conceptual name from security-privacy §2 and is not approved");
     }
-    if (name == null || !name.matches("[A-Za-z0-9-]{1,64}")) {
-      throw new IllegalArgumentException("session cookie name must be a placeholder token");
+    if (name == null || !name.matches("[A-Za-z0-9_-]{1,64}")) {
+      throw new IllegalArgumentException("session cookie name must be a single token");
     }
     return name;
   }
