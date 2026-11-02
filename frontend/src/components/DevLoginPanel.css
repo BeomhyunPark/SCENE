@@ -20,6 +20,7 @@
   font: var(--scene-body-s);
 }
 
+.dev-login__signed-in,
 .dev-login__form {
   display: flex;
   flex-direction: column;
