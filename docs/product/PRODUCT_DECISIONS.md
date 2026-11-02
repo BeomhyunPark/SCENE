@@ -2108,6 +2108,15 @@ AI 없이 출시하는 안은 시장 기대에 맞지 않아 채택하지 않았
 
 서버 구현(profile gate, 404 IT, 이메일 spoof 차단 테스트, 쿠키 이름, `changeSessionId`)과 프론트엔드 정리는 slice (a) PR에서 한다. 그 전까지 [backend/docs/api.md](../../backend/docs/api.md)는 "결정 문서와 다른 점"에 차이를 적는다. 참여자 세션의 단계 변경은 DEC-064 Follow-up (2026-10-21)에 있다. 문서만 바꿨으며 코드는 없다.
 
+### Follow-up (2026-11-02) — 개발용 패널 대신 로그인 폼의 로컬 계정 이메일
+
+- 로그인 화면의 별도 개발용 패널(시드 사용자 선택·id 입력·로그아웃)을 없앤다. `import.meta.env.DEV`일 때 로그인 폼의 이메일로 로컬 계정(`owner@scene.local`, `manager@scene.local`, `staff@scene.local`, 시드 초대 `local-invite@example.com`)에 들어간다. 비밀번호는 확인하지 않는다. 내부 호출은 그대로 `POST /api/v1/operator/auth/login`의 `userId`·`email`이다.
+- 이유: 이메일 로그인 버튼이 인증 없이 `/events`로만 이동해, 개발용 세션이 남아 있을 때만 로그인된 것처럼 보이고 로그아웃 뒤에는 `/login?next=%2Fevents`로 되돌아왔다. 로그인 경로를 하나로 합쳐 헷갈림을 없앤다 (#210).
+- production build에서는 이메일·Google 로그인이 "아직 준비 중"만 알린다. 로컬 계정 목록과 seed 데이터는 DEV에서만 lazy-load한다. profile gate, 쿠키, 실제 인증 OPEN 항목은 바뀌지 않는다.
+- 계정 전환은 다른 로컬 이메일로 다시 로그인하면 된다. 화면 안의 운영자 로그아웃 버튼은 지금 없다.
+
+현 결정 2026-11-02 (사용자 요청).
+
 ### Evidence
 
 현 결정 2026-10-21. SCENE 구현 리뷰 2026-10-21(S1~S6, S8).
