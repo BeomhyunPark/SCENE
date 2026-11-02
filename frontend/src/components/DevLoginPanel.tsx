@@ -36,8 +36,7 @@ export function DevLoginPanel() {
     try {
       await login({ userId: id, email: email.trim() || undefined });
       await queryClient.invalidateQueries({ queryKey: queryKeys.me });
-      const next = params.get("next");
-      navigate(next && next.startsWith("/") && !next.startsWith("//") ? next : "/events");
+      enter();
     } catch (caught) {
       setError(
         isApiError(caught, "AUTHENTICATION_REQUIRED")
@@ -47,6 +46,14 @@ export function DevLoginPanel() {
     } finally {
       setPending(false);
     }
+  }
+
+  // Replace the login entry so Back from the operator screen does not land here again.
+  function enter() {
+    const next = params.get("next");
+    navigate(next && next.startsWith("/") && !next.startsWith("//") ? next : "/events", {
+      replace: true,
+    });
   }
 
   async function signOut() {
@@ -65,9 +72,15 @@ export function DevLoginPanel() {
       <h2 className="dev-login__title">개발용 로그인</h2>
       <p className="dev-login__support">비밀번호 없이 시드 사용자로 들어가요. 개발 중에만 보여요.</p>
       {me.data ? (
-        <Button type="button" variant="secondary" size={40} loading={pending} onClick={() => void signOut()}>
-          로그아웃
-        </Button>
+        <div className="dev-login__signed-in">
+          <p className="dev-login__support">{me.data.displayName} 계정으로 들어가 있어요.</p>
+          <Button type="button" variant="primary" size={40} disabled={pending} onClick={enter}>
+            행사로 가기
+          </Button>
+          <Button type="button" variant="secondary" size={40} loading={pending} onClick={() => void signOut()}>
+            로그아웃
+          </Button>
+        </div>
       ) : (
         <form className="dev-login__form" onSubmit={(event) => void submit(event)}>
           <label className="dev-login__label" htmlFor="dev-user">
