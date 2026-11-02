@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "trail": {
+    "trail-map": {
       "command": "trail",
       "args": [
         "mcp"
