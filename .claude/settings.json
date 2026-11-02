@@ -3,6 +3,18 @@
     "trail-map"
   ],
   "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "mcp__trail-map__",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/trail-tool-savings.sh",
+            "timeout": 8
+          }
+        ]
+      }
+    ],
     "SessionStart": [
       {
         "hooks": [
