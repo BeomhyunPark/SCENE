@@ -1,4 +1,7 @@
 {
+  "enabledMcpjsonServers": [
+    "trail-map"
+  ],
   "hooks": {
     "SessionStart": [
       {
