@@ -107,6 +107,26 @@ describe("public shell", () => {
     fetchSpy.mockRestore();
   });
 
+  it("keeps email and Google login on /login instead of bouncing through /events", () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    renderAt("/login");
+
+    fireEvent.change(screen.getByRole("textbox", { name: "이메일" }), {
+      target: { value: "operator@example.com" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "로그인" }));
+    expect(screen.getByRole("heading", { name: "다시 만나서 반가워요" })).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("이메일·Google 로그인은 아직 준비 중이에요.");
+
+    cleanup();
+    renderAt("/login");
+    fireEvent.click(screen.getByRole("button", { name: "Google로 로그인" }));
+    expect(screen.getByRole("heading", { name: "다시 만나서 반가워요" })).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("아래 개발용 로그인으로 들어가 주세요.");
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
+  });
+
   it("renders a short not-found line for an unmatched path", () => {
     renderAt("/missing");
 
