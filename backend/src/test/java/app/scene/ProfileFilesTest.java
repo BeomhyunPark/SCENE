@@ -45,6 +45,7 @@ class ProfileFilesTest {
     assertThat(text).contains("http://scene-frontend.placeholder.invalid");
     assertThat(text).contains("operator-cookie-name: SCENE_SESSION");
     assertThat(text).contains("participant-cookie-name: SCENE_PSESSION");
+    assertThat(text).contains("timeout: 60m");
     assertThat(text).doesNotContain("placeholder-operator-session");
     assertThat(text).doesNotContain("placeholder-participant-session");
     assertThat(text).doesNotContain("operator-cookie-name: scene_operator_session");

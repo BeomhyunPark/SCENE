@@ -10,9 +10,9 @@ spring:
   flyway:
     locations: classpath:db/migration
   session:
-    # 30 minutes is Spring Session's library default. Session TTL is still OPEN in
-    # security-privacy §2; this value is not a SCENE product decision.
-    timeout: 30m
+    # DEC-067 Follow-up (2026-11-02). An operator session expires after 60 minutes
+    # without a request. Participant session TTL is still OPEN (DEC-064).
+    timeout: 60m
     jdbc:
       initialize-schema: never
 
@@ -26,7 +26,7 @@ server:
 # Both are HttpOnly, Secure, and SameSite=Lax. The serializers set HttpOnly and Secure.
 # scene_operator_session and scene_participant_session stay conceptual names in
 # security-privacy §2 and are not cookie names.
-# Session TTL is still OPEN. spring.session.timeout of 30 minutes is the library default.
+# Operator session timeout is 60 minutes (spring.session.timeout above).
 # The CORS origin is not a SCENE frontend. dev, stg, and prod replace it from the environment.
 scene:
   security:

@@ -29,7 +29,7 @@ operator 경로는 운영자 세션이 필요하다. public 경로는 세션을 
 
 ### 세션 쿠키
 
-로그인 성공의 `Set-Cookie` 이름은 `SCENE_SESSION`이다. 값은 Spring Session의 세션 id이고, Base64가 아니다. `HttpOnly`, `Secure`, 경로 `/`, `SameSite=Lax`다. 참가자 쿠키 이름은 `SCENE_PSESSION`이고 경로는 `/api/v1/participant`다. 이름은 `application.yml`의 `scene.security.session`에 있다. 로그인 성공 시 서버는 `changeSessionId()`로 세션 id를 바꾼다. 세션 만료는 아직 결정이 아니다. `spring.session.timeout` 30분은 라이브러리 기본값이다.
+로그인 성공의 `Set-Cookie` 이름은 `SCENE_SESSION`이다. 값은 Spring Session의 세션 id이고, Base64가 아니다. `HttpOnly`, `Secure`, 경로 `/`, `SameSite=Lax`다. 참가자 쿠키 이름은 `SCENE_PSESSION`이고 경로는 `/api/v1/participant`다. 이름은 `application.yml`의 `scene.security.session`에 있다. 로그인 성공 시 서버는 `changeSessionId()`로 세션 id를 바꾼다. 운영자 세션은 마지막 요청 뒤 60분 동안 요청이 없으면 만료된다(`spring.session.timeout: 60m`, DEC-067 Follow-up 2026-11-02). 참가자 세션 TTL은 아직 결정이 아니다.
 
 서버는 이 쿠키를 Spring Session JDBC(`spring_session`)에 저장한다. 로그인 이후의 operator 경로는 이 쿠키가 필요하다. 없거나 만료되면 `401 AUTHENTICATION_REQUIRED`다.
 
