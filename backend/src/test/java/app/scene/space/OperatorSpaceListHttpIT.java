@@ -33,7 +33,7 @@ import tools.jackson.databind.json.JsonMapper;
 class OperatorSpaceListHttpIT {
 
   private static final String PATH = "/api/v1/operator/spaces";
-  private static final String OPERATOR_COOKIE = "placeholder-operator-session";
+  private static final String OPERATOR_COOKIE = "SCENE_SESSION";
   private static final String CSRF_COOKIE = "XSRF-TOKEN";
   private static final String CSRF_HEADER = "X-XSRF-TOKEN";
   private static final String CSRF = "csrf-token";

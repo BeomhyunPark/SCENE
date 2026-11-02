@@ -26,6 +26,7 @@ public enum ErrorCode {
   FORM_CLOSED(409, "Form closed", "신청을 받지 않는 폼입니다."),
   APPLICATION_VALIDATION_FAILED(400, "Application validation failed", "신청 답변이 올바르지 않습니다."),
   INVITATION_REVOKED(410, "Invitation revoked", "초대가 취소되었습니다."),
+  EMAIL_NOT_VERIFIED(403, "Email not verified", "검증된 이메일이 없습니다."),
   INVITATION_EMAIL_MISMATCH(403, "Invitation email mismatch", "초대한 이메일과 다른 계정입니다."),
   INVITATION_EXPIRED(410, "Invitation expired", "초대가 만료되었습니다."),
   INVITATION_SUPERSEDED(410, "Invitation superseded", "다시 보낸 초대로 이전 링크는 쓸 수 없습니다."),

@@ -49,7 +49,7 @@ class SecurityChainsIT {
   private static final String PLACEHOLDER_ORIGIN = "http://scene-frontend.placeholder.invalid";
   private static final String CSRF = "csrf-token";
 
-  private static final String OPERATOR_COOKIE = "placeholder-operator-session";
+  private static final String OPERATOR_COOKIE = "SCENE_SESSION";
 
   @Autowired WebApplicationContext context;
   @Autowired JdbcTemplate jdbc;

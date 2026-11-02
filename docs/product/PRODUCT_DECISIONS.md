@@ -2094,7 +2094,7 @@ AI 없이 출시하는 안은 시장 기대에 맞지 않아 채택하지 않았
 ### 범위 밖
 
 - 문구 정리(초대, 나가기, 종료, 회고, 신청, 개인정보 경고)는 진행 중인 UI/UX 리뷰 뒤에 한다. 이 DEC에 넣지 않는다.
-- 비밀번호 로그인·이메일 검증의 방식, 세션 만료 시간은 OPEN이다.
+- 비밀번호 로그인·이메일 검증의 방식은 OPEN이다. 운영자 세션 만료는 아래 Follow-up (2026-11-02)에서 정했다.
 
 ### Alternatives
 
@@ -2107,6 +2107,13 @@ AI 없이 출시하는 안은 시장 기대에 맞지 않아 채택하지 않았
 ### Consequence
 
 서버 구현(profile gate, 404 IT, 이메일 spoof 차단 테스트, 쿠키 이름, `changeSessionId`)과 프론트엔드 정리는 slice (a) PR에서 한다. 그 전까지 [backend/docs/api.md](../../backend/docs/api.md)는 "결정 문서와 다른 점"에 차이를 적는다. 참여자 세션의 단계 변경은 DEC-064 Follow-up (2026-10-21)에 있다. 문서만 바꿨으며 코드는 없다.
+
+### Follow-up (2026-11-02): 운영자 세션 만료 60분
+
+- 운영자 세션(`SCENE_SESSION`)은 마지막 요청 뒤 60분 동안 요청이 없으면 만료된다. `spring.session.timeout: 60m`이다.
+- 참여자 세션(`SCENE_PSESSION`) TTL, 접근 키 TTL은 DEC-064대로 여전히 OPEN이다.
+
+현 결정 2026-11-02.
 
 ### Evidence
 
