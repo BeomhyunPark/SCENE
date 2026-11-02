@@ -16,9 +16,14 @@ function renderAt(path: string) {
   );
 }
 
+async function enterLogin() {
+  fireEvent.change(screen.getByRole("textbox", { name: "이메일" }), { target: { value: "owner@scene.local" } });
+  fireEvent.click(screen.getByRole("button", { name: "로그인" }));
+}
+
 async function signIn() {
   renderAt("/login");
-  fireEvent.click(await screen.findByRole("button", { name: "들어가기" }));
+  await enterLogin();
   expect(await screen.findByRole("heading", { name: "Local space의 행사" })).toBeInTheDocument();
 }
 
@@ -26,10 +31,12 @@ describe("operator entry", () => {
   it("sends an anonymous visit to login", async () => {
     renderAt("/events");
     expect(await screen.findByRole("heading", { name: "다시 만나서 반가워요" })).toBeInTheDocument();
-    expect(screen.getByText("개발 중에는 아래 개발용 로그인으로 들어가요.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("개발 중에는 아래 로컬 계정 이메일로 들어가요. 비밀번호는 확인하지 않아요."),
+    ).toBeInTheDocument();
   });
 
-  it("shows the space name and the seeded event after dev login", async () => {
+  it("shows the space name and the seeded event after local email login", async () => {
     await signIn();
     expect(await screen.findByText("1개의 행사")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Local event/ })).toBeInTheDocument();
@@ -104,7 +111,7 @@ describe("operator entry", () => {
       ),
     );
     renderAt("/login");
-    fireEvent.click(await screen.findByRole("button", { name: "들어가기" }));
+    await enterLogin();
     expect(await screen.findByText("아직 들어간 조직이 없어요")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "조직 찾기" })).toHaveAttribute("href", "/find-organization");
   });

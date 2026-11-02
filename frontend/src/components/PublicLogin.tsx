@@ -1,36 +1,83 @@
-import { useState, type FormEvent } from "react";
-import { Link, useSearchParams } from "react-router";
+import { lazy, Suspense, useState, type FormEvent } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import visual from "../assets/p01-02-auth-visual.svg";
 import symbol from "../assets/scene-symbol-login.svg";
 import eye from "../assets/icon-eye.svg";
 import eyeOff from "../assets/icon-eye-off.svg";
 import { Button } from "./Button";
-import { devLoginEnabled } from "../devLogin";
-import { DevLoginPanel } from "./DevLoginPanel";
+import { queryKeys } from "../api/queryKeys";
 import "./PublicLogin.css";
+
+// Email login works only against the local seed accounts until real authentication exists.
+// Both pieces load lazily in DEV so the seed users never reach the production bundle (DEC-067).
+const loadLocalLogin = import.meta.env.DEV ? () => import("../localLogin") : null;
+const LocalAccountsHint = import.meta.env.DEV
+  ? lazy(() => import("./LocalAccountsHint").then((module) => ({ default: module.LocalAccountsHint })))
+  : null;
+
+function safeNext(next: string | null): string {
+  return next && next.startsWith("/") && !next.startsWith("//") ? next : "/events";
+}
 
 function isEmailAddress(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
 export function PublicLogin() {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [params] = useSearchParams();
-  const [unavailable, setUnavailable] = useState(false);
   const [email, setEmail] = useState("");
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [remember, setRemember] = useState(false);
+  const [notice, setNotice] = useState("");
+  const [pending, setPending] = useState(false);
   const emailValue = email.trim();
   const emailInvalid = emailValue !== "" && !isEmailAddress(emailValue);
 
-  // Email and Google sign-in have no server yet. Moving to /events here would only
-  // work while a dev session cookie happened to be alive, and without one the
-  // operator guard sends the browser straight back to /login.
-  function hold(event: FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (emailInvalid) {
+    if (emailInvalid || pending) {
       return;
     }
-    setUnavailable(true);
+    if (!loadLocalLogin) {
+      setNotice("이메일 로그인은 아직 준비 중이에요.");
+      return;
+    }
+    if (emailValue === "") {
+      setNotice("이메일을 입력해 주세요.");
+      return;
+    }
+    setNotice("");
+    setPending(true);
+    try {
+      const { loginWithLocalEmail, UnknownLocalAccount } = await loadLocalLogin();
+      try {
+        const session = await loginWithLocalEmail(emailValue);
+        // A new account must not see the previous account's cached screens.
+        queryClient.clear();
+        queryClient.setQueryData(queryKeys.me, session);
+        // Replace the login entry so Back from the operator screen does not land here again.
+        navigate(safeNext(params.get("next")), { replace: true });
+      } catch (caught) {
+        setNotice(
+          caught instanceof UnknownLocalAccount
+            ? "로컬 계정이 아니에요. 아래 계정 이메일로 들어가 주세요."
+            : "로그인하지 못했어요. 다시 시도해 주세요.",
+        );
+      }
+    } finally {
+      setPending(false);
+    }
+  }
+
+  function google() {
+    setNotice(
+      loadLocalLogin
+        ? "Google 로그인은 아직 준비 중이에요. 이메일로 들어가 주세요."
+        : "Google 로그인은 아직 준비 중이에요.",
+    );
   }
 
   return (
@@ -51,7 +98,7 @@ export function PublicLogin() {
           </div>
           <h1 className="public-login__title">다시 만나서 반가워요</h1>
           <p className="public-login__support">로그인하고 운영을 이어가요</p>
-          <form className="public-login__form" onSubmit={hold}>
+          <form className="public-login__form" onSubmit={(event) => void submit(event)}>
             <div className="public-login__field">
               <label className="public-login__label" htmlFor="login-email">
                 이메일
@@ -115,26 +162,26 @@ export function PublicLogin() {
                 비밀번호 찾기
               </Link>
             </div>
-            <Button type="submit" variant="primary" size={40} className="public-login__submit">
+            <Button type="submit" variant="primary" size={40} className="public-login__submit" loading={pending}>
               로그인
             </Button>
-            <Button type="button" variant="secondary" size={40} className="public-login__submit" onClick={() => setUnavailable(true)}>
+            <Button type="button" variant="secondary" size={40} className="public-login__submit" onClick={google}>
               Google로 로그인
             </Button>
             <p className="public-login__switch">
               계정이 없으신가요? <Link to="/signup">계정 만들기</Link>
             </p>
           </form>
-          {unavailable ? (
-            <p className="public-login__dev-hint" role="status">
-              {devLoginEnabled()
-                ? "이메일·Google 로그인은 아직 준비 중이에요. 아래 개발용 로그인으로 들어가 주세요."
-                : "이메일·Google 로그인은 아직 준비 중이에요."}
+          {notice ? (
+            <p className="public-login__notice" role="status">
+              {notice}
             </p>
-          ) : devLoginEnabled() && params.get("next") ? (
-            <p className="public-login__dev-hint">개발 중에는 아래 개발용 로그인으로 들어가요.</p>
           ) : null}
-          <DevLoginPanel />
+          {LocalAccountsHint ? (
+            <Suspense fallback={null}>
+              <LocalAccountsHint />
+            </Suspense>
+          ) : null}
         </div>
       </div>
     </main>
