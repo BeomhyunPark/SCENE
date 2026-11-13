@@ -56,7 +56,7 @@ import tools.jackson.databind.json.JsonMapper;
 @Import(PostgresTestcontainer.class)
 class EventInvitationAcceptIT {
 
-  private static final String OPERATOR_COOKIE = "placeholder-operator-session";
+  private static final String OPERATOR_COOKIE = "SCENE_SESSION";
   private static final String CSRF_COOKIE = "XSRF-TOKEN";
   private static final String CSRF_HEADER = "X-XSRF-TOKEN";
   private static final String CSRF = "csrf-token";
@@ -224,7 +224,7 @@ class EventInvitationAcceptIT {
         problemBody(
             preview(login(named, null), pending.token(), "10.6.1.1", "req-name"),
             403,
-            "INVITATION_EMAIL_MISMATCH",
+            "EMAIL_NOT_VERIFIED",
             "req-name");
     assertThat(namedBody).doesNotContain("pending@example.com").doesNotContain(pending.token());
 

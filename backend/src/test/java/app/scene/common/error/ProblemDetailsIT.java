@@ -105,6 +105,22 @@ class ProblemDetailsIT {
   }
 
   @Test
+  void missingRouteIsNotFoundWithoutACodeOrTheExceptionText() throws Exception {
+    mvc.perform(get("/no-such-route").header("X-Request-Id", "req-missing"))
+        .andExpect(status().isNotFound())
+        .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+        .andExpect(jsonPath("$.status").value(404))
+        .andExpect(jsonPath("$.code").doesNotExist())
+        .andExpect(jsonPath("$.traceId").value("req-missing"))
+        .andExpect(jsonPath("$.detail").value("요청한 경로가 없습니다."))
+        .andExpect(
+            content()
+                .string(
+                    org.hamcrest.Matchers.not(
+                        org.hamcrest.Matchers.containsString("No static resource"))));
+  }
+
+  @Test
   void unexpectedFailureDoesNotLeakTheExceptionMessage() throws Exception {
     mvc.perform(get("/__probe/boom"))
         .andExpect(status().isInternalServerError())

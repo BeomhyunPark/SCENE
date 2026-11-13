@@ -222,7 +222,10 @@ public class EventInvitationService {
 
   private static void requireSameEmail(String sessionEmail, InvitationRow row) {
     String email = normalize(sessionEmail);
-    if (email == null || !email.equals(row.emailNormalized())) {
+    if (email == null) {
+      throw new SceneException(ErrorCode.EMAIL_NOT_VERIFIED);
+    }
+    if (!email.equals(row.emailNormalized())) {
       throw new SceneException(ErrorCode.INVITATION_EMAIL_MISMATCH);
     }
   }

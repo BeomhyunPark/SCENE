@@ -47,7 +47,7 @@ import tools.jackson.databind.json.JsonMapper;
 @Import(PostgresTestcontainer.class)
 class ApplicationReadHttpIT {
 
-  private static final String OPERATOR_COOKIE = "placeholder-operator-session";
+  private static final String OPERATOR_COOKIE = "SCENE_SESSION";
   private static final String CSRF_COOKIE = "XSRF-TOKEN";
   private static final String CSRF_HEADER = "X-XSRF-TOKEN";
   private static final String CSRF = "csrf-token";
@@ -169,9 +169,14 @@ class ApplicationReadHttpIT {
             .getResponse()
             .getContentAsString();
     assertThat(publicBody).doesNotContain(seeded.applicationId.toString(), "이름답");
-    mvc.perform(get("/api/v1/public/events/" + event.eventId + "/applications"))
-        .andExpect(status().is5xxServerError())
-        .andExpect(jsonPath("$.type").value("urn:scene:problem:unexpected"));
+    String missingList =
+        mvc.perform(get("/api/v1/public/events/" + event.eventId + "/applications"))
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.code").doesNotExist())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    assertThat(missingList).doesNotContain(seeded.applicationId.toString(), "이름답");
   }
 
   @Test
