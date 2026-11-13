@@ -68,6 +68,16 @@ operator 경로는 운영자 세션이 필요하다. public 경로는 세션을 
 
 예상하지 못한 예외는 `500`이다. `code`는 없고 `type`은 `urn:scene:problem:unexpected`다. 예외 메시지는 본문에 넣지 않는다. 핸들러가 없는 경로는 `404`이고 `code`는 없다. 개발용 로그인이 없는 profile의 `POST /api/v1/operator/auth/login`이 이 경우다.
 
+스프링이 요청 모양 때문에 거절한 4xx도 `code`가 없다. `title`은 HTTP 상태 문구이고 `detail`은 아래 고정 문장이다. 스프링 예외 문장은 본문에 넣지 않는다. `traceId`는 있다. 서버 오류가 아니므로 오류 로그를 남기지 않는다.
+
+| 상태 | 경우 | `detail` |
+| --- | --- | --- |
+| 405 | 경로는 있지만 그 메서드를 받지 않는다. `Allow` 헤더에 받는 메서드가 있다 | 이 경로에서 허용하지 않는 메서드입니다. |
+| 415 | 본문의 `Content-Type`을 읽지 못한다 | 지원하지 않는 Content-Type입니다. |
+| 406 | `Accept`에 맞는 형식으로 응답하지 못한다 | 요청한 Accept 형식으로 응답할 수 없습니다. |
+
+스프링이 상태를 정한 그 밖의 4xx도 그 상태 그대로이고 `detail`은 `요청을 처리할 수 없습니다.`다. 위에서 `400 VALIDATION_FAILED`로 적은 검증 오류와 `404`는 그대로다.
+
 등록된 코드의 상태와 문장은 `common/error/ErrorCode.java`가 정본이다. 아래 표는 이 문서의 API가 돌려주는 코드다.
 
 | code | 상태 | 언제 |
