@@ -121,6 +121,66 @@ class ProblemDetailsIT {
   }
 
   @Test
+  @ExtendWith(OutputCaptureExtension.class)
+  void unsupportedMethodIsMethodNotAllowedWithAllow(CapturedOutput output) throws Exception {
+    mvc.perform(get("/__probe/body").header("X-Request-Id", "req-method"))
+        .andExpect(status().isMethodNotAllowed())
+        .andExpect(header().string("Allow", "POST"))
+        .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+        .andExpect(jsonPath("$.status").value(405))
+        .andExpect(jsonPath("$.code").doesNotExist())
+        .andExpect(jsonPath("$.traceId").value("req-method"))
+        .andExpect(jsonPath("$.detail").value("이 경로에서 허용하지 않는 메서드입니다."))
+        .andExpect(
+            content()
+                .string(
+                    org.hamcrest.Matchers.not(
+                        org.hamcrest.Matchers.containsString("is not supported"))));
+    assertThat(output).doesNotContain("Unhandled request failure");
+  }
+
+  @Test
+  @ExtendWith(OutputCaptureExtension.class)
+  void unsupportedContentTypeIsUnsupportedMediaType(CapturedOutput output) throws Exception {
+    mvc.perform(
+            post("/__probe/body")
+                .header("X-Request-Id", "req-content-type")
+                .contentType(MediaType.TEXT_PLAIN)
+                .content("name"))
+        .andExpect(status().isUnsupportedMediaType())
+        .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+        .andExpect(jsonPath("$.status").value(415))
+        .andExpect(jsonPath("$.code").doesNotExist())
+        .andExpect(jsonPath("$.traceId").value("req-content-type"))
+        .andExpect(jsonPath("$.detail").value("지원하지 않는 Content-Type입니다."))
+        .andExpect(
+            content()
+                .string(
+                    org.hamcrest.Matchers.not(
+                        org.hamcrest.Matchers.containsString("is not supported"))));
+    assertThat(output).doesNotContain("Unhandled request failure");
+  }
+
+  @Test
+  @ExtendWith(OutputCaptureExtension.class)
+  void unacceptableAcceptIsNotAcceptable(CapturedOutput output) throws Exception {
+    mvc.perform(
+            get("/__probe/json").header("X-Request-Id", "req-accept").accept(MediaType.TEXT_PLAIN))
+        .andExpect(status().isNotAcceptable())
+        .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+        .andExpect(jsonPath("$.status").value(406))
+        .andExpect(jsonPath("$.code").doesNotExist())
+        .andExpect(jsonPath("$.traceId").value("req-accept"))
+        .andExpect(jsonPath("$.detail").value("요청한 Accept 형식으로 응답할 수 없습니다."))
+        .andExpect(
+            content()
+                .string(
+                    org.hamcrest.Matchers.not(
+                        org.hamcrest.Matchers.containsString("No acceptable representation"))));
+    assertThat(output).doesNotContain("Unhandled request failure");
+  }
+
+  @Test
   void unexpectedFailureDoesNotLeakTheExceptionMessage() throws Exception {
     mvc.perform(get("/__probe/boom"))
         .andExpect(status().isInternalServerError())
@@ -149,6 +209,11 @@ class ProblemDetailsIT {
 
     @PostMapping("/__probe/body")
     void body(@Valid @RequestBody Name name) {}
+
+    @GetMapping(value = "/__probe/json", produces = MediaType.APPLICATION_JSON_VALUE)
+    Map<String, String> json() {
+      return Map.of("name", "probe");
+    }
 
     @GetMapping("/__probe/boom")
     void boom() {

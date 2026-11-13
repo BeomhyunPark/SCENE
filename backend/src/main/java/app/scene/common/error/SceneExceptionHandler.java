@@ -12,10 +12,12 @@ import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -95,8 +97,18 @@ public class SceneExceptionHandler {
     return response(problem);
   }
 
+  /**
+   * Catch-all. A Spring exception that carries its own 4xx status ({@link ErrorResponse}) is a
+   * client mistake, not a server failure: it keeps that status and its headers (405 needs {@code
+   * Allow}) and is not logged as an error. The detail is a fixed sentence, never the exception
+   * text. Everything else, including a 5xx {@link ErrorResponse}, is an unexpected 500.
+   */
   @ExceptionHandler(Exception.class)
   ResponseEntity<ProblemDetail> unexpected(Exception exception, HttpServletRequest request) {
+    if (exception instanceof ErrorResponse errorResponse
+        && errorResponse.getStatusCode().is4xxClientError()) {
+      return clientError(errorResponse, request);
+    }
     log.error("Unhandled request failure", exception);
     ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.INTERNAL_SERVER_ERROR);
     problem.setType(URI.create("urn:scene:problem:unexpected"));
@@ -104,6 +116,35 @@ public class SceneExceptionHandler {
     problem.setDetail("요청을 처리하지 못했습니다.");
     problem.setProperty("traceId", ProblemBodies.traceId(request));
     return response(problem);
+  }
+
+  private static ResponseEntity<ProblemDetail> clientError(
+      ErrorResponse errorResponse, HttpServletRequest request) {
+    HttpStatusCode status = errorResponse.getStatusCode();
+    ProblemDetail problem = ProblemDetail.forStatus(status);
+    HttpStatus known = HttpStatus.resolve(status.value());
+    if (known != null) {
+      problem.setTitle(known.getReasonPhrase());
+    }
+    problem.setDetail(clientErrorDetail(known));
+    problem.setProperty("traceId", ProblemBodies.traceId(request));
+    return ResponseEntity.status(status)
+        .headers(errorResponse.getHeaders())
+        .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_PROBLEM_JSON_VALUE)
+        .body(problem);
+  }
+
+  private static String clientErrorDetail(HttpStatus status) {
+    if (status == HttpStatus.METHOD_NOT_ALLOWED) {
+      return "이 경로에서 허용하지 않는 메서드입니다.";
+    }
+    if (status == HttpStatus.UNSUPPORTED_MEDIA_TYPE) {
+      return "지원하지 않는 Content-Type입니다.";
+    }
+    if (status == HttpStatus.NOT_ACCEPTABLE) {
+      return "요청한 Accept 형식으로 응답할 수 없습니다.";
+    }
+    return "요청을 처리할 수 없습니다.";
   }
 
   private static ResponseEntity<ProblemDetail> response(ProblemDetail problem) {
