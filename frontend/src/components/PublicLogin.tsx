@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState, type FormEvent } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import visual from "../assets/p01-02-auth-visual.svg";
 import symbol from "../assets/scene-symbol-login.svg";
 import eye from "../assets/icon-eye.svg";
@@ -16,24 +16,20 @@ function isEmailAddress(value: string): boolean {
 }
 
 export function PublicLogin() {
-  const navigate = useNavigate();
   const [params] = useSearchParams();
+  const [notReady, setNotReady] = useState(false);
   const [email, setEmail] = useState("");
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [remember, setRemember] = useState(false);
   const emailValue = email.trim();
   const emailInvalid = emailValue !== "" && !isEmailAddress(emailValue);
 
-  function openEvents() {
-    navigate("/events");
-  }
-
+  // Email and Google login have no server yet. Going to /events from here only
+  // looked like a login while a dev session was alive; without one the operator
+  // guard sends the browser straight back to /login.
   function hold(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (emailInvalid) {
-      return;
-    }
-    openEvents();
+    setNotReady(!emailInvalid);
   }
 
   return (
@@ -121,18 +117,25 @@ export function PublicLogin() {
             <Button type="submit" variant="primary" size={40} className="public-login__submit">
               로그인
             </Button>
-            <Button type="button" variant="secondary" size={40} className="public-login__submit" onClick={openEvents}>
+            <Button type="button" variant="secondary" size={40} className="public-login__submit" onClick={() => setNotReady(true)}>
               Google로 로그인
             </Button>
             <p className="public-login__switch">
               계정이 없으신가요? <Link to="/signup">계정 만들기</Link>
             </p>
           </form>
+          <div className="public-login__status" role="status">
+            {notReady ? (
+              <p className="public-login__notice">이메일·Google 로그인은 아직 준비 중이에요.</p>
+            ) : null}
+          </div>
           {DevLoginPanel ? (
             <>
-              {params.get("next") ? (
-                <p className="public-login__dev-hint">개발 중에는 아래 개발용 로그인으로 들어가요.</p>
-              ) : null}
+              <div className="public-login__status" role="status">
+                {notReady || params.get("next") ? (
+                  <p className="public-login__dev-hint">개발 중에는 아래 개발용 로그인으로 들어가요.</p>
+                ) : null}
+              </div>
               <Suspense fallback={null}>
                 <DevLoginPanel />
               </Suspense>
