@@ -246,6 +246,27 @@
   text-decoration: none;
 }
 
+.public-login__status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.public-login__notice {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 24px 0 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--color-info-bg);
+  color: var(--color-info-fg);
+  font: var(--scene-body-s);
+  letter-spacing: 0;
+  text-align: center;
+  word-break: keep-all;
+}
+
 .public-login__dev-hint {
   margin: 24px 0 0;
   color: var(--color-text-secondary);
