@@ -9,6 +9,15 @@ spring:
       enabled: true
   flyway:
     locations: classpath:db/migration
+  security:
+    oauth2:
+      client:
+        registration:
+          # Google sign-in (#232, DEC-069). Real values come from the environment.
+          google:
+            client-id: ${SCENE_GOOGLE_CLIENT_ID:google-client-id-not-set}
+            client-secret: ${SCENE_GOOGLE_CLIENT_SECRET:google-client-secret-not-set}
+            scope: openid,email,profile
   session:
     # DEC-067 Follow-up (2026-11-02). An operator session expires after 60 minutes
     # without a request. Participant session TTL is still OPEN (DEC-064).
@@ -29,6 +38,10 @@ server:
 # Operator session timeout is 60 minutes (spring.session.timeout above).
 # The CORS origin is not a SCENE frontend. dev, stg, and prod replace it from the environment.
 scene:
+  # DEC-069. The first sign-in of this email creates this space with the user as OWNER, once.
+  bootstrap:
+    owner-email: ${SCENE_BOOTSTRAP_OWNER_EMAIL:}
+    space-name: ${SCENE_BOOTSTRAP_SPACE_NAME:}
   security:
     cors:
       allowed-origins: http://scene-frontend.placeholder.invalid

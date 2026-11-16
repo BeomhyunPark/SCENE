@@ -19,8 +19,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * Development login. The route exists only on the {@code local} and {@code test} profiles. There is
- * no property that turns it on. This is the only writer of {@link OperatorPrincipal}'s verified
- * email.
+ * no property that turns it on. Outside those profiles the verified email comes only from Google
+ * sign-in ({@link GoogleSignInHandler}).
  */
 @Profile({"local", "test"})
 @RestController
