@@ -71,6 +71,17 @@ export function publicForm(eventId: string, formId: string): FormDetail | FormFa
   return toDetail(found);
 }
 
+/** Stored fields of a form whether or not it is accepting. Empty when the form is gone. */
+export function formFields(eventId: string, formId: string): FormDetail["fields"] {
+  const found = forms.find((form) => form.eventId === eventId && form.formId === formId);
+  return found ? toDetail(found).fields : [];
+}
+
+/** Same read gate as the form read: EVENT_READ, or an active space OWNER or ADMIN. */
+export function requireEventRead(eventId: string, actorId: string): FormFailure | null {
+  return requireRead(eventId, actorId);
+}
+
 export function readForm(eventId: string, formId: string, actorId: string): FormDetail | FormFailure {
   const found = forms.find((form) => form.eventId === eventId && form.formId === formId);
   if (!found) return { status: 404, code: "RESOURCE_NOT_FOUND" };
