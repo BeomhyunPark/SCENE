@@ -890,7 +890,7 @@ CUSTOM 필드를 지운다. `204`이고 본문이 없다. SYSTEM 필드 삭제�
 
 ### `GET /api/v1/operator/events/{eventId}/applications`
 
-항목은 `{ "applicationId", "formId", "status", "submittedAt" }`다. 답변, 이름, 전화는 없다.
+항목은 `{ "applicationId", "formId", "status", "submittedAt", "name" }`다. `name`은 신청서 SYSTEM `NAME` 필드 답변의 `value.text`다. 그 답변이 없으면 `null`이다. 전화와 CUSTOM 답변은 목록에 없고 한 건 조회에서만 읽는다.
 
 ### `GET /api/v1/operator/events/{eventId}/applications/{applicationId}`
 
