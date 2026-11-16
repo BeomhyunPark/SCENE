@@ -73,13 +73,15 @@ class FormCommandHttpIT {
             write(post(forms(event.eventId)), event.owner, "{}", "req-create")
                 .header("Idempotency-Key", "same-key"));
     JsonNode body = json.readTree(created);
-    assertThat(body.propertyNames()).containsExactly("formId", "acceptingApplications", "fields");
+    assertThat(body.propertyNames())
+        .containsExactly("formId", "acceptingApplications", "fields", "locked");
+    assertThat(body.get("locked").booleanValue()).isFalse();
     UUID formId = UUID.fromString(body.get("formId").asString());
     assertThat(body.get("acceptingApplications").asBoolean()).isFalse();
     assertThat(body.get("fields")).hasSize(2);
     assertField(body.get("fields").get(0), "SYSTEM", "NAME", "이름", 0);
     assertField(body.get("fields").get(1), "SYSTEM", "PHONE", "전화", 1);
-    assertThat(created).doesNotContain("answer", "phone", "accessKey");
+    assertThat(created).doesNotContain("\"answers\"", "\"value\"", "phone", "accessKey");
     assertThat(accepting(formId)).isFalse();
     assertThat(auditCount(event.eventId)).isZero();
 

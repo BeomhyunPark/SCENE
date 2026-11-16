@@ -877,9 +877,12 @@ curl -sS \
       "showWhen": null,
       "hidden": false
     }
-  ]
+  ],
+  "locked": false
 }
 ```
+
+`locked`는 그 신청서에 `SUBMITTED` 신청이 하나라도 있으면 `true`다. 이때 아래 잠금 규칙이 적용된다. 공개 신청서에는 이 키가 없다.
 
 그 행사의 신청서가 아니면, 권한보다 먼저 `404 RESOURCE_NOT_FOUND`다.
 
