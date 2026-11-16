@@ -94,14 +94,15 @@ class ApplicationReadHttpIT {
     assertThat(list.get("items")).hasSize(1);
     JsonNode item = list.get("items").get(0);
     assertThat(item.propertyNames())
-        .containsExactly("applicationId", "formId", "status", "submittedAt");
+        .containsExactly("applicationId", "formId", "status", "submittedAt", "name");
+    assertThat(item.get("name").asString()).isEqualTo("이름답");
     assertThat(item.get("applicationId").asString()).isEqualTo(seeded.applicationId.toString());
     assertThat(item.get("formId").asString()).isEqualTo(seeded.formId.toString());
     assertThat(item.get("status").asString()).isEqualTo("SUBMITTED");
     assertThat(item.get("submittedAt").asString()).isEqualTo("2026-10-08T03:00:00Z");
     assertThat(list.get("page").get("number").asInt()).isZero();
     assertThat(list.get("page").get("size").asInt()).isEqualTo(50);
-    assertThat(listed).doesNotContain("이름답", "전화답", "커스텀답", "answers");
+    assertThat(listed).doesNotContain("전화답", "커스텀답", "answers", "phone", "PHONE");
     assertThat(auditCount(event.eventId)).isEqualTo(audits);
 
     String asAdmin = ok(read(admin, applications(event.eventId), "req-admin"));
@@ -177,6 +178,35 @@ class ApplicationReadHttpIT {
             .getResponse()
             .getContentAsString();
     assertThat(missingList).doesNotContain(seeded.applicationId.toString(), "이름답");
+  }
+
+  @Test
+  void listNameIsNullWhenTheNameAnswerIsMissing() throws Exception {
+    Held event = openEvent("Owner");
+    Seeded seeded = seed(event);
+    UUID participantId = participant(event, "1".repeat(64));
+    UUID withoutName = UUID.randomUUID();
+    applications.save(
+        ApplicationInsert.of(
+            withoutName,
+            event.spaceId,
+            event.eventId,
+            seeded.formId,
+            participantId,
+            "SUBMITTED",
+            SUBMITTED.plusSeconds(60)),
+        List.of());
+
+    String listed = ok(read(event.owner, applications(event.eventId), "req-list-null"));
+    JsonNode items = json.readTree(listed).get("items");
+    assertThat(items).hasSize(2);
+    assertThat(items.get(0).get("applicationId").asString())
+        .isEqualTo(seeded.applicationId.toString());
+    assertThat(items.get(0).get("name").asString()).isEqualTo("이름답");
+    assertThat(items.get(1).get("applicationId").asString()).isEqualTo(withoutName.toString());
+    assertThat(items.get(1).has("name")).isTrue();
+    assertThat(items.get(1).get("name").isNull()).isTrue();
+    assertThat(listed).doesNotContain("전화답", "커스텀답");
   }
 
   @Test
@@ -258,19 +288,7 @@ class ApplicationReadHttpIT {
     forms.saveField(nameId, event.spaceId, event.eventId, formId, "SYSTEM", "NAME", "이름", 0);
     forms.saveField(phoneId, event.spaceId, event.eventId, formId, "SYSTEM", "PHONE", "전화", 1);
     forms.saveField(customId, event.spaceId, event.eventId, formId, "CUSTOM", null, "식사", 2);
-    UUID participantId = UUID.randomUUID();
-    jdbc.update(
-        """
-        INSERT INTO participants (
-          id, space_id, event_id, name, phone, phone_hash, phone_last4, created_at, updated_at)
-        VALUES (?, ?, ?, '김', '01012345678', ?, '5678', ?, ?)
-        """,
-        participantId,
-        event.spaceId,
-        event.eventId,
-        "0".repeat(64),
-        Timestamp.from(SUBMITTED),
-        Timestamp.from(SUBMITTED));
+    UUID participantId = participant(event, "0".repeat(64));
     UUID applicationId = UUID.randomUUID();
     applications.save(
         ApplicationInsert.of(
@@ -304,6 +322,23 @@ class ApplicationReadHttpIT {
                 customId,
                 "{\"text\":\"커스텀답\"}")));
     return new Seeded(formId, applicationId);
+  }
+
+  private UUID participant(Held event, String phoneHash) {
+    UUID participantId = UUID.randomUUID();
+    jdbc.update(
+        """
+        INSERT INTO participants (
+          id, space_id, event_id, name, phone, phone_hash, phone_last4, created_at, updated_at)
+        VALUES (?, ?, ?, '김', '01012345678', ?, '5678', ?, ?)
+        """,
+        participantId,
+        event.spaceId,
+        event.eventId,
+        phoneHash,
+        Timestamp.from(SUBMITTED),
+        Timestamp.from(SUBMITTED));
+    return participantId;
   }
 
   private void assertAnswer(

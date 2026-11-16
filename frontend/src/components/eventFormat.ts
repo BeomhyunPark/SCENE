@@ -29,3 +29,26 @@ export function lifecycleLabel(status: string): string {
   if (status === "ARCHIVED") return "보관";
   return status;
 }
+
+const submittedFormat = new Intl.DateTimeFormat("ko-KR", {
+  timeZone: "Asia/Seoul",
+  year: "numeric",
+  month: "numeric",
+  day: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+
+/** Submit time in Korea time, like "2026. 10. 8. 12:00". Empty when the value is not a time. */
+export function formatSubmittedAt(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  const parts = Object.fromEntries(submittedFormat.formatToParts(date).map((part) => [part.type, part.value]));
+  return `${parts.year}. ${Number(parts.month)}. ${Number(parts.day)}. ${parts.hour}:${parts.minute}`;
+}
+
+/** Fallback when the list item has no NAME answer. */
+export function applicantName(name: string | null): string {
+  return name && name.trim().length > 0 ? name : "이름 없음";
+}

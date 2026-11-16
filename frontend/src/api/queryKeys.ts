@@ -13,6 +13,9 @@ export const queryKeys = {
     ["events", eventId, "operators", userId, "permissions"] as const,
   forms: (eventId: string, page: number) => ["events", eventId, "forms", page] as const,
   form: (eventId: string, formId: string) => ["events", eventId, "forms", formId] as const,
+  applications: (eventId: string, page: number) => ["events", eventId, "applications", page] as const,
+  application: (eventId: string, applicationId: string) =>
+    ["events", eventId, "applications", "detail", applicationId] as const,
   publicForm: (eventId: string, formId: string) => ["public", "forms", eventId, formId] as const,
   participantMe: (eventId: string) => ["participant", "me", eventId] as const,
 };

@@ -1,4 +1,4 @@
-import { publicForm } from "./formStore";
+import { formFields, publicForm } from "./formStore";
 import { eventById } from "./operatorStore";
 
 type Issued = {
@@ -7,13 +7,16 @@ type Issued = {
   accessKey: string;
   eventId: string;
   spaceId: string;
+  formId: string;
+  submittedAt: string;
   name: string;
+  answers: { fieldId: string; text: string }[];
 };
 
 export type ParticipantFailure = { status: number; code: string };
 
 let issued: Issued[] = [];
-let session: Omit<Issued, "accessKey" | "applicationId"> | null = null;
+let session: { participantId: string; eventId: string; spaceId: string; name: string } | null = null;
 
 export function resetParticipantStore(): void {
   issued = [];
@@ -42,7 +45,10 @@ export function submitPublicApplication(
     accessKey: randomKey(),
     eventId,
     spaceId: event.spaceId,
+    formId,
+    submittedAt: new Date().toISOString(),
     name: name.trim(),
+    answers,
   };
   issued.push(row);
   return { applicationId: row.applicationId, participantId: row.participantId, accessKey: row.accessKey };
@@ -57,6 +63,87 @@ export function openParticipantSession(eventId: string, body: unknown): Particip
   const row = match[0];
   session = { participantId: row.participantId, eventId: row.eventId, spaceId: row.spaceId, name: row.name };
   return null;
+}
+
+/**
+ * Operator list rows for one event, oldest first. Name is the NAME answer as submitted. The access
+ * key, participant id, and phone stay off.
+ */
+export function submittedApplications(eventId: string): {
+  applicationId: string;
+  formId: string;
+  status: string;
+  submittedAt: string;
+  name: string | null;
+}[] {
+  return issued
+    .filter((row) => row.eventId === eventId)
+    .map((row) => ({
+      applicationId: row.applicationId,
+      formId: row.formId,
+      status: "SUBMITTED",
+      submittedAt: row.submittedAt,
+      name: nameAnswer(row),
+    }));
+}
+
+/** One submitted application with every answer, in field order. Null when it is not in that event. */
+export function submittedApplication(
+  eventId: string,
+  applicationId: string,
+): {
+  applicationId: string;
+  formId: string;
+  status: string;
+  submittedAt: string;
+  answers: {
+    fieldId: string;
+    kind: "SYSTEM" | "CUSTOM";
+    systemKey: string | null;
+    label: string;
+    position: number;
+    value: { text: string };
+  }[];
+} | null {
+  const row = issued.find((item) => item.eventId === eventId && item.applicationId === applicationId);
+  if (!row) return null;
+  const answers = formFields(eventId, row.formId)
+    .flatMap((field) => {
+      const answer = row.answers.find((item) => item.fieldId === field.fieldId);
+      return answer ? [{ ...field, value: { text: answer.text } }] : [];
+    })
+    .sort((a, b) => a.position - b.position);
+  return {
+    applicationId: row.applicationId,
+    formId: row.formId,
+    status: "SUBMITTED",
+    submittedAt: row.submittedAt,
+    answers,
+  };
+}
+
+/** Test seam for an application stored without a NAME answer. */
+export function seedApplicationWithoutName(eventId: string, formId: string, submittedAt: string): string {
+  const event = eventById(eventId);
+  const row: Issued = {
+    applicationId: crypto.randomUUID(),
+    participantId: crypto.randomUUID(),
+    accessKey: randomKey(),
+    eventId,
+    spaceId: event?.spaceId ?? "",
+    formId,
+    submittedAt,
+    name: "",
+    answers: [],
+  };
+  issued.push(row);
+  return row.applicationId;
+}
+
+function nameAnswer(row: Issued): string | null {
+  const field = formFields(row.eventId, row.formId).find((item) => item.systemKey === "NAME");
+  const answer = field ? row.answers.find((item) => item.fieldId === field.fieldId) : undefined;
+  return answer ? answer.text : null;
 }
 
 export function currentParticipant(): { participantId: string; eventId: string; spaceId: string; name: string } | null {

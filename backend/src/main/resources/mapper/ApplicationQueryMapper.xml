@@ -9,15 +9,27 @@
     WHERE space_id = #{spaceId} AND event_id = #{eventId}
   </select>
 
+  <!-- Name is the SYSTEM NAME answer text. Phone and CUSTOM answers stay off the list. -->
   <select id="findPage" resultType="app.scene.event.application.ApplicationRow">
-    SELECT id AS application_id, form_id, status, submitted_at
-    FROM applications
-    WHERE space_id = #{spaceId} AND event_id = #{eventId}
+    SELECT app.id AS application_id, app.form_id, app.status, app.submitted_at,
+           ans.value ->> 'text' AS name
+    FROM applications app
+    LEFT JOIN fields f
+      ON f.space_id = app.space_id
+     AND f.event_id = app.event_id
+     AND f.form_id = app.form_id
+     AND f.system_key = 'NAME'
+    LEFT JOIN answers ans
+      ON ans.space_id = app.space_id
+     AND ans.event_id = app.event_id
+     AND ans.application_id = app.id
+     AND ans.field_id = f.id
+    WHERE app.space_id = #{spaceId} AND app.event_id = #{eventId}
     <include refid="app.scene.common.mybatis.CommonMapper.orderByAndPage"/>
   </select>
 
   <select id="find" resultType="app.scene.event.application.ApplicationRow">
-    SELECT id AS application_id, form_id, status, submitted_at
+    SELECT id AS application_id, form_id, status, submitted_at, CAST(NULL AS text) AS name
     FROM applications
     WHERE id = #{applicationId} AND space_id = #{spaceId} AND event_id = #{eventId}
   </select>
