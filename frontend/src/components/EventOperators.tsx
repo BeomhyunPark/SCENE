@@ -300,7 +300,7 @@ function Invitations({ eventId, archived }: { eventId: string; archived: boolean
                       aria-label={`${item.email} 초대 취소`}
                       onClick={() => revoke.mutate(item.id)}
                     >
-                      취소
+                      초대 취소
                     </Button>
                   </span>
                 )}
