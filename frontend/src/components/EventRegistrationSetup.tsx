@@ -193,6 +193,26 @@ function SetupBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
     }
   }
 
+  /**
+   * The 또래 switch on the setup card. It shows the new state at once and does not put the page
+   * into its loading state, so the rest of the screen stays still. A failure puts it back.
+   */
+  async function toggleCohort(field: FormField, on: boolean) {
+    if (!form.data) return;
+    const before = form.data;
+    setBanner("");
+    queryClient.setQueryData<FormDetail>(queryKeys.form(eventId, before.formId), {
+      ...before,
+      fields: before.fields.map((item) => (item.fieldId === field.fieldId ? { ...item, hidden: !on } : item)),
+    });
+    try {
+      remember(await updateField(eventId, before.formId, field.fieldId, { hidden: !on }));
+    } catch (caught) {
+      queryClient.setQueryData(queryKeys.form(eventId, before.formId), before);
+      await afterFailure(caught, "write");
+    }
+  }
+
   /** Every question moves, base questions included. Turned-off generated questions keep their place. */
   async function move(field: FormField, step: -1 | 1) {
     if (!form.data) return;
@@ -360,7 +380,7 @@ function SetupBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
             error={setupError}
             onSave={(setup) => void saveSetup(setup)}
             onCohort={(on) => {
-              if (cohort) void setHidden(cohort, !on);
+              if (cohort) void toggleCohort(cohort, on);
             }}
           />
         ) : null}
