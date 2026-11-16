@@ -3,6 +3,7 @@ package app.scene.event.invitation;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -98,7 +99,8 @@ class EventInvitationIT {
 
     String body = created(owner, fx.eventId, "Ada@Example.COM", "STAFF");
     JsonNode tree = json.readTree(body);
-    assertThat(tree.propertyNames()).containsExactlyInAnyOrder("id", "role", "status", "expiresAt");
+    assertThat(tree.propertyNames())
+        .containsExactlyInAnyOrder("id", "role", "status", "expiresAt", "link");
     UUID id = UUID.fromString(tree.get("id").asString());
     assertThat(mailer.sent()).hasSize(1);
     InvitationMail mail = mailer.sent().get(0);
@@ -106,7 +108,9 @@ class EventInvitationIT {
     assertThat(mail.role()).isEqualTo("STAFF");
     assertThat(mail.eventName()).isEqualTo("event");
     String token = tokenOf(mail);
-    assertThat(body).doesNotContain(token).doesNotContain("ada@example.com").doesNotContain("Ada@");
+    assertThat(tree.get("link").asString()).isEqualTo(mail.fragmentLink());
+    assertThat(body.replace(mail.fragmentLink(), "")).doesNotContain(token);
+    assertThat(body).doesNotContain("ada@example.com").doesNotContain("Ada@");
     String hash = tokenHash(id);
     assertThat(hash).isEqualTo(sha256(token)).hasSize(64).isNotEqualTo(token);
     assertThat(storedText(fx.eventId)).doesNotContain(token);
@@ -182,7 +186,10 @@ class EventInvitationIT {
     assertThat(mailer.sent()).hasSize(1);
     String token = tokenOf(mailer.sent().get(0));
     assertThat(token).isNotEqualTo(oldToken);
-    assertThat(body).doesNotContain(token).doesNotContain(oldToken).doesNotContain("a@example.com");
+    assertThat(json.readTree(body).get("link").asString())
+        .isEqualTo(mailer.sent().get(0).fragmentLink());
+    assertThat(body.replace(mailer.sent().get(0).fragmentLink(), "")).doesNotContain(token);
+    assertThat(body).doesNotContain(oldToken).doesNotContain("a@example.com");
     assertThat(invitationStatus(id)).isEqualTo("SUPERSEDED");
     assertThat(tokenHash(id)).isEqualTo(oldHash);
     assertThat(invitationStatus(resent)).isEqualTo("PENDING");
@@ -198,6 +205,64 @@ class EventInvitationIT {
         "RESOURCE_NOT_FOUND",
         "req-missing");
     assertThat(mailer.sent()).hasSize(1);
+  }
+
+  @Test
+  void ownerListsPendingInvitationsWithoutTokens() throws Exception {
+    Fixture fx = seed("ACTIVE");
+    Cookie owner = login(fx.ownerId);
+    UUID first = idOf(created(owner, fx.eventId, "a@example.com", "STAFF"));
+    UUID second = idOf(created(owner, fx.eventId, "b@example.com", "MANAGER"));
+    UUID revoked = idOf(created(owner, fx.eventId, "c@example.com", "STAFF"));
+    jdbc.update(
+        "UPDATE event_invitations SET created_at = now() - interval '2 hour' WHERE id = ?", first);
+    jdbc.update(
+        "UPDATE event_invitations SET created_at = now() - interval '1 hour' WHERE id = ?", second);
+    mvc.perform(delete(one(fx.eventId, revoked)).cookie(owner, csrf()).header(CSRF_HEADER, CSRF))
+        .andExpect(status().isOk());
+    String firstToken = tokenOf(mailer.sent().get(0));
+    String secondToken = tokenOf(mailer.sent().get(1));
+
+    String body =
+        mvc.perform(get(collection(fx.eventId)).cookie(owner))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    JsonNode tree = json.readTree(body);
+    assertThat(tree.propertyNames()).containsExactly("items", "page");
+    assertThat(tree.get("items")).hasSize(2);
+    JsonNode newest = tree.get("items").get(0);
+    assertThat(newest.propertyNames())
+        .containsExactly("id", "email", "role", "status", "expiresAt");
+    assertThat(newest.get("id").asString()).isEqualTo(second.toString());
+    assertThat(newest.get("email").asString()).isEqualTo("b@example.com");
+    assertThat(newest.get("role").asString()).isEqualTo("MANAGER");
+    assertThat(newest.get("status").asString()).isEqualTo("PENDING");
+    assertThat(tree.get("items").get(1).get("id").asString()).isEqualTo(first.toString());
+    assertThat(tree.get("page").get("totalItems").asLong()).isEqualTo(2);
+    assertThat(body)
+        .doesNotContain(firstToken)
+        .doesNotContain(secondToken)
+        .doesNotContain(tokenHash(first))
+        .doesNotContain("c@example.com")
+        .doesNotContain("link");
+
+    problem(
+        write(get(collection(fx.eventId)).cookie(login(fx.managerId)), "req-list-manager"),
+        403,
+        "FORBIDDEN",
+        "req-list-manager");
+    problem(
+        write(get(collection(fx.eventId) + "?size=101").cookie(owner), "req-list-size"),
+        400,
+        "PAGE_SIZE_EXCEEDED",
+        "req-list-size");
+    problem(
+        write(get(collection(UUID.randomUUID())).cookie(owner), "req-list-missing"),
+        404,
+        "RESOURCE_NOT_FOUND",
+        "req-list-missing");
   }
 
   @Test
@@ -395,6 +460,10 @@ class EventInvitationIT {
         .andReturn()
         .getResponse()
         .getContentAsString();
+  }
+
+  private UUID idOf(String body) {
+    return UUID.fromString(json.readTree(body).get("id").asString());
   }
 
   private ResultActions write(MockHttpServletRequestBuilder request, String requestId)

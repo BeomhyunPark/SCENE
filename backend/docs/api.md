@@ -537,9 +537,17 @@ curl -sS \
 
 초대 변경은 행사 `OWNER`만 한다. `EVENT_USER_MANAGE`다. 클래스는 `event/invitation/EventInvitationController`다. 보관된 행사에서는 만들거나 다시 보내지 못한다.
 
-응답에는 토큰이 없다. 서버는 토큰 해시만 저장한다. 원문 토큰은 `CapturingInvitationMailer`가 프로세스 메모리에 담는 링크의 fragment에만 있다. 링크 모양은 `/operator/invitations#` 뒤에 토큰이다. SMTP 구현은 없다. 로그에 토큰을 남기지 않는다. 프로세스가 끝나면 그 링크도 없다. 유효 시간은 7일이다.
+서버는 토큰 해시만 저장한다. 링크 모양은 `/operator/invitations#` 뒤에 토큰이다. SMTP 구현은 없다. 그래서 생성과 다시 보내기의 `200` 본문이 이 링크를 `link`로 **한 번만** 준다(DEC-060 Follow-up 2026-11-16). OWNER가 복사해 전달한다. 같은 링크는 다시 읽을 수 없다. 잃어버리면 다시 보낸다. 링크는 DB·audit·로그에 남지 않는다. 메일 포트(`CapturingInvitationMailer`가 프로세스 메모리에 담는다)도 그대로 부른다. 목록과 취소 본문에는 토큰이 없다. 유효 시간은 7일이다.
 
 같은 행사·이메일의 기존 `PENDING`은 새 초대를 만들 때 `SUPERSEDED`가 된다.
+
+### `GET /api/v1/operator/events/{eventId}/invitations`
+
+대기(`PENDING`) 초대 목록이다. 권한은 초대 변경과 같다. 행사 `OWNER`가 아니면 `403 FORBIDDEN`이다. 보관된 행사에서도 읽는다(보관할 때 대기 초대는 `REVOKED`가 되므로 보통 비어 있다).
+
+`page`는 0부터, `size`는 기본 50, 최대 100이다. `sort`는 받지 않는다. 순서는 만든 시각 최신 순, 그다음 id다. 만료가 지난 `PENDING`도 나온다. 화면이 `expiresAt`으로 만료를 표시한다.
+
+항목은 `{ "id", "email", "role", "status", "expiresAt" }`다. `email`은 소문자로 정규화한 초대 이메일이다. 토큰, 해시, 링크는 없다.
 
 ### `POST /api/v1/operator/events/{eventId}/invitations`
 
@@ -556,21 +564,22 @@ curl -sS \
   "id": "…",
   "role": "STAFF",
   "status": "PENDING",
-  "expiresAt": "2026-10-14T00:00:00Z"
+  "expiresAt": "2026-10-14T00:00:00Z",
+  "link": "/operator/invitations#…"
 }
 ```
 
-보관된 행사는 `409 EVENT_ARCHIVED`다.
+`link`는 상대 경로다. 화면이 자기 origin을 붙여 보여 준다. 이메일은 본문에 없다. 보관된 행사는 `409 EVENT_ARCHIVED`다.
 
 ### `POST /api/v1/operator/events/{eventId}/invitations/{invitationId}/resend`
 
-본문이 없다. 그 `PENDING` 초대를 `SUPERSEDED`로 두고 같은 이메일·역할로 새 `PENDING`을 만든다. `200` 본문은 생성과 같다. 새 id다.
+본문이 없다. 그 `PENDING` 초대를 `SUPERSEDED`로 두고 같은 이메일·역할로 새 `PENDING`을 만든다. `200` 본문은 생성과 같다. 새 id와 새 `link`다. 이전 링크는 `410 INVITATION_SUPERSEDED`가 된다.
 
 초대가 그 행사에 없으면 `404 RESOURCE_NOT_FOUND`다. `PENDING`이 아니면 `400 VALIDATION_FAILED`이고 필드는 `invitationId`다.
 
 ### `DELETE /api/v1/operator/events/{eventId}/invitations/{invitationId}`
 
-`PENDING`을 `REVOKED`로 바꾼다. 이미 `REVOKED`이면 같은 본문으로 `200`이다. `ACCEPTED`나 `SUPERSEDED`는 `400 VALIDATION_FAILED`다. 본문 없는 204가 아니다.
+`PENDING`을 `REVOKED`로 바꾼다. `200` 본문은 `{ "id", "role", "status", "expiresAt" }`이고 `link`가 없다. 이미 `REVOKED`이면 같은 본문으로 `200`이다. `ACCEPTED`나 `SUPERSEDED`는 `400 VALIDATION_FAILED`다. 본문 없는 204가 아니다.
 
 ### `POST /api/v1/operator/invitations/preview`
 
@@ -1017,7 +1026,7 @@ CSRF가 필요하다. 그 쿠키의 세션 행만 지운다. `204`이고 본문�
 다음을 이 서버에서 호출하면 제품 동작이 없다.
 
 - 비밀번호 로그인
-- SMTP. 초대 링크는 프로세스 메모리에만 남는다
+- SMTP. 초대 링크는 생성·다시 보내기 응답에 한 번 나오고, 메일 포트는 프로세스 메모리에만 담는다
 - 체크 항목 추가
 - 참가자 조회(`GET /api/v1/participant/me` 밖)
 - 회비, 조, 방, 차량, 체크인
