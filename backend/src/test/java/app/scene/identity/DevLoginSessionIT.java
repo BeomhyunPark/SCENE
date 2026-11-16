@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import app.scene.common.web.RequestIdFilter;
 import app.scene.support.PostgresTestcontainer;
 import jakarta.servlet.http.Cookie;
+import java.time.Duration;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,6 +18,8 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers;
+import org.springframework.session.Session;
+import org.springframework.session.SessionRepository;
 import org.springframework.session.web.http.SessionRepositoryFilter;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -36,6 +39,7 @@ class DevLoginSessionIT {
 
   @Autowired WebApplicationContext context;
   @Autowired JdbcTemplate jdbc;
+  @Autowired SessionRepository<? extends Session> sessions;
 
   MockMvc mvc;
 
@@ -76,6 +80,22 @@ class DevLoginSessionIT {
         .andExpect(status().isUnauthorized());
     mvc.perform(get("/api/v1/operator/me").cookie(new Cookie(OPERATOR_COOKIE, secondId)))
         .andExpect(status().isOk());
+  }
+
+  /**
+   * DEC-067 Follow-up: an operator session expires after 60 minutes without a request. This reads
+   * the stored session, so a renamed or overridden timeout key fails here, not only in the file.
+   */
+  @Test
+  void loginStoresASessionThatExpiresAfterSixtyIdleMinutes() throws Exception {
+    UUID userId = UUID.randomUUID();
+    jdbc.update("INSERT INTO users (id, display_name) VALUES (?, 'Owner')", userId);
+
+    String sessionId = sessionCookie(login(userId));
+
+    Session session = sessions.findById(sessionId);
+    assertThat(session).isNotNull();
+    assertThat(session.getMaxInactiveInterval()).isEqualTo(Duration.ofMinutes(60));
   }
 
   private MvcResult login(UUID userId) throws Exception {
