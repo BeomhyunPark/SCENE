@@ -7,6 +7,9 @@ export type PublicForm = {
   fields: FormField[];
 };
 
+/** Request items for `POST …/applications`. Text questions may use the `text` shortcut. */
+export type AnswerItem = { fieldId: string; text: string } | { fieldId: string; value: Record<string, unknown> };
+
 export type SubmittedApplication = {
   applicationId: string;
   participantId: string;
@@ -20,7 +23,7 @@ export function getPublicForm(eventId: string, formId: string, signal?: AbortSig
 export function submitApplication(
   eventId: string,
   formId: string,
-  answers: { fieldId: string; text: string }[],
+  answers: AnswerItem[],
 ): Promise<SubmittedApplication> {
   return apiRequest<unknown>(`/api/v1/public/events/${eventId}/forms/${formId}/applications`, {
     method: "POST",
@@ -35,7 +38,7 @@ function parseForm(value: unknown): PublicForm {
   const fields: FormField[] = [];
   for (const field of value.fields) {
     if (!isField(field)) throw new ApiError({ status: 200, code: "UNEXPECTED" });
-    fields.push(field);
+    fields.push(withDefaults(field));
   }
   return { formId: value.formId, fields };
 }
@@ -66,6 +69,25 @@ function isField(value: unknown): value is FormField {
     typeof value.label === "string" &&
     typeof value.position === "number"
   );
+}
+
+/**
+ * Fills keys an older server or test fixture may leave out, so a plain text question still
+ * renders. SYSTEM fields are always required (DEC-068).
+ */
+function withDefaults(field: FormField): FormField {
+  const partial = field as Partial<FormField> & FormField;
+  return {
+    ...partial,
+    answerType: partial.answerType ?? "SHORT_TEXT",
+    required: partial.required ?? partial.kind === "SYSTEM",
+    description: partial.description ?? null,
+    config:
+      partial.config ??
+      (partial.systemKey === "PHONE" ? { maxLength: 50, format: "PHONE" } : { maxLength: 200, format: "NONE" }),
+    showWhen: partial.showWhen ?? null,
+    hidden: partial.hidden ?? false,
+  };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

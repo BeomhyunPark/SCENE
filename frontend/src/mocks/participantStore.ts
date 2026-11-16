@@ -83,8 +83,10 @@ function readAnswers(body: unknown): { fieldId: string; text: string }[] | null 
   if (!isRecord(body) || !Array.isArray(body.answers)) return null;
   const answers: { fieldId: string; text: string }[] = [];
   for (const item of body.answers) {
-    if (!isRecord(item) || typeof item.fieldId !== "string" || typeof item.text !== "string") return null;
-    answers.push({ fieldId: item.fieldId, text: item.text });
+    if (!isRecord(item) || typeof item.fieldId !== "string") return null;
+    if (typeof item.text === "string") answers.push({ fieldId: item.fieldId, text: item.text });
+    else if (isRecord(item.value)) answers.push({ fieldId: item.fieldId, text: "" });
+    else return null;
   }
   return answers;
 }

@@ -68,8 +68,8 @@ describe("participant apply", () => {
       }),
     );
     await openApp(`/apply/${EVENT}/${FORM}`);
-    fireEvent.change(await screen.findByLabelText("이름"), { target: { value: "김" } });
-    fireEvent.change(screen.getByLabelText("전화"), { target: { value: "010-1234-5678" } });
+    fireEvent.change(await screen.findByLabelText(/^이름/), { target: { value: "김" } });
+    fireEvent.change(screen.getByLabelText(/^전화/), { target: { value: "010-1234-5678" } });
     fireEvent.click(screen.getByRole("button", { name: "신청하기" }));
     const link = await screen.findByRole("textbox", { name: "다시 들어오는 링크" });
     expect(link).toHaveValue(`${window.location.origin}/participate/${EVENT}#${encodeURIComponent(KEY)}`);
@@ -77,6 +77,104 @@ describe("participant apply", () => {
     expect(posted).toEqual([{ answers: [{ fieldId: NAME, text: "김" }, { fieldId: PHONE, text: "010-1234-5678" }] }]);
     expect(setItem).not.toHaveBeenCalled();
     expect(screen.queryByText(SECRET)).not.toBeInTheDocument();
+  });
+
+  it("answers typed and conditional questions and sends typed values", async () => {
+    const posted: unknown[] = [];
+    const custom = (fieldId: string, position: number, rest: Record<string, unknown>) => ({
+      fieldId,
+      kind: "CUSTOM",
+      systemKey: null,
+      position,
+      description: null,
+      showWhen: null,
+      hidden: false,
+      required: false,
+      ...rest,
+    });
+    server.use(
+      http.get("/api/v1/public/events/:eventId/forms/:formId", () =>
+        HttpResponse.json({
+          formId: FORM,
+          fields: [
+            ...formResponse().fields,
+            custom("f-attend", 2, {
+              label: "참석 방식",
+              answerType: "SINGLE_CHOICE",
+              required: true,
+              config: {
+                options: [
+                  { optionId: "o-full", label: "전체", group: null, hidden: false, showWhen: null },
+                  { optionId: "o-part", label: "부분", group: null, hidden: false, showWhen: null },
+                ],
+                allowOther: false,
+                display: "BUTTONS",
+              },
+            }),
+            custom("f-arrive", 3, {
+              label: "도착 예정 시각",
+              answerType: "DATE",
+              required: true,
+              config: { includeTime: true, min: null, max: null },
+              showWhen: { fieldId: "f-attend", optionIds: ["o-part"] },
+            }),
+            custom("f-meal", 4, {
+              label: "식사",
+              answerType: "MULTI_CHOICE",
+              config: {
+                options: [
+                  { optionId: "o-lunch", label: "점심", group: "1월 22일", hidden: false, showWhen: null },
+                  { optionId: "o-dinner", label: "저녁", group: "1월 22일", hidden: false, showWhen: null },
+                ],
+                allowOther: false,
+                minSelect: 0,
+                maxSelect: null,
+              },
+            }),
+            custom("f-consent", 5, {
+              label: "개인정보 수집에 동의합니다",
+              answerType: "YES_NO",
+              required: true,
+              config: { style: "CONSENT", yesLabel: null, noLabel: null },
+            }),
+          ],
+        }),
+      ),
+      http.post("/api/v1/public/events/:eventId/forms/:formId/applications", async ({ request }) => {
+        posted.push(await request.json());
+        return HttpResponse.json({ applicationId: "app-1", participantId: "person-1", accessKey: KEY }, { status: 201 });
+      }),
+    );
+    await openApp(`/apply/${EVENT}/${FORM}`);
+    fireEvent.change(await screen.findByLabelText(/^이름/), { target: { value: "김" } });
+    fireEvent.change(screen.getByLabelText(/^전화/), { target: { value: "010-1234-5678" } });
+    expect(screen.queryByLabelText(/^도착 예정 시각/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("radio", { name: "부분" }));
+    expect(screen.getByLabelText(/^도착 예정 시각/)).toBeInTheDocument();
+    expect(screen.getByText("1월 22일")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "신청하기" }));
+    expect(await screen.findByText("답하지 않았거나 확인이 필요한 질문이 있어요.")).toBeInTheDocument();
+    expect(screen.getByText("동의해야 신청할 수 있어요.")).toBeInTheDocument();
+    expect(posted).toEqual([]);
+
+    fireEvent.change(screen.getByLabelText(/^도착 예정 시각/), { target: { value: "2027-01-22T19:30" } });
+    fireEvent.click(screen.getByRole("checkbox", { name: "저녁" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /개인정보 수집에 동의합니다/ }));
+    fireEvent.click(screen.getByRole("button", { name: "신청하기" }));
+    await screen.findByRole("textbox", { name: "다시 들어오는 링크" });
+    expect(posted).toEqual([
+      {
+        answers: [
+          { fieldId: NAME, text: "김" },
+          { fieldId: PHONE, text: "010-1234-5678" },
+          { fieldId: "f-attend", value: { optionId: "o-part" } },
+          { fieldId: "f-arrive", value: { dateTime: "2027-01-22T19:30" } },
+          { fieldId: "f-meal", value: { optionIds: ["o-dinner"] } },
+          { fieldId: "f-consent", value: { value: true } },
+        ],
+      },
+    ]);
   });
 
   it("enters from the key it just received", async () => {
@@ -95,8 +193,8 @@ describe("participant apply", () => {
       ),
     );
     await openApp(`/apply/${EVENT}/${FORM}`);
-    fireEvent.change(await screen.findByLabelText("이름"), { target: { value: "김" } });
-    fireEvent.change(screen.getByLabelText("전화"), { target: { value: "01012345678" } });
+    fireEvent.change(await screen.findByLabelText(/^이름/), { target: { value: "김" } });
+    fireEvent.change(screen.getByLabelText(/^전화/), { target: { value: "01012345678" } });
     fireEvent.click(screen.getByRole("button", { name: "신청하기" }));
     fireEvent.click(await screen.findByRole("button", { name: "들어가기" }));
     expect(await screen.findByRole("heading", { name: "김님, 참가 신청이 됐어요." })).toBeInTheDocument();
