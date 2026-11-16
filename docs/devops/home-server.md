@@ -2,7 +2,7 @@
 
 - 상태: **결정 (2026-11-16)**. 1월 수련회([#230](https://github.com/BeomhyunPark/SCENE/issues/230))는 집의 Surface Pro 홈서버에서 운영한다. 클라우드 비교는 [호스팅 결정](hosting-decision.md)에 기록으로 남긴다.
 - 주소: `https://scene.greengroove.app` (Cloudflare DNS + Cloudflare Tunnel)
-- 파일: [`deploy/home/`](../../deploy/home/) — `compose.yaml`, `.env.example`, `backup.sh`, systemd 타이머
+- 파일: [`deploy/home/`](../../deploy/home/) — `compose.yaml`, `.env.example`, `auto-deploy.sh`, `backup.sh`
 
 ## 1. 구성
 
@@ -89,22 +89,30 @@ main에 병합하면 서버가 5분 안에 스스로 반영한다. 서버가 밖
 
 ## 4. 백업 (매일 03:30, 암호화, 집 밖 보관)
 
-1. **키는 다른 기기에서 만든다** (휴대폰·다른 PC): `age-keygen -o scene-backup.key`. 출력된 공개키(`age1…`)만 `.env`의 `BACKUP_AGE_RECIPIENT`에 넣는다. 개인키는 비밀번호 관리자 등 서버 밖에 둔다. 서버에는 공개키만 있으므로, 서버를 도난당해도 백업은 풀리지 않는다.
-2. 서버에 `sudo apt install age rclone`을 설치하고 `rclone config`로 Google Drive를 `gdrive`라는 이름으로 연결한다. `BACKUP_REMOTE=gdrive:scene-backups`.
-3. 직접 한 번 실행해 본다: `./backup.sh`.
-4. 매일 자동으로 돌게 등록한다.
+저장소는 Cloudflare R2의 `retreat-db-backups` 버킷, `scene/` 폴더다 (2026-11-17 사용자 결정. 옛 서비스가 쓰던 버킷과 rclone 원격 `r2`를 그대로 쓴다). 암호화는 rclone의 `r2crypt`가 아니라 age를 쓴다. `r2crypt`의 비밀번호는 이 서버에 있지만, age는 서버에 공개키만 두므로 서버를 도난당해도 백업은 풀리지 않는다.
 
-```bash
-sudo cp scene-backup.service scene-backup.timer /etc/systemd/system/ && sudo systemctl daemon-reload && sudo systemctl enable --now scene-backup.timer
+1. **키는 다른 기기에서 만든다** (휴대폰·다른 PC): `age-keygen -o scene-backup.key`. 출력된 공개키(`age1…`)만 `.env`의 `BACKUP_AGE_RECIPIENT`에 넣는다. 개인키는 비밀번호 관리자 등 서버 밖에 둔다. 개인키를 잃으면 백업을 풀 수 없다.
+2. 서버에는 `age`(v1.3.2, `~/.local/bin`, sudo 없이 공식 배포 파일로 설치)와 `rclone`(원격 `r2`)이 있다. `.env`의 `BACKUP_REMOTE=r2:retreat-db-backups/scene`.
+3. 직접 한 번 실행해 본다: `~/scene/deploy/home/backup.sh`.
+4. 매일 자동으로 돌게 cron에 등록한다 (`crontab -e`). WSL이라 sudo가 필요한 systemd 타이머 대신 자동 배포와 같은 cron을 쓴다.
+
+```
+30 3 * * * /home/user/scene/deploy/home/backup.sh >> /home/user/.local/state/scene-deploy/backup.log 2>&1 # scene-backup
 ```
 
-5. **복구 리허설 (신청 시작 전 한 번 필수)**: 다른 기기에서 받은 파일로 아래처럼 복구해 보고 신청 건수가 맞는지 확인한다.
+5. **복구 리허설 (신청 시작 전 한 번 필수)**: 개인키가 있는 기기에서 파일을 풀어 `scene_restore` DB에 넣고 건수를 비교한다. 운영 DB에 바로 덮어쓰지 않는다.
+
+```bash
+docker compose exec -T postgres createdb -U scene scene_restore
+```
 
 ```bash
 age -d -i scene-backup.key scene-YYYYMMDD-HHMMSS.sql.gz.age | gunzip | docker compose exec -T postgres psql -U scene -d scene_restore
 ```
 
-(`scene_restore` DB는 먼저 `createdb`로 만든다. 운영 DB에 바로 덮어쓰지 않는다.)
+**확인한 것 (2026-11-17, 서버 검증, 임시 키·`scene-test` 폴더):** cron과 같은 짧은 PATH로 `backup.sh` 실행 → R2 업로드 → 내려받아 복호화 → `scene_restore`에 복구 → 운영 DB와 사용자·조직·멤버·Flyway·테이블 수 일치. 확인 뒤 임시 키, 시험 백업, `scene_restore`는 지웠다. **실제 키로 한 백업과 복구 리허설은 아직 하지 않았다.**
+
+백업이 실패해도 알림은 오지 않는다. `backup.log`나 버킷의 최신 파일 날짜를 가끔 본다.
 
 ## 5. 신청 시작 전 체크리스트 (12/15 전)
 

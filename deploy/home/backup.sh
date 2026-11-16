@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 # Daily encrypted PostgreSQL backup to off-site storage (docs/devops/home-server.md §백업).
 # Needs on the host: docker compose, age, rclone (with BACKUP_REMOTE configured).
+# Run from cron (docs/devops/home-server.md §4).
 # The age private key never lives on this machine.
 set -euo pipefail
+# cron starts with a short PATH; age may live in ~/.local/bin.
+export PATH="$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 
 cd "$(dirname "$0")"
 # Not `source .env`: compose allows unquoted values with spaces, the shell does not.
