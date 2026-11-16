@@ -583,7 +583,8 @@ class EventInvitationAcceptIT {
             .getContentAsString();
     InvitationMail mail = mailer.sent().get(mailer.sent().size() - 1);
     String token = tokenOf(mail);
-    assertThat(body).doesNotContain(token);
+    assertThat(json.readTree(body).get("link").asString()).isEqualTo(mail.fragmentLink());
+    assertThat(body.replace(mail.fragmentLink(), "")).doesNotContain(token);
     UUID id = UUID.fromString(json.readTree(body).get("id").asString());
     assertThat(tokenHash(id)).isEqualTo(sha256(token)).isNotEqualTo(token);
     return new Issued(id, token, mail.recipient());
