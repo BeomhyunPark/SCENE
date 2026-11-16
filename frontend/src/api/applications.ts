@@ -1,6 +1,6 @@
 import { apiRequest } from "./client";
 import { ApiError } from "./errors";
-import type { FormField } from "./forms";
+import type { AnswerType, FieldConfig, FormField } from "./forms";
 import type { ItemPage } from "./types";
 
 export type PublicForm = {
@@ -26,13 +26,21 @@ export type ApplicationListItem = {
   name: string | null;
 };
 
+/**
+ * One stored answer with its question's current type, hidden flag and config (DEC-068 §6), so the
+ * original view can show option text and mark hidden questions and options. `value` keeps the
+ * stored shape (DEC-068 §1), for example `{ text }`, `{ optionIds, other }` or `{ start, end }`.
+ */
 export type ApplicationAnswer = {
   fieldId: string;
   kind: "SYSTEM" | "CUSTOM";
   systemKey: string | null;
   label: string;
   position: number;
-  value: { text: string | null };
+  answerType: AnswerType;
+  hidden: boolean;
+  config: FieldConfig;
+  value: Record<string, unknown>;
 };
 
 export type ApplicationDetail = {
@@ -150,14 +158,17 @@ function parseDetail(value: unknown): ApplicationDetail {
   const answers: ApplicationAnswer[] = [];
   for (const answer of value.answers) {
     if (!isField(answer) || !isRecord(answer.value)) throw new ApiError({ status: 200, code: "UNEXPECTED" });
-    const text = answer.value.text;
     answers.push({
       fieldId: answer.fieldId,
       kind: answer.kind,
       systemKey: answer.systemKey,
       label: answer.label,
       position: answer.position,
-      value: { text: typeof text === "string" ? text : null },
+      // An older server sends no type: read it as a plain text answer.
+      answerType: typeof answer.answerType === "string" ? (answer.answerType as AnswerType) : "SHORT_TEXT",
+      hidden: answer.hidden === true,
+      config: isRecord(answer.config) ? (answer.config as FieldConfig) : {},
+      value: answer.value,
     });
   }
   return {
