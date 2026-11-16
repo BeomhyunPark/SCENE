@@ -36,9 +36,9 @@ describe("public shell", () => {
       }),
     ).toBeInTheDocument();
     expect(screen.getByText("교회와 공동체를 위한 행사 운영, SCENE.")).toBeInTheDocument();
-    expect(screen.getByText(/계정이 없으신가요\?/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "계정 만들기" })).toHaveAttribute("href", "/signup");
     expect(screen.queryByRole("link", { name: "시작하기" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "계정 만들기" })).toBeNull();
+    expect(document.querySelector('a[href="/signup"]')).toBeNull();
 
     const images = [...document.querySelectorAll("img")];
     expect(images).toHaveLength(2);

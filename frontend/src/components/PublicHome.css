@@ -38,26 +38,12 @@
 .public-home__actions {
   display: flex;
   align-items: center;
-  flex-direction: column;
   justify-content: center;
   gap: 12px;
 }
 
 .public-home__actions a {
   text-decoration: none;
-}
-
-.public-home__signup {
-  margin: 0;
-  color: var(--color-text-tertiary);
-  font: var(--scene-body-m);
-  letter-spacing: 0;
-  text-align: center;
-}
-
-.public-home__signup a {
-  color: var(--color-text-brand);
-  font: var(--scene-label-m);
 }
 
 .marketing-preview {

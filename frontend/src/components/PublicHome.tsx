@@ -18,9 +18,6 @@ export function PublicHome() {
             <Link className="scene-button scene-button--primary scene-button--size-40" to="/login">
               <span className="scene-button__label">로그인</span>
             </Link>
-            <p className="public-home__signup">
-              계정이 없으신가요? <Link to="/signup">계정 만들기</Link>
-            </p>
           </div>
         </div>
         <MarketingPreview />
