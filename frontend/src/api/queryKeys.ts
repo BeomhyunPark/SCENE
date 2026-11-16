@@ -9,6 +9,7 @@ export const queryKeys = {
   tasks: (eventId: string, page: number) => ["events", eventId, "tasks", page] as const,
   task: (eventId: string, taskId: string) => ["events", eventId, "tasks", taskId] as const,
   operators: (eventId: string) => ["events", eventId, "operators"] as const,
+  invitations: (eventId: string) => ["events", eventId, "invitations"] as const,
   permissions: (eventId: string, userId: string) =>
     ["events", eventId, "operators", userId, "permissions"] as const,
   forms: (eventId: string, page: number) => ["events", eventId, "forms", page] as const,

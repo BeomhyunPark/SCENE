@@ -10,9 +10,16 @@ type OperatorSession = {
 };
 
 let operatorSession: OperatorSession | null = null;
+/** Dev login email, like the server's session email. It is not part of /me. */
+let sessionEmail: string | null = null;
 
 export function resetOperatorSession(): void {
   operatorSession = null;
+  sessionEmail = null;
+}
+
+export function currentSessionEmail(): string | null {
+  return sessionEmail;
 }
 
 export function currentOperator(): OperatorSession | null {
@@ -33,6 +40,7 @@ export const sessionHandlers = [
       return problem("AUTHENTICATION_REQUIRED");
     }
     operatorSession = { userId: user.userId, displayName: user.displayName };
+    sessionEmail = typeof body.email === "string" && body.email.trim() ? body.email.trim().toLowerCase() : null;
     return HttpResponse.json(operatorSession);
   }),
   http.get("/api/v1/operator/me", () => {
@@ -46,6 +54,7 @@ export const sessionHandlers = [
       return forbidden();
     }
     operatorSession = null;
+    sessionEmail = null;
     return new HttpResponse(null, { status: 204 });
   }),
 ];
