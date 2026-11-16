@@ -12,7 +12,7 @@ spring:
   session:
     # DEC-067 Follow-up (2026-11-02). An operator session expires after 60 minutes
     # without a request. Participant session TTL is still OPEN (DEC-064).
-    timeout: 30m
+    timeout: 60m
     jdbc:
       initialize-schema: never
 
