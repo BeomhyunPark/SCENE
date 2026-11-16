@@ -1,7 +1,8 @@
-# REFERENCE ONLY - lives under docs/devops so GitHub never runs it. Copy to .github/workflows only after the hosting decision.
-# SCENE CD — SKELETON ONLY. Do NOT place in .github/workflows until hosting is decided.
-# Nothing in the repo defines a deploy target, Dockerfile, IaC, or environments;
-# docs/architecture/architecture-v0.1.md §3 explicitly says deployment topology/infra is NOT decided.
+# REFERENCE ONLY - lives under docs/devops so GitHub never runs it.
+# SCENE CD — SKELETON ONLY. Hosting is decided (Surface Pro home server, docs/devops/home-server.md) and deploys stay
+# manual until the January 2027 retreat. Do NOT place in .github/workflows until a CD route to that host is chosen.
+# The deploy target is deploy/home/compose.yaml (backend/Dockerfile, frontend/Dockerfile, nginx, cloudflared).
+# There is no IaC and no GitHub Environments yet.
 # Env mapping below is a PROPOSAL to confirm with the tech architect's dev/stg/prod draft:
 #   push to main          -> dev  (automatic)
 #   tag vX.Y.Z-rc.N       -> stg  (automatic, then QA release guard sign-off)
@@ -57,5 +58,5 @@ jobs:
     steps:
       # 1. Run Flyway migrations against the env's PostgreSQL (before app rollout).
       # 2. Roll out backend image.  3. Publish frontend bundle.  4. Smoke test.
-      # TODO(decision): hosting target determines these steps.
+      # TODO(decision): how CD reaches the home server (tunnel, self-hosted runner) is not chosen yet.
       - run: echo "deploy to ${{ needs.resolve-env.outputs.env }}" && exit 1

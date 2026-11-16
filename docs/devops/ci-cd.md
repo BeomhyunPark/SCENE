@@ -1,6 +1,6 @@
 # SCENE CI/CD pipeline
 
-Status: baseline CI. CD intentionally not enabled (hosting undecided; comparison and recommendation in [hosting-decision.md](hosting-decision.md), #231).
+Status: baseline CI. CD intentionally not enabled. Hosting is decided (2026-11-16, #231): the Surface Pro home server behind a Cloudflare Tunnel, deployed by hand until the January 2027 retreat. See [home-server.md](home-server.md); the cloud comparisons kept as fallback records are in [hosting-decision.md](hosting-decision.md).
 
 ## Workflows
 
@@ -37,9 +37,10 @@ actions/setup-node@v7 (7.0.0), pnpm/action-setup@v6 (6.1.0). Temurin 25 LTS GA a
 ## CD (not enabled)
 [`cd-skeleton.yml`](cd-skeleton.yml) is reference only and is not under `.github/workflows`. Proposed mapping, to confirm with the
 tech architect: push main -> dev; tag `vX.Y.Z-rc.N` -> stg; tag `vX.Y.Z` -> prod (Environment with required reviewer).
-Order: Flyway migrate -> backend rollout -> frontend publish -> smoke test. Blocked on: hosting choice for backend,
-frontend, PostgreSQL; artifact form (image vs jar, registry); per-env secrets (DB creds, deploy creds/OIDC, API base URL,
-CORS allowlist).
+Order: Flyway migrate -> backend rollout -> frontend publish -> smoke test. Not planned before the January retreat: the
+home server deploys manually (`git pull`, then `docker compose up -d --build` in `deploy/home/`, see
+[home-server.md](home-server.md)). If CD is added later it would target that host (for example over the Cloudflare
+Tunnel or a self-hosted runner); that choice is still open.
 
 ## Proposed branch protection for main
 Required checks: `docs-check`, `ci-ok`. See PR description for full settings.
