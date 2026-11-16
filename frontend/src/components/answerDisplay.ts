@@ -11,7 +11,8 @@ export function answerLabel(answer: ApplicationAnswer): string {
 
 /**
  * One stored answer as text an operator reads. Option ids become the current option text, and an
- * option that is hidden now keeps its text with a mark. Dates stay in event-local time as stored.
+ * option that is hidden now keeps its text with a mark. An option in a group shows the group first.
+ * Dates stay in event-local time as stored.
  */
 export function formatAnswer(answer: ApplicationAnswer): string {
   const value = answer.value;
@@ -54,7 +55,9 @@ export function formatAnswer(answer: ApplicationAnswer): string {
 function optionText(answer: ApplicationAnswer, optionId: string): string {
   const option: FieldOption | undefined = answer.config.options?.find((item) => item.optionId === optionId);
   if (!option) return "알 수 없는 보기";
-  return option.hidden ? `${option.label}${HIDDEN_MARK}` : option.label;
+  // A grouped option (a meal on a day) is ambiguous without its group: "집회" on which day?
+  const text = option.group ? `${option.group} ${option.label}` : option.label;
+  return option.hidden ? `${text}${HIDDEN_MARK}` : text;
 }
 
 function otherText(text: string): string {

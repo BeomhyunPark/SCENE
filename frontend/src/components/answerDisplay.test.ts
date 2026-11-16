@@ -40,6 +40,18 @@ describe("formatAnswer", () => {
     expect(formatAnswer(answer("SINGLE_CHOICE", { optionId: "opt_gone" }, options))).toBe("알 수 없는 보기");
   });
 
+  it("shows an option's group so a meal names its day", () => {
+    const meals: FieldConfig = {
+      options: [
+        { optionId: "opt_d1_worship", label: "집회", group: "1월 22일 (금)", hidden: false, showWhen: null },
+        { optionId: "opt_d2_lunch", label: "점심", group: "1월 23일 (토)", hidden: true, showWhen: null },
+      ],
+    };
+    expect(formatAnswer(answer("MULTI_CHOICE", { optionIds: ["opt_d1_worship", "opt_d2_lunch"] }, meals))).toBe(
+      "1월 22일 (금) 집회, 1월 23일 (토) 점심 (숨김)",
+    );
+  });
+
   it("shows dates, ranges and numbers without shifting the stored local time", () => {
     expect(formatAnswer(answer("DATE", { date: "2027-01-22" }))).toBe("2027. 1. 22.");
     expect(formatAnswer(answer("DATE", { dateTime: "2027-01-22T19:30" }))).toBe("2027. 1. 22. 19:30");
