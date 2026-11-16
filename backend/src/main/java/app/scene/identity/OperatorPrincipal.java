@@ -14,9 +14,9 @@ import org.springframework.security.core.userdetails.UserDetails;
 /**
  * Authenticated operator bound to {@code users.id}. No password is stored. Credential format is
  * still open, and this type carries no role or permission. {@code email} is the verified session
- * address used to match an invitation. {@link DevLoginController} is the only code that sets it,
- * and only on the {@code local} and {@code test} profiles. It is not a user column and is not
- * returned by {@code /me}.
+ * address used to match an invitation. {@link GoogleSignInHandler} sets it from Google's verified
+ * email (DEC-069); {@link DevLoginController} sets it only on the {@code local} and {@code test}
+ * profiles. It is not returned by {@code /me}.
  */
 public final class OperatorPrincipal implements UserDetails, Serializable {
 
@@ -51,7 +51,7 @@ public final class OperatorPrincipal implements UserDetails, Serializable {
 
   /**
    * Verified invitation address for this session, or null when the session has none. A client
-   * cannot set this except through development login.
+   * cannot set this except through Google sign-in or development login.
    */
   public String email() {
     return email;

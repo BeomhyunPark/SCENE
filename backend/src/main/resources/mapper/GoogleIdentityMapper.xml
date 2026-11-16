@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="app.scene.identity.mapper.GoogleIdentityMapper">
+
+  <select id="findBySubject" resultType="app.scene.identity.GoogleIdentityRow">
+    SELECT g.subject, g.user_id, u.display_name
+    FROM user_google_identities g
+    JOIN users u ON u.id = g.user_id
+    WHERE g.subject = #{subject}
+  </select>
+
+  <insert id="insertIdentity">
+    INSERT INTO user_google_identities (subject, user_id, email, created_at, last_signed_in_at)
+    VALUES (#{subject}, #{userId}, #{email}, #{now}, #{now})
+  </insert>
+
+  <update id="touchIdentity">
+    UPDATE user_google_identities
+    SET email = #{email}, last_signed_in_at = #{now}
+    WHERE subject = #{subject}
+  </update>
+
+  <insert id="insertUser">
+    INSERT INTO users (id, display_name) VALUES (#{id}, #{displayName})
+  </insert>
+
+  <select id="lockBootstrap" resultType="int">
+    SELECT 1 FROM (SELECT pg_advisory_xact_lock(232)) AS locked
+  </select>
+
+  <select id="countSpaces" resultType="int">
+    SELECT count(*) FROM spaces
+  </select>
+
+  <insert id="insertSpace">
+    INSERT INTO spaces (id, name) VALUES (#{id}, #{name})
+  </insert>
+
+  <insert id="insertOwner">
+    INSERT INTO members (space_id, user_id, role, status)
+    VALUES (#{spaceId}, #{userId}, 'OWNER', 'ACTIVE')
+  </insert>
+
+</mapper>

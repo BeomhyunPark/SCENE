@@ -31,6 +31,7 @@ import { PublicForgotPassword } from "./components/PublicForgotPassword";
 import { PublicRegisterOrganization } from "./components/PublicRegisterOrganization";
 import { PublicResetPassword } from "./components/PublicResetPassword";
 import { PublicVerifyEmail } from "./components/PublicVerifyEmail";
+import { LoginDone } from "./components/LoginDone";
 
 function Home() {
   return (
@@ -61,6 +62,7 @@ export function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<PublicLogin />} />
+        <Route path="/login/done" element={<LoginDone />} />
         <Route element={<RequireOperator />}>
           <Route path="/events" element={<EventList />} />
           <Route path="/settings" element={<SpaceSettings />} />

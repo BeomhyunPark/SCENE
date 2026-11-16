@@ -822,6 +822,20 @@ curl -sS \
 
 `200`의 `outcome`은 `REOPENED` 또는 `ALREADY_OPEN`이다. `TODO`나 `DOING`이면 `ALREADY_OPEN`이다. 다시 열리면 상태는 `DOING`, `version`은 1 증가, 완료자와 완료 시각은 비운다. `CANCELLED`는 `409 INVALID_TASK_STATE`이고 `reason`은 `TASK_CANCELLED`다. 버전 불일치는 `409 TASK_VERSION_CONFLICT`다.
 
+## Google 로그인
+
+[DEC-069](../../docs/product/PRODUCT_DECISIONS.md). 브라우저가 페이지째 이동하는 경로라 JSON API가 아니다. 컨트롤러 대신 `identity/GoogleLoginSecurity`의 보안 체인이 처리한다. 운영자 세션 저장소(`SCENE_SESSION`)를 함께 쓴다.
+
+- `GET /oauth2/authorization/google`: Google 동의 화면으로 `302` 이동한다. 범위는 `openid email profile`이다. `state`는 세션에 둔다.
+- `GET /login/oauth2/code/google`: Google이 돌려보내는 주소다. 성공하면 세션 id를 바꾸고 `OperatorPrincipal`을 세션에 넣은 뒤 `302 /login/done`이다. 화면이 로그인 전 페이지(`next`)로 이어 간다.
+  - Google 이메일이 확인되지 않았으면 `302 /login?error=google_unverified`다.
+  - 그 밖의 실패(취소, state 불일치 등)는 `302 /login?error=google`이다. Google의 오류 내용은 화면과 로그에 남기지 않는다.
+- 처음 로그인한 Google 계정(OIDC `sub`)은 새 사용자가 된다. 이름은 Google 이름이고, 없으면 이메일 `@` 앞부분이다. 이후 로그인은 같은 사용자이고 확인된 이메일만 갱신한다.
+- 확인된 이메일은 세션의 초대 확인용 이메일이 된다(DEC-067 `EMAIL_NOT_VERIFIED`). `/me`에는 나오지 않는다.
+- Google의 access·refresh token은 저장하지 않는다.
+- 첫 관리자: `scene.bootstrap.owner-email`(`SCENE_BOOTSTRAP_OWNER_EMAIL`)과 같은 이메일이 로그인할 때 조직(`spaces`)이 하나도 없으면, `scene.bootstrap.space-name` 조직을 만들고 OWNER로 넣는다. 동시에 로그인해도 한 번만 만든다(advisory lock).
+- 설정: `SCENE_GOOGLE_CLIENT_ID`, `SCENE_GOOGLE_CLIENT_SECRET`. 승인된 리디렉션 URI는 `https://<host>/login/oauth2/code/google`이다.
+
 ## 신청서
 
 컨트롤러는 `event/form/OperatorFormController`다. 행사당 신청서는 하나다. 읽기는 유효한 `EVENT_READ`, 또는 활성 공간 `OWNER`·`ADMIN`이다. 쓰기는 유효한 `FORM_WRITE`다. 공간 역할만으로는 쓰지 못한다. `sort` 허용 필드는 없다. `Idempotency-Key`는 읽지 않는다. 감사 로그는 없다.

@@ -1,6 +1,6 @@
 # Church Event Operations Platform — Product Decisions
 
-> **2026-09-30 baseline:** DEC-001~027의 기존 본문·Status 보존. 최초 정리 당시에는 새 DEC를 만들지 않았고, 이후 검토에서 DEC-028~059를 추가했다. 2026-10-01 #11·#12 기술 계약으로 DEC-060~061을, 2026-10-02 #31 업무·체크리스트 저장 계약으로 DEC-062를, #30 행사 lifecycle command 계약으로 DEC-063을, 2026-10-06 MVP 참여자 인증 결정으로 DEC-064를, 같은 날 업무 오류 판정 순서·Override 사유 저장 보강으로 DEC-065를, 2026-10-15 AI 기능 포함과 첫 AI 범위(C1·C7) 결정으로 DEC-066을, 2026-10-21 개발용 로그인 profile gate·세션 쿠키 결정으로 DEC-067을, 2026-11-16 신청서 질문 유형·조건부 표시·편집 잠금 결정으로 DEC-068을 추가했다(현재 마지막 번호 DEC-068). 최신 요청의 제품명 SCENE 및 Technical Design / implementation 전 상태가 현재 기준이다. DEC-024/027의 단계와 §17 Product Name OPEN은 이전 이력이며 기술 기준은 [Architecture](../architecture/architecture-v0.1.md)를 따른다. 공식 Decision Log 정합화는 검토 필요.
+> **2026-09-30 baseline:** DEC-001~027의 기존 본문·Status 보존. 최초 정리 당시에는 새 DEC를 만들지 않았고, 이후 검토에서 DEC-028~059를 추가했다. 2026-10-01 #11·#12 기술 계약으로 DEC-060~061을, 2026-10-02 #31 업무·체크리스트 저장 계약으로 DEC-062를, #30 행사 lifecycle command 계약으로 DEC-063을, 2026-10-06 MVP 참여자 인증 결정으로 DEC-064를, 같은 날 업무 오류 판정 순서·Override 사유 저장 보강으로 DEC-065를, 2026-10-15 AI 기능 포함과 첫 AI 범위(C1·C7) 결정으로 DEC-066을, 2026-10-21 개발용 로그인 profile gate·세션 쿠키 결정으로 DEC-067을, 2026-11-16 신청서 질문 유형·조건부 표시·편집 잠금 결정으로 DEC-068을, 같은 날 운영자 Google 로그인·초대 기반 가입·첫 관리자 지정 결정으로 DEC-069를 추가했다(현재 마지막 번호 DEC-069). 최신 요청의 제품명 SCENE 및 Technical Design / implementation 전 상태가 현재 기준이다. DEC-024/027의 단계와 §17 Product Name OPEN은 이전 이력이며 기술 기준은 [Architecture](../architecture/architecture-v0.1.md)를 따른다. 공식 Decision Log 정합화는 검토 필요.
 >
 > DEC-027은 단계 설명에 한해 DEC-024를 대체한다고 기록하지만 DEC-024의 원래 CONFIRMED 표기는 보존한다. Evidence Type의 HYPOTHESIS 용어 충돌도 [검토 기록](../architecture/architecture-v0.1.md)에 남긴다.
 > [Product Definition](PRODUCT_DEFINITION.md) · [Research](RESEARCH.md)
@@ -2279,3 +2279,46 @@ ErrorCode는 `FIELD_LOCKED`(409) 하나다(#225가 추가한다). 동작별 코�
 ### Evidence
 
 현 결정 2026-11-16. 사용자 결정: 1차 유형 9종·조건부 질문 1차 포함·접수 후 편집 정책([#223](https://github.com/BeomhyunPark/SCENE/issues/223), [#229](https://github.com/BeomhyunPark/SCENE/issues/229)), 참고 사례 요구는 설정으로·보기 단위 조건·숨겨진 답은 버림·접수 후 질문 삭제는 숨기기·조건 변경 잠금, 이미 구현된 답 값 모양 유지, 숨긴 질문은 CSV에 "(숨김)" 열로 유지, ErrorCode `FIELD_LOCKED` 하나(2026-11-16 #224 확인). 참고 사례 분석([#223 댓글](https://github.com/BeomhyunPark/SCENE/issues/223#issuecomment-6905714860)).
+
+---
+
+## DEC-069 — 운영자는 Google로 로그인하고, 가입은 초대 기반이며, 첫 관리자는 서버 설정으로 정한다
+
+**Date:** 2026-11-16
+
+**Status:** CONFIRMED (현 결정 2026-11-16)
+
+### Context
+
+2027년 1월 수련회를 운영 서버(홈서버, [home-server.md](../devops/home-server.md))에서 연다([#230](https://github.com/BeomhyunPark/SCENE/issues/230)). DEC-067에 따라 개발용 로그인은 `local`·`test`에만 있어서, 운영 서버에서는 운영자가 로그인할 방법이 없다. 서버에는 사용자 계정을 만드는 기능과 조직을 만드는 API도 없다.
+
+### Decision
+
+- **운영자 로그인은 Google(OIDC)이다.** 이메일·비밀번호 로그인은 이번에 만들지 않는다.
+- **Google 계정이면 누구나 로그인할 수 있다.** 첫 로그인 때 사용자를 만든다. 무엇을 볼 수 있는지는 지금처럼 조직 멤버십과 행사 초대로만 정해진다.
+- **Google이 확인한 이메일(`email_verified`)만 받는다.** 그 이메일을 세션의 초대 확인용 이메일로 쓴다(DEC-067의 `EMAIL_NOT_VERIFIED` 규칙을 그대로 따른다).
+- **첫 관리자는 서버 설정으로 정한다.** `SCENE_BOOTSTRAP_OWNER_EMAIL`의 계정이 로그인할 때 조직이 하나도 없으면 `SCENE_BOOTSTRAP_SPACE_NAME` 조직을 만들고 OWNER로 넣는다. 한 번만 일어난다.
+- Google의 access·refresh token은 저장하지 않는다. 확인된 신원만 쓴다.
+
+### 범위 밖
+
+- 이메일·비밀번호 로그인, 비밀번호 재설정 메일
+- 누구나 조직을 만드는 공개 가입·조직 생성 API와 화면
+- 한 사용자에 여러 로그인 수단을 연결하는 기능
+
+### Alternatives
+
+- 허용 목록 로그인: 서버 설정에 적은 이메일만 로그인한다. 운영진이 바뀔 때마다 서버 설정을 고쳐야 해서 채택하지 않았다.
+- 공개 가입과 조직 생성: 조직 생성 API와 화면이 함께 필요해 1월 일정에 무겁다.
+
+### Reason
+
+Google 로그인은 비밀번호 보관과 재설정 메일이 필요 없고, 이메일 확인을 Google이 해 준다. 접근 권한은 이미 있는 멤버십·초대 규칙이 지키므로, 로그인 자체는 열어 두고 첫 조직만 서버 설정으로 만든다.
+
+### Consequence
+
+서버는 `identity/GoogleLoginSecurity`, `GoogleAccountService`, `GoogleSignInHandler`, Flyway V10 `user_google_identities`이고, 계약은 [backend/docs/api.md](../../backend/docs/api.md) "Google 로그인"에 있다. 로그인 화면의 Google 버튼은 실제 로그인으로 바뀌고, 이메일 로그인은 준비 중 안내를 유지한다. 구현은 [#232](https://github.com/BeomhyunPark/SCENE/issues/232)다.
+
+### Evidence
+
+현 결정 2026-11-16. 사용자 답변(가입 방식: 초대 기반 + 첫 관리자 지정).
