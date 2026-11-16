@@ -2160,6 +2160,15 @@ AI 없이 출시하는 안은 시장 기대에 맞지 않아 채택하지 않았
 
 구현은 [#225](https://github.com/BeomhyunPark/SCENE/issues/225)(백엔드), [#226](https://github.com/BeomhyunPark/SCENE/issues/226)(운영자 빌더), [#227](https://github.com/BeomhyunPark/SCENE/issues/227)(참가자 입력), [#229](https://github.com/BeomhyunPark/SCENE/issues/229)(조건부), [#228](https://github.com/BeomhyunPark/SCENE/issues/228)(원본 조회)에서 한다. 그 전까지 [backend/docs/api.md](../../backend/docs/api.md)의 신청서·공개 신청 계약은 지금 구현(CUSTOM 1개, `text`만)을 설명한다. 문서만 바꿨으며 코드는 없다.
 
+### Follow-up (2026-11-16): 검토 문서의 확인 항목 확정
+
+- 참고 사례의 요구(시각, 동의 체크, 일자별 보기 묶음, 입력 형식, 버튼형 보기)는 새 유형 없이 9종의 설정으로 처리한다.
+- 보기에도 표시 조건을 둔다. 앞 답에 따라 같은 질문의 보기가 바뀐다.
+- 숨겨진 질문이나 보기에 온 답은 거절하지 않고 저장하지 않는다.
+- 신청 접수 후 질문 삭제는 숨기기로 대신하고, 질문·보기의 표시 조건 변경은 잠근다.
+
+현 결정 2026-11-16.
+
 ### Evidence
 
 현 결정 2026-11-16. 사용자 답변(질문 유형 1차 범위, 조건부 질문 범위, 신청 접수 후 편집 정책), 참고 사례 분석([#223](https://github.com/BeomhyunPark/SCENE/issues/223)).
