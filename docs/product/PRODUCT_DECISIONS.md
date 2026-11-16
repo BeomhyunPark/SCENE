@@ -1,6 +1,6 @@
 # Church Event Operations Platform — Product Decisions
 
-> **2026-09-30 baseline:** DEC-001~027의 기존 본문·Status 보존. 최초 정리 당시에는 새 DEC를 만들지 않았고, 이후 검토에서 DEC-028~059를 추가했다. 2026-10-01 #11·#12 기술 계약으로 DEC-060~061을, 2026-10-02 #31 업무·체크리스트 저장 계약으로 DEC-062를, #30 행사 lifecycle command 계약으로 DEC-063을, 2026-10-06 MVP 참여자 인증 결정으로 DEC-064를, 같은 날 업무 오류 판정 순서·Override 사유 저장 보강으로 DEC-065를, 2026-10-15 AI 기능 포함과 첫 AI 범위(C1·C7) 결정으로 DEC-066을, 2026-10-21 개발용 로그인 profile gate·세션 쿠키 결정으로 DEC-067을 추가했다(현재 마지막 번호 DEC-067). 최신 요청의 제품명 SCENE 및 Technical Design / implementation 전 상태가 현재 기준이다. DEC-024/027의 단계와 §17 Product Name OPEN은 이전 이력이며 기술 기준은 [Architecture](../architecture/architecture-v0.1.md)를 따른다. 공식 Decision Log 정합화는 검토 필요.
+> **2026-09-30 baseline:** DEC-001~027의 기존 본문·Status 보존. 최초 정리 당시에는 새 DEC를 만들지 않았고, 이후 검토에서 DEC-028~059를 추가했다. 2026-10-01 #11·#12 기술 계약으로 DEC-060~061을, 2026-10-02 #31 업무·체크리스트 저장 계약으로 DEC-062를, #30 행사 lifecycle command 계약으로 DEC-063을, 2026-10-06 MVP 참여자 인증 결정으로 DEC-064를, 같은 날 업무 오류 판정 순서·Override 사유 저장 보강으로 DEC-065를, 2026-10-15 AI 기능 포함과 첫 AI 범위(C1·C7) 결정으로 DEC-066을, 2026-10-21 개발용 로그인 profile gate·세션 쿠키 결정으로 DEC-067을, 2026-11-16 신청서 질문 유형·조건부 표시·편집 잠금 결정으로 DEC-068을 추가했다(현재 마지막 번호 DEC-068). 최신 요청의 제품명 SCENE 및 Technical Design / implementation 전 상태가 현재 기준이다. DEC-024/027의 단계와 §17 Product Name OPEN은 이전 이력이며 기술 기준은 [Architecture](../architecture/architecture-v0.1.md)를 따른다. 공식 Decision Log 정합화는 검토 필요.
 >
 > DEC-027은 단계 설명에 한해 DEC-024를 대체한다고 기록하지만 DEC-024의 원래 CONFIRMED 표기는 보존한다. Evidence Type의 HYPOTHESIS 용어 충돌도 [검토 기록](../architecture/architecture-v0.1.md)에 남긴다.
 > [Product Definition](PRODUCT_DEFINITION.md) · [Research](RESEARCH.md)
@@ -2118,3 +2118,48 @@ AI 없이 출시하는 안은 시장 기대에 맞지 않아 채택하지 않았
 ### Evidence
 
 현 결정 2026-10-21. SCENE 구현 리뷰 2026-10-21(S1~S6, S8).
+
+---
+
+## DEC-068 — 신청서 질문은 유형 9종과 조건부 표시를 갖고 신청 접수 후 유형 변경·보기 삭제를 잠근다
+
+**Date:** 2026-11-16
+
+**Status:** CONFIRMED (현 결정 2026-11-16)
+
+### Context
+
+2027년 1월 하순 수련회에서 SCENE을 실제로 쓰고, 12월 중순에 신청을 연다([#230](https://github.com/BeomhyunPark/SCENE/issues/230)). 지금 신청서는 SYSTEM 이름·전화와 CUSTOM 자유 텍스트 질문 1개만 받는다. 수련회 조사에는 객관식·날짜·기간 같은 여러 질문 유형이 필요하다. 참고한 실제 수련회 신청서는 질문 약 35개 중 7개만 모두에게 보이고, 나머지는 앞 답에 따라 열렸다([#223](https://github.com/BeomhyunPark/SCENE/issues/223) 댓글).
+
+### Decision
+
+- **질문 유형은 9종이다.** 단답형, 서술형, 단수선택, 복수선택, 드롭다운, 날짜, 기간, 숫자, 예/아니오. 질문마다 필수 여부와 설명을 둔다. 신청서당 CUSTOM 질문 1개 제한을 없앤다.
+- **조건부 표시를 1차에 넣는다.** 앞 질문의 답에 따라 질문을 보이거나 숨긴다. 서버가 제출된 답으로 조건을 다시 계산하고, 숨겨진 질문은 필수 검사를 하지 않는다.
+- **보기는 바뀌지 않는 id를 갖고 답은 id를 저장한다.** 보기 문구를 고쳐도 받은 답이 유지된다.
+- **신청이 1건이라도 들어오면 질문 유형 변경과 보기 삭제를 잠근다.** 제목·설명 수정, 보기 추가·문구 수정·숨기기는 허용한다.
+- C7 개인정보 경고(DEC-066)는 질문 설명과 보기 문구도 확인한다. 이번에도 경고만 하고 저장을 막지 않는다.
+
+설정 항목, 답 값 모양, 조건 규칙, 검증 순서와 남은 확인 항목은 [신청서 질문 유형 검토](form-question-types-review.md)에 둔다.
+
+### 범위 밖
+
+- AND·NOT 조건, 페이지 건너뛰기 로직, 파일 첨부·서명·표 질문
+- 답에 따른 참가비 계산. 이번 수련회의 참가비 확인은 SCENE 밖에서 한다(#230).
+
+### Alternatives
+
+- 기본 4종(단답·서술·단수·복수)만, 또는 4종에 날짜·기간만 더하는 안: 날짜나 숫자를 자유 텍스트로 받게 되어 명단 정리가 어려워 채택하지 않았다. 유형이 같은 저장 구조를 써서 나머지 유형을 더하는 비용이 작다.
+- 조건부 질문을 다음 단계로 미루는 안: 처음에는 이 안을 골랐다. 참고 사례를 분석해 보니 수련회 신청서를 만들 수 없어서 1차로 옮겼다.
+- 신청 후에도 모든 편집을 허용하고 경고만 하는 안: 받은 답이 새 질문과 맞지 않게 된다. 신청 후 모든 편집을 잠그는 안: 오타도 고칠 수 없다.
+
+### Reason
+
+운영자가 수련회마다 필요한 질문을 직접 구성해야 SCENE이 실제 신청 접수를 대신할 수 있다. 이미 받은 답을 지키는 최소한의 잠금만 두어 운영 중 수정의 자유를 남긴다.
+
+### Consequence
+
+구현은 [#225](https://github.com/BeomhyunPark/SCENE/issues/225)(백엔드), [#226](https://github.com/BeomhyunPark/SCENE/issues/226)(운영자 빌더), [#227](https://github.com/BeomhyunPark/SCENE/issues/227)(참가자 입력), [#229](https://github.com/BeomhyunPark/SCENE/issues/229)(조건부), [#228](https://github.com/BeomhyunPark/SCENE/issues/228)(원본 조회)에서 한다. 그 전까지 [backend/docs/api.md](../../backend/docs/api.md)의 신청서·공개 신청 계약은 지금 구현(CUSTOM 1개, `text`만)을 설명한다. 문서만 바꿨으며 코드는 없다.
+
+### Evidence
+
+현 결정 2026-11-16. 사용자 답변(질문 유형 1차 범위, 조건부 질문 범위, 신청 접수 후 편집 정책), 참고 사례 분석([#223](https://github.com/BeomhyunPark/SCENE/issues/223)).
