@@ -47,7 +47,7 @@
   text-decoration: none;
 }
 
-.public-home__returning {
+.public-home__signup {
   margin: 0;
   color: var(--color-text-tertiary);
   font: var(--scene-body-m);
@@ -55,7 +55,7 @@
   text-align: center;
 }
 
-.public-home__returning a {
+.public-home__signup a {
   color: var(--color-text-brand);
   font: var(--scene-label-m);
 }

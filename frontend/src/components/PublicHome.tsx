@@ -15,11 +15,11 @@ export function PublicHome() {
           </h1>
           <p className="public-home__support">교회와 공동체를 위한 행사 운영, SCENE.</p>
           <div className="public-home__actions">
-            <Link className="scene-button scene-button--primary scene-button--size-40" to="/signup">
-              <span className="scene-button__label">시작하기</span>
+            <Link className="scene-button scene-button--primary scene-button--size-40" to="/login">
+              <span className="scene-button__label">로그인</span>
             </Link>
-            <p className="public-home__returning">
-              이미 계정이 있나요? <Link to="/login">로그인</Link>
+            <p className="public-home__signup">
+              계정이 없으신가요? <Link to="/signup">계정 만들기</Link>
             </p>
           </div>
         </div>

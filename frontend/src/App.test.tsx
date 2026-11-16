@@ -25,11 +25,10 @@ describe("public shell", () => {
       expect(text.closest("a")).toBeNull();
     }
 
-    const logins = screen.getAllByRole("link", { name: "로그인" });
-    expect(logins).toHaveLength(2);
-    for (const login of logins) {
-      expect(login).toHaveAttribute("href", "/login");
-    }
+    const login = screen.getByRole("link", { name: "로그인" });
+    expect(login).toHaveAttribute("href", "/login");
+    expect(login).toHaveClass("scene-button--primary");
+    expect(login.closest("header")).toBeNull();
 
     expect(
       screen.getByRole("heading", {
@@ -37,7 +36,9 @@ describe("public shell", () => {
       }),
     ).toBeInTheDocument();
     expect(screen.getByText("교회와 공동체를 위한 행사 운영, SCENE.")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "시작하기" })).toHaveAttribute("href", "/signup");
+    expect(screen.getByText(/계정이 없으신가요\?/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "계정 만들기" })).toHaveAttribute("href", "/signup");
+    expect(screen.queryByRole("link", { name: "시작하기" })).toBeNull();
 
     const images = [...document.querySelectorAll("img")];
     expect(images).toHaveLength(2);

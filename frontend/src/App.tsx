@@ -36,7 +36,7 @@ import { LoginDone } from "./components/LoginDone";
 function Home() {
   return (
     <>
-      <PublicHeader />
+      <PublicHeader login={false} />
       <PublicHome />
     </>
   );
