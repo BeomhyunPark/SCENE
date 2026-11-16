@@ -2145,7 +2145,7 @@ slice (d)를 연다. 위 Decision의 "회고는 draft 전용, 저장 API는 아�
 
 ---
 
-## DEC-068 — 신청서 질문은 유형 9종과 조건부 표시를 갖고 신청 접수 후 유형 변경·보기 삭제를 잠근다
+## DEC-068 — 신청서 질문은 유형 9종과 조건부 표시를 갖고 신청 접수 후 유형 변경·보기 삭제·표시 조건 변경을 잠근다
 
 **Date:** 2026-11-16
 
@@ -2153,46 +2153,129 @@ slice (d)를 연다. 위 Decision의 "회고는 draft 전용, 저장 API는 아�
 
 ### Context
 
-2027년 1월 하순 수련회에서 SCENE을 실제로 쓰고, 12월 중순에 신청을 연다([#230](https://github.com/BeomhyunPark/SCENE/issues/230)). 지금 신청서는 SYSTEM 이름·전화와 CUSTOM 자유 텍스트 질문 1개만 받는다. 수련회 조사에는 객관식·날짜·기간 같은 여러 질문 유형이 필요하다. 참고한 실제 수련회 신청서는 질문 약 35개 중 7개만 모두에게 보이고, 나머지는 앞 답에 따라 열렸다([#223](https://github.com/BeomhyunPark/SCENE/issues/223) 댓글).
+2027년 1월 하순 수련회를 SCENE으로 운영하고 12월 15일쯤 신청을 연다([#230](https://github.com/BeomhyunPark/SCENE/issues/230)). 지금 신청서는 SYSTEM 이름·전화와 CUSTOM 자유 텍스트 질문 1개뿐이다. `V3__forms.sql`의 `fields_one_custom`이 CUSTOM을 1개로 막고, 답은 `answers.value` jsonb에 `{"text": "…"}`로 저장된다.
+
+참고한 실제 수련회 신청서는 질문 약 35개 중 7개만 모두에게 보이고, 나머지는 참석 방식 → 교통편 → 동승 순서로 앞 답에 따라 열린다. 교통편 보기도 참석 방식에 따라 바뀐다([#223 댓글](https://github.com/BeomhyunPark/SCENE/issues/223#issuecomment-6905714860)). 처음에는 조건부 질문을 다음 단계로 미뤘지만, 이 분석을 보고 사용자가 1차 범위로 옮겼다([#223 댓글](https://github.com/BeomhyunPark/SCENE/issues/223#issuecomment-6905749109), [#229](https://github.com/BeomhyunPark/SCENE/issues/229)). [#224](https://github.com/BeomhyunPark/SCENE/issues/224) 본문의 "조건부 질문 보류"는 이 결정 전 내용이라 따르지 않는다.
 
 ### Decision
 
-- **질문 유형은 9종이다.** 단답형, 서술형, 단수선택, 복수선택, 드롭다운, 날짜, 기간, 숫자, 예/아니오. 질문마다 필수 여부와 설명을 둔다. 신청서당 CUSTOM 질문 1개 제한을 없앤다.
-- **조건부 표시를 1차에 넣는다.** 앞 질문의 답에 따라 질문을 보이거나 숨긴다. 서버가 제출된 답으로 조건을 다시 계산하고, 숨겨진 질문은 필수 검사를 하지 않는다.
-- **보기는 바뀌지 않는 id를 갖고 답은 id를 저장한다.** 보기 문구를 고쳐도 받은 답이 유지된다.
-- **신청이 1건이라도 들어오면 질문 유형 변경과 보기 삭제를 잠근다.** 제목·설명 수정, 보기 추가·문구 수정·숨기기는 허용한다.
-- C7 개인정보 경고(DEC-066)는 질문 설명과 보기 문구도 확인한다. 이번에도 경고만 하고 저장을 막지 않는다.
+- **질문 유형은 9종이다.** 단답형, 서술형, 단수선택, 복수선택, 드롭다운, 날짜, 기간, 숫자, 예/아니오. 신청서당 CUSTOM 1개 제한을 없앤다.
+- **참고 사례에서 나온 요구는 새 유형 없이 설정으로 처리한다.** 도착·출발 시각은 `includeTime`, 개인정보 동의는 예/아니오의 `style: CONSENT`, 일자별 프로그램·식사는 보기 `group`, 전화·숫자만 입력은 단답형 `format`, 보기 2~3개 버튼 표시는 `display: BUTTONS`.
+- **보기는 서버가 준 고정 `optionId`(`opt_…`)를 갖고 답은 id로 저장한다.** 보기 문구를 고쳐도 받은 답이 유지된다.
+- **조건부 표시를 1차에 넣는다.** 질문과 보기 모두 `showWhen`을 가질 수 있다. 서버가 제출된 답으로 조건을 다시 계산하고, 숨겨진 질문은 검증하지 않으며 그 답은 거절하지 않고 저장하지 않는다.
+- **잠금 기준은 그 신청서에 `SUBMITTED` 신청이 1건 이상 있는지다.** 잠기면 유형 변경, 있던 보기 삭제, 질문·보기의 `showWhen` 변경, 질문 삭제를 `409 FIELD_LOCKED`로 거부한다. 질문 삭제 대신 숨기기를 쓴다. 제목·설명·필수·순서, 보기 추가·문구 수정·숨기기는 허용한다.
+- **C7 개인정보 경고(DEC-066)는 질문 제목·설명과 보기 문구에 적용한다.** 경고만 하고 저장을 막지 않는다. 확인에는 운영자가 쓴 문구만 보내고 행사·참가자 답은 보내지 않는다.
 
-설정 항목, 답 값 모양, 조건 규칙, 검증 순서와 남은 확인 항목은 [신청서 질문 유형 검토](form-question-types-review.md)에 둔다.
+#### 1. 유형별 config와 답 값
+
+모든 질문 공통: `label`(1–200자, 앞뒤 공백 제거), `description`(0–500자, 빈 값은 `null`), `required`(기본 `false`), `position`, `hidden`(기본 `false`), `showWhen`(기본 `null`).
+
+| `answerType` | 이름 | `config` 키 (기본값) | 답 `value` |
+|---|---|---|---|
+| `SHORT_TEXT` | 단답형 | `maxLength` 1–200 (200), `format` `NONE`·`PHONE`·`DIGITS` (`NONE`), `placeholder` ≤100자 (`null`) | `{"text"}` |
+| `LONG_TEXT` | 서술형 | `maxLength` 1–2000 (1000), `placeholder` | `{"text"}` |
+| `SINGLE_CHOICE` | 단수선택 | `options`, `allowOther` (`false`), `display` `LIST`·`BUTTONS` (`LIST`) | `{"optionId"}` 또는 `{"other"}` |
+| `MULTI_CHOICE` | 복수선택 | `options`, `allowOther` (`false`), `minSelect` 0–보기 수 (0), `maxSelect` (`null` = 제한 없음, `minSelect` 이상) | `{"optionIds": [...], "other"?}` |
+| `DROPDOWN` | 드롭다운 | `options` | `{"optionId"}` |
+| `DATE` | 날짜 | `includeTime` (`false`), `min`·`max` (`null`, `min ≤ max`) | `{"date"}` 또는 `includeTime`이면 `{"dateTime"}` |
+| `DATE_RANGE` | 기간 | `includeTime` (`false`), `min`·`max` (`null`) | `{"start", "end"}`, `start ≤ end` |
+| `NUMBER` | 숫자 | `min`·`max` (`null`, 절댓값 ≤ 10억), `unit` ≤10자 (`null`) | `{"number"}` 정수만 |
+| `YES_NO` | 예/아니오 | `style` `YES_NO`·`CONSENT` (`YES_NO`), `yesLabel`·`noLabel` ≤20자 (`null`) | `{"value": true/false}` |
+
+- 보기: `{ "optionId", "label"(1–100자), "group"(≤50자, `null`), "hidden"(`false`), "showWhen"(`null`) }`, 질문당 1–50개. 새 보기는 `optionId` 없이 보내면 서버가 발급한다. 모르는 `optionId`는 `400`이다.
+- `allowOther`의 직접 입력 글은 1–200자다.
+- 날짜·시간은 행사 현지 시각(Asia/Seoul)이다. `date`는 `YYYY-MM-DD`, `dateTime`은 `YYYY-MM-DDTHH:mm`이고 offset이 없다.
+- 날짜 범위 기본값 = 행사 기간: 서버는 `min`·`max`를 채우지 않는다. 운영자 빌더(#226)가 질문을 만들 때 행사 기간을 기본값으로 넣는다.
+- 숫자는 정수만 받는다. 소수 설정은 두지 않는다.
+- `config`에 유형과 맞지 않는 키가 있으면 `400`이다. 유형을 바꾸면(잠기기 전) config는 새 유형 기본값으로 다시 만든다.
+- 한도: 신청서당 질문 최대 100개(SYSTEM 포함).
+
+**기존 답과 SYSTEM 질문:** 기존 CUSTOM 질문은 `SHORT_TEXT`, `required=false`로 옮기고 답 값은 바꾸지 않는다. SYSTEM 이름은 `SHORT_TEXT`(`maxLength` 200, `format NONE`), 전화는 `SHORT_TEXT`(`maxLength` 50, `format PHONE`, 숫자 4개 이상)이고 둘 다 늘 `required`다. 둘 다 `{"text"}` 그대로라 신청 목록의 `name`(`value.text`)과 한 건 조회가 바뀌지 않는다. SYSTEM은 제목만 고칠 수 있고 유형·필수·조건·숨김·삭제는 안 된다. 제출 요청은 예전 `{fieldId, text}`도 계속 받는다.
+
+#### 2. 필수·설명·순서
+
+- 필수와 설명은 언제든 바꿀 수 있다. 바뀐 필수는 새 제출부터 적용하고, 받은 답은 다시 검사하지 않는다. 글자 수·선택 수·범위를 좁혀도 같다.
+- 순서는 SYSTEM 이름·전화를 맨 앞에 두고 CUSTOM끼리 바꾼다. 순서를 바꾼 뒤에도 모든 조건은 앞 질문을 가리켜야 하며, 아니면 `400`이다.
+
+#### 3. 조건부 표시
+
+```json
+"showWhen": { "fieldId": "…", "optionIds": ["opt_partial", "opt_worship"] }
+"showWhen": { "fieldId": "…", "equals": true }
+```
+
+- 조건을 걸 수 있는 대상: `SINGLE_CHOICE`·`MULTI_CHOICE`·`DROPDOWN`·`YES_NO`. 텍스트·날짜·숫자 답에는 걸 수 없다.
+- 형태: "질문 X의 답이 보기 A 중 하나"(보기 OR 한 단계) 또는 예/아니오 `equals`. 조건은 하나만이고 AND는 두지 않는다. 참고 사례는 조건을 이어 붙여(참석 방식 → 교통편 → 동승) 만들 수 있다.
+- 복수선택 대상은 고른 보기 중 하나라도 `optionIds`에 있으면 참이다. 기타(직접 입력)는 조건에 쓰지 않는다.
+- 대상은 순서상 앞 질문만 고를 수 있어서 순환이 생기지 않는다. 대상이 숨겨지거나 답이 없으면 조건은 거짓이다(연쇄로 숨김).
+- **보기 단위 조건을 둔다.** 참석 방식별로 교통편 보기가 바뀌는 경우에 같은 질문 하나로 만든다. 질문을 나눠 만들면 명단·CSV의 교통편 열이 셋으로 갈라진다.
+- 서버는 position 순서로 조건을 다시 계산하고 화면이 보낸 표시 여부를 믿지 않는다. 숨겨진 질문(숨김이거나 조건이 거짓)은 필수·범위 검사를 하지 않고 그 답을 버린다. 숨겨진 보기를 고른 답은 그 보기를 빼고 본다. 참가자 화면은 앞 답이 바뀌면 숨겨진 입력을 비운다.
+- 다른 질문·보기의 `showWhen`이 가리키는 질문은 삭제할 수 없다(`409 CONFLICT`).
+
+#### 4. 제출 검증 순서
+
+1. 모르는 `fieldId`, 겹친 `fieldId`, 유형과 다른 값 모양 → 거절
+2. 조건을 계산해 보이는 질문만 남긴다
+3. 보이는 필수 질문에 답이 없으면 → 거절 (빈 글은 답 없음)
+4. 유형별 범위: 글자 수, `format`, 보기 존재·숨김, 선택 수, 날짜·숫자 범위, `start ≤ end`, 필수 동의 체크
+
+실패는 지금처럼 `400 APPLICATION_VALIDATION_FAILED`이고 `errors`는 없다. 질문별 오류 위치는 참가자 화면(#227)이 같은 규칙으로 먼저 보여 준다.
+
+#### 5. 신청 접수 후 편집 (잠금 표)
+
+잠금 = 그 신청서에 `SUBMITTED` 신청이 1건 이상. 운영자 신청서 상세는 `locked`로 알려 주고, 빌더(#226)는 잠긴 동작을 끄고 이유를 보여 준다.
+
+| 동작 | 잠기기 전 | 잠긴 뒤 |
+|---|---|---|
+| 질문 제목·설명 수정 | 허용 | 허용 |
+| 필수 여부 변경 | 허용 | 허용 (새 제출부터) |
+| 질문 추가, 순서 변경 | 허용 | 허용 (조건은 앞 질문 유지) |
+| 질문 숨기기·다시 보이기 | 허용 | 허용 |
+| 보기 추가, 보기 문구 수정 | 허용 | 허용 |
+| 보기 숨기기·다시 보이기 | 허용 | 허용 |
+| 글자 수·선택 수·범위 변경 | 허용 | 허용 (받은 답은 다시 검사 안 함) |
+| 질문 유형 변경 | 허용 | **`409 FIELD_LOCKED`** |
+| 있던 보기 삭제 | 허용 | **`409 FIELD_LOCKED`** (숨기기 안내) |
+| 질문·보기의 `showWhen` 변경 | 허용 | **`409 FIELD_LOCKED`** |
+| CUSTOM 질문 삭제 | 허용 (실제 삭제) | **`409 FIELD_LOCKED`** (숨기기 안내) |
+| SYSTEM 질문 삭제·유형 변경 | `409 CONFLICT` | `409 CONFLICT` |
+
+ErrorCode는 `FIELD_LOCKED`(409) 하나다(#225가 추가한다). 동작별 코드는 두지 않는다.
+
+#### 6. 숨긴 질문·보기와 받은 답
+
+- 접수 후에는 질문을 지울 수 없으므로 받은 답이 없어지지 않는다. 잠기기 전에는 받은 답이 없어 실제로 지운다.
+- 숨긴 질문은 공개 신청서에서 빠지고 새 답을 받지 않는다. 신청 원본 조회(#228)와 CSV(#233)에는 계속 열로 나오고 제목 뒤에 "(숨김)"을 붙인다.
+- 숨긴 보기는 새 참가자에게 보이지 않는다. 이미 그 보기를 고른 답은 원본 조회·CSV에서 보기 문구 뒤에 "(숨김)"을 붙여 보인다.
+- 원본 조회·CSV는 `optionId`를 현재 보기 문구로 바꿔 보여 준다. 날짜·기간은 읽기 좋은 형식으로 보인다.
 
 ### 범위 밖
 
-- AND·NOT 조건, 페이지 건너뛰기 로직, 파일 첨부·서명·표 질문
-- 답에 따른 참가비 계산. 이번 수련회의 참가비 확인은 SCENE 밖에서 한다(#230).
+- AND·NOT 조건, 텍스트·날짜·숫자 답에 거는 조건, 페이지 나누기·건너뛰기
+- 파일 첨부, 서명, 표(그리드) 질문, 소수 숫자
+- 답에 따른 자동 계산(참가비 등). 이번 수련회 참가비는 SCENE 밖에서 한다(#230).
+- 제출 실패 응답에 질문별 `errors[].fieldId`를 넣는 것
 
 ### Alternatives
 
-- 기본 4종(단답·서술·단수·복수)만, 또는 4종에 날짜·기간만 더하는 안: 날짜나 숫자를 자유 텍스트로 받게 되어 명단 정리가 어려워 채택하지 않았다. 유형이 같은 저장 구조를 써서 나머지 유형을 더하는 비용이 작다.
-- 조건부 질문을 다음 단계로 미루는 안: 처음에는 이 안을 골랐다. 참고 사례를 분석해 보니 수련회 신청서를 만들 수 없어서 1차로 옮겼다.
-- 신청 후에도 모든 편집을 허용하고 경고만 하는 안: 받은 답이 새 질문과 맞지 않게 된다. 신청 후 모든 편집을 잠그는 안: 오타도 고칠 수 없다.
+- 기본 4종(단답·서술·단수·복수) 또는 6종: 날짜·숫자를 자유 텍스트로 받아 명단 정리가 어렵다.
+- 시각·동의 체크·일자 묶음 복수선택을 별도 유형으로 추가: 빌더와 검증 코드가 함께 커진다. 9종의 설정으로 충분하다.
+- 조건부 질문 보류: 참고 사례 신청서를 만들 수 없다.
+- 보기 단위 조건 없이 질문을 나눠 만들기: 같은 질문을 참석 방식별로 세 번 만들고 CSV 열이 갈라진다.
+- 숨겨진 질문에 온 답을 거절: 참가자가 앞 답을 바꾼 뒤 남은 값만으로 제출이 실패한다.
+- 접수 후 모든 편집 허용 + 경고: 받은 답이 새 질문과 맞지 않는다. 접수 후 모든 편집 잠금: 오타도 못 고친다.
+- 선택 3종 모두 `{"optionIds": [...]}`, 예/아니오 `{"bool"}`, 날짜 하나의 키로 통일: 조건·CSV 처리는 단순해지지만 이미 구현·테스트된 서버(`AnswerEvaluator`)와 화면(`answerModel`)을 다시 고쳐야 해서 12/10 일정에 맞지 않는다.
+- 숨긴 질문을 CSV에서 빼고 원본 조회에만: 받은 답이 CSV에서 사라진다.
+- 동작별 ErrorCode(`FIELD_TYPE_LOCKED` 등 3개): 화면이 잠긴 동작을 미리 끄므로 코드 하나로 충분하다.
 
 ### Reason
 
-운영자가 수련회마다 필요한 질문을 직접 구성해야 SCENE이 실제 신청 접수를 대신할 수 있다. 이미 받은 답을 지키는 최소한의 잠금만 두어 운영 중 수정의 자유를 남긴다.
+운영자가 수련회마다 필요한 질문과 분기를 직접 구성해야 SCENE이 실제 신청 접수를 대신할 수 있다. 이미 받은 답의 뜻을 바꾸는 동작만 잠가 운영 중 오타·안내 수정의 자유를 남긴다.
 
 ### Consequence
 
-구현은 [#225](https://github.com/BeomhyunPark/SCENE/issues/225)(백엔드), [#226](https://github.com/BeomhyunPark/SCENE/issues/226)(운영자 빌더), [#227](https://github.com/BeomhyunPark/SCENE/issues/227)(참가자 입력), [#229](https://github.com/BeomhyunPark/SCENE/issues/229)(조건부), [#228](https://github.com/BeomhyunPark/SCENE/issues/228)(원본 조회)에서 한다. 서버 계약은 #225에서 구현했고 [backend/docs/api.md](../../backend/docs/api.md)의 "신청서"·"공개 신청서"에 있다(2026-11-16). 화면은 #226·#227에서 한다.
-
-### Follow-up (2026-11-16): 검토 문서의 확인 항목 확정
-
-- 참고 사례의 요구(시각, 동의 체크, 일자별 보기 묶음, 입력 형식, 버튼형 보기)는 새 유형 없이 9종의 설정으로 처리한다.
-- 보기에도 표시 조건을 둔다. 앞 답에 따라 같은 질문의 보기가 바뀐다.
-- 숨겨진 질문이나 보기에 온 답은 거절하지 않고 저장하지 않는다.
-- 신청 접수 후 질문 삭제는 숨기기로 대신하고, 질문·보기의 표시 조건 변경은 잠근다.
-
-현 결정 2026-11-16.
+구현은 [#225](https://github.com/BeomhyunPark/SCENE/issues/225)(백엔드, 마이그레이션 **V9** — V8은 회고 저장이 썼다), [#226](https://github.com/BeomhyunPark/SCENE/issues/226)(운영자 빌더), [#227](https://github.com/BeomhyunPark/SCENE/issues/227)(참가자 입력), [#229](https://github.com/BeomhyunPark/SCENE/issues/229)(조건부), [#228](https://github.com/BeomhyunPark/SCENE/issues/228)(원본 조회·실제 클릭), [#233](https://github.com/BeomhyunPark/SCENE/issues/233)(CSV)에서 한다. 저장 구조는 `fields`에 `answer_type`, `required`, `description`, `config jsonb`, `show_when jsonb`, `hidden`을 더하고 `fields_one_custom`을 지운다. 보기는 `config.options`에 둔다. API 계약은 #225가 [backend/docs/api.md](../../backend/docs/api.md)에 반영한다. 이 DEC는 문서만 바꿨으며 코드는 없다.
 
 ### Evidence
 
-현 결정 2026-11-16. 사용자 답변(질문 유형 1차 범위, 조건부 질문 범위, 신청 접수 후 편집 정책), 참고 사례 분석([#223](https://github.com/BeomhyunPark/SCENE/issues/223)).
+현 결정 2026-11-16. 사용자 결정: 1차 유형 9종·조건부 질문 1차 포함·접수 후 편집 정책([#223](https://github.com/BeomhyunPark/SCENE/issues/223), [#229](https://github.com/BeomhyunPark/SCENE/issues/229)), 참고 사례 요구는 설정으로·보기 단위 조건·숨겨진 답은 버림·접수 후 질문 삭제는 숨기기·조건 변경 잠금, 이미 구현된 답 값 모양 유지, 숨긴 질문은 CSV에 "(숨김)" 열로 유지, ErrorCode `FIELD_LOCKED` 하나(2026-11-16 #224 확인). 참고 사례 분석([#223 댓글](https://github.com/BeomhyunPark/SCENE/issues/223#issuecomment-6905714860)).
