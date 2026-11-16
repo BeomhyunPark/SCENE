@@ -2,7 +2,7 @@ package app.scene.event.form.param;
 
 import java.util.UUID;
 
-/** Values for one field row. A custom field passes a null system key. */
+/** Values for one field row. A custom field passes a null system key. JSON values are text. */
 public final class FieldInsert {
 
   private final UUID id;
@@ -13,6 +13,7 @@ public final class FieldInsert {
   private final String systemKey;
   private final String label;
   private final int position;
+  private final FieldValues values;
 
   private FieldInsert(
       UUID id,
@@ -22,7 +23,8 @@ public final class FieldInsert {
       String kind,
       String systemKey,
       String label,
-      int position) {
+      int position,
+      FieldValues values) {
     this.id = id;
     this.spaceId = spaceId;
     this.eventId = eventId;
@@ -31,6 +33,7 @@ public final class FieldInsert {
     this.systemKey = systemKey;
     this.label = label;
     this.position = position;
+    this.values = values;
   }
 
   public static FieldInsert of(
@@ -41,8 +44,9 @@ public final class FieldInsert {
       String kind,
       String systemKey,
       String label,
-      int position) {
-    return new FieldInsert(id, spaceId, eventId, formId, kind, systemKey, label, position);
+      int position,
+      FieldValues values) {
+    return new FieldInsert(id, spaceId, eventId, formId, kind, systemKey, label, position, values);
   }
 
   public UUID getId() {
@@ -75,5 +79,29 @@ public final class FieldInsert {
 
   public int getPosition() {
     return position;
+  }
+
+  public String getAnswerType() {
+    return values.answerType();
+  }
+
+  public boolean isRequired() {
+    return values.required();
+  }
+
+  public String getDescription() {
+    return values.description();
+  }
+
+  public String getConfig() {
+    return values.config();
+  }
+
+  public String getShowWhen() {
+    return values.showWhen();
+  }
+
+  public boolean isHidden() {
+    return values.hidden();
   }
 }

@@ -7,21 +7,25 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Public form field list. §7 names this GET next to submit and does not name the body. The body is
- * the field list only. A closed form uses {@code FORM_CLOSED}. {@code APPLICATION_CLOSED} is not
- * returned. No audit row is written.
+ * the field list only. Hidden questions and hidden options are left out (DEC-068); option and
+ * question {@code showWhen} stay so the page can show and hide questions. A closed form uses {@code
+ * FORM_CLOSED}. {@code APPLICATION_CLOSED} is not returned. No audit row is written.
  */
 @Service
 public class PublicFormService {
 
   private final EventRepository events;
   private final FormRepository forms;
+  private final JsonMapper json;
 
-  public PublicFormService(EventRepository events, FormRepository forms) {
+  public PublicFormService(EventRepository events, FormRepository forms, JsonMapper json) {
     this.events = events;
     this.forms = forms;
+    this.json = json;
   }
 
   public PublicForm read(UUID eventId, UUID formId) {
@@ -39,9 +43,10 @@ public class PublicFormService {
     }
     List<FormFieldView> fields = new ArrayList<>();
     for (FormFieldRow row : forms.findFields(spaceId, eventId, formId)) {
-      fields.add(
-          new FormFieldView(
-              row.fieldId(), row.kind(), row.systemKey(), row.label(), row.position()));
+      FieldDefinition field = FieldDefinition.from(row, json);
+      if (!field.hidden()) {
+        fields.add(field.publicView());
+      }
     }
     return new PublicForm(form.id(), fields);
   }

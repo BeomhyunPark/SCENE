@@ -73,13 +73,15 @@ class FormCommandHttpIT {
             write(post(forms(event.eventId)), event.owner, "{}", "req-create")
                 .header("Idempotency-Key", "same-key"));
     JsonNode body = json.readTree(created);
-    assertThat(body.propertyNames()).containsExactly("formId", "acceptingApplications", "fields");
+    assertThat(body.propertyNames())
+        .containsExactly("formId", "acceptingApplications", "fields", "locked");
+    assertThat(body.get("locked").booleanValue()).isFalse();
     UUID formId = UUID.fromString(body.get("formId").asString());
     assertThat(body.get("acceptingApplications").asBoolean()).isFalse();
     assertThat(body.get("fields")).hasSize(2);
     assertField(body.get("fields").get(0), "SYSTEM", "NAME", "이름", 0);
     assertField(body.get("fields").get(1), "SYSTEM", "PHONE", "전화", 1);
-    assertThat(created).doesNotContain("answer", "phone", "accessKey");
+    assertThat(created).doesNotContain("\"answers\"", "\"value\"", "phone", "accessKey");
     assertThat(accepting(formId)).isFalse();
     assertThat(auditCount(event.eventId)).isZero();
 
@@ -242,16 +244,15 @@ class FormCommandHttpIT {
     UUID nameId = UUID.fromString(body.get("fields").get(0).get("fieldId").asString());
     UUID customId = UUID.fromString(body.get("fields").get(2).get("fieldId").asString());
 
-    problem(
-        write(
-            post(fields(event.eventId, formId)),
-            event.owner,
-            "{\"label\":\"둘째\"}",
-            "req-second-custom"),
-        400,
-        "VALIDATION_FAILED",
-        "req-second-custom");
-    assertThat(fieldCount(formId)).isEqualTo(3);
+    String second =
+        created(
+            write(
+                post(fields(event.eventId, formId)),
+                event.owner,
+                "{\"label\":\"둘째\"}",
+                "req-second-custom"));
+    assertField(json.readTree(second).get("fields").get(3), "CUSTOM", null, "둘째", 3);
+    assertThat(fieldCount(formId)).isEqualTo(4);
 
     String renamed =
         ok(
@@ -296,8 +297,8 @@ class FormCommandHttpIT {
                 .header("X-Request-Id", "req-delete-custom"))
         .andExpect(status().isNoContent())
         .andExpect(content().string(""));
-    assertThat(fieldCount(formId)).isEqualTo(2);
-    assertThat(customCount(formId)).isZero();
+    assertThat(fieldCount(formId)).isEqualTo(3);
+    assertThat(customCount(formId)).isEqualTo(1);
   }
 
   @Test
@@ -358,8 +359,25 @@ class FormCommandHttpIT {
   private void assertField(
       JsonNode field, String kind, String systemKey, String label, int position) {
     assertThat(field.propertyNames())
-        .containsExactly("fieldId", "kind", "systemKey", "label", "position");
+        .containsExactly(
+            "fieldId",
+            "kind",
+            "systemKey",
+            "label",
+            "position",
+            "answerType",
+            "required",
+            "description",
+            "config",
+            "showWhen",
+            "hidden");
     assertThat(field.get("kind").asString()).isEqualTo(kind);
+    assertThat(field.get("answerType").asString()).isEqualTo("SHORT_TEXT");
+    assertThat(field.get("required").booleanValue()).isEqualTo("SYSTEM".equals(kind));
+    assertThat(field.get("showWhen").isNull()).isTrue();
+    assertThat(field.get("hidden").booleanValue()).isFalse();
+    assertThat(field.get("config").get("format").asString())
+        .isEqualTo("PHONE".equals(systemKey) ? "PHONE" : "NONE");
     if (systemKey == null) {
       assertThat(field.get("systemKey").isNull()).isTrue();
     } else {

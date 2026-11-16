@@ -26,7 +26,9 @@ public interface FormQueryMapper {
 
   FormFieldRow findField(FieldKey key);
 
-  int countCustom(FormKey key);
+  int countFields(FormKey key);
+
+  int countSubmitted(FormKey key);
 
   Integer maxPosition(FormKey key);
 }

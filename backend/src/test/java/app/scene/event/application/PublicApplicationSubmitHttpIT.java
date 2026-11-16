@@ -1,9 +1,11 @@
 package app.scene.event.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -162,6 +164,229 @@ class PublicApplicationSubmitHttpIT {
         "APPLICATION_VALIDATION_FAILED");
     assertThat(applicationCount(form.eventId)).isEqualTo(2);
     assertThat(participantCount(form.eventId)).isEqualTo(2);
+  }
+
+  @Test
+  void typedQuestionsFollowConditionsAndLockAfterTheFirstSubmit() throws Exception {
+    Held event = openEvent("Typed owner");
+    Opened form = createForm(event);
+    String fieldsPath =
+        "/api/v1/operator/events/" + form.eventId + "/forms/" + form.formId + "/fields";
+
+    JsonNode withAttendance =
+        json.readTree(
+            created(
+                write(
+                    post(fieldsPath),
+                    event.owner,
+                    "{\"label\":\"참석 방식\",\"answerType\":\"SINGLE_CHOICE\",\"required\":true,"
+                        + "\"config\":{\"options\":[{\"label\":\"전체\"},{\"label\":\"부분\"}],"
+                        + "\"display\":\"BUTTONS\"}}",
+                    "req-attendance")));
+    JsonNode attendance = withAttendance.get("fields").get(3);
+    assertThat(attendance.get("answerType").asString()).isEqualTo("SINGLE_CHOICE");
+    UUID attendanceId = UUID.fromString(attendance.get("fieldId").asString());
+    String full = attendance.get("config").get("options").get(0).get("optionId").asString();
+    String partial = attendance.get("config").get("options").get(1).get("optionId").asString();
+
+    JsonNode withCar =
+        json.readTree(
+            created(
+                write(
+                    post(fieldsPath),
+                    event.owner,
+                    "{\"label\":\"자차로 오나요?\",\"answerType\":\"YES_NO\",\"required\":true,"
+                        + "\"showWhen\":{\"fieldId\":\""
+                        + attendanceId
+                        + "\",\"optionIds\":[\""
+                        + partial
+                        + "\"]}}",
+                    "req-car")));
+    UUID carId = UUID.fromString(withCar.get("fields").get(4).get("fieldId").asString());
+
+    JsonNode withConsent =
+        json.readTree(
+            created(
+                write(
+                    post(fieldsPath),
+                    event.owner,
+                    "{\"label\":\"개인정보 수집에 동의합니다\",\"answerType\":\"YES_NO\","
+                        + "\"required\":true,\"config\":{\"style\":\"CONSENT\"}}",
+                    "req-consent")));
+    UUID consentId = UUID.fromString(withConsent.get("fields").get(5).get("fieldId").asString());
+
+    problem(
+        write(
+            post(fieldsPath),
+            event.owner,
+            "{\"label\":\"뒤를 가리킴\",\"answerType\":\"SHORT_TEXT\","
+                + "\"showWhen\":{\"fieldId\":\""
+                + form.nameId
+                + "\",\"equals\":true}}",
+            "req-bad-condition"),
+        400,
+        "VALIDATION_FAILED");
+
+    ok(
+        write(
+            post("/api/v1/operator/events/" + form.eventId + "/activate"),
+            event.owner,
+            "{\"expectedLifecycleVersion\":0}",
+            "req-activate"));
+    ok(
+        write(
+            patch("/api/v1/operator/events/" + form.eventId + "/forms/" + form.formId),
+            event.owner,
+            "{\"acceptingApplications\":true}",
+            "req-open"));
+
+    JsonNode publicForm =
+        json.readTree(
+            ok(
+                get("/api/v1/public/events/" + form.eventId + "/forms/" + form.formId)
+                    .header("X-Request-Id", "req-public")));
+    assertThat(publicForm.get("fields")).hasSize(6);
+    assertThat(publicForm.get("fields").get(4).get("showWhen").get("fieldId").asString())
+        .isEqualTo(attendanceId.toString());
+
+    String nameAndPhone =
+        "{\"fieldId\":\""
+            + form.nameId
+            + "\",\"text\":\"김\"},{\"fieldId\":\""
+            + form.phoneId
+            + "\",\"text\":\"010-1234-5678\"}";
+    String fullAttendance =
+        ",{\"fieldId\":\"" + attendanceId + "\",\"value\":{\"optionId\":\"" + full + "\"}}";
+    String staleCar = ",{\"fieldId\":\"" + carId + "\",\"value\":{\"value\":true}}";
+    String consent = ",{\"fieldId\":\"" + consentId + "\",\"value\":{\"value\":true}}";
+
+    problem(
+        publicSubmit(
+            form.eventId,
+            form.formId,
+            "{\"answers\":[" + nameAndPhone + fullAttendance + "]}",
+            "req-no-consent"),
+        400,
+        "APPLICATION_VALIDATION_FAILED");
+    assertThat(applicationCount(form.eventId)).isZero();
+
+    String submitted =
+        created(
+            publicSubmit(
+                form.eventId,
+                form.formId,
+                "{\"answers\":[" + nameAndPhone + fullAttendance + staleCar + consent + "]}",
+                "req-typed"));
+    UUID applicationId = UUID.fromString(json.readTree(submitted).get("applicationId").asString());
+    assertThat(answerCount(applicationId)).isEqualTo(4);
+    assertThat(answerText(applicationId)).contains(full);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM answers WHERE application_id = ? AND field_id = ?",
+                Integer.class,
+                applicationId,
+                carId))
+        .isZero();
+
+    String carPath = fieldsPath + "/" + carId;
+    String attendancePath = fieldsPath + "/" + attendanceId;
+    problem(
+        write(patch(attendancePath), event.owner, "{\"answerType\":\"DROPDOWN\"}", "req-type"),
+        409,
+        "FIELD_LOCKED");
+    problem(
+        write(
+            patch(attendancePath),
+            event.owner,
+            "{\"config\":{\"options\":[{\"optionId\":\"" + full + "\",\"label\":\"전체\"}]}}",
+            "req-drop-option"),
+        409,
+        "FIELD_LOCKED");
+    problem(
+        write(patch(carPath), event.owner, "{\"showWhen\":null}", "req-condition"),
+        409,
+        "FIELD_LOCKED");
+    mvc.perform(
+            delete(carPath)
+                .cookie(event.owner, csrf())
+                .header(CSRF_HEADER, CSRF)
+                .header("X-Request-Id", "req-delete-locked"))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.code").value("FIELD_LOCKED"));
+
+    JsonNode renamed =
+        json.readTree(
+            ok(
+                write(
+                    patch(attendancePath),
+                    event.owner,
+                    "{\"label\":\"참석 형태\",\"config\":{\"options\":["
+                        + "{\"optionId\":\""
+                        + full
+                        + "\",\"label\":\"전체 참석\"},"
+                        + "{\"optionId\":\""
+                        + partial
+                        + "\",\"label\":\"부분\",\"hidden\":true},"
+                        + "{\"label\":\"집회만\"}],\"display\":\"BUTTONS\"}}",
+                    "req-rename-options")));
+    assertThat(renamed.get("locked").booleanValue()).isTrue();
+    JsonNode options = renamed.get("fields").get(3).get("config").get("options");
+    assertThat(options).hasSize(3);
+    assertThat(options.get(0).get("optionId").asString()).isEqualTo(full);
+    assertThat(options.get(0).get("label").asString()).isEqualTo("전체 참석");
+
+    ok(write(patch(carPath), event.owner, "{\"hidden\":true}", "req-hide"));
+    JsonNode afterHide =
+        json.readTree(
+            ok(
+                get("/api/v1/public/events/" + form.eventId + "/forms/" + form.formId)
+                    .header("X-Request-Id", "req-public-hidden")));
+    assertThat(afterHide.get("fields")).hasSize(5);
+    assertThat(afterHide.get("fields").get(3).get("config").get("options")).hasSize(2);
+
+    problem(
+        write(
+            put(fieldsPath + "/order"),
+            event.owner,
+            "{\"fieldIds\":[\""
+                + form.nameId
+                + "\",\""
+                + form.phoneId
+                + "\",\""
+                + carId
+                + "\",\""
+                + attendanceId
+                + "\",\""
+                + withAttendance.get("fields").get(2).get("fieldId").asString()
+                + "\",\""
+                + consentId
+                + "\"]}",
+            "req-bad-order"),
+        400,
+        "VALIDATION_FAILED");
+    JsonNode reordered =
+        json.readTree(
+            ok(
+                write(
+                    put(fieldsPath + "/order"),
+                    event.owner,
+                    "{\"fieldIds\":[\""
+                        + form.nameId
+                        + "\",\""
+                        + form.phoneId
+                        + "\",\""
+                        + consentId
+                        + "\",\""
+                        + withAttendance.get("fields").get(2).get("fieldId").asString()
+                        + "\",\""
+                        + attendanceId
+                        + "\",\""
+                        + carId
+                        + "\"]}",
+                    "req-order")));
+    assertThat(reordered.get("fields").get(2).get("fieldId").asString())
+        .isEqualTo(consentId.toString());
+    assertThat(reordered.get("fields").get(5).get("position").asInt()).isEqualTo(5);
   }
 
   @Test

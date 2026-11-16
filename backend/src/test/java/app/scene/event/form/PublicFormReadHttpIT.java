@@ -140,8 +140,25 @@ class PublicFormReadHttpIT {
   private void assertField(
       JsonNode field, String kind, String systemKey, String label, int position) {
     assertThat(field.propertyNames())
-        .containsExactly("fieldId", "kind", "systemKey", "label", "position");
+        .containsExactly(
+            "fieldId",
+            "kind",
+            "systemKey",
+            "label",
+            "position",
+            "answerType",
+            "required",
+            "description",
+            "config",
+            "showWhen",
+            "hidden");
     assertThat(field.get("kind").asString()).isEqualTo(kind);
+    assertThat(field.get("answerType").asString()).isEqualTo("SHORT_TEXT");
+    assertThat(field.get("required").booleanValue()).isEqualTo("SYSTEM".equals(kind));
+    assertThat(field.get("showWhen").isNull()).isTrue();
+    assertThat(field.get("hidden").booleanValue()).isFalse();
+    assertThat(field.get("config").get("format").asString())
+        .isEqualTo("PHONE".equals(systemKey) ? "PHONE" : "NONE");
     if (systemKey == null) {
       assertThat(field.get("systemKey").isNull()).isTrue();
     } else {

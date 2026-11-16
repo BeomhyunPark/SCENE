@@ -4,6 +4,7 @@ import app.scene.common.error.ErrorCode;
 import app.scene.common.error.SceneException;
 import app.scene.event.application.param.AnswerInsert;
 import app.scene.event.application.param.ApplicationInsert;
+import app.scene.event.form.FieldDefinition;
 import app.scene.event.form.FormFieldRow;
 import app.scene.event.form.FormRepository;
 import app.scene.event.form.FormRow;
@@ -18,9 +19,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HexFormat;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,15 +30,13 @@ import tools.jackson.databind.json.JsonMapper;
  * Public first submit. §7 names audit in the same transaction and does not name an action, so this
  * slice writes no audit row. {@code Idempotency-Key} is ignored. A second submit with the same
  * phone creates another participant. {@code FORM_CLOSED} and {@code APPLICATION_CLOSED} stay
- * separate. This slice returns only {@code FORM_CLOSED}.
+ * separate. This slice returns only {@code FORM_CLOSED}. Answers are checked by {@link
+ * AnswerEvaluator} (DEC-068): question types, conditions, and dropped hidden answers.
  */
 @Service
 public class PublicApplicationService {
 
-  private static final int TEXT_MAX = 200;
-  private static final int PHONE_MAX = 50;
   private static final int KEY_BYTES = 32;
-  private static final String SYSTEM = "SYSTEM";
   private static final String NAME = "NAME";
   private static final String PHONE = "PHONE";
   private static final String SUBMITTED = "SUBMITTED";
@@ -81,14 +78,14 @@ public class PublicApplicationService {
     if (!form.acceptingApplications()) {
       throw new SceneException(ErrorCode.FORM_CLOSED);
     }
-    List<FormFieldRow> fields = forms.findFields(spaceId, eventId, formId);
-    List<PreparedAnswer> answers = prepare(body, fields);
-    PreparedAnswer name = required(answers, NAME);
-    PreparedAnswer phone = required(answers, PHONE);
-    String phoneText = phone.text();
-    if (phoneText.length() > PHONE_MAX || digits(phoneText).length() < 4) {
-      throw invalid();
+    List<FieldDefinition> fields = new ArrayList<>();
+    for (FormFieldRow row : forms.findFields(spaceId, eventId, formId)) {
+      fields.add(FieldDefinition.from(row, json));
     }
+    List<AnswerEvaluator.Answer> answers = AnswerEvaluator.evaluate(body, fields);
+    AnswerEvaluator.Answer name = required(answers, NAME);
+    AnswerEvaluator.Answer phone = required(answers, PHONE);
+    String phoneText = phone.text();
     Instant now = clock.instant();
     UUID participantId = UUID.randomUUID();
     UUID applicationId = UUID.randomUUID();
@@ -105,7 +102,7 @@ public class PublicApplicationService {
             now,
             now));
     List<AnswerInsert> rows = new ArrayList<>();
-    for (PreparedAnswer answer : answers) {
+    for (AnswerEvaluator.Answer answer : answers) {
       rows.add(
           AnswerInsert.of(
               UUID.randomUUID(),
@@ -113,7 +110,7 @@ public class PublicApplicationService {
               eventId,
               applicationId,
               answer.fieldId(),
-              json.writeValueAsString(Map.of("text", answer.text()))));
+              json.writeValueAsString(answer.value())));
     }
     applications.save(
         ApplicationInsert.of(
@@ -125,72 +122,9 @@ public class PublicApplicationService {
     return new SubmittedApplication(applicationId, participantId, accessKey);
   }
 
-  /** Name and phone are required. A custom field may be omitted. */
-  private List<PreparedAnswer> prepare(JsonNode body, List<FormFieldRow> fields) {
-    Map<UUID, String> submitted = readAnswers(body);
-    List<PreparedAnswer> prepared = new ArrayList<>();
-    for (FormFieldRow field : fields) {
-      String text = submitted.remove(field.fieldId());
-      if (text == null) {
-        if (SYSTEM.equals(field.kind())) {
-          throw invalid();
-        }
-        continue;
-      }
-      if (text.isEmpty() || text.length() > TEXT_MAX) {
-        throw invalid();
-      }
-      prepared.add(new PreparedAnswer(field.fieldId(), field.systemKey(), text));
-    }
-    if (!submitted.isEmpty()) {
-      throw invalid();
-    }
-    return prepared;
-  }
-
-  private Map<UUID, String> readAnswers(JsonNode body) {
-    if (body == null || !body.isObject()) {
-      throw invalid();
-    }
-    for (String key : body.propertyNames()) {
-      if (!"answers".equals(key)) {
-        throw invalid();
-      }
-    }
-    JsonNode answers = body.get("answers");
-    if (answers == null || !answers.isArray()) {
-      throw invalid();
-    }
-    Map<UUID, String> submitted = new LinkedHashMap<>();
-    for (JsonNode answer : answers) {
-      if (answer == null || !answer.isObject()) {
-        throw invalid();
-      }
-      for (String key : answer.propertyNames()) {
-        if (!"fieldId".equals(key) && !"text".equals(key)) {
-          throw invalid();
-        }
-      }
-      JsonNode fieldId = answer.get("fieldId");
-      JsonNode text = answer.get("text");
-      if (fieldId == null || !fieldId.isString() || text == null || !text.isString()) {
-        throw invalid();
-      }
-      UUID id;
-      try {
-        id = UUID.fromString(fieldId.asString());
-      } catch (IllegalArgumentException exception) {
-        throw invalid();
-      }
-      if (submitted.put(id, text.asString().strip()) != null) {
-        throw invalid();
-      }
-    }
-    return submitted;
-  }
-
-  private static PreparedAnswer required(List<PreparedAnswer> answers, String systemKey) {
-    for (PreparedAnswer answer : answers) {
+  private static AnswerEvaluator.Answer required(
+      List<AnswerEvaluator.Answer> answers, String systemKey) {
+    for (AnswerEvaluator.Answer answer : answers) {
       if (systemKey.equals(answer.systemKey())) {
         return answer;
       }
@@ -199,14 +133,7 @@ public class PublicApplicationService {
   }
 
   private static String digits(String text) {
-    StringBuilder digits = new StringBuilder();
-    for (int i = 0; i < text.length(); i++) {
-      char character = text.charAt(i);
-      if (character >= '0' && character <= '9') {
-        digits.append(character);
-      }
-    }
-    return digits.toString();
+    return AnswerEvaluator.digits(text);
   }
 
   /** 256-bit key. The caller returns it once and stores only the hash. */
@@ -219,6 +146,4 @@ public class PublicApplicationService {
   private static SceneException invalid() {
     return new SceneException(ErrorCode.APPLICATION_VALIDATION_FAILED);
   }
-
-  private record PreparedAnswer(UUID fieldId, String systemKey, String text) {}
 }

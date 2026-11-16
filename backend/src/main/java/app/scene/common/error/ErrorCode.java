@@ -25,6 +25,7 @@ public enum ErrorCode {
   FORM_NOT_FOUND(404, "Form not found", "신청 폼을 찾을 수 없습니다."),
   FORM_CLOSED(409, "Form closed", "신청을 받지 않는 폼입니다."),
   APPLICATION_VALIDATION_FAILED(400, "Application validation failed", "신청 답변이 올바르지 않습니다."),
+  FIELD_LOCKED(409, "Field locked", "신청이 들어온 신청서에서는 질문 유형, 보기 삭제, 표시 조건을 바꿀 수 없습니다."),
   INVITATION_REVOKED(410, "Invitation revoked", "초대가 취소되었습니다."),
   EMAIL_NOT_VERIFIED(403, "Email not verified", "검증된 이메일이 없습니다."),
   INVITATION_EMAIL_MISMATCH(403, "Invitation email mismatch", "초대한 이메일과 다른 계정입니다."),
