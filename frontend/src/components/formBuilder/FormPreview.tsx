@@ -1,0 +1,56 @@
+import { useState } from "react";
+import type { FormField } from "../../api/forms";
+import { Button } from "../Button";
+import { AnswerInput } from "../apply/AnswerInput";
+import { prune, visibleFields, visibleOptions, type RawAnswer, type RawAnswers } from "../apply/answerModel";
+import "../ParticipantGate.css";
+
+/**
+ * The form as a participant sees it right now. Answers stay in this component and are never
+ * sent, so the operator can click through each branch.
+ */
+export function FormPreview({ fields }: { fields: FormField[] }) {
+  // Same view the public form gets: hidden questions and hidden options are left out.
+  const shownFields = fields
+    .filter((field) => !field.hidden)
+    .map((field) =>
+      field.config.options
+        ? { ...field, config: { ...field.config, options: field.config.options.filter((option) => !option.hidden) } }
+        : field,
+    );
+  const [values, setValues] = useState<RawAnswers>({});
+  const pruned = prune(shownFields, values);
+  const shown = visibleFields(shownFields, pruned);
+  const waiting = shownFields.length - shown.length;
+
+  function change(fieldId: string, next: RawAnswer) {
+    setValues((current) => prune(shownFields, { ...current, [fieldId]: next }));
+  }
+
+  return (
+    <section className="registration-setup__panel form-preview" aria-labelledby="form-preview-title">
+      <div className="registration-setup__heading">
+        <h3 id="form-preview-title">참가자 화면 미리보기</h3>
+        <Button type="button" variant="tertiary" size={32} onClick={() => setValues({})}>
+          처음부터
+        </Button>
+      </div>
+      <p className="registration-setup__note">
+        답을 눌러 보면 이어지는 질문이 바뀌어요. 여기서 고른 답은 저장되지 않아요.
+        {waiting > 0 ? ` 지금 ${shown.length}개가 보이고, ${waiting}개는 답에 따라 나타나요.` : ""}
+      </p>
+      <div className="participant-gate__fields form-preview__fields">
+        {shown.map((field) => (
+          <AnswerInput
+            key={field.fieldId}
+            field={field}
+            options={visibleOptions(field, shownFields, pruned)}
+            value={pruned[field.fieldId]}
+            error={null}
+            onChange={(next) => change(field.fieldId, next)}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}

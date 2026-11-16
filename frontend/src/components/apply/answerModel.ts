@@ -79,6 +79,7 @@ export function problemFor(field: FormField, answer: RawAnswer | undefined): str
       const digits = text.replace(/\D/g, "");
       if (config.format === "PHONE" && digits.length < 4) return "전화번호는 숫자 4개 이상이 필요해요.";
       if (config.format === "DIGITS" && digits.length !== text.length) return "숫자만 적어 주세요.";
+      if (field.systemKey === "COHORT" && !/^\d{2}$/.test(text)) return "출생연도 뒤 두 자리를 적어 주세요. 예: 94";
       return null;
     }
     case "SINGLE_CHOICE":
