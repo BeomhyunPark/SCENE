@@ -56,3 +56,24 @@
     padding: 24px 20px 32px;
   }
 }
+
+.event-flow__meta {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font: var(--scene-body-s);
+  letter-spacing: 0;
+}
+
+.event-flow__alert {
+  margin: 0;
+  max-width: 640px;
+  color: var(--color-danger-fg);
+  font: var(--scene-body-m);
+  letter-spacing: 0;
+}
+
+.event-flow__saved {
+  color: var(--color-text-primary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
