@@ -11,7 +11,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import app.scene.common.web.RequestIdFilter;
 import app.scene.event.application.param.AnswerInsert;
 import app.scene.event.application.param.ApplicationInsert;
+import app.scene.event.form.AnswerType;
+import app.scene.event.form.FieldRules;
 import app.scene.event.form.FormRepository;
+import app.scene.event.form.param.FieldValues;
 import app.scene.support.PostgresTestcontainer;
 import jakarta.servlet.http.Cookie;
 import java.sql.Timestamp;
@@ -255,9 +258,26 @@ class ApplicationReadHttpIT {
     UUID nameId = UUID.randomUUID();
     UUID phoneId = UUID.randomUUID();
     UUID customId = UUID.randomUUID();
-    forms.saveField(nameId, event.spaceId, event.eventId, formId, "SYSTEM", "NAME", "이름", 0);
-    forms.saveField(phoneId, event.spaceId, event.eventId, formId, "SYSTEM", "PHONE", "전화", 1);
-    forms.saveField(customId, event.spaceId, event.eventId, formId, "CUSTOM", null, "식사", 2);
+    forms.saveField(
+        nameId, event.spaceId, event.eventId, formId, "SYSTEM", "NAME", "이름", 0, system("NAME"));
+    forms.saveField(
+        phoneId, event.spaceId, event.eventId, formId, "SYSTEM", "PHONE", "전화", 1, system("PHONE"));
+    forms.saveField(
+        customId,
+        event.spaceId,
+        event.eventId,
+        formId,
+        "CUSTOM",
+        null,
+        "식사",
+        2,
+        new FieldValues(
+            "SHORT_TEXT",
+            false,
+            null,
+            FieldRules.config(AnswerType.SHORT_TEXT, null, null).toString(),
+            null,
+            false));
     UUID participantId = UUID.randomUUID();
     jdbc.update(
         """
@@ -491,4 +511,9 @@ class ApplicationReadHttpIT {
   private record Held(UUID spaceId, UUID eventId, Cookie owner) {}
 
   private record Seeded(UUID formId, UUID applicationId) {}
+
+  private static FieldValues system(String systemKey) {
+    return new FieldValues(
+        "SHORT_TEXT", true, null, FieldRules.systemConfig(systemKey).toString(), null, false);
+  }
 }

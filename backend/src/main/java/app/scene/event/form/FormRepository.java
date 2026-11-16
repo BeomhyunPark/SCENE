@@ -8,8 +8,10 @@ import app.scene.event.form.mapper.FormQueryMapper;
 import app.scene.event.form.param.EventFormKey;
 import app.scene.event.form.param.FieldInsert;
 import app.scene.event.form.param.FieldKey;
-import app.scene.event.form.param.FieldLabelUpdate;
 import app.scene.event.form.param.FieldListQuery;
+import app.scene.event.form.param.FieldPositionUpdate;
+import app.scene.event.form.param.FieldUpdate;
+import app.scene.event.form.param.FieldValues;
 import app.scene.event.form.param.FormAcceptingUpdate;
 import app.scene.event.form.param.FormInsert;
 import app.scene.event.form.param.FormKey;
@@ -69,8 +71,13 @@ public class FormRepository {
     return Optional.ofNullable(queries.findField(FieldKey.of(spaceId, eventId, formId, fieldId)));
   }
 
-  public int countCustom(UUID spaceId, UUID eventId, UUID formId) {
-    return queries.countCustom(FormKey.of(spaceId, eventId, formId));
+  public int countFields(UUID spaceId, UUID eventId, UUID formId) {
+    return queries.countFields(FormKey.of(spaceId, eventId, formId));
+  }
+
+  /** Submitted applications on the form. One or more locks type changes (DEC-068). */
+  public int countSubmitted(UUID spaceId, UUID eventId, UUID formId) {
+    return queries.countSubmitted(FormKey.of(spaceId, eventId, formId));
   }
 
   public int nextPosition(UUID spaceId, UUID eventId, UUID formId) {
@@ -98,14 +105,22 @@ public class FormRepository {
       String kind,
       String systemKey,
       String label,
-      int position) {
+      int position,
+      FieldValues values) {
     return fields.save(
-        FieldInsert.of(id, spaceId, eventId, formId, kind, systemKey, label, position));
+        FieldInsert.of(id, spaceId, eventId, formId, kind, systemKey, label, position, values));
   }
 
   @Transactional
-  public int updateLabel(UUID spaceId, UUID eventId, UUID formId, UUID fieldId, String label) {
-    return fields.updateLabel(FieldLabelUpdate.of(spaceId, eventId, formId, fieldId, label));
+  public int update(
+      UUID spaceId, UUID eventId, UUID formId, UUID fieldId, String label, FieldValues values) {
+    return fields.update(FieldUpdate.of(spaceId, eventId, formId, fieldId, label, values));
+  }
+
+  @Transactional
+  public int updatePosition(UUID spaceId, UUID eventId, UUID formId, UUID fieldId, int position) {
+    return fields.updatePosition(
+        FieldPositionUpdate.of(spaceId, eventId, formId, fieldId, position));
   }
 
   @Transactional

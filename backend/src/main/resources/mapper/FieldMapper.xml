@@ -5,14 +5,32 @@
 
   <insert id="save">
     INSERT INTO fields (
-      id, space_id, event_id, form_id, kind, system_key, label, position)
+      id, space_id, event_id, form_id, kind, system_key, label, position,
+      answer_type, required, description, config, show_when, hidden)
     VALUES (
-      #{id}, #{spaceId}, #{eventId}, #{formId}, #{kind}, #{systemKey}, #{label}, #{position})
+      #{id}, #{spaceId}, #{eventId}, #{formId}, #{kind}, #{systemKey,jdbcType=VARCHAR},
+      #{label}, #{position}, #{answerType}, #{required}, #{description,jdbcType=VARCHAR},
+      CAST(#{config} AS jsonb), CAST(#{showWhen,jdbcType=VARCHAR} AS jsonb), #{hidden})
   </insert>
 
-  <update id="updateLabel">
+  <update id="update">
     UPDATE fields
-    SET label = #{label}
+    SET label = #{label},
+        answer_type = #{answerType},
+        required = #{required},
+        description = #{description,jdbcType=VARCHAR},
+        config = CAST(#{config} AS jsonb),
+        show_when = CAST(#{showWhen,jdbcType=VARCHAR} AS jsonb),
+        hidden = #{hidden}
+    WHERE id = #{fieldId}
+      AND form_id = #{formId}
+      AND space_id = #{spaceId}
+      AND event_id = #{eventId}
+  </update>
+
+  <update id="updatePosition">
+    UPDATE fields
+    SET position = #{position}
     WHERE id = #{fieldId}
       AND form_id = #{formId}
       AND space_id = #{spaceId}

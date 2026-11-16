@@ -29,14 +29,18 @@
   </select>
 
   <select id="findFields" resultType="app.scene.event.form.FormFieldRow">
-    SELECT id AS field_id, kind, system_key, label, position
+    SELECT id AS field_id, kind, system_key, label, position,
+      answer_type, required, description, config::text AS config,
+      show_when::text AS show_when, hidden
     FROM fields
     WHERE space_id = #{spaceId} AND event_id = #{eventId} AND form_id = #{formId}
     ORDER BY ${orderByClause}
   </select>
 
   <select id="findField" resultType="app.scene.event.form.FormFieldRow">
-    SELECT id AS field_id, kind, system_key, label, position
+    SELECT id AS field_id, kind, system_key, label, position,
+      answer_type, required, description, config::text AS config,
+      show_when::text AS show_when, hidden
     FROM fields
     WHERE id = #{fieldId}
       AND form_id = #{formId}
@@ -44,13 +48,19 @@
       AND event_id = #{eventId}
   </select>
 
-  <select id="countCustom" resultType="int">
+  <select id="countFields" resultType="int">
     SELECT count(*)
     FROM fields
+    WHERE space_id = #{spaceId} AND event_id = #{eventId} AND form_id = #{formId}
+  </select>
+
+  <select id="countSubmitted" resultType="int">
+    SELECT count(*)
+    FROM applications
     WHERE space_id = #{spaceId}
       AND event_id = #{eventId}
       AND form_id = #{formId}
-      AND kind = 'CUSTOM'
+      AND status = 'SUBMITTED'
   </select>
 
   <select id="maxPosition" resultType="int">
