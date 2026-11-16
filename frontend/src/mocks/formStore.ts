@@ -459,7 +459,7 @@ function readType(value: unknown): AnswerType | null {
   return ANSWER_TYPES.find((type) => type === value) ?? null;
 }
 
-/** Defaults match the server (form-question-types-review.md §2). */
+/** Defaults match the server (DEC-068 §1). */
 function defaultConfig(type: AnswerType): FieldConfig {
   switch (type) {
     case "SHORT_TEXT":
