@@ -20,6 +20,7 @@ export type FormFailure = {
   errors?: { field: string }[];
   lifecycleVersion?: number;
   currentStatus?: string;
+  warnings?: { openTasks: number };
 };
 
 let forms: StoredForm[] = [];
@@ -185,6 +186,41 @@ export function activateEvent(eventId: string, actorId: string, body: unknown): 
   const next = expected + 1;
   setLifecycle(eventId, "ACTIVE", next);
   return { outcome: "TRANSITIONED", lifecycleStatus: "ACTIVE", lifecycleVersion: next, actedAs: "EVENT_OWNER" };
+}
+
+/** Mock of POST /end: event OWNER only, ACTIVE → ENDED, open tasks need acknowledgeWarnings. */
+export function endEvent(
+  eventId: string,
+  actorId: string,
+  body: unknown,
+  openTasks: number,
+): LifecycleResult | FormFailure {
+  const event = eventById(eventId);
+  if (!event) return { status: 404, code: "RESOURCE_NOT_FOUND" };
+  const perms = permissionsFor(eventId, actorId, actorId);
+  if ("status" in perms) return perms;
+  if (perms.role !== "OWNER") return { status: 403, code: "FORBIDDEN" };
+  if (!isRecord(body) || typeof body.expectedLifecycleVersion !== "number") {
+    return { status: 400, code: "VALIDATION_FAILED", errors: [{ field: "expectedLifecycleVersion" }] };
+  }
+  if (event.lifecycleStatus === "ENDED") {
+    return { outcome: "ALREADY_IN_STATE", lifecycleStatus: "ENDED", lifecycleVersion: event.lifecycleVersion, actedAs: "EVENT_OWNER" };
+  }
+  if (event.lifecycleVersion !== body.expectedLifecycleVersion) {
+    return {
+      status: 409,
+      code: "CONCURRENT_MODIFICATION",
+      lifecycleVersion: event.lifecycleVersion,
+      currentStatus: event.lifecycleStatus,
+    };
+  }
+  if (event.lifecycleStatus !== "ACTIVE") return { status: 409, code: "INVALID_STATE_TRANSITION" };
+  if (openTasks > 0 && body.acknowledgeWarnings !== true) {
+    return { status: 409, code: "CONFIRMATION_REQUIRED", warnings: { openTasks } };
+  }
+  const next = event.lifecycleVersion + 1;
+  setLifecycle(eventId, "ENDED", next);
+  return { outcome: "TRANSITIONED", lifecycleStatus: "ENDED", lifecycleVersion: next, actedAs: "EVENT_OWNER" };
 }
 
 function requireRead(eventId: string, actorId: string): FormFailure | null {
