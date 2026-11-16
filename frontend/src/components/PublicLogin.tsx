@@ -34,6 +34,12 @@ export function PublicLogin() {
 
   const googleError = googleErrorCopy(params.get("error"));
 
+  // DEC-069: an account is made on the first Google sign-in, so 계정 만들기 starts the same sign-in.
+  function signInWithGoogle() {
+    if (import.meta.env.VITE_API_MOCK === "1") setGoogleMock(true);
+    else startGoogleSignIn(params.get("next"));
+  }
+
   // Email login has no server yet. Going to /events from here only looked like a
   // login while a dev session was alive; without one the operator guard sends the
   // browser straight back to /login.
@@ -127,15 +133,14 @@ export function PublicLogin() {
             <Button type="submit" variant="primary" size={40} className="public-login__submit">
               로그인
             </Button>
-            <Button type="button" variant="secondary" size={40} className="public-login__submit" onClick={() => {
-                if (import.meta.env.VITE_API_MOCK === "1") setGoogleMock(true);
-                else startGoogleSignIn(params.get("next"));
-              }}
-            >
+            <Button type="button" variant="secondary" size={40} className="public-login__submit" onClick={signInWithGoogle}>
               Google로 로그인
             </Button>
             <p className="public-login__switch">
-              계정이 없으신가요? <Link to="/signup">계정 만들기</Link>
+              계정이 없으신가요?{" "}
+              <button type="button" className="public-login__create" onClick={signInWithGoogle}>
+                계정 만들기
+              </button>
             </p>
           </form>
           <div className="public-login__status" role="status">

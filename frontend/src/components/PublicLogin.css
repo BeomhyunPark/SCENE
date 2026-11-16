@@ -240,10 +240,13 @@
   text-align: center;
 }
 
-.public-login__switch a {
+.public-login__create {
+  padding: 0;
+  border: 0;
+  background: none;
   color: var(--color-text-brand);
   font: var(--scene-label-m);
-  text-decoration: none;
+  cursor: pointer;
 }
 
 .public-login__status {

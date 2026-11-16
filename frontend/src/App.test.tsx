@@ -37,7 +37,8 @@ describe("public shell", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("교회와 공동체를 위한 행사 운영, SCENE.")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "시작하기" })).toBeNull();
-    expect(screen.queryByRole("link", { name: "계정 만들기" })).toBeNull();
+    expect(screen.getByText(/계정이 없으신가요\?/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "계정 만들기" })).toHaveAttribute("type", "button");
     expect(document.querySelector('a[href="/signup"]')).toBeNull();
 
     const images = [...document.querySelectorAll("img")];
@@ -53,8 +54,31 @@ describe("public shell", () => {
     expect(document.body.textContent).not.toContain("2026년 10월 24일");
     expect(document.body.textContent).not.toContain("드림공동체");
     expect(screen.queryByRole("textbox")).toBeNull();
-    expect(screen.queryAllByRole("button")).toHaveLength(0);
+    expect(screen.queryAllByRole("button")).toHaveLength(1);
     expect(document.querySelector("[data-theme]")).toBeNull();
+  });
+
+  it("starts Google sign-in from 계정 만들기 on /", async () => {
+    const google = await import("./api/googleSignIn");
+    const start = vi.spyOn(google, "startGoogleSignIn").mockImplementation(() => undefined);
+    renderAt("/");
+    fireEvent.click(screen.getByRole("button", { name: "계정 만들기" }));
+    expect(start).toHaveBeenCalledWith(null);
+    start.mockRestore();
+  });
+
+  it("says Google sign-in is not available on the mock API from /", async () => {
+    vi.stubEnv("VITE_API_MOCK", "1");
+    const google = await import("./api/googleSignIn");
+    const start = vi.spyOn(google, "startGoogleSignIn").mockImplementation(() => undefined);
+    renderAt("/");
+    fireEvent.click(screen.getByRole("button", { name: "계정 만들기" }));
+    expect(document.querySelector(".public-home__notice")).toHaveTextContent(
+      "목업 화면에서는 Google 로그인을 쓸 수 없어요.",
+    );
+    expect(start).not.toHaveBeenCalled();
+    start.mockRestore();
+    vi.unstubAllEnvs();
   });
 
   it("renders the public login form on /login without calling the server", () => {
@@ -78,7 +102,8 @@ describe("public shell", () => {
     expect(screen.getByRole("button", { name: "로그인" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "비밀번호 보기" })).toHaveAttribute("tabindex", "-1");
     expect(screen.getByRole("button", { name: "Google로 로그인" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "계정 만들기" })).toHaveAttribute("href", "/signup");
+    expect(screen.getByRole("button", { name: "계정 만들기" })).toHaveAttribute("type", "button");
+    expect(document.querySelector('a[href="/signup"]')).toBeNull();
 
     expect(screen.queryByText("서비스")).toBeNull();
     expect(screen.queryByRole("link", { name: "로그인" })).toBeNull();
