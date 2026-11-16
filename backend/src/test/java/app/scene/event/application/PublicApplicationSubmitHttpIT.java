@@ -183,7 +183,7 @@ class PublicApplicationSubmitHttpIT {
                         + "\"config\":{\"options\":[{\"label\":\"전체\"},{\"label\":\"부분\"}],"
                         + "\"display\":\"BUTTONS\"}}",
                     "req-attendance")));
-    JsonNode attendance = withAttendance.get("fields").get(3);
+    JsonNode attendance = withAttendance.get("fields").get(4);
     assertThat(attendance.get("answerType").asString()).isEqualTo("SINGLE_CHOICE");
     UUID attendanceId = UUID.fromString(attendance.get("fieldId").asString());
     String full = attendance.get("config").get("options").get(0).get("optionId").asString();
@@ -202,7 +202,7 @@ class PublicApplicationSubmitHttpIT {
                         + partial
                         + "\"]}}",
                     "req-car")));
-    UUID carId = UUID.fromString(withCar.get("fields").get(4).get("fieldId").asString());
+    UUID carId = UUID.fromString(withCar.get("fields").get(5).get("fieldId").asString());
 
     JsonNode withConsent =
         json.readTree(
@@ -213,7 +213,7 @@ class PublicApplicationSubmitHttpIT {
                     "{\"label\":\"개인정보 수집에 동의합니다\",\"answerType\":\"YES_NO\","
                         + "\"required\":true,\"config\":{\"style\":\"CONSENT\"}}",
                     "req-consent")));
-    UUID consentId = UUID.fromString(withConsent.get("fields").get(5).get("fieldId").asString());
+    UUID consentId = UUID.fromString(withConsent.get("fields").get(6).get("fieldId").asString());
 
     problem(
         write(
@@ -330,7 +330,7 @@ class PublicApplicationSubmitHttpIT {
                         + "{\"label\":\"집회만\"}],\"display\":\"BUTTONS\"}}",
                     "req-rename-options")));
     assertThat(renamed.get("locked").booleanValue()).isTrue();
-    JsonNode options = renamed.get("fields").get(3).get("config").get("options");
+    JsonNode options = renamed.get("fields").get(4).get("config").get("options");
     assertThat(options).hasSize(3);
     assertThat(options.get(0).get("optionId").asString()).isEqualTo(full);
     assertThat(options.get(0).get("label").asString()).isEqualTo("전체 참석");
@@ -353,11 +353,13 @@ class PublicApplicationSubmitHttpIT {
                 + "\",\""
                 + form.phoneId
                 + "\",\""
+                + form.cohortId
+                + "\",\""
                 + carId
                 + "\",\""
                 + attendanceId
                 + "\",\""
-                + withAttendance.get("fields").get(2).get("fieldId").asString()
+                + withAttendance.get("fields").get(3).get("fieldId").asString()
                 + "\",\""
                 + consentId
                 + "\"]}",
@@ -375,18 +377,20 @@ class PublicApplicationSubmitHttpIT {
                         + "\",\""
                         + form.phoneId
                         + "\",\""
+                        + form.cohortId
+                        + "\",\""
                         + consentId
                         + "\",\""
-                        + withAttendance.get("fields").get(2).get("fieldId").asString()
+                        + withAttendance.get("fields").get(3).get("fieldId").asString()
                         + "\",\""
                         + attendanceId
                         + "\",\""
                         + carId
                         + "\"]}",
                     "req-order")));
-    assertThat(reordered.get("fields").get(2).get("fieldId").asString())
+    assertThat(reordered.get("fields").get(3).get("fieldId").asString())
         .isEqualTo(consentId.toString());
-    assertThat(reordered.get("fields").get(5).get("position").asInt()).isEqualTo(5);
+    assertThat(reordered.get("fields").get(6).get("position").asInt()).isEqualTo(6);
   }
 
   @Test
@@ -490,11 +494,26 @@ class PublicApplicationSubmitHttpIT {
             .getResponse()
             .getContentAsString();
     JsonNode body = json.readTree(created);
+    // 또래 is turned off here so these cases keep the two always-on SYSTEM questions (DEC-070).
+    mvc.perform(
+            write(
+                patch(
+                    "/api/v1/operator/events/"
+                        + event.eventId
+                        + "/forms/"
+                        + body.get("formId").asString()
+                        + "/fields/"
+                        + body.get("fields").get(2).get("fieldId").asString()),
+                event.owner,
+                "{\"hidden\":true}",
+                "req-cohort-off"))
+        .andExpect(status().isOk());
     return new Opened(
         event.eventId,
         UUID.fromString(body.get("formId").asString()),
         UUID.fromString(body.get("fields").get(0).get("fieldId").asString()),
-        UUID.fromString(body.get("fields").get(1).get("fieldId").asString()));
+        UUID.fromString(body.get("fields").get(1).get("fieldId").asString()),
+        UUID.fromString(body.get("fields").get(2).get("fieldId").asString()));
   }
 
   private Held openEvent(String memberName) throws Exception {
@@ -617,5 +636,5 @@ class PublicApplicationSubmitHttpIT {
 
   private record Held(UUID eventId, Cookie owner) {}
 
-  private record Opened(UUID eventId, UUID formId, UUID nameId, UUID phoneId) {}
+  private record Opened(UUID eventId, UUID formId, UUID nameId, UUID phoneId, UUID cohortId) {}
 }

@@ -260,7 +260,9 @@ class AnswerEvaluatorTest {
             null,
             FieldRules.systemConfig(key),
             null,
-            false);
+            false,
+            null,
+            null);
     fields.add(field);
     return field;
   }
@@ -287,7 +289,9 @@ class AnswerEvaluatorTest {
             null,
             normalized,
             condition,
-            hidden);
+            hidden,
+            null,
+            null);
     fields.add(field);
     FieldRules.checkConditions(fields);
     return field;

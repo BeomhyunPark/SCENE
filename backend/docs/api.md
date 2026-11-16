@@ -840,11 +840,14 @@ curl -sS \
 
 컨트롤러는 `event/form/OperatorFormController`다. 행사당 신청서는 하나다. 읽기는 유효한 `EVENT_READ`, 또는 활성 공간 `OWNER`·`ADMIN`이다. 쓰기는 유효한 `FORM_WRITE`다. 공간 역할만으로는 쓰지 못한다. `sort` 허용 필드는 없다. `Idempotency-Key`는 읽지 않는다. 감사 로그는 없다.
 
-필드 `kind`는 `SYSTEM` 또는 `CUSTOM`이다. `systemKey`는 `NAME`, `PHONE`, 또는 CUSTOM의 `null`이다. 질문 유형·설정·표시 조건과 신청 접수 후 잠금은 [DEC-068](../../docs/product/PRODUCT_DECISIONS.md)을 따른다.
+필드 `kind`는 `SYSTEM` 또는 `CUSTOM`이다. `systemKey`는 `NAME`, `PHONE`, `COHORT`, 또는 CUSTOM의 `null`이다. 질문 유형·설정·표시 조건과 신청 접수 후 잠금은 [DEC-068](../../docs/product/PRODUCT_DECISIONS.md)을, 기본항목·신청서 설정·자동 질문은 DEC-070을 따른다.
 
-필드 항목의 키는 `fieldId`, `kind`, `systemKey`, `label`, `position`, `answerType`, `required`, `description`, `config`, `showWhen`, `hidden`이다.
+필드 항목의 키는 `fieldId`, `kind`, `systemKey`, `label`, `position`, `answerType`, `required`, `description`, `config`, `showWhen`, `hidden`, `presetKey`, `presetActive`다.
 
-- `answerType`: `SHORT_TEXT`, `LONG_TEXT`, `SINGLE_CHOICE`, `MULTI_CHOICE`, `DROPDOWN`, `DATE`, `DATE_RANGE`, `NUMBER`, `YES_NO`. SYSTEM은 늘 `SHORT_TEXT`, `required: true`다.
+- `presetKey`: 신청서 설정이 만든 자동 질문의 고정 키다(예: `ATTENDANCE`, `MEALS`). 자동 질문도 `kind`는 `CUSTOM`이다. 다른 질문은 `null`이다. 키 목록과 보기 id는 DEC-070 §1에 있다.
+- `presetActive`: 자동 질문이 설정에서 켜져 있으면 `true`, 설정이 껐으면 `false`(이때 `hidden: true`)다. 다른 질문은 `null`이다.
+
+- `answerType`: `SHORT_TEXT`, `LONG_TEXT`, `SINGLE_CHOICE`, `MULTI_CHOICE`, `DROPDOWN`, `DATE`, `DATE_RANGE`, `NUMBER`, `YES_NO`. SYSTEM은 늘 `SHORT_TEXT`, `required: true`다. `COHORT`(또래)는 `maxLength` 2, `format` `DIGITS`이고 SYSTEM 가운데 혼자 `hidden`이 될 수 있다.
 - `config`: 유형별 설정이다. 서버가 기본값을 채운 전체 객체를 돌려준다. 모르는 키는 `400`이고 필드는 `config`다.
 
 | 유형 | `config` 키 (기본값) |
@@ -859,7 +862,7 @@ curl -sS \
 | `YES_NO` | `style` `YES_NO`·`CONSENT` (`YES_NO`), `yesLabel`·`noLabel` ≤20 |
 
 - `options` 항목은 `{ "optionId", "label", "group", "hidden", "showWhen" }`이고 1–50개다. 새 보기는 `optionId`를 빼고 보내면 서버가 `opt_` 접두 id를 준다. 있는 보기는 받은 `optionId`를 그대로 보낸다. 모르는 `optionId`는 `400`이다. `label` 1–100자, `group` ≤50자(예: 날짜 묶음).
-- `showWhen`: `null`이면 늘 보인다. `{ "fieldId", "optionIds": [...] }`(선택형 대상, 보기 중 하나면 참) 또는 `{ "fieldId", "equals": true|false }`(`YES_NO` 대상). 대상은 같은 신청서에서 position이 더 앞인 CUSTOM 선택형·`YES_NO` 질문이다. 보기의 `showWhen`도 같은 규칙이고, 보기를 가진 질문보다 앞을 가리킨다. 어기면 `400`이고 필드는 `showWhen`(보기면 `config`)이다.
+- `showWhen`: `null`이면 늘 보인다. `{ "fieldId", "optionIds": [...] }`(선택형 대상, 보기 중 하나면 참) 또는 `{ "fieldId", "equals": true|false }`(`YES_NO` 대상). 대상은 같은 신청서에서 position이 더 앞인 CUSTOM 선택형·`YES_NO` 질문이다(자동 질문 포함). 보기의 `showWhen`도 같은 규칙이고, 보기를 가진 질문보다 앞을 가리킨다. 어기면 `400`이고 필드는 `showWhen`(보기면 `config`)이다.
 - `hidden`: 숨긴 질문은 공개 신청서에 나오지 않고 답을 받지 않는다. 숨긴 보기도 같다.
 - 신청서당 필드는 최대 100개다. 넘으면 `400`이고 필드는 `fields`다.
 - **잠금:** 신청서에 `SUBMITTED` 신청이 하나라도 있으면 질문 유형 변경, 있던 보기 제거, 질문·보기의 `showWhen` 변경, CUSTOM 필드 삭제는 `409 FIELD_LOCKED`다. 라벨·설명·필수·숨김, 보기 추가·문구 수정·숨김, 순서 변경은 된다.
@@ -876,7 +879,7 @@ curl -sS \
 
 본문을 생략하거나 `customLabel`을 생략·`null`로 두면 CUSTOM 필드 없이 만든다. `customLabel`이 있으면 앞뒤 공백을 자르고 1–200자다. 다른 키는 `400`이고 필드는 그 키다.
 
-`201`은 상세다. `acceptingApplications`는 `false`다. SYSTEM 필드 `NAME` 라벨 "이름"(position 0)과 `PHONE` 라벨 "전화"(position 1)가 생긴다. `customLabel`이 있으면 CUSTOM 필드(`SHORT_TEXT`, 필수 아님)가 position 2다. 질문은 이후 필드 추가로 더 만든다. 두 번째 POST는 `409 CONFLICT`다. 데이터베이스 인덱스 `forms_one_per_event`도 같은 코드로 막는다.
+`201`은 상세다. `acceptingApplications`는 `false`, `setup`은 `null`이다. SYSTEM 필드 `NAME` 라벨 "이름"(position 0), `PHONE` 라벨 "전화"(position 1), `COHORT` 라벨 "또래"(position 2, 설명 "출생연도 뒤 두 자리를 적어주세요.", 안내 문구 "예: 94")가 생긴다. `customLabel`이 있으면 CUSTOM 필드(`SHORT_TEXT`, 필수 아님)가 position 3이다. 질문은 이후 필드 추가로 더 만든다. 두 번째 POST는 `409 CONFLICT`다. 데이터베이스 인덱스 `forms_one_per_event`도 같은 코드로 막는다.
 
 ### `GET /api/v1/operator/events/{eventId}/forms/{formId}`
 
@@ -898,12 +901,17 @@ curl -sS \
       "description": null,
       "config": { "maxLength": 200, "format": "NONE", "placeholder": null },
       "showWhen": null,
-      "hidden": false
+      "hidden": false,
+      "presetKey": null,
+      "presetActive": null
     }
   ],
-  "locked": false
+  "locked": false,
+  "setup": null
 }
 ```
+
+`setup`은 마지막으로 저장한 신청서 설정이다(아래 `PUT …/setup`의 본문 모양에 `generatedFor`가 붙는다). 저장한 적이 없으면 `null`이다.
 
 `locked`는 그 신청서에 `SUBMITTED` 신청이 하나라도 있으면 `true`다. 이때 아래 잠금 규칙이 적용된다. 공개 신청서에는 이 키가 없다.
 
@@ -939,7 +947,11 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
 { "label": "참석 형태", "required": false }
 ```
 
-보낸 키만 바꾼다. 키는 추가와 같고 빈 객체는 `400`이다. SYSTEM 필드는 `label`만 받는다. `config`를 보내면 그 유형의 설정 전체를 바꾼다(보기 목록도 전체). `answerType`을 바꾸고 `config`를 빼면 새 유형의 기본값이 된다. 선택형으로 바꿀 때는 `options`가 있어야 한다. 바뀐 뒤 다른 질문의 `showWhen`이 맞지 않으면 `400`이다. 잠금은 위와 같다. `200`은 신청서 상세다. 필드가 없으면 `404 RESOURCE_NOT_FOUND`다.
+보낸 키만 바꾼다. 키는 추가와 같고 빈 객체는 `400`이다.
+
+- **SYSTEM 필드**는 `label`, `description`, `config`, `hidden`만 받는다. `config`에는 `placeholder`만 올 수 있고(다른 키는 `400`, 필드 `config`) 길이·형식은 그대로다. `hidden: true`는 `COHORT`만 되고 `NAME`·`PHONE`은 `409 CONFLICT`다. `required`·`answerType`·`showWhen`은 `400`이고 필드는 그 키다.
+- **자동 질문**(`presetKey`가 있는 필드)은 문구만 바꾼다: `label`, `description`, `required`, `hidden`, 그리고 `config`의 `placeholder`와 보기 `label`. `config`를 보낼 때는 받은 설정 전체를 문구만 고쳐 보낸다. 유형, `showWhen`, 보기의 수·순서·`group`·`hidden`·`showWhen`이 달라지면 `409 CONFLICT`다. 설정이 끈 질문(`presetActive: false`)에 `hidden: false`를 보내도 `409 CONFLICT`다.
+ `config`를 보내면 그 유형의 설정 전체를 바꾼다(보기 목록도 전체). `answerType`을 바꾸고 `config`를 빼면 새 유형의 기본값이 된다. 선택형으로 바꿀 때는 `options`가 있어야 한다. 바뀐 뒤 다른 질문의 `showWhen`이 맞지 않으면 `400`이다. 잠금은 위와 같다. `200`은 신청서 상세다. 필드가 없으면 `404 RESOURCE_NOT_FOUND`다.
 
 ### `PUT /api/v1/operator/events/{eventId}/forms/{formId}/fields/order`
 
@@ -947,11 +959,40 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
 { "fieldIds": ["…", "…"] }
 ```
 
-신청서의 모든 필드 id를 한 번씩, 새 순서로 보낸다. position은 0부터 다시 매긴다. 빠지거나 겹치거나 모르는 id는 `400`이고 필드는 `fieldIds`다. 새 순서에서 `showWhen`이 뒤를 가리키면 `400`이다. 잠금과 상관없이 된다. `200`은 신청서 상세다.
+신청서의 모든 필드 id를 한 번씩, 새 순서로 보낸다. SYSTEM 필드와 꺼진 자동 질문도 포함한다. SYSTEM 필드도 자리를 옮길 수 있다. position은 0부터 다시 매긴다. 빠지거나 겹치거나 모르는 id는 `400`이고 필드는 `fieldIds`다. 새 순서에서 `showWhen`이 뒤를 가리키면 `400`이다. 잠금과 상관없이 된다. `200`은 신청서 상세다.
 
 ### `DELETE /api/v1/operator/events/{eventId}/forms/{formId}/fields/{fieldId}`
 
-CUSTOM 필드를 지운다. `204`이고 본문이 없다. SYSTEM 필드 삭제는 `409 CONFLICT`다. 다른 질문이나 보기의 `showWhen`이 가리키는 필드도 `409 CONFLICT`다. 신청이 들어온 신청서는 `409 FIELD_LOCKED`이고, 대신 `hidden: true`로 숨긴다. 없는 필드는 `404 RESOURCE_NOT_FOUND`다.
+운영자가 직접 만든 CUSTOM 필드를 지운다. `204`이고 본문이 없다. SYSTEM 필드와 자동 질문 삭제는 `409 CONFLICT`다. 자동 질문은 `hidden`으로 끄거나 설정에서 뺀다. 다른 질문이나 보기의 `showWhen`이 가리키는 필드도 `409 CONFLICT`다. 신청이 들어온 신청서는 `409 FIELD_LOCKED`이고, 대신 `hidden: true`로 숨긴다. 없는 필드는 `404 RESOURCE_NOT_FOUND`다.
+
+### `PUT /api/v1/operator/events/{eventId}/forms/{formId}/setup`
+
+신청서 설정을 저장하고 자동 질문을 그에 맞춘다(DEC-070). 유효한 `FORM_WRITE`가 필요하다.
+
+```json
+{
+  "gender": true,
+  "middleGroup": false,
+  "cell": false,
+  "attendance": { "partial": true, "worshipOnly": false },
+  "schedule": [
+    { "breakfast": false, "lunch": false, "dinner": true, "worship": true },
+    { "breakfast": true, "lunch": true, "dinner": false, "worship": false }
+  ],
+  "transport": {
+    "groupBus": true, "worshipShuttle": false, "car": true, "publicTransit": true, "support": false
+  }
+}
+```
+
+- 모든 키가 필수이고 값은 boolean이다. 모르는 키나 다른 타입은 `400`이고 필드는 `setup`, `attendance`, `schedule`, `transport` 중 해당 묶음이다. 응답의 `generatedFor`는 다시 보내도 무시한다.
+- `schedule`은 행사 기간의 하루마다 한 항목이고 날짜순이다. 항목 수가 행사 일수와 다르면 `400`이고 필드는 `schedule`이다.
+- 행사에 `startDate`·`endDate`가 없거나 기간이 10일을 넘으면 `400`이고 필드는 `eventPeriod`다.
+- 서버는 이 설정과 행사 기간으로 질문을 만들어 저장된 질문과 맞춘다: 없는 질문은 추가하고, 더는 필요 없는 질문은 삭제하거나(신청이 없고, 운영자가 손대지 않았고, 다른 질문이 가리키지 않을 때) 숨기고 `presetActive: false`로 둔다. 운영자가 고친 문구와 순서는 유지한다.
+- 신청이 들어온 신청서(`locked`)에서는 없어진 보기를 삭제하지 않고 숨긴다. 이미 있는 질문·보기의 `showWhen`이 바뀌는 설정은 `409 FIELD_LOCKED`이고 아무것도 저장하지 않는다.
+- 직접 만든 질문의 조건이 이 설정으로 없어지는 질문·보기를 가리키면 `409 CONFLICT`다. 질문이 100개를 넘으면 `400`이고 필드는 `fields`다.
+
+`200`은 신청서 상세다. `setup`에는 보낸 값과 `"generatedFor": { "startDate", "endDate" }`(질문을 만들 때 쓴 행사 기간)가 있다.
 
 ## 신청 읽기
 
@@ -998,7 +1039,7 @@ CUSTOM 필드를 지운다. `204`이고 본문이 없다. SYSTEM 필드 삭제�
 
 신청을 받는 신청서의 필드 목록이다. 행사가 없으면 `404 RESOURCE_NOT_FOUND`다. 그 행사의 신청서가 아니면 `404 FORM_NOT_FOUND`다. `acceptingApplications`가 false이면 `409 FORM_CLOSED`다.
 
-`200`은 `{ "formId", "fields" }`다. `fields` 항목의 모양은 운영자 상세의 필드와 같다. 숨긴 질문은 빠지고, 남은 질문의 `config.options`에서도 숨긴 보기가 빠진다. `hidden`은 늘 `false`다. `showWhen`은 그대로 있어서 화면이 답에 따라 질문과 보기를 보이고 숨긴다. `acceptingApplications` 키는 없다.
+`200`은 `{ "formId", "fields" }`다. `fields` 항목의 모양은 운영자 상세의 필드와 같다(`presetKey` 포함, `presetActive`는 자동 질문이면 `true`). 숨긴 질문은 빠지고, 남은 질문의 `config.options`에서도 숨긴 보기가 빠진다. `hidden`은 늘 `false`다. `showWhen`은 그대로 있어서 화면이 답에 따라 질문과 보기를 보이고 숨긴다. `acceptingApplications` 키는 없다.
 
 ### `POST /api/v1/public/events/{eventId}/forms/{formId}/applications`
 
@@ -1019,7 +1060,7 @@ CSRF가 필요하다. `Idempotency-Key`는 읽지 않는다.
 
 | 유형 | `value` |
 |---|---|
-| `SHORT_TEXT`·`LONG_TEXT` | `{ "text" }` 앞뒤 공백을 자르고 `maxLength` 이하. `PHONE`은 숫자 4개 이상, `DIGITS`는 숫자만 |
+| `SHORT_TEXT`·`LONG_TEXT` | `{ "text" }` 앞뒤 공백을 자르고 `maxLength` 이하. `PHONE`은 숫자 4개 이상, `DIGITS`는 숫자만. SYSTEM `COHORT`(또래)는 정확히 숫자 두 자리 |
 | `SINGLE_CHOICE`·`DROPDOWN` | `{ "optionId" }` 또는 `{ "other" }`(`allowOther`일 때, ≤200자) |
 | `MULTI_CHOICE` | `{ "optionIds": [...], "other"? }` 겹치지 않고, 고른 수가 `minSelect`–`maxSelect` |
 | `DATE` | `{ "date" }`, 시간 포함이면 `{ "dateTime" }`. `min`–`max` 안 |
@@ -1027,7 +1068,7 @@ CSRF가 필요하다. `Idempotency-Key`는 읽지 않는다.
 | `NUMBER` | `{ "number" }` 정수, `min`–`max` 안 |
 | `YES_NO` | `{ "value": true\|false }`. 필수 `CONSENT`는 `true`여야 한다 |
 
-서버는 position 순서로 `showWhen`을 다시 계산한다. 화면이 보낸 표시 여부를 믿지 않는다. 숨겨진 질문(숨김이거나 조건이 거짓)은 필수 검사를 하지 않고, 그 답은 거절하지 않고 저장하지 않는다. 숨겨진 보기를 고른 답도 그 보기를 빼고 본다. 빈 글은 답이 없는 것으로 본다. 보이는 필수 질문에 답이 없거나, 모르는 `fieldId`, 겹친 `fieldId`, 유형과 다른 값, 범위 밖 값은 `400 APPLICATION_VALIDATION_FAILED`다. `NAME`과 `PHONE`은 늘 필수다. `errors`는 없다. 닫힌 신청서는 `409 FORM_CLOSED`다. 없는 신청서는 `404 FORM_NOT_FOUND`다. 없는 행사는 `404 RESOURCE_NOT_FOUND`다.
+서버는 position 순서로 `showWhen`을 다시 계산한다. 화면이 보낸 표시 여부를 믿지 않는다. 숨겨진 질문(숨김이거나 조건이 거짓)은 필수 검사를 하지 않고, 그 답은 거절하지 않고 저장하지 않는다. 숨겨진 보기를 고른 답도 그 보기를 빼고 본다. 빈 글은 답이 없는 것으로 본다. 보이는 필수 질문에 답이 없거나, 모르는 `fieldId`, 겹친 `fieldId`, 유형과 다른 값, 범위 밖 값은 `400 APPLICATION_VALIDATION_FAILED`다. `NAME`과 `PHONE`은 늘 필수다. `COHORT`는 켜져 있으면(`hidden`이 아니면) 필수다. `errors`는 없다. 닫힌 신청서는 `409 FORM_CLOSED`다. 없는 신청서는 `404 FORM_NOT_FOUND`다. 없는 행사는 `404 RESOURCE_NOT_FOUND`다.
 
 `201`. `Location` 헤더는 없다.
 

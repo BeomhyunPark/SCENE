@@ -11,7 +11,10 @@ import app.scene.common.web.Sorts;
 import app.scene.event.form.param.FieldValues;
 import app.scene.event.lifecycle.EventAccessGate;
 import app.scene.event.lifecycle.EventLocation;
+import app.scene.event.lifecycle.EventProfile;
+import app.scene.event.lifecycle.EventRepository;
 import app.scene.space.EventUserPermissionRepository;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -19,6 +22,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,7 +35,8 @@ import tools.jackson.databind.node.ObjectNode;
  * boundary is not a reason to add a status column. This slice stores {@code acceptingApplications}
  * because of the 2026-10-08 call. {@code FORM_CLOSED} and {@code APPLICATION_CLOSED} are not
  * returned. {@code Idempotency-Key} is not read. No audit action is written. Question types,
- * settings, conditions, and edit locks follow DEC-068 through {@link FieldRules}.
+ * settings, conditions, and edit locks follow DEC-068 through {@link FieldRules}. The form setup
+ * and its generated questions follow DEC-070 through {@link FormPreset} and {@link FormSetupPlan}.
  */
 @Service
 public class OperatorFormService {
@@ -40,21 +45,26 @@ public class OperatorFormService {
   private static final String ACTIVE = "ACTIVE";
   private static final String NAME = "NAME";
   private static final String PHONE = "PHONE";
+  private static final String COHORT = "COHORT";
+  private static final Set<String> SYSTEM_KEYS = Set.of("label", "description", "config", "hidden");
   private static final Set<String> FIELD_KEYS =
       Set.of("label", "answerType", "required", "description", "config", "showWhen", "hidden");
 
   private final EventAccessGate gate;
   private final FormRepository forms;
   private final EventUserPermissionRepository permissions;
+  private final EventRepository events;
   private final JsonMapper json;
 
   public OperatorFormService(
       EventAccessGate gate,
       FormRepository forms,
       EventUserPermissionRepository permissions,
+      EventRepository events,
       JsonMapper json) {
     this.gate = gate;
     this.forms = forms;
+    this.events = events;
     this.permissions = permissions;
     this.json = json;
   }
@@ -102,10 +112,11 @@ public class OperatorFormService {
       if (forms.save(formId, spaceId, eventId) != 1) {
         throw new IllegalStateException("form was not stored");
       }
-      saveSystem(spaceId, eventId, formId, NAME, "이름", 0);
-      saveSystem(spaceId, eventId, formId, PHONE, "전화", 1);
+      saveSystem(spaceId, eventId, formId, NAME, "이름", null, 0);
+      saveSystem(spaceId, eventId, formId, PHONE, "전화", null, 1);
+      saveSystem(spaceId, eventId, formId, COHORT, "또래", "출생연도 뒤 두 자리를 적어주세요.", 2);
       if (customLabel != null) {
-        saveCustom(spaceId, eventId, formId, customLabel, 2);
+        saveCustom(spaceId, eventId, formId, customLabel, 3);
       }
     } catch (DataIntegrityViolationException exception) {
       throw constraint(exception);
@@ -158,10 +169,8 @@ public class OperatorFormService {
       throw FieldRules.invalid("fields");
     }
     FieldDefinition next =
-        new FieldDefinition(
+        FieldDefinition.custom(
             UUID.randomUUID(),
-            FieldDefinition.CUSTOM,
-            null,
             label,
             forms.nextPosition(spaceId, eventId, formId),
             type,
@@ -190,9 +199,11 @@ public class OperatorFormService {
   }
 
   /**
-   * Partial update. A SYSTEM field takes {@code label} only. Once the form has a submitted
-   * application, a type change, an option removal, and any condition change are {@code
-   * FIELD_LOCKED} (DEC-068).
+   * Partial update. A SYSTEM field takes its wording only: {@code label}, {@code description}, and
+   * {@code config.placeholder}; 또래 also takes {@code hidden} (DEC-070). A generated question takes
+   * wording, {@code required}, and {@code hidden}; a change to its type, conditions, or option set
+   * is a {@code CONFLICT}. Once the form has a submitted application, a type change, an option
+   * removal, and any condition change are {@code FIELD_LOCKED} (DEC-068).
    */
   @Transactional
   public FormDetail patchField(
@@ -209,11 +220,34 @@ public class OperatorFormService {
     }
     List<FieldDefinition> current = definitions(spaceId, eventId, formId);
     FieldDefinition before = find(current, fieldId);
-    allowKeys(body, before.isSystem() ? Set.of("label") : FIELD_KEYS);
+    allowKeys(body, before.isSystem() ? SYSTEM_KEYS : FIELD_KEYS);
     String label = body.has("label") ? FieldRules.label(body.get("label")) : before.label();
     if (before.isSystem()) {
-      if (forms.update(spaceId, eventId, formId, fieldId, label, values(before)) != 1) {
-        throw new IllegalStateException("field label was not stored");
+      boolean hide = body.has("hidden") && FieldRules.bool(body.get("hidden"), "hidden");
+      if (hide && !COHORT.equals(before.systemKey())) {
+        throw new SceneException(ErrorCode.CONFLICT);
+      }
+      FieldDefinition next =
+          new FieldDefinition(
+              fieldId,
+              before.kind(),
+              before.systemKey(),
+              label,
+              before.position(),
+              before.answerType(),
+              true,
+              body.has("description")
+                  ? FieldRules.description(body.get("description"))
+                  : before.description(),
+              body.has("config")
+                  ? FieldRules.systemPlaceholder(before.config(), body.get("config"))
+                  : before.config(),
+              null,
+              body.has("hidden") ? hide : before.hidden(),
+              null,
+              null);
+      if (forms.update(spaceId, eventId, formId, fieldId, label, values(next)) != 1) {
+        throw new IllegalStateException("system field was not stored");
       }
       return detail(spaceId, eventId, formId);
     }
@@ -222,6 +256,9 @@ public class OperatorFormService {
         body.has("answerType")
             ? FieldRules.answerType(body.get("answerType"))
             : before.answerType();
+    if (before.isPreset() && type != before.answerType()) {
+      throw new SceneException(ErrorCode.CONFLICT);
+    }
     if (locked && type != before.answerType()) {
       throw new SceneException(ErrorCode.FIELD_LOCKED);
     }
@@ -241,6 +278,15 @@ public class OperatorFormService {
     if (locked && !Objects.equals(showWhen, before.showWhen())) {
       throw new SceneException(ErrorCode.FIELD_LOCKED);
     }
+    boolean hidden =
+        body.has("hidden") ? FieldRules.bool(body.get("hidden"), "hidden") : before.hidden();
+    if (before.isPreset()
+        && (!Objects.equals(showWhen, before.showWhen())
+            || !FieldRules.sameStructure(before.config(), config)
+            || (!hidden && !before.presetActive()))) {
+      // The form setup owns a generated question's structure and whether it is on (DEC-070).
+      throw new SceneException(ErrorCode.CONFLICT);
+    }
     FieldDefinition next =
         new FieldDefinition(
             fieldId,
@@ -257,7 +303,9 @@ public class OperatorFormService {
                 : before.description(),
             config,
             showWhen,
-            body.has("hidden") ? FieldRules.bool(body.get("hidden"), "hidden") : before.hidden());
+            hidden,
+            before.presetKey(),
+            before.presetState());
     List<FieldDefinition> all = new ArrayList<>();
     for (FieldDefinition field : current) {
       all.add(field.fieldId().equals(fieldId) ? next : field);
@@ -310,8 +358,9 @@ public class OperatorFormService {
   }
 
   /**
-   * SYSTEM fields stay. After a submitted application the operator hides a question instead ({@code
-   * FIELD_LOCKED}). A question another condition points at is a {@code CONFLICT}.
+   * SYSTEM fields stay, and a generated question is turned off in the form setup instead. After a
+   * submitted application the operator hides a question instead ({@code FIELD_LOCKED}). A question
+   * another condition points at is a {@code CONFLICT}.
    */
   @Transactional
   public void deleteField(UUID actorId, UUID eventId, UUID formId, UUID fieldId) {
@@ -325,7 +374,7 @@ public class OperatorFormService {
         forms
             .findField(spaceId, eventId, formId, fieldId)
             .orElseThrow(() -> new SceneException(ErrorCode.RESOURCE_NOT_FOUND));
-    if (FieldDefinition.SYSTEM.equals(field.kind())) {
+    if (FieldDefinition.SYSTEM.equals(field.kind()) || field.presetKey() != null) {
       throw new SceneException(ErrorCode.CONFLICT);
     }
     if (forms.countSubmitted(spaceId, eventId, formId) > 0) {
@@ -339,13 +388,98 @@ public class OperatorFormService {
     }
   }
 
+  /**
+   * Saves the form setup and fits the generated questions to it (DEC-070). The event needs a period
+   * of at most {@link FormSetup#DAYS_MAX} days. On a locked form a change that would alter a stored
+   * condition is {@code FIELD_LOCKED} and nothing is saved.
+   */
+  @Transactional
+  public FormDetail putSetup(UUID actorId, UUID eventId, UUID formId, JsonNode body) {
+    EventAccessGate.Opened opened = gate.open(actorId, eventId);
+    UUID spaceId = opened.location().spaceId();
+    if (forms.find(spaceId, eventId, formId).isEmpty()) {
+      throw new SceneException(ErrorCode.RESOURCE_NOT_FOUND);
+    }
+    requireFormWrite(opened, actorId);
+    EventProfile profile =
+        events
+            .findProfile(eventId)
+            .orElseThrow(() -> new SceneException(ErrorCode.RESOURCE_NOT_FOUND));
+    LocalDate start = profile.startDate();
+    LocalDate end = profile.endDate();
+    if (start == null || end == null || FormSetup.days(start, end) > FormSetup.DAYS_MAX) {
+      throw FieldRules.invalid("eventPeriod");
+    }
+    FormSetup setup = FormSetup.parse(body, FormSetup.days(start, end));
+    List<FieldDefinition> current = definitions(spaceId, eventId, formId);
+    Map<String, UUID> ids = new HashMap<>();
+    for (FieldDefinition field : current) {
+      if (field.isPreset()) {
+        ids.put(field.presetKey(), field.fieldId());
+      }
+    }
+    Function<String, UUID> idOf = key -> ids.computeIfAbsent(key, missing -> UUID.randomUUID());
+    boolean locked = forms.countSubmitted(spaceId, eventId, formId) > 0;
+    FormSetupPlan plan =
+        FormSetupPlan.of(current, FormPreset.generate(setup, start, end, idOf), locked, idOf);
+    if (plan.fields().size() > FieldRules.FIELDS_MAX) {
+      throw FieldRules.invalid("fields");
+    }
+    for (UUID removed : plan.removed()) {
+      if (forms.deleteCustom(spaceId, eventId, formId, removed) != 1) {
+        throw new IllegalStateException("generated field was not removed");
+      }
+    }
+    for (FieldDefinition field : plan.fields()) {
+      UUID id = field.fieldId();
+      if (plan.added().contains(id)) {
+        if (forms.savePreset(
+                id,
+                spaceId,
+                eventId,
+                formId,
+                field.label(),
+                field.position(),
+                values(field),
+                field.presetKey(),
+                json.writeValueAsString(field.presetState()))
+            != 1) {
+          throw new IllegalStateException("generated field was not stored");
+        }
+        continue;
+      }
+      if (field.isPreset()
+          && (forms.update(spaceId, eventId, formId, id, field.label(), values(field)) != 1
+              || forms.updatePresetState(
+                      spaceId, eventId, formId, id, json.writeValueAsString(field.presetState()))
+                  != 1)) {
+        throw new IllegalStateException("generated field was not updated");
+      }
+      if (forms.updatePosition(spaceId, eventId, formId, id, field.position()) != 1) {
+        throw new IllegalStateException("field position was not stored");
+      }
+    }
+    if (forms.updateSetup(
+            spaceId, eventId, formId, json.writeValueAsString(setup.toJson(start, end)))
+        != 1) {
+      throw new IllegalStateException("form setup was not stored");
+    }
+    return detail(spaceId, eventId, formId);
+  }
+
   private void saveSystem(
-      UUID spaceId, UUID eventId, UUID formId, String systemKey, String label, int position) {
+      UUID spaceId,
+      UUID eventId,
+      UUID formId,
+      String systemKey,
+      String label,
+      String description,
+      int position) {
     FieldValues values =
         new FieldValues(
             AnswerType.SHORT_TEXT.name(),
             true,
-            null,
+            description,
             json.writeValueAsString(FieldRules.systemConfig(systemKey)),
             null,
             false);
@@ -436,7 +570,8 @@ public class OperatorFormService {
         form.id(),
         form.acceptingApplications(),
         fields,
-        forms.countSubmitted(spaceId, eventId, formId) > 0);
+        forms.countSubmitted(spaceId, eventId, formId) > 0,
+        form.setup() == null ? null : json.readTree(form.setup()));
   }
 
   /**

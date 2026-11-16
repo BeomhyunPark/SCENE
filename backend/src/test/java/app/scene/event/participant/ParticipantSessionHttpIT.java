@@ -381,6 +381,19 @@ class ParticipantSessionHttpIT {
             .getResponse()
             .getContentAsString();
     JsonNode body = json.readTree(created);
+    // 또래 is turned off here so these cases keep the two always-on SYSTEM questions (DEC-070).
+    mvc.perform(
+            write(
+                patch(
+                    "/api/v1/operator/events/"
+                        + event.eventId
+                        + "/forms/"
+                        + body.get("formId").asString()
+                        + "/fields/"
+                        + body.get("fields").get(2).get("fieldId").asString()),
+                event.owner,
+                "{\"hidden\":true}"))
+        .andExpect(status().isOk());
     UUID formId = UUID.fromString(body.get("formId").asString());
     mvc.perform(
             write(

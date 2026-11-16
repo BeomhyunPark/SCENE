@@ -14,6 +14,8 @@ public final class FieldInsert {
   private final String label;
   private final int position;
   private final FieldValues values;
+  private final String presetKey;
+  private final String presetState;
 
   private FieldInsert(
       UUID id,
@@ -24,7 +26,9 @@ public final class FieldInsert {
       String systemKey,
       String label,
       int position,
-      FieldValues values) {
+      FieldValues values,
+      String presetKey,
+      String presetState) {
     this.id = id;
     this.spaceId = spaceId;
     this.eventId = eventId;
@@ -34,6 +38,8 @@ public final class FieldInsert {
     this.label = label;
     this.position = position;
     this.values = values;
+    this.presetKey = presetKey;
+    this.presetState = presetState;
   }
 
   public static FieldInsert of(
@@ -46,7 +52,41 @@ public final class FieldInsert {
       String label,
       int position,
       FieldValues values) {
-    return new FieldInsert(id, spaceId, eventId, formId, kind, systemKey, label, position, values);
+    return new FieldInsert(
+        id, spaceId, eventId, formId, kind, systemKey, label, position, values, null, null);
+  }
+
+  /** A generated CUSTOM question with its preset key and state (DEC-070). */
+  public static FieldInsert preset(
+      UUID id,
+      UUID spaceId,
+      UUID eventId,
+      UUID formId,
+      String label,
+      int position,
+      FieldValues values,
+      String presetKey,
+      String presetState) {
+    return new FieldInsert(
+        id,
+        spaceId,
+        eventId,
+        formId,
+        "CUSTOM",
+        null,
+        label,
+        position,
+        values,
+        presetKey,
+        presetState);
+  }
+
+  public String getPresetKey() {
+    return presetKey;
+  }
+
+  public String getPresetState() {
+    return presetState;
   }
 
   public UUID getId() {

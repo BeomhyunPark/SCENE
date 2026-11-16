@@ -4,7 +4,8 @@ import java.util.UUID;
 
 /**
  * One field row. A custom field has a null system key. {@code config} and {@code showWhen} are the
- * stored jsonb as text; {@link FieldDefinition#from} parses them.
+ * stored jsonb as text; {@link FieldDefinition#from} parses them. A generated question has a {@code
+ * presetKey} and its {@code presetState} (DEC-070).
  */
 public record FormFieldRow(
     UUID fieldId,
@@ -17,4 +18,6 @@ public record FormFieldRow(
     String description,
     String config,
     String showWhen,
-    boolean hidden) {}
+    boolean hidden,
+    String presetKey,
+    String presetState) {}

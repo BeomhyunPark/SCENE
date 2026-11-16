@@ -6,11 +6,13 @@
   <insert id="save">
     INSERT INTO fields (
       id, space_id, event_id, form_id, kind, system_key, label, position,
-      answer_type, required, description, config, show_when, hidden)
+      answer_type, required, description, config, show_when, hidden,
+      preset_key, preset_state)
     VALUES (
       #{id}, #{spaceId}, #{eventId}, #{formId}, #{kind}, #{systemKey,jdbcType=VARCHAR},
       #{label}, #{position}, #{answerType}, #{required}, #{description,jdbcType=VARCHAR},
-      CAST(#{config} AS jsonb), CAST(#{showWhen,jdbcType=VARCHAR} AS jsonb), #{hidden})
+      CAST(#{config} AS jsonb), CAST(#{showWhen,jdbcType=VARCHAR} AS jsonb), #{hidden},
+      #{presetKey,jdbcType=VARCHAR}, CAST(#{presetState,jdbcType=VARCHAR} AS jsonb))
   </insert>
 
   <update id="update">
@@ -26,6 +28,16 @@
       AND form_id = #{formId}
       AND space_id = #{spaceId}
       AND event_id = #{eventId}
+  </update>
+
+  <update id="updatePresetState">
+    UPDATE fields
+    SET preset_state = CAST(#{presetState} AS jsonb)
+    WHERE id = #{fieldId}
+      AND form_id = #{formId}
+      AND space_id = #{spaceId}
+      AND event_id = #{eventId}
+      AND preset_key IS NOT NULL
   </update>
 
   <update id="updatePosition">

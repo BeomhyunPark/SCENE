@@ -4,13 +4,13 @@
 <mapper namespace="app.scene.event.form.mapper.FormQueryMapper">
 
   <select id="findByEvent" resultType="app.scene.event.form.FormRow">
-    SELECT id, space_id, event_id, accepting_applications
+    SELECT id, space_id, event_id, accepting_applications, setup::text AS setup
     FROM forms
     WHERE space_id = #{spaceId} AND event_id = #{eventId}
   </select>
 
   <select id="find" resultType="app.scene.event.form.FormRow">
-    SELECT id, space_id, event_id, accepting_applications
+    SELECT id, space_id, event_id, accepting_applications, setup::text AS setup
     FROM forms
     WHERE id = #{formId} AND space_id = #{spaceId} AND event_id = #{eventId}
   </select>
@@ -31,7 +31,8 @@
   <select id="findFields" resultType="app.scene.event.form.FormFieldRow">
     SELECT id AS field_id, kind, system_key, label, position,
       answer_type, required, description, config::text AS config,
-      show_when::text AS show_when, hidden
+      show_when::text AS show_when, hidden,
+      preset_key, preset_state::text AS preset_state
     FROM fields
     WHERE space_id = #{spaceId} AND event_id = #{eventId} AND form_id = #{formId}
     ORDER BY ${orderByClause}
@@ -40,7 +41,8 @@
   <select id="findField" resultType="app.scene.event.form.FormFieldRow">
     SELECT id AS field_id, kind, system_key, label, position,
       answer_type, required, description, config::text AS config,
-      show_when::text AS show_when, hidden
+      show_when::text AS show_when, hidden,
+      preset_key, preset_state::text AS preset_state
     FROM fields
     WHERE id = #{fieldId}
       AND form_id = #{formId}
