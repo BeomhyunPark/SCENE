@@ -61,7 +61,20 @@ docker compose up -d --build
 
 6. 확인: `docker compose ps`에서 모두 `healthy`·`running`인지 본다. 브라우저에서 `https://scene.greengroove.app`이 열리는지 본다.
 
-**업데이트:** `cd ~/scene && git pull && cd deploy/home && docker compose up -d --build`. DB 변경(Flyway)은 백엔드가 시작될 때 자동으로 적용된다. 업데이트 전에 4절 백업을 한 번 직접 돌린다.
+### 자동 배포 (#257, 2026-11-17)
+
+main에 병합하면 서버가 5분 안에 스스로 반영한다. 서버가 밖으로 확인하러 나가는 방식이라, 집으로 들어오는 경로는 열지 않는다.
+
+- cron이 5분마다 [`auto-deploy.sh`](../../deploy/home/auto-deploy.sh)를 실행한다 (`crontab -l`의 `# scene-auto-deploy` 줄).
+- `origin/main`이 바뀌었고 그 커밋의 `ci-ok`·`docs-check`가 성공했을 때만 움직인다. CI가 도는 중이면 다음 차례에 다시 본다.
+- `backend/`, `frontend/`, `deploy/home/compose.yaml`이 바뀌지 않았으면 코드만 맞추고 아무것도 재시작하지 않는다 (문서 PR 등).
+- 바뀌었으면: DB 덤프(`~/scene-backups/pre-deploy-*.sql.gz`, 최근 10개 보관) → `docker compose up -d --build --wait` → 공개 주소 스모크 테스트(`/` 200, `/api/v1/operator/me` 401).
+- 실패하면 이전 커밋으로 되돌려 다시 띄우고, 같은 커밋은 다시 시도하지 않는다. **DB 변경(Flyway)은 되돌려지지 않는다.** 그때는 배포 전 덤프로 직접 복구한다.
+- 기록: `~/.local/state/scene-deploy/auto-deploy.log`. 실패해도 알림은 오지 않으므로, 실행 코드를 병합한 뒤에는 이 기록이나 사이트를 한 번 본다.
+- `.env`를 바꿨거나 지금 바로 다시 띄우려면: `~/scene/deploy/home/auto-deploy.sh --force`
+- 잠시 멈추려면 `crontab -e`에서 `# scene-auto-deploy` 줄 앞에 `#`을 붙인다. 손으로 배포할 때는 `cd ~/scene && git pull && cd deploy/home && docker compose up -d --build`.
+- 배포 전 덤프는 같은 디스크에 있는 임시 안전망이다. 집 밖 백업(4절)을 대신하지 않는다.
+- 스테이징이 없으므로 병합이 곧 운영 반영이다. 신청이 열린 뒤(12/15~)에는 DB 변경이 있는 PR을 병합하기 전에 4절 백업을 한 번 직접 돌린다.
 
 ### 기존 `retreat.greengroove.app` 종료 (2026-11-17)
 
@@ -115,5 +128,6 @@ age -d -i scene-backup.key scene-YYYYMMDD-HHMMSS.sql.gz.age | gunzip | docker co
 - **운영 기동 (2026-11-17 00:55):** `~/scene`(main `4f02023`)에서 `docker compose up -d --build`. 터널 연결 4개 등록, 외부에서 `https://scene.greengroove.app/` 200, `/api/v1/operator/me` 401, Google 로그인 시작이 실제 클라이언트 ID와 올바른 `redirect_uri`로 302.
 - **실제 클릭 (2026-11-17, 사용자):** 첫 관리자 Google 로그인 성공. 서버 DB에서 조직 1개·사용자 1명·멤버 1명·Google 계정 연결 1건 생성 확인.
 - **아직 확인하지 않은 것:** 행사 만들기와 운영진 초대, 휴대폰 신청, 백업·복구(4절), Windows 재부팅 뒤 자동 기동.
-- 자동 배포(CD)는 두지 않는다. 1월까지는 위 업데이트 명령을 손으로 실행한다.
+- 자동 배포 확인 (2026-11-17, 서버 검증): 변경 없음 실행, `--force` 배포 1회(덤프 → 빌드 → 스모크 통과), 스모크 주소를 틀리게 주어 실패·되돌림 경로 1회 실행. 되돌린 뒤 스모크가 통과하는 경우와 실제 DB 변경이 있는 배포는 아직 겪지 않았다. cron을 통한 실제 병합 반영 결과는 #257에 남긴다.
+- 배포 실패 알림이 없다.
 - 서버 모니터링·알림: Cloudflare Tunnel 상태 알림(Zero Trust → Notifications)을 켜 두는 것을 권장한다.
