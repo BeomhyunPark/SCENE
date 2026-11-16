@@ -28,6 +28,8 @@
 | 디스크 암호화 | 기기 분실·도난 대비 | 설치할 때 LUKS를 켜지 않았다면, 최소한 백업은 암호화한다(4절) |
 | Docker | 실행 환경 | Docker Engine + Compose plugin (공식 apt 저장소) |
 
+**실제 기기 (2026-11-17 확인):** 이 Surface는 Ubuntu를 직접 설치한 기기가 아니라 **Windows + WSL2(Ubuntu, systemd 켜짐)** 이다. WSL에 보이는 메모리는 7.7 GB다. 위 표에서 덮개·절전·디스크 암호화는 Windows 설정(전원 옵션의 절전 끔, BitLocker)으로 맞춘다. 부팅 때 WSL을 켜는 것은 Windows 작업 스케줄러의 **Start WSL Server** 작업(`wsl.exe -d Ubuntu --exec /bin/true`)이고, Docker는 WSL 안의 systemd가 올린다. 같은 기기에서 `ongi` 스택(백엔드·postgres·cloudflared)이 함께 돈다.
+
 ## 3. 처음 배포
 
 1. Cloudflare Zero Trust → Networks → Tunnels → **Create a tunnel** (Cloudflared). 토큰을 복사한다.
@@ -35,16 +37,14 @@
 3. 서버에서 다음을 실행한다.
 
 ```bash
-sudo mkdir -p /opt/scene && sudo chown "$USER" /opt/scene
+git clone https://github.com/BeomhyunPark/SCENE.git ~/scene
 ```
 
 ```bash
-git clone https://github.com/BeomhyunPark/SCENE.git /opt/scene
+cd ~/scene/deploy/home && cp .env.example .env && chmod 600 .env
 ```
 
-```bash
-cd /opt/scene/deploy/home && cp .env.example .env && chmod 600 .env
-```
+운영 사본은 개발 작업 폴더(`~/code/SCENE`)와 따로 둔다. 작업 브랜치를 바꿔도 운영 중인 코드가 바뀌지 않게 하기 위해서다.
 
 4. `.env`에 `SCENE_DB_PASSWORD`(`openssl rand -base64 32`로 만든 값)와 `CLOUDFLARE_TUNNEL_TOKEN`을 채운다.
    - **Google 로그인(#232):** Google Cloud 콘솔 → API 및 서비스 → 사용자 인증 정보 → OAuth 클라이언트 ID(웹 애플리케이션)를 만든다.
@@ -61,9 +61,18 @@ docker compose up -d --build
 
 6. 확인: `docker compose ps`에서 모두 `healthy`·`running`인지 본다. 브라우저에서 `https://scene.greengroove.app`이 열리는지 본다.
 
-**업데이트:** `cd /opt/scene && git pull && cd deploy/home && docker compose up -d --build`. DB 변경(Flyway)은 백엔드가 시작될 때 자동으로 적용된다. 업데이트 전에 4절 백업을 한 번 직접 돌린다.
+**업데이트:** `cd ~/scene && git pull && cd deploy/home && docker compose up -d --build`. DB 변경(Flyway)은 백엔드가 시작될 때 자동으로 적용된다. 업데이트 전에 4절 백업을 한 번 직접 돌린다.
 
-> 기존 `retreat.greengroove.app` 터널과 서비스는 내린다. 같은 기기에서 돌린다면 메모리와 포트가 겹치지 않는지도 확인한다.
+### 기존 `retreat.greengroove.app` 종료 (2026-11-17)
+
+같은 기기의 `~/server`(church-retreat-ops: Caddy 80/443 + 백엔드 + postgres:16)는 더 운영하지 않는다(2026-11-17 사용자 결정).
+
+- [x] 최종 덤프를 받고 `~/server` 스택을 중지했다.
+- [x] Windows 작업 스케줄러의 **Retreat WSL Server** 사용 안 함 (부팅 때 `~/server`에서 `docker compose up -d`를 실행하던 작업). WSL을 켜는 **Start WSL Server**는 그대로 둔다. — 사용자 처리, 상태 `Disabled` 확인
+- [x] `retreat-auto-deploy.timer`, `retreat-db-backup.timer` 끄기 — 사용자 처리, `disabled`·`inactive` 확인
+- [x] Cloudflare DNS의 `retreat` 레코드 삭제 — 사용자 처리, 공개 DNS에서 NXDOMAIN 확인
+- [x] 공유기의 80/443 포트 포워딩 삭제 — 사용자 처리. 집 안에서는 확인할 수 없어 서버 쪽 검증은 하지 않았다 (SCENE은 터널만 쓰므로 열린 포트가 필요 없다)
+- [x] 옛 신청 데이터 전부 삭제 (2026-11-17 사용자 결정 "새로 시작"): 컨테이너와 DB 볼륨(`server_postgres_data`, `retreat_postgres_data`), Caddy 볼륨, 로컬 덤프 전부(최종 덤프 포함), R2 `retreat-db-backups` 버킷의 백업 86개(암호화 85, 암호화 전 초기 덤프 1). 삭제 뒤 볼륨·덤프·버킷 객체 0개 확인. 되돌릴 수 없다. `~/server`의 코드·설정 파일과 빈 R2 버킷은 남아 있다.
 
 ## 4. 백업 (매일 03:30, 암호화, 집 밖 보관)
 
@@ -102,6 +111,9 @@ age -d -i scene-backup.key scene-YYYYMMDD-HHMMSS.sql.gz.age | gunzip | docker co
 
 ## 7. 아직 하지 않은 것
 
-- 이 구성은 Docker가 없는 개발 환경에서 문법(compose YAML, bash)만 확인했다. **Surface에서 처음 빌드하고 실행할 때 실제로 확인**하고 결과를 #231에 남긴다.
+- **확인한 것 (2026-11-17, 이 Surface, 가짜 비밀값·임시 프로젝트 이름, 터널 제외):** `backend`·`web` 이미지 빌드, postgres:17 + 백엔드(prod 프로필) 기동과 Flyway 11개 적용, 세 서비스 healthy. nginx를 거쳐 `/`와 SPA 경로 200, `/api/v1/operator/me` 401, `/oauth2/authorization/google`이 `redirect_uri=https://scene.greengroove.app/login/oauth2/code/google`로 302. 메모리는 백엔드 약 330 MB, postgres 약 50 MB. 확인 뒤 임시 스택과 볼륨은 지웠다.
+- **운영 기동 (2026-11-17 00:55):** `~/scene`(main `4f02023`)에서 `docker compose up -d --build`. 터널 연결 4개 등록, 외부에서 `https://scene.greengroove.app/` 200, `/api/v1/operator/me` 401, Google 로그인 시작이 실제 클라이언트 ID와 올바른 `redirect_uri`로 302.
+- **실제 클릭 (2026-11-17, 사용자):** 첫 관리자 Google 로그인 성공. 서버 DB에서 조직 1개·사용자 1명·멤버 1명·Google 계정 연결 1건 생성 확인.
+- **아직 확인하지 않은 것:** 행사 만들기와 운영진 초대, 휴대폰 신청, 백업·복구(4절), Windows 재부팅 뒤 자동 기동.
 - 자동 배포(CD)는 두지 않는다. 1월까지는 위 업데이트 명령을 손으로 실행한다.
 - 서버 모니터링·알림: Cloudflare Tunnel 상태 알림(Zero Trust → Notifications)을 켜 두는 것을 권장한다.
