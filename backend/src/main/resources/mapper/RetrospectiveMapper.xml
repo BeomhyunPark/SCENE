@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="app.scene.event.retrospective.mapper.RetrospectiveMapper">
+
+  <select id="find" resultType="app.scene.event.retrospective.RetrospectiveRow">
+    SELECT r.body, r.version, r.updated_at, u.display_name AS updated_by_display_name
+    FROM event_retrospectives r
+    JOIN users u ON u.id = r.updated_by
+    WHERE r.space_id = #{spaceId} AND r.event_id = #{eventId}
+  </select>
+
+  <insert id="insertFirst">
+    INSERT INTO event_retrospectives (event_id, space_id, body, version, updated_by, updated_at)
+    VALUES (#{eventId}, #{spaceId}, #{body}, 1, #{updatedBy}, #{updatedAt})
+    ON CONFLICT (event_id) DO NOTHING
+  </insert>
+
+  <update id="updateVersion">
+    UPDATE event_retrospectives
+    SET body = #{body}, version = version + 1, updated_by = #{updatedBy}, updated_at = #{updatedAt}
+    WHERE space_id = #{spaceId} AND event_id = #{eventId} AND version = #{expectedVersion}
+  </update>
+
+</mapper>

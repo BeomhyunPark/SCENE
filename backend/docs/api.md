@@ -991,6 +991,36 @@ CSRF가 필요하다. `Idempotency-Key`는 읽지 않는다.
 
 CSRF가 필요하다. 그 쿠키의 세션 행만 지운다. `204`이고 본문이 없다. 쿠키가 없거나 모르는 값이면 지울 행이 없고 역시 `204`다. 다른 참가자의 세션은 남는다.
 
+## 회고
+
+컨트롤러는 `event/retrospective/RetrospectiveController`다. 행사당 글 하나다(DEC-067 Follow-up 2026-11-16). `Idempotency-Key`는 읽지 않는다.
+
+판정 순서는 행사 없음·멤버 아님(`404`·`403 NOT_A_MEMBER`) → 권한(`403 FORBIDDEN`) → 본문(`400`) → 행사 상태(`409`) → version(`409`)이다.
+
+### `GET /api/v1/operator/events/{eventId}/retrospective`
+
+읽기는 effective `EVENT_READ` 또는 활성 공간 `OWNER`·`ADMIN`이다. 모든 행사 상태에서 읽는다.
+
+`200`
+
+```json
+{ "text": "…", "version": 2, "updatedAt": "2026-11-16T03:00:00Z", "updatedByDisplayName": "Local owner" }
+```
+
+아직 저장한 적이 없으면 `{ "text": "", "version": 0, "updatedAt": null, "updatedByDisplayName": null }`다. `404`가 아니다.
+
+### `PUT /api/v1/operator/events/{eventId}/retrospective`
+
+```json
+{ "text": "…", "expectedVersion": 0 }
+```
+
+쓰기는 effective `EVENT_UPDATE`다(행사 OWNER 기본, 개인별 GRANT 가능). `text`는 문자열이고 0~10,000자(잠정)다. 없거나 길면 `400 VALIDATION_FAILED`이고 필드는 `text`다. `expectedVersion`은 0 이상의 정수다. 없으면 필드는 `expectedVersion`이다.
+
+행사가 `ENDED`일 때만 저장한다. `ARCHIVED`는 `409 EVENT_ARCHIVED`, `DRAFT`·`ACTIVE`는 `409 INVALID_STATE_TRANSITION`(`eventStatus`)이다. 저장된 version이 `expectedVersion`과 다르면 `409 CONCURRENT_MODIFICATION`이고 확장 필드 `version`이 지금 version이다. 처음 저장은 `expectedVersion: 0`이다.
+
+`200` 본문은 읽기와 같다. version이 1 오른다. 저장마다 audit `EVENT_RETROSPECTIVE_UPDATED` 한 줄을 남기고 details는 `{ "version" }`뿐이다. 본문은 audit·로그·오류 응답에 넣지 않는다.
+
 ## 응답에 안 나오는 기록
 
 일부 성공은 응답 밖에 행을 남긴다. 그 행을 읽는 URL은 없다.
@@ -1030,7 +1060,7 @@ CSRF가 필요하다. 그 쿠키의 세션 행만 지운다. `204`이고 본문�
 - 체크 항목 추가
 - 참가자 조회(`GET /api/v1/participant/me` 밖)
 - 회비, 조, 방, 차량, 체크인
-- Export, 회고, 공간 설정
+- Export, 공간 설정
 - 행사 기간·장소·유형을 바꾸는 `PATCH`. 이름만 바꾼다
 - 공간 소유권 이전의 전용 URL
 
@@ -1040,5 +1070,4 @@ CSRF가 필요하다. 그 쿠키의 세션 행만 지운다. `204`이고 본문�
 
 - [DEC-064](../../docs/product/PRODUCT_DECISIONS.md) Follow-up (2026-10-21)은 참가자 세션 발급, `GET /api/v1/participant/me`, `POST /api/v1/participant/auth/logout`를 Phase 3보다 앞서 MVP에 넣었다. 이 서버와 맞는다. [API Architecture](../../docs/architecture/api-architecture-v0.1.md)와 [Security](../../docs/architecture/security-privacy-v0.1.md)는 아직 Phase 3로 적는다.
 - [DEC-067](../../docs/product/PRODUCT_DECISIONS.md)의 개발용 로그인 profile gate, 로그인 body `email`, `SCENE_SESSION`·`SCENE_PSESSION`, 로그인 시 `changeSessionId()`는 이 서버와 맞는다. `local`·`test` 밖에서는 로그인 경로가 404다. 세션에 검증된 이메일이 없으면 초대 미리보기·수락은 `403 EMAIL_NOT_VERIFIED`다.
-- DEC-067은 회고를 draft 전용(mock, `unverified`)으로 두고 저장 API를 만들지 않는다. 서버에 회고 경로는 없다(위 "아직 없는 경로").
 - DEC-064는 public 세션 POST의 CSRF를 구현 때 정할 메모로 둔다. 이 서버의 public 체인은 다른 변경 요청과 같이 CSRF 쿠키 `XSRF-TOKEN`과 헤더 `X-XSRF-TOKEN`을 요구한다.

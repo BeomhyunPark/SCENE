@@ -2125,6 +2125,20 @@ AI 없이 출시하는 안은 시장 기대에 맞지 않아 채택하지 않았
 
 현 결정 2026-11-02.
 
+### Follow-up (2026-11-16): 회고 저장 API (#237)
+
+slice (d)를 연다. 위 Decision의 "회고는 draft 전용, 저장 API는 아직 만들지 않는다"는 이 Follow-up으로 대체한다.
+
+- 행사당 회고 글 하나를 서버에 저장한다. `GET`·`PUT /api/v1/operator/events/{eventId}/retrospective`. 응답은 `{ text, version, updatedAt, updatedByDisplayName }`다.
+- 쓰기는 effective `EVENT_UPDATE`(행사 OWNER 기본, 개인별 GRANT 가능)다. 읽기는 effective `EVENT_READ` 또는 활성 공간 `OWNER`·`ADMIN`이다. 회고 전용 권한 키는 만들지 않는다.
+- 쓰기는 `ENDED`에서만 한다(DEC-051). `ARCHIVED`는 `409 EVENT_ARCHIVED`, `DRAFT`·`ACTIVE`는 `409 INVALID_STATE_TRANSITION`이다. 읽기는 모든 상태에서 된다.
+- `PUT`은 `{ text, expectedVersion }`를 받고 저장된 version과 다르면 `409 CONCURRENT_MODIFICATION`이다. `text`는 0~10,000자(잠정)다.
+- 아직 없는 회고는 `200 { text: "", version: 0, updatedAt: null, updatedByDisplayName: null }`이다.
+- 저장마다 audit `EVENT_RETROSPECTIVE_UPDATED`를 남기고 details에는 새 version만 둔다. 본문은 audit·로그·오류 응답에 넣지 않는다.
+- 버린 안: OWNER만 쓰기(GRANT로 넓힐 수 없음), MANAGER 기본 쓰기(RoleDefaults 변경), `ACTIVE`에서도 쓰기(DEC-051 범위 확대), 운영자별 여러 글·섹션 구조, 없는 회고 `404`, audit 없음.
+
+현 결정 2026-11-16.
+
 ### Evidence
 
 현 결정 2026-10-21. SCENE 구현 리뷰 2026-10-21(S1~S6, S8).

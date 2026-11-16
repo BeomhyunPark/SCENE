@@ -1,35 +1,49 @@
 import { apiRequest } from "./client";
-import { isApiError } from "./errors";
+import { ApiError } from "./errors";
 
-/**
- * Provisional body. The server has no retrospective route yet.
- * The mock answers 404. The current API catch-all answers 500 without a code.
- */
-export function retrospectiveMissing(error: unknown): boolean {
-  return isApiError(error) && (error.status === 404 || (error.status === 500 && error.code === "UNEXPECTED"));
+/** One retrospective per event (#237). A missing one is text "" and version 0. */
+export type Retrospective = {
+  text: string;
+  version: number;
+  updatedAt: string | null;
+  updatedByDisplayName: string | null;
+};
+
+/** Provisional server limit. */
+export const RETROSPECTIVE_MAX = 10_000;
+
+export function getRetrospective(eventId: string, signal?: AbortSignal): Promise<Retrospective> {
+  return apiRequest<unknown>(`/api/v1/operator/events/${eventId}/retrospective`, { signal }).then(parse);
 }
 
-export function getRetrospective(eventId: string, signal?: AbortSignal): Promise<string | null> {
-  return apiRequest<unknown>(`/api/v1/operator/events/${eventId}/retrospective`, { signal })
-    .then(readText)
-    .catch((error: unknown) => {
-      if (retrospectiveMissing(error)) return null;
-      throw error;
-    });
-}
-
-export function saveRetrospective(eventId: string, text: string): Promise<string> {
+export function saveRetrospective(
+  eventId: string,
+  input: { text: string; expectedVersion: number },
+): Promise<Retrospective> {
   return apiRequest<unknown>(`/api/v1/operator/events/${eventId}/retrospective`, {
     method: "PUT",
-    body: { text },
-  }).then(readText);
+    body: input,
+  }).then(parse);
 }
 
-function readText(value: unknown): string {
-  if (!isRecord(value) || typeof value.text !== "string") {
-    return "";
+function parse(value: unknown): Retrospective {
+  if (
+    !isRecord(value) ||
+    typeof value.text !== "string" ||
+    typeof value.version !== "number" ||
+    !Number.isInteger(value.version) ||
+    value.version < 0 ||
+    !(value.updatedAt === null || typeof value.updatedAt === "string") ||
+    !(value.updatedByDisplayName === null || typeof value.updatedByDisplayName === "string")
+  ) {
+    throw new ApiError({ status: 200, code: "UNEXPECTED" });
   }
-  return value.text;
+  return {
+    text: value.text,
+    version: value.version,
+    updatedAt: value.updatedAt,
+    updatedByDisplayName: value.updatedByDisplayName,
+  };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
