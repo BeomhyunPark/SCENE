@@ -325,6 +325,7 @@ function SetupBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
                         initial={draftFromField(field)}
                         isNew={false}
                         locked={locked}
+                        period={{ startDate: event.startDate, endDate: event.endDate }}
                         targets={fields.slice(0, index).filter(isConditionTarget)}
                         pending={pending}
                         serverError={fieldError}
@@ -419,6 +420,7 @@ function SetupBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
                 initial={emptyDraft({ startDate: event.startDate, endDate: event.endDate })}
                 isNew
                 locked={locked}
+                period={{ startDate: event.startDate, endDate: event.endDate }}
                 targets={fields.filter(isConditionTarget)}
                 pending={pending}
                 serverError={fieldError}
