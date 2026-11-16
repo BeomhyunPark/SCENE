@@ -90,6 +90,7 @@ operator 경로는 운영자 세션이 필요하다. public 경로는 세션을 
 | `INVITATION_EMAIL_MISMATCH` | 403 | 검증된 세션 이메일과 초대 이메일이 다르다 |
 | `VALIDATION_FAILED` | 400 | 본문, 쿼리, 경로 형식이 계약과 다르다 |
 | `APPLICATION_VALIDATION_FAILED` | 400 | 공개 신청 답변이 계약과 다르다 |
+| `FIELD_LOCKED` | 409 | 신청이 들어온 신청서에서 질문 유형·보기 제거·표시 조건·질문 삭제를 막는다 (DEC-068) |
 | `PARTICIPANT_ACCESS_INVALID` | 401 | 참가자 접근 키가 없거나, 틀리거나, 그 행사 것과 같지 않다 |
 | `PAGE_SIZE_EXCEEDED` | 400 | `size`가 100을 넘는다 |
 | `RESOURCE_NOT_FOUND` | 404 | 행사가 없거나, 테넌트 밖에 있거나, 그 사람에게 존재를 보여 주지 않는다 |
@@ -816,7 +817,29 @@ curl -sS \
 
 컨트롤러는 `event/form/OperatorFormController`다. 행사당 신청서는 하나다. 읽기는 유효한 `EVENT_READ`, 또는 활성 공간 `OWNER`·`ADMIN`이다. 쓰기는 유효한 `FORM_WRITE`다. 공간 역할만으로는 쓰지 못한다. `sort` 허용 필드는 없다. `Idempotency-Key`는 읽지 않는다. 감사 로그는 없다.
 
-필드 `kind`는 `SYSTEM` 또는 `CUSTOM`이다. `systemKey`는 `NAME`, `PHONE`, 또는 CUSTOM의 `null`이다.
+필드 `kind`는 `SYSTEM` 또는 `CUSTOM`이다. `systemKey`는 `NAME`, `PHONE`, 또는 CUSTOM의 `null`이다. 질문 유형·설정·표시 조건과 신청 접수 후 잠금은 [DEC-068](../../docs/product/PRODUCT_DECISIONS.md)과 [신청서 질문 유형 검토](../../docs/product/form-question-types-review.md)를 따른다.
+
+필드 항목의 키는 `fieldId`, `kind`, `systemKey`, `label`, `position`, `answerType`, `required`, `description`, `config`, `showWhen`, `hidden`이다.
+
+- `answerType`: `SHORT_TEXT`, `LONG_TEXT`, `SINGLE_CHOICE`, `MULTI_CHOICE`, `DROPDOWN`, `DATE`, `DATE_RANGE`, `NUMBER`, `YES_NO`. SYSTEM은 늘 `SHORT_TEXT`, `required: true`다.
+- `config`: 유형별 설정이다. 서버가 기본값을 채운 전체 객체를 돌려준다. 모르는 키는 `400`이고 필드는 `config`다.
+
+| 유형 | `config` 키 (기본값) |
+|---|---|
+| `SHORT_TEXT` | `maxLength` 1–200 (200), `format` `NONE`·`PHONE`·`DIGITS` (`NONE`), `placeholder` ≤100 (`null`) |
+| `LONG_TEXT` | `maxLength` 1–2000 (1000), `placeholder` |
+| `SINGLE_CHOICE` | `options` (필수), `allowOther` (`false`), `display` `LIST`·`BUTTONS` (`LIST`) |
+| `MULTI_CHOICE` | `options` (필수), `allowOther`, `minSelect` (0), `maxSelect` (`null` = 제한 없음) |
+| `DROPDOWN` | `options` (필수) |
+| `DATE`·`DATE_RANGE` | `includeTime` (`false`), `min`·`max` (`null`). `YYYY-MM-DD`, 시간 포함이면 `YYYY-MM-DDTHH:mm`(행사 현지 시각, offset 없음) |
+| `NUMBER` | `min`·`max` 정수 (`null`), `unit` ≤10 |
+| `YES_NO` | `style` `YES_NO`·`CONSENT` (`YES_NO`), `yesLabel`·`noLabel` ≤20 |
+
+- `options` 항목은 `{ "optionId", "label", "group", "hidden", "showWhen" }`이고 1–50개다. 새 보기는 `optionId`를 빼고 보내면 서버가 `opt_` 접두 id를 준다. 있는 보기는 받은 `optionId`를 그대로 보낸다. 모르는 `optionId`는 `400`이다. `label` 1–100자, `group` ≤50자(예: 날짜 묶음).
+- `showWhen`: `null`이면 늘 보인다. `{ "fieldId", "optionIds": [...] }`(선택형 대상, 보기 중 하나면 참) 또는 `{ "fieldId", "equals": true|false }`(`YES_NO` 대상). 대상은 같은 신청서에서 position이 더 앞인 CUSTOM 선택형·`YES_NO` 질문이다. 보기의 `showWhen`도 같은 규칙이고, 보기를 가진 질문보다 앞을 가리킨다. 어기면 `400`이고 필드는 `showWhen`(보기면 `config`)이다.
+- `hidden`: 숨긴 질문은 공개 신청서에 나오지 않고 답을 받지 않는다. 숨긴 보기도 같다.
+- 신청서당 필드는 최대 100개다. 넘으면 `400`이고 필드는 `fields`다.
+- **잠금:** 신청서에 `SUBMITTED` 신청이 하나라도 있으면 질문 유형 변경, 있던 보기 제거, 질문·보기의 `showWhen` 변경, CUSTOM 필드 삭제는 `409 FIELD_LOCKED`다. 라벨·설명·필수·숨김, 보기 추가·문구 수정·숨김, 순서 변경은 된다.
 
 ### `GET /api/v1/operator/events/{eventId}/forms`
 
@@ -830,7 +853,7 @@ curl -sS \
 
 본문을 생략하거나 `customLabel`을 생략·`null`로 두면 CUSTOM 필드 없이 만든다. `customLabel`이 있으면 앞뒤 공백을 자르고 1–200자다. 다른 키는 `400`이고 필드는 그 키다.
 
-`201`은 상세다. `acceptingApplications`는 `false`다. SYSTEM 필드 `NAME` 라벨 "이름"(position 0)과 `PHONE` 라벨 "전화"(position 1)가 생긴다. `customLabel`이 있으면 CUSTOM 필드가 position 2다. 두 번째 POST는 `409 CONFLICT`다. 데이터베이스 인덱스 `forms_one_per_event`도 같은 코드로 막는다.
+`201`은 상세다. `acceptingApplications`는 `false`다. SYSTEM 필드 `NAME` 라벨 "이름"(position 0)과 `PHONE` 라벨 "전화"(position 1)가 생긴다. `customLabel`이 있으면 CUSTOM 필드(`SHORT_TEXT`, 필수 아님)가 position 2다. 질문은 이후 필드 추가로 더 만든다. 두 번째 POST는 `409 CONFLICT`다. 데이터베이스 인덱스 `forms_one_per_event`도 같은 코드로 막는다.
 
 ### `GET /api/v1/operator/events/{eventId}/forms/{formId}`
 
@@ -846,7 +869,13 @@ curl -sS \
       "kind": "SYSTEM",
       "systemKey": "NAME",
       "label": "이름",
-      "position": 0
+      "position": 0,
+      "answerType": "SHORT_TEXT",
+      "required": true,
+      "description": null,
+      "config": { "maxLength": 200, "format": "NONE", "placeholder": null },
+      "showWhen": null,
+      "hidden": false
     }
   ]
 }
@@ -865,22 +894,38 @@ curl -sS \
 ### `POST /api/v1/operator/events/{eventId}/forms/{formId}/fields`
 
 ```json
-{ "label": "비고" }
+{
+  "label": "참석 방식",
+  "answerType": "SINGLE_CHOICE",
+  "required": true,
+  "description": "부분 참석이면 일정을 더 묻습니다.",
+  "config": { "options": [{ "label": "전체" }, { "label": "부분" }], "display": "BUTTONS" },
+  "showWhen": null,
+  "hidden": false
+}
 ```
 
-`label`만 받는다. 앞뒤 공백을 자르고 1–200자다. `kind`와 `systemKey`는 `400`이다. CUSTOM 필드는 최대 하나다. 두 번째 추가는 `400 VALIDATION_FAILED`다. 데이터베이스 인덱스 `fields_one_custom`도 같은 코드로 막는다. `201`은 신청서 상세다.
+CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백을 자르고 1–200자다. `answerType`을 빼면 `SHORT_TEXT`, `required`·`hidden`은 `false`다. `description`은 ≤500자이고 빈 값은 `null`이다. `kind`, `systemKey`, `position` 같은 다른 키는 `400`이고 필드는 그 키다. `201`은 신청서 상세다.
 
 ### `PATCH /api/v1/operator/events/{eventId}/forms/{formId}/fields/{fieldId}`
 
 ```json
-{ "label": "이름" }
+{ "label": "참석 형태", "required": false }
 ```
 
-라벨만 바꾼다. 규칙은 추가와 같다. SYSTEM 라벨도 바꿀 수 있다. `200`은 신청서 상세다. 필드가 없으면 `404 RESOURCE_NOT_FOUND`다.
+보낸 키만 바꾼다. 키는 추가와 같고 빈 객체는 `400`이다. SYSTEM 필드는 `label`만 받는다. `config`를 보내면 그 유형의 설정 전체를 바꾼다(보기 목록도 전체). `answerType`을 바꾸고 `config`를 빼면 새 유형의 기본값이 된다. 선택형으로 바꿀 때는 `options`가 있어야 한다. 바뀐 뒤 다른 질문의 `showWhen`이 맞지 않으면 `400`이다. 잠금은 위와 같다. `200`은 신청서 상세다. 필드가 없으면 `404 RESOURCE_NOT_FOUND`다.
+
+### `PUT /api/v1/operator/events/{eventId}/forms/{formId}/fields/order`
+
+```json
+{ "fieldIds": ["…", "…"] }
+```
+
+신청서의 모든 필드 id를 한 번씩, 새 순서로 보낸다. position은 0부터 다시 매긴다. 빠지거나 겹치거나 모르는 id는 `400`이고 필드는 `fieldIds`다. 새 순서에서 `showWhen`이 뒤를 가리키면 `400`이다. 잠금과 상관없이 된다. `200`은 신청서 상세다.
 
 ### `DELETE /api/v1/operator/events/{eventId}/forms/{formId}/fields/{fieldId}`
 
-CUSTOM 필드를 지운다. `204`이고 본문이 없다. SYSTEM 필드 삭제는 `409 CONFLICT`다. 없는 필드는 `404 RESOURCE_NOT_FOUND`다.
+CUSTOM 필드를 지운다. `204`이고 본문이 없다. SYSTEM 필드 삭제는 `409 CONFLICT`다. 다른 질문이나 보기의 `showWhen`이 가리키는 필드도 `409 CONFLICT`다. 신청이 들어온 신청서는 `409 FIELD_LOCKED`이고, 대신 `hidden: true`로 숨긴다. 없는 필드는 `404 RESOURCE_NOT_FOUND`다.
 
 ## 신청 읽기
 
@@ -927,7 +972,7 @@ CUSTOM 필드를 지운다. `204`이고 본문이 없다. SYSTEM 필드 삭제�
 
 신청을 받는 신청서의 필드 목록이다. 행사가 없으면 `404 RESOURCE_NOT_FOUND`다. 그 행사의 신청서가 아니면 `404 FORM_NOT_FOUND`다. `acceptingApplications`가 false이면 `409 FORM_CLOSED`다.
 
-`200`은 `{ "formId", "fields" }`다. `fields` 항목은 운영자 상세의 필드와 같다. `acceptingApplications` 키는 없다.
+`200`은 `{ "formId", "fields" }`다. `fields` 항목의 모양은 운영자 상세의 필드와 같다. 숨긴 질문은 빠지고, 남은 질문의 `config.options`에서도 숨긴 보기가 빠진다. `hidden`은 늘 `false`다. `showWhen`은 그대로 있어서 화면이 답에 따라 질문과 보기를 보이고 숨긴다. `acceptingApplications` 키는 없다.
 
 ### `POST /api/v1/public/events/{eventId}/forms/{formId}/applications`
 
@@ -937,12 +982,26 @@ CSRF가 필요하다. `Idempotency-Key`는 읽지 않는다.
 {
   "answers": [
     { "fieldId": "…", "text": "김" },
-    { "fieldId": "…", "text": "010-1234-5678" }
+    { "fieldId": "…", "text": "010-1234-5678" },
+    { "fieldId": "…", "value": { "optionId": "opt_1a2b3c4d" } },
+    { "fieldId": "…", "value": { "value": true } }
   ]
 }
 ```
 
-`answers`만 받는다. 각 항목은 `fieldId`와 `text`만이다. `NAME`과 `PHONE`은 필수다. CUSTOM은 빼도 된다. `text`는 앞뒤 공백을 자르고 1–200자다. 전화는 50자 이하이고 숫자가 4개 이상이어야 한다. 형식이 틀리면 `400 APPLICATION_VALIDATION_FAILED`다. `errors`는 없다. 닫힌 신청서는 `409 FORM_CLOSED`다. 없는 신청서는 `404 FORM_NOT_FOUND`다. 없는 행사는 `404 RESOURCE_NOT_FOUND`다.
+`answers`만 받는다. 각 항목은 `fieldId`와 `text` 또는 `value` 중 하나다. `text`는 글 질문의 줄임으로 `value: { "text" }`와 같다. 유형별 `value`는 다음과 같고, 저장되는 답 값(`answers.value`)도 같은 모양이다.
+
+| 유형 | `value` |
+|---|---|
+| `SHORT_TEXT`·`LONG_TEXT` | `{ "text" }` 앞뒤 공백을 자르고 `maxLength` 이하. `PHONE`은 숫자 4개 이상, `DIGITS`는 숫자만 |
+| `SINGLE_CHOICE`·`DROPDOWN` | `{ "optionId" }` 또는 `{ "other" }`(`allowOther`일 때, ≤200자) |
+| `MULTI_CHOICE` | `{ "optionIds": [...], "other"? }` 겹치지 않고, 고른 수가 `minSelect`–`maxSelect` |
+| `DATE` | `{ "date" }`, 시간 포함이면 `{ "dateTime" }`. `min`–`max` 안 |
+| `DATE_RANGE` | `{ "start", "end" }` 같은 형식, `start ≤ end` |
+| `NUMBER` | `{ "number" }` 정수, `min`–`max` 안 |
+| `YES_NO` | `{ "value": true\|false }`. 필수 `CONSENT`는 `true`여야 한다 |
+
+서버는 position 순서로 `showWhen`을 다시 계산한다. 화면이 보낸 표시 여부를 믿지 않는다. 숨겨진 질문(숨김이거나 조건이 거짓)은 필수 검사를 하지 않고, 그 답은 거절하지 않고 저장하지 않는다. 숨겨진 보기를 고른 답도 그 보기를 빼고 본다. 빈 글은 답이 없는 것으로 본다. 보이는 필수 질문에 답이 없거나, 모르는 `fieldId`, 겹친 `fieldId`, 유형과 다른 값, 범위 밖 값은 `400 APPLICATION_VALIDATION_FAILED`다. `NAME`과 `PHONE`은 늘 필수다. `errors`는 없다. 닫힌 신청서는 `409 FORM_CLOSED`다. 없는 신청서는 `404 FORM_NOT_FOUND`다. 없는 행사는 `404 RESOURCE_NOT_FOUND`다.
 
 `201`. `Location` 헤더는 없다.
 
@@ -1030,6 +1089,7 @@ CSRF가 필요하다. 그 쿠키의 세션 행만 지운다. `204`이고 본문�
 ## 결정 문서와 다른 점
 
 - [DEC-064](../../docs/product/PRODUCT_DECISIONS.md) Follow-up (2026-10-21)은 참가자 세션 발급, `GET /api/v1/participant/me`, `POST /api/v1/participant/auth/logout`를 Phase 3보다 앞서 MVP에 넣었다. 이 서버와 맞는다. [API Architecture](../../docs/architecture/api-architecture-v0.1.md)와 [Security](../../docs/architecture/security-privacy-v0.1.md)는 아직 Phase 3로 적는다.
+- [DEC-068](../../docs/product/PRODUCT_DECISIONS.md)의 질문 유형 9종, 질문·보기 표시 조건, 신청 접수 후 잠금, 숨겨진 답 버리기는 이 서버와 맞는다(#225). 운영자 빌더(#226)와 참가자 입력 화면(#227)은 아직 `label`과 `text`만 쓴다. 서버는 그 요청도 그대로 받는다.
 - [DEC-067](../../docs/product/PRODUCT_DECISIONS.md)의 개발용 로그인 profile gate, 로그인 body `email`, `SCENE_SESSION`·`SCENE_PSESSION`, 로그인 시 `changeSessionId()`는 이 서버와 맞는다. `local`·`test` 밖에서는 로그인 경로가 404다. 세션에 검증된 이메일이 없으면 초대 미리보기·수락은 `403 EMAIL_NOT_VERIFIED`다.
 - DEC-067은 회고를 draft 전용(mock, `unverified`)으로 두고 저장 API를 만들지 않는다. 서버에 회고 경로는 없다(위 "아직 없는 경로").
 - DEC-064는 public 세션 POST의 CSRF를 구현 때 정할 메모로 둔다. 이 서버의 public 체인은 다른 변경 요청과 같이 CSRF 쿠키 `XSRF-TOKEN`과 헤더 `X-XSRF-TOKEN`을 요구한다.

@@ -2158,7 +2158,7 @@ AI 없이 출시하는 안은 시장 기대에 맞지 않아 채택하지 않았
 
 ### Consequence
 
-구현은 [#225](https://github.com/BeomhyunPark/SCENE/issues/225)(백엔드), [#226](https://github.com/BeomhyunPark/SCENE/issues/226)(운영자 빌더), [#227](https://github.com/BeomhyunPark/SCENE/issues/227)(참가자 입력), [#229](https://github.com/BeomhyunPark/SCENE/issues/229)(조건부), [#228](https://github.com/BeomhyunPark/SCENE/issues/228)(원본 조회)에서 한다. 그 전까지 [backend/docs/api.md](../../backend/docs/api.md)의 신청서·공개 신청 계약은 지금 구현(CUSTOM 1개, `text`만)을 설명한다. 문서만 바꿨으며 코드는 없다.
+구현은 [#225](https://github.com/BeomhyunPark/SCENE/issues/225)(백엔드), [#226](https://github.com/BeomhyunPark/SCENE/issues/226)(운영자 빌더), [#227](https://github.com/BeomhyunPark/SCENE/issues/227)(참가자 입력), [#229](https://github.com/BeomhyunPark/SCENE/issues/229)(조건부), [#228](https://github.com/BeomhyunPark/SCENE/issues/228)(원본 조회)에서 한다. 서버 계약은 #225에서 구현했고 [backend/docs/api.md](../../backend/docs/api.md)의 "신청서"·"공개 신청서"에 있다(2026-11-16). 화면은 #226·#227에서 한다.
 
 ### Follow-up (2026-11-16): 검토 문서의 확인 항목 확정
 
