@@ -20,10 +20,9 @@ import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
 
 /**
- * Checks one public submission against the form (DEC-068, {@code form-question-types-review.md}
- * §4–5). Conditions are recalculated from the submitted answers in position order. Answers to
- * hidden questions and hidden options are dropped, not rejected. Every other problem is {@code
- * APPLICATION_VALIDATION_FAILED}.
+ * Checks one public submission against the form (DEC-068 §3–4 §4–5). Conditions are recalculated
+ * from the submitted answers in position order. Answers to hidden questions and hidden options are
+ * dropped, not rejected. Every other problem is {@code APPLICATION_VALIDATION_FAILED}.
  */
 public final class AnswerEvaluator {
 

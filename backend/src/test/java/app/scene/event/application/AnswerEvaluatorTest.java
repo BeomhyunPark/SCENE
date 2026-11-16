@@ -16,7 +16,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 
-/** Public answer rules (DEC-068, form-question-types-review.md §4–5). */
+/** Public answer rules (DEC-068 §3–4). */
 class AnswerEvaluatorTest {
 
   private final JsonMapper json = JsonMapper.builder().build();
