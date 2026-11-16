@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -74,7 +75,15 @@ public class OperatorFormController {
       @PathVariable UUID formId,
       @PathVariable UUID fieldId,
       @RequestBody(required = false) JsonNode body) {
-    return forms.renameField(actor(), eventId, formId, fieldId, body);
+    return forms.patchField(actor(), eventId, formId, fieldId, body);
+  }
+
+  @PutMapping("/api/v1/operator/events/{eventId}/forms/{formId}/fields/order")
+  FormDetail reorderFields(
+      @PathVariable UUID eventId,
+      @PathVariable UUID formId,
+      @RequestBody(required = false) JsonNode body) {
+    return forms.reorderFields(actor(), eventId, formId, body);
   }
 
   @DeleteMapping("/api/v1/operator/events/{eventId}/forms/{formId}/fields/{fieldId}")
