@@ -1,14 +1,18 @@
 package app.scene.event.lifecycle;
 
+import app.scene.common.mybatis.PageParam;
+import app.scene.common.web.PageRequest;
 import app.scene.event.lifecycle.mapper.EventInvitationMapper;
 import app.scene.event.lifecycle.param.InvitationAccept;
 import app.scene.event.lifecycle.param.InvitationInsert;
 import app.scene.event.lifecycle.param.InvitationKey;
+import app.scene.event.lifecycle.param.InvitationListQuery;
 import app.scene.event.lifecycle.param.InvitationPendingClose;
 import app.scene.event.lifecycle.param.InvitationRevoke;
 import app.scene.event.lifecycle.param.InvitationSingleRevoke;
 import app.scene.event.lifecycle.param.InvitationToken;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Component;
@@ -22,6 +26,9 @@ public class EventInvitationRepository {
   private static final String SUPERSEDED = "SUPERSEDED";
   private static final String ACCEPTED = "ACCEPTED";
 
+  /** Newest first. Client sort is not accepted. */
+  static final String PENDING_ORDER = "created_at DESC, id ASC";
+
   private final EventInvitationMapper invitations;
 
   public EventInvitationRepository(EventInvitationMapper invitations) {
@@ -30,6 +37,20 @@ public class EventInvitationRepository {
 
   public Optional<InvitationRow> find(UUID spaceId, UUID eventId, UUID id) {
     return Optional.ofNullable(invitations.find(InvitationKey.of(spaceId, eventId, id)));
+  }
+
+  public long countPending(UUID spaceId, UUID eventId) {
+    return invitations.countByStatus(InvitationListQuery.of(spaceId, eventId, PENDING, null));
+  }
+
+  public List<InvitationRow> listPending(UUID spaceId, UUID eventId, PageRequest request) {
+    long offset = request.offset();
+    if (offset > Integer.MAX_VALUE) {
+      throw new IllegalArgumentException("page offset does not fit an int");
+    }
+    return invitations.findPageByStatus(
+        InvitationListQuery.of(
+            spaceId, eventId, PENDING, PageParam.of((int) offset, request.size(), PENDING_ORDER)));
   }
 
   public Optional<InvitationRow> findByTokenHash(String tokenHash) {

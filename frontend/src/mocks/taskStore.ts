@@ -218,6 +218,17 @@ export function operatorsFor(eventId: string, actorId: string): OperatorRow[] | 
   return operators.filter((row) => row.eventId === eventId);
 }
 
+/** Event role of one user, or null. Used by the invitation mock. */
+export function eventRoleOf(eventId: string, userId: string): Role | null {
+  return operators.find((row) => row.eventId === eventId && row.userId === userId)?.role ?? null;
+}
+
+/** Invitation accept: adds the user once. An existing operator keeps their role. */
+export function addOperator(eventId: string, userId: string, displayName: string, role: Role): void {
+  if (operators.some((row) => row.eventId === eventId && row.userId === userId)) return;
+  operators.push({ eventId, userId, displayName, role });
+}
+
 export function permissionsFor(
   eventId: string,
   actorId: string,

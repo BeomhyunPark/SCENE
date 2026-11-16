@@ -1,17 +1,20 @@
 package app.scene.event.invitation;
 
+import app.scene.common.web.ItemPage;
 import app.scene.identity.OperatorPrincipal;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.UUID;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import tools.jackson.databind.JsonNode;
 
-/** DEC-060 invitation commands, preview, and accept. */
+/** DEC-060 invitation list, commands, preview, and accept. */
 @RestController
 public class EventInvitationController {
 
@@ -21,13 +24,21 @@ public class EventInvitationController {
     this.invitations = invitations;
   }
 
+  @GetMapping("/api/v1/operator/events/{eventId}/invitations")
+  ItemPage<InvitationListItem> list(
+      @PathVariable UUID eventId,
+      @RequestParam(required = false) Integer page,
+      @RequestParam(required = false) Integer size) {
+    return invitations.list(actor(), eventId, page, size);
+  }
+
   @PostMapping("/api/v1/operator/events/{eventId}/invitations")
-  InvitationResult create(@PathVariable UUID eventId, @RequestBody JsonNode body) {
+  IssuedInvitation create(@PathVariable UUID eventId, @RequestBody JsonNode body) {
     return invitations.create(actor(), eventId, body);
   }
 
   @PostMapping("/api/v1/operator/events/{eventId}/invitations/{invitationId}/resend")
-  InvitationResult resend(@PathVariable UUID eventId, @PathVariable UUID invitationId) {
+  IssuedInvitation resend(@PathVariable UUID eventId, @PathVariable UUID invitationId) {
     return invitations.resend(actor(), eventId, invitationId);
   }
 

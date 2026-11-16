@@ -52,3 +52,11 @@ export function formatSubmittedAt(iso: string): string {
 export function applicantName(name: string | null): string {
   return name && name.trim().length > 0 ? name : "이름 없음";
 }
+
+/** Operator role as shown on invitation and member screens. */
+export function operatorRoleLabel(role: string): string {
+  if (role === "OWNER") return "Owner";
+  if (role === "MANAGER") return "Manager";
+  if (role === "STAFF") return "Staff";
+  return role;
+}

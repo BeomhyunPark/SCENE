@@ -18,6 +18,21 @@
     FOR UPDATE
   </select>
 
+  <select id="countByStatus" resultType="long">
+    SELECT count(*)
+    FROM event_invitations
+    WHERE space_id = #{spaceId} AND event_id = #{eventId} AND status = #{status}
+  </select>
+
+  <!-- Owner list. token_hash is selected for the row shape only and never leaves the service. -->
+  <select id="findPageByStatus" resultType="app.scene.event.lifecycle.InvitationRow">
+    SELECT id, space_id, event_id, email_normalized, role, token_hash, status,
+           expires_at, invited_by, accepted_user_id
+    FROM event_invitations
+    WHERE space_id = #{spaceId} AND event_id = #{eventId} AND status = #{status}
+    <include refid="app.scene.common.mybatis.CommonMapper.orderByAndPage"/>
+  </select>
+
   <insert id="save">
     INSERT INTO event_invitations (
       id, space_id, event_id, email_normalized, role, token_hash, status,

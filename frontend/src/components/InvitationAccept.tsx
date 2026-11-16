@@ -15,6 +15,7 @@ import symbol from "../assets/scene-symbol-header.svg";
 import { Button } from "./Button";
 import "./InvitationAccept.css";
 import "./PublicHeader.css";
+import { operatorRoleLabel } from "./eventFormat";
 
 const LOGIN_NEXT = "/login?next=/operator/invitations";
 
@@ -258,7 +259,7 @@ function PendingInvite({
 }) {
   const eventName = typeof preview.eventName === "string" ? preview.eventName : "";
   const inviterName = typeof preview.inviterName === "string" ? preview.inviterName : "";
-  const role = typeof preview.role === "string" ? roleLabel(preview.role) : "";
+  const role = typeof preview.role === "string" ? operatorRoleLabel(preview.role) : "";
   return (
     <InvitationFrame
       title={`${eventName} 초대를 받았어요`}
@@ -390,11 +391,4 @@ function errorKind(error: unknown): ErrorKind {
     default:
       return "retry";
   }
-}
-
-function roleLabel(role: string): string {
-  if (role === "OWNER") return "Owner";
-  if (role === "MANAGER") return "Manager";
-  if (role === "STAFF") return "Staff";
-  return role;
 }
