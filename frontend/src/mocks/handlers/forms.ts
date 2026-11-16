@@ -7,8 +7,9 @@ import {
   deleteField,
   listForms,
   readForm,
-  renameField,
+  reorderFields,
   setAccepting,
+  updateField,
   type FormFailure,
 } from "../formStore";
 import { operatorRequests } from "../operatorStore";
@@ -79,6 +80,17 @@ export const formHandlers = [
     return HttpResponse.json(updated, { status: 201 });
   }),
 
+  http.put("/api/v1/operator/events/:eventId/forms/:formId/fields/order", async ({ request, params, cookies }) => {
+    if (!csrfMatches(request, cookies)) return problem(403, "FORBIDDEN", { detail: "hidden" });
+    const operator = currentOperator();
+    if (!operator) return problem(401, "AUTHENTICATION_REQUIRED");
+    const body = await readJson(request);
+    operatorRequests.push({ method: "PUT", url: new URL(request.url).pathname, body });
+    const updated = reorderFields(String(params.eventId), String(params.formId), operator.userId, body);
+    if (isFailure(updated)) return fail(updated);
+    return HttpResponse.json(updated);
+  }),
+
   http.patch(
     "/api/v1/operator/events/:eventId/forms/:formId/fields/:fieldId",
     async ({ request, params, cookies }) => {
@@ -87,7 +99,7 @@ export const formHandlers = [
       if (!operator) return problem(401, "AUTHENTICATION_REQUIRED");
       const body = await readJson(request);
       operatorRequests.push({ method: "PATCH", url: new URL(request.url).pathname, body });
-      const updated = renameField(
+      const updated = updateField(
         String(params.eventId),
         String(params.formId),
         String(params.fieldId),
