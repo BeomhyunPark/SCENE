@@ -1,12 +1,21 @@
-import { useState, type FormEvent } from "react";
+import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router";
 import arrowLeft from "../assets/event-create/arrow-left.svg";
 import calendarCheck from "../assets/event-home/calendar-check.svg";
 import type { EventDetail } from "../api/events";
 import { isApiError } from "../api/errors";
-import type { FormDetail } from "../api/forms";
-import { addField, createForm, deleteField, getForm, listForms, renameField, setAccepting } from "../api/forms";
+import type { FormDetail, FormField } from "../api/forms";
+import {
+  addField,
+  createForm,
+  deleteField,
+  getForm,
+  listForms,
+  reorderFields,
+  setAccepting,
+  updateField,
+} from "../api/forms";
 import { activateEvent } from "../api/lifecycle";
 import { getMyPermissions } from "../api/operators";
 import { reloadQuery } from "../api/queryClient";
@@ -15,14 +24,25 @@ import { getMe } from "../api/session";
 import { Button } from "./Button";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { EventScreen } from "./EventScreen";
-import { FieldPrivacyWarning } from "./FieldPrivacyWarning";
 import { OperatorShell } from "./OperatorShell";
+import { QuestionEditor } from "./formBuilder/QuestionEditor";
+import {
+  TYPE_LABELS,
+  conditionSummary,
+  draftFromField,
+  emptyDraft,
+  isConditionTarget,
+  toInput,
+  type QuestionDraft,
+} from "./formBuilder/questionDraft";
 import { eventContext, lifecycleLabel } from "./eventFormat";
 import "./EventHome.css";
 import "./EventRegistrationSetup.css";
+import "./formBuilder/QuestionEditor.css";
 
 const LENGTH_COPY = "질문을 1–200자로 써 주세요.";
-const ONE_CUSTOM_COPY = "지금은 추가 질문을 하나만 받을 수 있어요.";
+const LOCKED_COPY = "신청이 들어와서 질문 유형, 보기 삭제, 표시 조건은 바꿀 수 없어요. 필요 없는 질문은 숨겨 주세요.";
+const CONDITION_COPY = "표시 조건은 앞에 있는 선택형·예/아니오 질문만 가리킬 수 있어요.";
 
 export function EventRegistrationSetup() {
   const { eventId = "" } = useParams();
@@ -55,19 +75,12 @@ function SetupBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
   const canWrite = permissions.data?.effective.includes("FORM_WRITE") ?? false;
   const ended = event.lifecycleStatus === "ENDED" || event.lifecycleStatus === "ARCHIVED";
   const fields = [...(form.data?.fields ?? [])].sort((left, right) => left.position - right.position);
-  const custom = fields.find((field) => field.kind === "CUSTOM");
-  const serverLabel = custom?.label ?? null;
-  const [trackedLabel, setTrackedLabel] = useState<string | null>(serverLabel);
-  const [customDraft, setCustomDraft] = useState(serverLabel ?? "");
-  if (trackedLabel !== serverLabel) {
-    setTrackedLabel(serverLabel);
-    setCustomDraft(serverLabel ?? "");
-  }
-  const [question, setQuestion] = useState("");
+  const locked = form.data?.locked ?? false;
+  const [editing, setEditing] = useState<string | null>(null);
   const [fieldError, setFieldError] = useState("");
   const [banner, setBanner] = useState("");
   const [pending, setPending] = useState(false);
-  const [dialog, setDialog] = useState<null | "open" | "delete">(null);
+  const [dialog, setDialog] = useState<null | "open" | { remove: FormField }>(null);
   const draftStatus = event.lifecycleStatus === "DRAFT";
   const context = eventContext(event);
 
@@ -79,9 +92,9 @@ function SetupBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
     });
   }
 
-  async function afterFailure(caught: unknown, action: "write" | "activate") {
+  async function afterFailure(caught: unknown, action: "write" | "activate", inEditor = false) {
     const copy = failureCopy(caught, action);
-    if (copy === LENGTH_COPY) setFieldError(copy);
+    if (inEditor) setFieldError(copy);
     else setBanner(copy);
     if (isApiError(caught, "INVALID_STATE_TRANSITION") || isApiError(caught, "CONCURRENT_MODIFICATION")) {
       await queryClient.invalidateQueries({ queryKey: queryKeys.event(eventId) });
@@ -109,20 +122,32 @@ function SetupBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
     }
   }
 
-  async function addQuestion(submit: FormEvent<HTMLFormElement>) {
-    submit.preventDefault();
+  async function saveQuestion(draft: QuestionDraft, field: FormField | null) {
     if (!form.data) return;
-    const label = readableLabel(question);
-    if (!label) {
-      setFieldError(LENGTH_COPY);
-      return;
-    }
     setBanner("");
     setFieldError("");
     setPending(true);
     try {
-      remember(await addField(eventId, form.data.formId, label));
-      setQuestion("");
+      const input = toInput(draft);
+      remember(
+        field
+          ? await updateField(eventId, form.data.formId, field.fieldId, input)
+          : await addField(eventId, form.data.formId, input),
+      );
+      setEditing(null);
+    } catch (caught) {
+      await afterFailure(caught, "write", true);
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function setHidden(field: FormField, hidden: boolean) {
+    if (!form.data) return;
+    setBanner("");
+    setPending(true);
+    try {
+      remember(await updateField(eventId, form.data.formId, field.fieldId, { hidden }));
     } catch (caught) {
       await afterFailure(caught, "write");
     } finally {
@@ -130,19 +155,18 @@ function SetupBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
     }
   }
 
-  async function saveQuestion(submit: FormEvent<HTMLFormElement>) {
-    submit.preventDefault();
-    if (!form.data || !custom) return;
-    const label = readableLabel(customDraft);
-    if (!label) {
-      setFieldError(LENGTH_COPY);
-      return;
-    }
+  /** CUSTOM questions move among themselves; SYSTEM fields stay first. */
+  async function move(field: FormField, step: -1 | 1) {
+    if (!form.data) return;
+    const ids = fields.map((item) => item.fieldId);
+    const from = ids.indexOf(field.fieldId);
+    const to = from + step;
+    if (to < 0 || to >= ids.length || fields[to].kind === "SYSTEM") return;
+    [ids[from], ids[to]] = [ids[to], ids[from]];
     setBanner("");
-    setFieldError("");
     setPending(true);
     try {
-      remember(await renameField(eventId, form.data.formId, custom.fieldId, label));
+      remember(await reorderFields(eventId, form.data.formId, ids));
     } catch (caught) {
       await afterFailure(caught, "write");
     } finally {
@@ -150,14 +174,14 @@ function SetupBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
     }
   }
 
-  async function removeQuestion() {
-    if (!form.data || !custom) return;
+  async function removeQuestion(field: FormField) {
+    if (!form.data) return;
     setDialog(null);
     setBanner("");
     setFieldError("");
     setPending(true);
     try {
-      await deleteField(eventId, form.data.formId, custom.fieldId);
+      await deleteField(eventId, form.data.formId, field.fieldId);
       await reloadQuery(form);
     } catch (caught) {
       await afterFailure(caught, "write");
@@ -291,64 +315,132 @@ function SetupBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
               <h3 id="registration-fields-title">받을 정보</h3>
               {form.data ? <span>{fields.length}개</span> : null}
             </div>
+            {form.data && locked ? <p className="registration-setup__note">{LOCKED_COPY}</p> : null}
             {form.data ? (
               <ul className="registration-setup__fields">
-                {fields.map((field) =>
-                  field.kind === "SYSTEM" ? (
-                    <li key={field.fieldId} className="registration-setup__row">
-                      <span>{field.label}</span>
-                      <span className="registration-setup__chip">기본 항목</span>
-                    </li>
-                  ) : canWrite ? (
+                {fields.map((field, index) =>
+                  editing === field.fieldId ? (
                     <li key={field.fieldId}>
-                      <form className="registration-setup__form" onSubmit={(submit) => void saveQuestion(submit)}>
-                        <label htmlFor="custom-question">추가 질문</label>
-                        <input
-                          id="custom-question"
-                          value={customDraft}
-                          aria-invalid={fieldError.length > 0}
-                          onChange={(change) => setCustomDraft(change.target.value)}
-                        />
-                        <FieldPrivacyWarning label={customDraft} />
-                        <div className="registration-setup__actions">
-                          <Button type="submit" variant="primary" size={40} loading={pending}>
-                            저장
-                          </Button>
-                          <Button type="button" variant="danger-outline" size={40} onClick={() => setDialog("delete")}>
-                            질문 삭제
-                          </Button>
-                        </div>
-                      </form>
+                      <QuestionEditor
+                        initial={draftFromField(field)}
+                        isNew={false}
+                        locked={locked}
+                        targets={fields.slice(0, index).filter(isConditionTarget)}
+                        pending={pending}
+                        serverError={fieldError}
+                        onSave={(draft) => void saveQuestion(draft, field)}
+                        onCancel={() => {
+                          setEditing(null);
+                          setFieldError("");
+                        }}
+                      />
                     </li>
                   ) : (
-                    <li key={field.fieldId} className="registration-setup__row">
-                      <span>{field.label}</span>
-                      <FieldPrivacyWarning label={field.label} />
+                    <li key={field.fieldId} className="registration-setup__question">
+                      <div className="registration-setup__summary">
+                        <span className="registration-setup__label">{field.label}</span>
+                        {field.kind === "SYSTEM" ? (
+                          <span className="registration-setup__chip">기본 항목</span>
+                        ) : (
+                          <>
+                            <span className="registration-setup__chip">{TYPE_LABELS[field.answerType]}</span>
+                            {field.required ? <span className="registration-setup__chip">필수</span> : null}
+                            {field.hidden ? <span className="registration-setup__chip">숨김</span> : null}
+                          </>
+                        )}
+                      </div>
+                      {field.showWhen ? (
+                        <p className="registration-setup__condition">{conditionSummary(field.showWhen, fields)} 보여요</p>
+                      ) : null}
+                      {field.kind === "CUSTOM" && canWrite && editing === null ? (
+                        <div className="registration-setup__actions">
+                          <Button
+                            type="button"
+                            variant="tertiary"
+                            size={32}
+                            aria-label={`${field.label} 위로`}
+                            disabled={pending || fields[index - 1]?.kind !== "CUSTOM"}
+                            onClick={() => void move(field, -1)}
+                          >
+                            위로
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="tertiary"
+                            size={32}
+                            aria-label={`${field.label} 아래로`}
+                            disabled={pending || index === fields.length - 1}
+                            onClick={() => void move(field, 1)}
+                          >
+                            아래로
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size={32}
+                            aria-label={`${field.label} 수정`}
+                            onClick={() => {
+                              setFieldError("");
+                              setEditing(field.fieldId);
+                            }}
+                          >
+                            수정
+                          </Button>
+                          {locked ? (
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size={32}
+                              aria-label={`${field.label} ${field.hidden ? "다시 보이기" : "숨기기"}`}
+                              onClick={() => void setHidden(field, !field.hidden)}
+                            >
+                              {field.hidden ? "다시 보이기" : "숨기기"}
+                            </Button>
+                          ) : (
+                            <Button
+                              type="button"
+                              variant="danger-outline"
+                              size={32}
+                              aria-label={`${field.label} 삭제`}
+                              onClick={() => setDialog({ remove: field })}
+                            >
+                              삭제
+                            </Button>
+                          )}
+                        </div>
+                      ) : null}
                     </li>
                   ),
                 )}
               </ul>
             ) : null}
-            {form.data && custom ? <p className="registration-setup__note">{ONE_CUSTOM_COPY}</p> : null}
-            {form.data && !custom && canWrite ? (
-              <form className="registration-setup__form" onSubmit={(submit) => void addQuestion(submit)}>
-                <label htmlFor="new-question">질문</label>
-                <input
-                  id="new-question"
-                  value={question}
-                  aria-invalid={fieldError.length > 0}
-                  onChange={(change) => setQuestion(change.target.value)}
-                />
-                <FieldPrivacyWarning label={question} />
-                <Button type="submit" variant="primary" size={40} loading={pending}>
-                  추가
-                </Button>
-              </form>
+            {form.data && canWrite && editing === "new" ? (
+              <QuestionEditor
+                initial={emptyDraft({ startDate: event.startDate, endDate: event.endDate })}
+                isNew
+                locked={locked}
+                targets={fields.filter(isConditionTarget)}
+                pending={pending}
+                serverError={fieldError}
+                onSave={(draft) => void saveQuestion(draft, null)}
+                onCancel={() => {
+                  setEditing(null);
+                  setFieldError("");
+                }}
+              />
             ) : null}
-            {fieldError ? (
-              <p className="registration-setup__alert" role="alert">
-                {fieldError}
-              </p>
+            {form.data && canWrite && editing === null ? (
+              <Button
+                type="button"
+                variant="secondary"
+                size={40}
+                onClick={() => {
+                  setFieldError("");
+                  setEditing("new");
+                }}
+              >
+                질문 추가
+              </Button>
             ) : null}
           </section>
           <article className="registration-setup__inert">
@@ -379,7 +471,7 @@ function SetupBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
           <p>행사를 시작해야 신청을 열 수 있어요. 지금 시작할까요?</p>
         </ConfirmDialog>
       ) : null}
-      {dialog === "delete" ? (
+      {dialog !== null && dialog !== "open" ? (
         <ConfirmDialog
           title="질문을 삭제할까요?"
           onClose={() => setDialog(null)}
@@ -388,13 +480,13 @@ function SetupBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
               <Button type="button" variant="tertiary" size={40} onClick={() => setDialog(null)}>
                 닫기
               </Button>
-              <Button type="button" variant="danger" size={40} onClick={() => void removeQuestion()}>
+              <Button type="button" variant="danger" size={40} onClick={() => void removeQuestion(dialog.remove)}>
                 삭제
               </Button>
             </>
           }
         >
-          <p>삭제한 질문은 신청서에서 빠져요.</p>
+          <p>&lsquo;{dialog.remove.label}&rsquo; 질문이 신청서에서 빠져요.</p>
         </ConfirmDialog>
       ) : null}
     </OperatorShell>
@@ -407,12 +499,6 @@ function leadCopy(hasForm: boolean, accepting: boolean, ended: boolean): string 
   return accepting ? "신청 받는 중" : "공개 전";
 }
 
-function readableLabel(value: string): string | null {
-  const trimmed = value.trim();
-  if (trimmed.length < 1 || trimmed.length > 200) return null;
-  return trimmed;
-}
-
 function failureCopy(caught: unknown, action: "write" | "activate"): string {
   if (isApiError(caught, "FORBIDDEN", "OVERRIDE_REQUIRED")) {
     return action === "activate" ? "행사 Owner만 시작할 수 있어요." : "신청서를 바꿀 권한이 없어요.";
@@ -420,9 +506,13 @@ function failureCopy(caught: unknown, action: "write" | "activate"): string {
   if (isApiError(caught, "VALIDATION_FAILED")) {
     const field = caught.errors?.[0]?.field;
     if (field === "label" || field === "customLabel") return LENGTH_COPY;
-    if ((caught.errors?.length ?? 0) === 0) return ONE_CUSTOM_COPY;
+    if (field === "showWhen" || field === "fieldIds") return CONDITION_COPY;
+    if (field === "description") return "설명은 500자까지 쓸 수 있어요.";
+    if (field === "fields") return "질문은 100개까지 만들 수 있어요.";
+    if (field === "config") return "답변 설정을 확인해 주세요. 보기는 1–50개, 보기 문구는 1–100자예요.";
   }
-  if (isApiError(caught, "CONFLICT")) return "기본 항목은 지울 수 없어요.";
+  if (isApiError(caught, "FIELD_LOCKED")) return LOCKED_COPY;
+  if (isApiError(caught, "CONFLICT")) return "다른 질문의 표시 조건에 쓰이는 질문이에요. 그 조건을 먼저 바꿔 주세요.";
   if (isApiError(caught, "INVALID_STATE_TRANSITION")) return "진행 중인 행사에서만 신청을 열 수 있어요.";
   if (isApiError(caught, "CONCURRENT_MODIFICATION")) return "다른 변경이 먼저 반영됐어요. 다시 확인해 주세요.";
   if (isMissing(caught)) return "신청서를 찾을 수 없어요.";

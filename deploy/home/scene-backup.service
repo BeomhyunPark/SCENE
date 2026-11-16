@@ -1,0 +1,10 @@
+[Unit]
+Description=SCENE encrypted database backup
+Wants=network-online.target
+After=network-online.target docker.service
+
+[Service]
+Type=oneshot
+# Change to where the repository is checked out on the home server.
+WorkingDirectory=/opt/scene/deploy/home
+ExecStart=/opt/scene/deploy/home/backup.sh
