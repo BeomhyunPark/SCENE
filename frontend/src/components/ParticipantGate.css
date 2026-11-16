@@ -118,3 +118,94 @@
     padding: 24px 20px;
   }
 }
+
+.participant-gate__required {
+  color: var(--color-text-secondary);
+  font: var(--scene-label-s);
+}
+
+.participant-gate__help {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font: var(--scene-body-m);
+  letter-spacing: 0;
+}
+
+.participant-gate__group {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.participant-gate__textarea {
+  min-height: 96px;
+  padding-top: 10px;
+  resize: vertical;
+}
+
+.participant-gate__choices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.participant-gate__choices--buttons {
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
+.participant-gate__choice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 8px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font: var(--scene-body-m);
+  cursor: pointer;
+}
+
+.participant-gate__choices--buttons .participant-gate__choice {
+  flex: 1 1 120px;
+  justify-content: center;
+}
+
+.participant-gate__choice:has(input:checked) {
+  border-color: var(--color-brand-primary, var(--color-text-primary));
+  background: var(--color-bg-subtle);
+}
+
+.participant-gate__choice-group,
+.participant-gate__other {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.participant-gate__sublabel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 4px 0 0;
+  color: var(--color-text-secondary);
+  font: var(--scene-label-s);
+}
+
+.participant-gate__range {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.participant-gate__range > label {
+  flex: 1 1 140px;
+}
+
+.participant-gate__number {
+  max-width: 160px;
+}

@@ -9,6 +9,16 @@ import { reloadQuery } from "../api/queryClient";
 import { queryKeys } from "../api/queryKeys";
 import { Button } from "./Button";
 import { ParticipantFrame } from "./ParticipantFrame";
+import { AnswerInput } from "./apply/AnswerInput";
+import {
+  problemFor,
+  prune,
+  toAnswerItems,
+  visibleFields,
+  visibleOptions,
+  type RawAnswer,
+  type RawAnswers,
+} from "./apply/answerModel";
 
 export function PublicApply() {
   const { eventId = "", formId = "" } = useParams();
@@ -56,53 +66,64 @@ function ApplyForm({
   fields: FormField[];
   onSubmitted: (submitted: SubmittedApplication) => void;
 }) {
-  const [values, setValues] = useState<Record<string, string>>({});
+  const [values, setValues] = useState<RawAnswers>({});
+  const [touched, setTouched] = useState<Set<string>>(new Set());
+  const [showAll, setShowAll] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
   const submit = useMutation({
-    mutationFn: () => submitApplication(eventId, formId, answers(fields, values)),
+    mutationFn: () => submitApplication(eventId, formId, toAnswerItems(fields, values)),
     onSuccess: (result) => {
       setFailure(null);
       onSubmitted(result);
     },
     onError: (error) => setFailure(submitFailure(error)),
   });
-  const ready = fields.every((field) => (required(field) ? textOk(values[field.fieldId] ?? "", field) : optionalOk(values[field.fieldId] ?? "")));
+  const shown = visibleFields(fields, values);
+  const problems = new Map(shown.map((field) => [field.fieldId, problemFor(field, values[field.fieldId])]));
+  const firstProblem = shown.find((field) => problems.get(field.fieldId));
+
+  function change(fieldId: string, next: RawAnswer) {
+    setTouched((current) => new Set(current).add(fieldId));
+    setValues((current) => prune(fields, { ...current, [fieldId]: next }));
+  }
 
   return (
     <ParticipantFrame title="참가 신청">
-      <p className="participant-gate__body">이름과 전화를 적어 주세요.</p>
+      <p className="participant-gate__body">질문에 답해 주세요. (필수) 표시는 꼭 답해야 해요.</p>
       <form
         className="participant-gate__form"
+        noValidate
         onSubmit={(event) => {
           event.preventDefault();
-          if (!ready || submit.isPending) return;
+          if (submit.isPending) return;
+          if (firstProblem) {
+            setShowAll(true);
+            document.getElementById(`field-${firstProblem.fieldId}`)?.focus();
+            return;
+          }
           submit.mutate();
         }}
       >
         <div className="participant-gate__fields">
-          {fields.map((field) => {
-            const value = values[field.fieldId] ?? "";
-            const invalid = value.trim() !== "" && !textOk(value, field);
+          {shown.map((field) => {
+            const problem = problems.get(field.fieldId) ?? null;
+            const answered = Object.keys(values[field.fieldId] ?? {}).length > 0;
+            const visibleError = showAll || (touched.has(field.fieldId) && answered) ? problem : null;
             return (
-              <div className="participant-gate__field" key={field.fieldId}>
-                <label className="participant-gate__label" htmlFor={`field-${field.fieldId}`}>
-                  {field.label}
-                </label>
-                <input
-                  id={`field-${field.fieldId}`}
-                  className="participant-gate__input"
-                  value={value}
-                  autoComplete={field.systemKey === "PHONE" ? "tel" : field.systemKey === "NAME" ? "name" : "off"}
-                  aria-invalid={invalid || undefined}
-                  onChange={(change) => setValues((current) => ({ ...current, [field.fieldId]: change.target.value }))}
-                />
-                {invalid ? <p className="participant-gate__error">{fieldHint(field)}</p> : null}
-              </div>
+              <AnswerInput
+                key={field.fieldId}
+                field={field}
+                options={visibleOptions(field, fields, values)}
+                value={values[field.fieldId]}
+                error={visibleError}
+                onChange={(next) => change(field.fieldId, next)}
+              />
             );
           })}
         </div>
+        {showAll && firstProblem ? <p className="participant-gate__error">답하지 않았거나 확인이 필요한 질문이 있어요.</p> : null}
         {failure ? <p className="participant-gate__error">{failure}</p> : null}
-        <Button type="submit" variant="primary" size={40} disabled={!ready} loading={submit.isPending}>
+        <Button type="submit" variant="primary" size={40} loading={submit.isPending}>
           신청하기
         </Button>
       </form>
@@ -154,35 +175,6 @@ function ApplyLink({ eventId, submitted }: { eventId: string; submitted: Submitt
       </div>
     </ParticipantFrame>
   );
-}
-
-function answers(fields: FormField[], values: Record<string, string>): { fieldId: string; text: string }[] {
-  return fields.flatMap((field) => {
-    const text = (values[field.fieldId] ?? "").trim();
-    if (text.length === 0) return [];
-    return [{ fieldId: field.fieldId, text }];
-  });
-}
-
-function required(field: FormField): boolean {
-  return field.systemKey === "NAME" || field.systemKey === "PHONE";
-}
-
-function textOk(value: string, field: FormField): boolean {
-  const text = value.trim();
-  if (text.length < 1 || text.length > 200) return false;
-  if (field.systemKey !== "PHONE") return true;
-  return text.length <= 50 && text.replace(/\D/g, "").length >= 4;
-}
-
-function optionalOk(value: string): boolean {
-  const text = value.trim();
-  return text.length === 0 || text.length <= 200;
-}
-
-function fieldHint(field: FormField): string {
-  if (field.systemKey === "PHONE") return "전화번호는 숫자 4개 이상이 필요해요.";
-  return "200자까지 적을 수 있어요.";
 }
 
 function isClosed(error: unknown): boolean {
