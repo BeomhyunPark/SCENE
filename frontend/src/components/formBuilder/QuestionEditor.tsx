@@ -9,7 +9,9 @@ import {
   draftProblem,
   hasOptions,
   newOption,
+  withAnswerType,
   withIncludeTime,
+  type EventPeriod,
   type OptionDraft,
   type QuestionDraft,
 } from "./questionDraft";
@@ -26,6 +28,7 @@ export function QuestionEditor({
   initial,
   isNew,
   locked,
+  period,
   targets,
   pending,
   serverError,
@@ -35,6 +38,7 @@ export function QuestionEditor({
   initial: QuestionDraft;
   isNew: boolean;
   locked: boolean;
+  period: EventPeriod;
   targets: FormField[];
   pending: boolean;
   serverError: string;
@@ -56,11 +60,7 @@ export function QuestionEditor({
   }
 
   function changeType(type: AnswerType) {
-    setDraft((current) => ({
-      ...current,
-      answerType: type,
-      options: hasOptions(type) && current.options.length === 0 ? [newOption(), newOption()] : current.options,
-    }));
+    setDraft((current) => withAnswerType(current, type, period));
   }
 
   function updateOption(key: string, patch: Partial<OptionDraft>) {

@@ -78,7 +78,7 @@ export function newOption(label = ""): OptionDraft {
 }
 
 /** Date questions start inside the event period when the event has one. */
-export function emptyDraft(period: { startDate: string | null; endDate: string | null }): QuestionDraft {
+export function emptyDraft(period: EventPeriod): QuestionDraft {
   return {
     label: "",
     description: "",
@@ -137,6 +137,29 @@ export function draftFromField(field: FormField): QuestionDraft {
     yesLabel: text(config.yesLabel),
     noLabel: text(config.noLabel),
   };
+}
+
+export type EventPeriod = { startDate: string | null; endDate: string | null };
+
+type RangeKind = "date" | "number" | "none";
+
+function rangeKind(type: AnswerType): RangeKind {
+  if (type === "DATE" || type === "DATE_RANGE") return "date";
+  return type === "NUMBER" ? "number" : "none";
+}
+
+/**
+ * Switching the answer type. Date and number bounds share `min`/`max`, so when the kind of range
+ * changes they reset: dates go back to the event period (DEC-068 §1), numbers start empty. A
+ * choice type gets two empty options to start from.
+ */
+export function withAnswerType(draft: QuestionDraft, type: AnswerType, period: EventPeriod): QuestionDraft {
+  const options = hasOptions(type) && draft.options.length === 0 ? [newOption(), newOption()] : draft.options;
+  const next = { ...draft, answerType: type, options };
+  const kind = rangeKind(type);
+  if (kind === rangeKind(draft.answerType)) return next;
+  if (kind === "date") return { ...next, includeTime: false, min: period.startDate ?? "", max: period.endDate ?? "" };
+  return { ...next, includeTime: false, min: "", max: "" };
 }
 
 /** Switching "시간 포함" keeps the bounds valid for the new format. */
