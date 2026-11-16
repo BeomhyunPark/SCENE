@@ -5,7 +5,7 @@
   "hooks": {
     "PostToolUse": [
       {
-        "matcher": "mcp__trail-map__",
+        "matcher": "mcp__trail-map__.*",
         "hooks": [
           {
             "type": "command",
