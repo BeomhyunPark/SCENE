@@ -4,6 +4,8 @@ Status: 확정 (2026-11-16). 사용자가 확정한 항목은 [DEC-068](PRODUCT_
 
 관련: [#223](https://github.com/BeomhyunPark/SCENE/issues/223) · [#224](https://github.com/BeomhyunPark/SCENE/issues/224) · [#229](https://github.com/BeomhyunPark/SCENE/issues/229) · 상위 [#230](https://github.com/BeomhyunPark/SCENE/issues/230)
 
+> **후속 결정 (2026-11-16, [DEC-070](PRODUCT_DECISIONS.md#dec-070--운영자는-신청서-설정으로-질문을-자동으로-만들고-기본항목은-이름전화또래다)):** 운영자는 질문을 하나씩 만드는 대신 신청서 설정에 답하고, 서버가 이 문서의 유형·보기·조건으로 질문을 만든다. 기본항목에 또래가 더해졌고, 기본항목의 설명·안내 문구·순서를 바꿀 수 있다. 2절의 "SYSTEM 이름·전화는 지금처럼 고정 질문"은 이 결정으로 바뀌었다.
+
 ## 1. 배경
 
 - 2027년 1월 하순 수련회에서 실제로 쓴다. 신청은 12월 중순에 연다 (#230).
