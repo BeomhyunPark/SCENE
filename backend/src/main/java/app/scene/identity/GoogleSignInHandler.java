@@ -21,8 +21,8 @@ import org.springframework.stereotype.Component;
 /**
  * After Google returns: replace the OAuth token with an {@link OperatorPrincipal} in the operator
  * session ({@code SCENE_SESSION}) and send the browser to {@code /login/done}, which continues to
- * the page the operator started from. Any problem goes back to
- * the login screen with a short code; no Google detail reaches the page or the log.
+ * the page the operator started from. Any problem goes back to the login screen with a short code;
+ * no Google detail reaches the page or the log.
  */
 @Component
 public class GoogleSignInHandler
