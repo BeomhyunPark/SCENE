@@ -38,8 +38,31 @@
 .public-home__actions {
   display: flex;
   align-items: center;
+  flex-direction: column;
   justify-content: center;
   gap: 12px;
+}
+
+.public-home__signup,
+.public-home__notice {
+  margin: 0;
+  color: var(--color-text-tertiary);
+  font: var(--scene-body-m);
+  letter-spacing: 0;
+  text-align: center;
+}
+
+.public-home__notice:empty {
+  display: none;
+}
+
+.public-home__create {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-text-brand);
+  font: var(--scene-label-m);
+  cursor: pointer;
 }
 
 .public-home__actions a {

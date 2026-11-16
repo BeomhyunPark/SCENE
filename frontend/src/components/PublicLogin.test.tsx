@@ -62,6 +62,14 @@ describe("PublicLogin", () => {
     expect(screen.queryByText("행사 목록 화면")).not.toBeInTheDocument();
   });
 
+  it("starts the same Google sign-in from 계정 만들기", async () => {
+    const google = await import("../api/googleSignIn");
+    const start = vi.spyOn(google, "startGoogleSignIn").mockImplementation(() => undefined);
+    await renderLogin("/login?next=%2Foperator%2Finvitations");
+    fireEvent.click(screen.getByRole("button", { name: "계정 만들기" }));
+    expect(start).toHaveBeenCalledWith("/operator/invitations");
+  });
+
   it("says Google sign-in is not available on the mock API", async () => {
     vi.stubEnv("VITE_API_MOCK", "1");
     const google = await import("../api/googleSignIn");
