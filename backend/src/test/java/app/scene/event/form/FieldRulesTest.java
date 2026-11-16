@@ -13,7 +13,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 
-/** Operator question settings (DEC-068, form-question-types-review.md §2–4). */
+/** Operator question settings (DEC-068 §1, §3). */
 class FieldRulesTest {
 
   private final JsonMapper json = JsonMapper.builder().build();

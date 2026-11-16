@@ -1,4 +1,4 @@
--- Question types, settings, and display conditions on form fields (DEC-068).
+-- Question types, settings, and display conditions on form fields (DEC-068). V8 is the retrospective table (#238).
 -- A form may now hold many CUSTOM fields. Existing CUSTOM fields become optional SHORT_TEXT.
 -- Answer values in answers.value keep their {"text": ...} shape for text questions.
 

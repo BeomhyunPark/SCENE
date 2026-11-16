@@ -840,7 +840,7 @@ curl -sS \
 
 컨트롤러는 `event/form/OperatorFormController`다. 행사당 신청서는 하나다. 읽기는 유효한 `EVENT_READ`, 또는 활성 공간 `OWNER`·`ADMIN`이다. 쓰기는 유효한 `FORM_WRITE`다. 공간 역할만으로는 쓰지 못한다. `sort` 허용 필드는 없다. `Idempotency-Key`는 읽지 않는다. 감사 로그는 없다.
 
-필드 `kind`는 `SYSTEM` 또는 `CUSTOM`이다. `systemKey`는 `NAME`, `PHONE`, 또는 CUSTOM의 `null`이다. 질문 유형·설정·표시 조건과 신청 접수 후 잠금은 [DEC-068](../../docs/product/PRODUCT_DECISIONS.md)과 [신청서 질문 유형 검토](../../docs/product/form-question-types-review.md)를 따른다.
+필드 `kind`는 `SYSTEM` 또는 `CUSTOM`이다. `systemKey`는 `NAME`, `PHONE`, 또는 CUSTOM의 `null`이다. 질문 유형·설정·표시 조건과 신청 접수 후 잠금은 [DEC-068](../../docs/product/PRODUCT_DECISIONS.md)을 따른다.
 
 필드 항목의 키는 `fieldId`, `kind`, `systemKey`, `label`, `position`, `answerType`, `required`, `description`, `config`, `showWhen`, `hidden`이다.
 

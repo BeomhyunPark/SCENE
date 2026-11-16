@@ -20,9 +20,9 @@ import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
 
 /**
- * Operator-side rules for question settings (DEC-068, {@code form-question-types-review.md}). Every
- * parse returns a normalized value with defaults filled in. Errors are {@code VALIDATION_FAILED}
- * with the offending {@code field}.
+ * Operator-side rules for question settings (DEC-068 §1, §3, §5). Every parse returns a normalized
+ * value with defaults filled in. Errors are {@code VALIDATION_FAILED} with the offending {@code
+ * field}.
  */
 public final class FieldRules {
 
