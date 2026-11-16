@@ -4,7 +4,8 @@ import { http } from "msw";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { describe, expect, it } from "vitest";
 import { createQueryClient } from "../api/queryClient";
-import { createForm } from "../api/forms";
+import { addField, createForm, getForm, listForms } from "../api/forms";
+import { markSubmitted } from "../mocks/formStore";
 import { login } from "../api/session";
 import { localEvent, localUsers } from "../mocks/fixtures/seed";
 import { setLifecycle } from "../mocks/operatorStore";
@@ -25,6 +26,17 @@ function renderSetup() {
   );
 }
 
+async function waitForField(label: string) {
+  let found: { fieldId: string } | undefined;
+  await waitFor(async () => {
+    const page = await listForms(localEvent.eventId, { page: 0, size: 50 });
+    const detail = await getForm(localEvent.eventId, page.items[0].formId);
+    found = detail.fields.find((field) => field.label === label);
+    expect(found).toBeDefined();
+  });
+  return found!;
+}
+
 describe("event registration setup", () => {
   it("creates a form and shows the system fields", async () => {
     await login({ userId: localUsers[0].userId });
@@ -34,9 +46,8 @@ describe("event registration setup", () => {
     expect(screen.getByText("전화")).toBeInTheDocument();
     expect(screen.getAllByText("기본 항목")).toHaveLength(2);
     expect(screen.getByText("2개")).toBeInTheDocument();
-    expect(screen.queryByText("참석 여부")).not.toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: "질문" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "질문 삭제" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "질문 추가" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /삭제$/ })).not.toBeInTheDocument();
     expect(screen.getAllByText("준비 중")).toHaveLength(2);
     const listed = operatorRequests.find((request) => request.method === "GET" && request.url.includes("/forms?"));
     expect(listed?.url).not.toContain("sort");
@@ -44,36 +55,107 @@ describe("event registration setup", () => {
     expect(created?.body).toEqual({});
   });
 
-  it("hides another question once one custom field exists", async () => {
+  it("adds several typed questions, with a privacy warning on the label", async () => {
     await login({ userId: localUsers[0].userId });
     renderSetup();
     fireEvent.click(await screen.findByRole("button", { name: "신청서 만들기" }, { timeout: 4000 }));
-    fireEvent.change(await screen.findByRole("textbox", { name: "질문" }), {
-      target: { value: "주민번호 뒷자리" },
+
+    fireEvent.click(await screen.findByRole("button", { name: "질문 추가" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "질문" }), { target: { value: "주민번호 뒷자리" } });
+    expect(await screen.findByRole("status", {}, { timeout: 2000 })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "질문 추가" }));
+    expect(await screen.findByText("주민번호 뒷자리")).toBeInTheDocument();
+    const first = operatorRequests.filter((request) => request.method === "POST" && request.url.endsWith("/fields"));
+    expect(first.at(-1)?.body).toMatchObject({ label: "주민번호 뒷자리", answerType: "SHORT_TEXT", required: false });
+
+    fireEvent.click(screen.getByRole("button", { name: "질문 추가" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "질문" }), { target: { value: "참석 방식" } });
+    fireEvent.change(screen.getByRole("combobox", { name: "답변 유형" }), { target: { value: "SINGLE_CHOICE" } });
+    fireEvent.click(screen.getByRole("checkbox", { name: "필수" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "보기 1" }), { target: { value: "전체" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "보기 2" }), { target: { value: "부분" } });
+    fireEvent.click(screen.getByRole("button", { name: "질문 추가" }));
+    expect(await screen.findByText("참석 방식")).toBeInTheDocument();
+    expect(screen.getByText("단수선택")).toBeInTheDocument();
+    expect(screen.getByText("필수")).toBeInTheDocument();
+    expect(screen.getByText("4개")).toBeInTheDocument();
+    const second = operatorRequests.filter((request) => request.method === "POST" && request.url.endsWith("/fields"));
+    expect(second.at(-1)?.body).toMatchObject({
+      label: "참석 방식",
+      answerType: "SINGLE_CHOICE",
+      required: true,
+      config: { options: [{ label: "전체" }, { label: "부분" }], allowOther: false, display: "LIST" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "추가" }));
-    expect(await screen.findByRole("textbox", { name: "추가 질문" })).toHaveValue("주민번호 뒷자리");
-    expect(screen.queryByRole("textbox", { name: "질문" })).not.toBeInTheDocument();
-    expect(screen.getByText("지금은 추가 질문을 하나만 받을 수 있어요.")).toBeInTheDocument();
-    expect(screen.getAllByRole("button", { name: "질문 삭제" })).toHaveLength(1);
-    const added = operatorRequests.find((request) => request.method === "POST" && request.url.endsWith("/fields"));
-    expect(added?.body).toEqual({ label: "주민번호 뒷자리" });
   });
 
-  it("renames and deletes the custom question", async () => {
+  it("checks a choice question needs an option before saving", async () => {
     await login({ userId: localUsers[0].userId });
     renderSetup();
     fireEvent.click(await screen.findByRole("button", { name: "신청서 만들기" }, { timeout: 4000 }));
-    fireEvent.change(await screen.findByRole("textbox", { name: "질문" }), { target: { value: "티셔츠 사이즈" } });
-    fireEvent.click(screen.getByRole("button", { name: "추가" }));
-    const editor = await screen.findByRole("textbox", { name: "추가 질문" });
-    fireEvent.change(editor, { target: { value: "간식 알레르기" } });
+    fireEvent.click(await screen.findByRole("button", { name: "질문 추가" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "질문" }), { target: { value: "티셔츠" } });
+    fireEvent.change(screen.getByRole("combobox", { name: "답변 유형" }), { target: { value: "DROPDOWN" } });
+    fireEvent.click(screen.getByRole("button", { name: "질문 추가" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("보기를 하나 이상 써 주세요.");
+    expect(operatorRequests.some((request) => request.method === "POST" && request.url.endsWith("/fields"))).toBe(
+      false,
+    );
+  });
+
+  it("adds a conditional question and edits, moves, and deletes questions", async () => {
+    await login({ userId: localUsers[0].userId });
+    renderSetup();
+    fireEvent.click(await screen.findByRole("button", { name: "신청서 만들기" }, { timeout: 4000 }));
+    fireEvent.click(await screen.findByRole("button", { name: "질문 추가" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "질문" }), { target: { value: "자차로 오나요?" } });
+    fireEvent.change(screen.getByRole("combobox", { name: "답변 유형" }), { target: { value: "YES_NO" } });
+    fireEvent.click(screen.getByRole("button", { name: "질문 추가" }));
+    expect(await screen.findByText("자차로 오나요?")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "질문 추가" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "질문" }), { target: { value: "몇 명 태울 수 있나요?" } });
+    fireEvent.change(screen.getByRole("combobox", { name: "답변 유형" }), { target: { value: "NUMBER" } });
+    const carId = (await waitForField("자차로 오나요?")).fieldId;
+    fireEvent.change(screen.getByRole("combobox", { name: "조건 질문" }), { target: { value: carId } });
+    fireEvent.click(screen.getByRole("button", { name: "질문 추가" }));
+    expect(await screen.findByText("'자차로 오나요?'에 예일 때 보여요")).toBeInTheDocument();
+    const posted = operatorRequests.filter((request) => request.method === "POST" && request.url.endsWith("/fields"));
+    expect(posted.at(-1)?.body).toMatchObject({ showWhen: { fieldId: carId, equals: true } });
+
+    fireEvent.click(screen.getByRole("button", { name: "몇 명 태울 수 있나요? 위로" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("앞에 있는 선택형");
+
+    fireEvent.click(screen.getByRole("button", { name: "자차로 오나요? 수정" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "질문" }), { target: { value: "자가용으로 오나요?" } });
     fireEvent.click(screen.getByRole("button", { name: "저장" }));
-    expect(await screen.findByRole("textbox", { name: "추가 질문" })).toHaveValue("간식 알레르기");
-    fireEvent.click(screen.getByRole("button", { name: "질문 삭제" }));
+    expect(await screen.findByText("자가용으로 오나요?")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "자가용으로 오나요? 삭제" }));
     fireEvent.click(screen.getByRole("button", { name: "삭제" }));
-    expect(await screen.findByRole("textbox", { name: "질문" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "질문 삭제" })).not.toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent("다른 질문의 표시 조건");
+
+    fireEvent.click(screen.getByRole("button", { name: "몇 명 태울 수 있나요? 삭제" }));
+    fireEvent.click(screen.getByRole("button", { name: "삭제" }));
+    await waitFor(() => expect(screen.queryByText("몇 명 태울 수 있나요?")).not.toBeInTheDocument());
+  });
+
+  it("offers hiding instead of deleting once applications arrive", async () => {
+    await login({ userId: localUsers[0].userId });
+    const created = await createForm(localEvent.eventId);
+    await addField(localEvent.eventId, created.formId, {
+      label: "식사",
+      answerType: "MULTI_CHOICE",
+      config: { options: [{ label: "점심" }, { label: "저녁" }] },
+    });
+    markSubmitted(localEvent.eventId, created.formId);
+    renderSetup();
+    expect(await screen.findByText(/신청이 들어와서/, {}, { timeout: 4000 })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "식사 삭제" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "식사 숨기기" }));
+    expect(await screen.findByText("숨김")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "식사 수정" }));
+    expect(screen.getByRole("combobox", { name: "답변 유형" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "보기 1 지우기" })).toBeDisabled();
   });
 
   it("activates a draft before opening applications, then closes them", async () => {

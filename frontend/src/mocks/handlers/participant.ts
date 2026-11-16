@@ -1,6 +1,6 @@
 import { http, HttpResponse } from "msw";
 import { csrfMatches } from "../csrf";
-import { publicForm } from "../formStore";
+import { markSubmitted, publicForm } from "../formStore";
 import { eventById } from "../operatorStore";
 import {
   clearParticipant,
@@ -22,6 +22,7 @@ export const participantHandlers = [
     if (!csrfMatches(request, cookies)) return problem(403, "FORBIDDEN", { detail: "hidden" });
     const submitted = submitPublicApplication(String(params.eventId), String(params.formId), await readJson(request));
     if ("code" in submitted) return problem(submitted.status, submitted.code, { detail: "hidden" });
+    markSubmitted(String(params.eventId), String(params.formId));
     return HttpResponse.json(submitted, { status: 201 });
   }),
   http.post("/api/v1/public/events/:eventId/participant-sessions", async ({ request, params, cookies }) => {
