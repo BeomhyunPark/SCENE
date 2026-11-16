@@ -329,6 +329,7 @@ class PublicApplicationSubmitHttpIT {
                         + "\",\"label\":\"부분\",\"hidden\":true},"
                         + "{\"label\":\"집회만\"}],\"display\":\"BUTTONS\"}}",
                     "req-rename-options")));
+    assertThat(renamed.get("locked").booleanValue()).isTrue();
     JsonNode options = renamed.get("fields").get(3).get("config").get("options");
     assertThat(options).hasSize(3);
     assertThat(options.get(0).get("optionId").asString()).isEqualTo(full);

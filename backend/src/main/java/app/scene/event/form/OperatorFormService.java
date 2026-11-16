@@ -432,7 +432,11 @@ public class OperatorFormService {
     for (FieldDefinition field : definitions(spaceId, eventId, formId)) {
       fields.add(field.view());
     }
-    return new FormDetail(form.id(), form.acceptingApplications(), fields);
+    return new FormDetail(
+        form.id(),
+        form.acceptingApplications(),
+        fields,
+        forms.countSubmitted(spaceId, eventId, formId) > 0);
   }
 
   /**
