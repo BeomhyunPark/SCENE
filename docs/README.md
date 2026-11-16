@@ -15,11 +15,13 @@
 - [조 편성 변경·동시 수정·실패 복구 검토 결과](product/group-change-recovery-review.md)
 - [행사 종료·보관·재개 검토 결과](product/event-lifecycle-review.md)
 - [Export·보존·삭제·복구 검토 결과](product/data-retention-export-review.md)
+- [신청서 질문 유형·조건부 질문 검토](product/form-question-types-review.md)
 - [Research와 원문 Artifact](product/RESEARCH.md)
 - [Figma Workspace Governance](design/figma-workspace-governance.md)
 - [Architecture와 소스 우선순위·검토 필요사항](architecture/architecture-v0.1.md)
 - [Data Model](architecture/data-model-v0.1.md) · [Security / Privacy](architecture/security-privacy-v0.1.md)
 - [API Architecture와 OPEN 항목](architecture/api-architecture-v0.1.md)
+- [홈서버 운영 (1월 수련회)](devops/home-server.md) · [호스팅 비교 기록](devops/hosting-decision.md)
 
 ## 진행 관리
 

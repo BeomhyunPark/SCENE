@@ -1,0 +1,60 @@
+# SCENE on the home server (docs/devops/home-server.md).
+# Nothing listens on the LAN or the internet: Cloudflare Tunnel reaches `web` from inside.
+name: scene
+
+services:
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: scene
+      POSTGRES_USER: scene
+      POSTGRES_PASSWORD: ${SCENE_DB_PASSWORD:?set SCENE_DB_PASSWORD in .env}
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U scene -d scene"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  backend:
+    build: ../../backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SCENE_DB_URL: jdbc:postgresql://postgres:5432/scene
+      SCENE_DB_USER: scene
+      SCENE_DB_PASSWORD: ${SCENE_DB_PASSWORD}
+      SCENE_CORS_ALLOWED_ORIGINS: https://${SCENE_HOST:?set SCENE_HOST in .env}
+      SERVER_FORWARD_HEADERS_STRATEGY: framework
+      TZ: Asia/Seoul
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/8080' || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+
+  web:
+    build: ../../frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  cloudflared:
+    # Pin to the version you test with (`docker image inspect` after the first pull).
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?set CLOUDFLARE_TUNNEL_TOKEN in .env}
+    depends_on:
+      - web
+
+volumes:
+  pg-data:
