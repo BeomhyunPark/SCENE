@@ -10,6 +10,9 @@ export default defineConfig({
         target: process.env.SCENE_API_PROXY_TARGET ?? "http://localhost:8080",
         changeOrigin: false,
       },
+      // Google sign-in (#232) runs on the backend; the callback must reach it on this origin.
+      "/oauth2": { target: process.env.SCENE_API_PROXY_TARGET ?? "http://localhost:8080", changeOrigin: false },
+      "/login/oauth2": { target: process.env.SCENE_API_PROXY_TARGET ?? "http://localhost:8080", changeOrigin: false },
     },
   },
   test: {
