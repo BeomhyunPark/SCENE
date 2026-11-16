@@ -5,14 +5,14 @@
 set -euo pipefail
 
 cd "$(dirname "$0")"
-set -a
-# shellcheck disable=SC1091
-source .env
-set +a
-
+# Not `source .env`: compose allows unquoted values with spaces, the shell does not.
+env_value() { sed -n "s/^$1=//p" .env | tail -n 1; }
+BACKUP_REMOTE="$(env_value BACKUP_REMOTE)"
+BACKUP_AGE_RECIPIENT="$(env_value BACKUP_AGE_RECIPIENT)"
+KEEP_DAYS="$(env_value BACKUP_KEEP_DAYS)"
 : "${BACKUP_REMOTE:?set BACKUP_REMOTE in .env}"
 : "${BACKUP_AGE_RECIPIENT:?set BACKUP_AGE_RECIPIENT in .env}"
-KEEP_DAYS="${BACKUP_KEEP_DAYS:-30}"
+KEEP_DAYS="${KEEP_DAYS:-30}"
 
 stamp="$(date +%Y%m%d-%H%M%S)"
 work="$(mktemp -d)"
