@@ -37,6 +37,8 @@ actions/setup-node@v7 (7.0.0), pnpm/action-setup@v6 (6.1.0). Temurin 25 LTS GA a
 ## CD (not enabled)
 [`cd-skeleton.yml`](cd-skeleton.yml) is reference only and is not under `.github/workflows`. Proposed mapping, to confirm with the
 tech architect: push main -> dev; tag `vX.Y.Z-rc.N` -> stg; tag `vX.Y.Z` -> prod (Environment with required reviewer).
+For the January 2027 retreat there is no stg: the user decided (2026-11-16) to rehearse on the home server and delete the
+rehearsal data before applications open.
 Order: Flyway migrate -> backend rollout -> frontend publish -> smoke test. Not planned before the January retreat: the
 home server deploys manually (`git pull`, then `docker compose up -d --build` in `deploy/home/`, see
 [home-server.md](home-server.md)). If CD is added later it would target that host (for example over the Cloudflare
