@@ -10,8 +10,10 @@ type Issued = {
   formId: string;
   submittedAt: string;
   name: string;
-  answers: { fieldId: string; text: string }[];
+  answers: StoredAnswer[];
 };
+
+type StoredAnswer = { fieldId: string; value: Record<string, unknown> };
 
 export type ParticipantFailure = { status: number; code: string };
 
@@ -102,7 +104,10 @@ export function submittedApplication(
     systemKey: string | null;
     label: string;
     position: number;
-    value: { text: string };
+    answerType: string;
+    hidden: boolean;
+    config: unknown;
+    value: Record<string, unknown>;
   }[];
 } | null {
   const row = issued.find((item) => item.eventId === eventId && item.applicationId === applicationId);
@@ -110,7 +115,9 @@ export function submittedApplication(
   const answers = formFields(eventId, row.formId)
     .flatMap((field) => {
       const answer = row.answers.find((item) => item.fieldId === field.fieldId);
-      return answer ? [{ ...field, value: { text: answer.text } }] : [];
+      if (!answer) return [];
+      const { fieldId, kind, systemKey, label, position, answerType, hidden, config } = field;
+      return [{ fieldId, kind, systemKey, label, position, answerType, hidden, config, value: answer.value }];
     })
     .sort((a, b) => a.position - b.position);
   return {
@@ -143,7 +150,11 @@ export function seedApplicationWithoutName(eventId: string, formId: string, subm
 function nameAnswer(row: Issued): string | null {
   const field = formFields(row.eventId, row.formId).find((item) => item.systemKey === "NAME");
   const answer = field ? row.answers.find((item) => item.fieldId === field.fieldId) : undefined;
-  return answer ? answer.text : null;
+  return answer ? textOf(answer) : null;
+}
+
+function textOf(answer: StoredAnswer): string {
+  return typeof answer.value.text === "string" ? answer.value.text : "";
 }
 
 export function currentParticipant(): { participantId: string; eventId: string; spaceId: string; name: string } | null {
@@ -156,23 +167,23 @@ export function clearParticipant(): void {
 
 function answerFor(
   fields: { fieldId: string; systemKey: string | null }[],
-  answers: { fieldId: string; text: string }[],
+  answers: StoredAnswer[],
   systemKey: string,
 ): string | null {
   const field = fields.find((item) => item.systemKey === systemKey);
   if (!field) return null;
   const answer = answers.find((item) => item.fieldId === field.fieldId);
-  if (!answer || answer.text.trim().length === 0) return null;
-  return answer.text;
+  if (!answer || textOf(answer).trim().length === 0) return null;
+  return textOf(answer);
 }
 
-function readAnswers(body: unknown): { fieldId: string; text: string }[] | null {
+function readAnswers(body: unknown): StoredAnswer[] | null {
   if (!isRecord(body) || !Array.isArray(body.answers)) return null;
-  const answers: { fieldId: string; text: string }[] = [];
+  const answers: StoredAnswer[] = [];
   for (const item of body.answers) {
     if (!isRecord(item) || typeof item.fieldId !== "string") return null;
-    if (typeof item.text === "string") answers.push({ fieldId: item.fieldId, text: item.text });
-    else if (isRecord(item.value)) answers.push({ fieldId: item.fieldId, text: "" });
+    if (typeof item.text === "string") answers.push({ fieldId: item.fieldId, value: { text: item.text } });
+    else if (isRecord(item.value)) answers.push({ fieldId: item.fieldId, value: item.value });
     else return null;
   }
   return answers;

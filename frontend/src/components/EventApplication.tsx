@@ -9,6 +9,7 @@ import { reloadQuery } from "../api/queryClient";
 import { queryKeys } from "../api/queryKeys";
 import { Button } from "./Button";
 import { EventScreen } from "./EventScreen";
+import { answerLabel, formatAnswer } from "./answerDisplay";
 import { applicantName, formatSubmittedAt } from "./eventFormat";
 import { markEventArea } from "./eventLocalState";
 import { OperatorShell } from "./OperatorShell";
@@ -39,7 +40,8 @@ function Detail({ event, spaceName, applicationId }: { event: EventDetail; space
     retry: false,
   });
   const nameAnswer = application.data?.answers.find((answer) => answer.systemKey === "NAME");
-  const title = application.data ? applicantName(nameAnswer?.value.text ?? null) : "신청 내용";
+  const nameText = typeof nameAnswer?.value.text === "string" ? nameAnswer.value.text : null;
+  const title = application.data ? applicantName(nameText) : "신청 내용";
 
   return (
     <OperatorShell
@@ -69,8 +71,8 @@ function Detail({ event, spaceName, applicationId }: { event: EventDetail; space
             <dl>
               {application.data.answers.map((answer) => (
                 <div key={answer.fieldId}>
-                  <dt>{answer.label}</dt>
-                  <dd>{answer.value.text && answer.value.text.length > 0 ? answer.value.text : "답변 없음"}</dd>
+                  <dt>{answerLabel(answer)}</dt>
+                  <dd>{formatAnswer(answer)}</dd>
                 </div>
               ))}
             </dl>
