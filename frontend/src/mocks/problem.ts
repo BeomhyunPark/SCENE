@@ -11,6 +11,8 @@ export function problem(
     detail?: string;
     lifecycleVersion?: number;
     currentStatus?: string;
+    version?: number;
+    warnings?: { openTasks: number };
   },
 ): Response {
   return HttpResponse.json(

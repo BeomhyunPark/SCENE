@@ -452,7 +452,11 @@ class ServerContractRegressionIT {
     assertThat(auditCount(fx.eventId, AuditActions.EVENT_USER_ROLE_CHANGED)).isZero();
   }
 
-  /** Responses, audit detail, and application logs omit the raw invitation token and contact. */
+  /**
+   * Responses, audit detail, and application logs omit the raw invitation token and contact. The
+   * one exception is the create body's {@code link} (DEC-060 Follow-up 2026-11-16), which must be
+   * exactly the fragment link and carry the token nowhere else.
+   */
   @Test
   void responsesAuditsAndLogsOmitSecrets() throws Exception {
     ListAppender<ILoggingEvent> logs = new ListAppender<>();
@@ -478,8 +482,9 @@ class ServerContractRegressionIT {
       String token = mail.fragmentLink().substring(LINK_PREFIX.length());
       UUID invitee = user("Secret Person");
       Cookie session = login(invitee, email);
+      assertThat(json.readTree(created).get("link").asString()).isEqualTo(mail.fragmentLink());
       List<String> bodies = new ArrayList<>();
-      bodies.add(created);
+      bodies.add(created.replace(mail.fragmentLink(), ""));
       bodies.add(
           mvc.perform(
                   post("/api/v1/operator/invitations/preview")

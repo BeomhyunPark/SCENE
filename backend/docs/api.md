@@ -538,9 +538,17 @@ curl -sS \
 
 초대 변경은 행사 `OWNER`만 한다. `EVENT_USER_MANAGE`다. 클래스는 `event/invitation/EventInvitationController`다. 보관된 행사에서는 만들거나 다시 보내지 못한다.
 
-응답에는 토큰이 없다. 서버는 토큰 해시만 저장한다. 원문 토큰은 `CapturingInvitationMailer`가 프로세스 메모리에 담는 링크의 fragment에만 있다. 링크 모양은 `/operator/invitations#` 뒤에 토큰이다. SMTP 구현은 없다. 로그에 토큰을 남기지 않는다. 프로세스가 끝나면 그 링크도 없다. 유효 시간은 7일이다.
+서버는 토큰 해시만 저장한다. 링크 모양은 `/operator/invitations#` 뒤에 토큰이다. SMTP 구현은 없다. 그래서 생성과 다시 보내기의 `200` 본문이 이 링크를 `link`로 **한 번만** 준다(DEC-060 Follow-up 2026-11-16). OWNER가 복사해 전달한다. 같은 링크는 다시 읽을 수 없다. 잃어버리면 다시 보낸다. 링크는 DB·audit·로그에 남지 않는다. 메일 포트(`CapturingInvitationMailer`가 프로세스 메모리에 담는다)도 그대로 부른다. 목록과 취소 본문에는 토큰이 없다. 유효 시간은 7일이다.
 
 같은 행사·이메일의 기존 `PENDING`은 새 초대를 만들 때 `SUPERSEDED`가 된다.
+
+### `GET /api/v1/operator/events/{eventId}/invitations`
+
+대기(`PENDING`) 초대 목록이다. 권한은 초대 변경과 같다. 행사 `OWNER`가 아니면 `403 FORBIDDEN`이다. 보관된 행사에서도 읽는다(보관할 때 대기 초대는 `REVOKED`가 되므로 보통 비어 있다).
+
+`page`는 0부터, `size`는 기본 50, 최대 100이다. `sort`는 받지 않는다. 순서는 만든 시각 최신 순, 그다음 id다. 만료가 지난 `PENDING`도 나온다. 화면이 `expiresAt`으로 만료를 표시한다.
+
+항목은 `{ "id", "email", "role", "status", "expiresAt" }`다. `email`은 소문자로 정규화한 초대 이메일이다. 토큰, 해시, 링크는 없다.
 
 ### `POST /api/v1/operator/events/{eventId}/invitations`
 
@@ -557,21 +565,22 @@ curl -sS \
   "id": "…",
   "role": "STAFF",
   "status": "PENDING",
-  "expiresAt": "2026-10-14T00:00:00Z"
+  "expiresAt": "2026-10-14T00:00:00Z",
+  "link": "/operator/invitations#…"
 }
 ```
 
-보관된 행사는 `409 EVENT_ARCHIVED`다.
+`link`는 상대 경로다. 화면이 자기 origin을 붙여 보여 준다. 이메일은 본문에 없다. 보관된 행사는 `409 EVENT_ARCHIVED`다.
 
 ### `POST /api/v1/operator/events/{eventId}/invitations/{invitationId}/resend`
 
-본문이 없다. 그 `PENDING` 초대를 `SUPERSEDED`로 두고 같은 이메일·역할로 새 `PENDING`을 만든다. `200` 본문은 생성과 같다. 새 id다.
+본문이 없다. 그 `PENDING` 초대를 `SUPERSEDED`로 두고 같은 이메일·역할로 새 `PENDING`을 만든다. `200` 본문은 생성과 같다. 새 id와 새 `link`다. 이전 링크는 `410 INVITATION_SUPERSEDED`가 된다.
 
 초대가 그 행사에 없으면 `404 RESOURCE_NOT_FOUND`다. `PENDING`이 아니면 `400 VALIDATION_FAILED`이고 필드는 `invitationId`다.
 
 ### `DELETE /api/v1/operator/events/{eventId}/invitations/{invitationId}`
 
-`PENDING`을 `REVOKED`로 바꾼다. 이미 `REVOKED`이면 같은 본문으로 `200`이다. `ACCEPTED`나 `SUPERSEDED`는 `400 VALIDATION_FAILED`다. 본문 없는 204가 아니다.
+`PENDING`을 `REVOKED`로 바꾼다. `200` 본문은 `{ "id", "role", "status", "expiresAt" }`이고 `link`가 없다. 이미 `REVOKED`이면 같은 본문으로 `200`이다. `ACCEPTED`나 `SUPERSEDED`는 `400 VALIDATION_FAILED`다. 본문 없는 204가 아니다.
 
 ### `POST /api/v1/operator/invitations/preview`
 
@@ -938,7 +947,7 @@ CUSTOM 필드를 지운다. `204`이고 본문이 없다. SYSTEM 필드 삭제�
 
 ### `GET /api/v1/operator/events/{eventId}/applications`
 
-항목은 `{ "applicationId", "formId", "status", "submittedAt" }`다. 답변, 이름, 전화는 없다.
+항목은 `{ "applicationId", "formId", "status", "submittedAt", "name" }`다. `name`은 신청서 SYSTEM `NAME` 필드 답변의 `value.text`다. 그 답변이 없으면 `null`이다. 전화와 CUSTOM 답변은 목록에 없고 한 건 조회에서만 읽는다.
 
 ### `GET /api/v1/operator/events/{eventId}/applications/{applicationId}`
 
@@ -1044,6 +1053,36 @@ CSRF가 필요하다. `Idempotency-Key`는 읽지 않는다.
 
 CSRF가 필요하다. 그 쿠키의 세션 행만 지운다. `204`이고 본문이 없다. 쿠키가 없거나 모르는 값이면 지울 행이 없고 역시 `204`다. 다른 참가자의 세션은 남는다.
 
+## 회고
+
+컨트롤러는 `event/retrospective/RetrospectiveController`다. 행사당 글 하나다(DEC-067 Follow-up 2026-11-16). `Idempotency-Key`는 읽지 않는다.
+
+판정 순서는 행사 없음·멤버 아님(`404`·`403 NOT_A_MEMBER`) → 권한(`403 FORBIDDEN`) → 본문(`400`) → 행사 상태(`409`) → version(`409`)이다.
+
+### `GET /api/v1/operator/events/{eventId}/retrospective`
+
+읽기는 effective `EVENT_READ` 또는 활성 공간 `OWNER`·`ADMIN`이다. 모든 행사 상태에서 읽는다.
+
+`200`
+
+```json
+{ "text": "…", "version": 2, "updatedAt": "2026-11-16T03:00:00Z", "updatedByDisplayName": "Local owner" }
+```
+
+아직 저장한 적이 없으면 `{ "text": "", "version": 0, "updatedAt": null, "updatedByDisplayName": null }`다. `404`가 아니다.
+
+### `PUT /api/v1/operator/events/{eventId}/retrospective`
+
+```json
+{ "text": "…", "expectedVersion": 0 }
+```
+
+쓰기는 effective `EVENT_UPDATE`다(행사 OWNER 기본, 개인별 GRANT 가능). `text`는 문자열이고 0~10,000자(잠정)다. 없거나 길면 `400 VALIDATION_FAILED`이고 필드는 `text`다. `expectedVersion`은 0 이상의 정수다. 없으면 필드는 `expectedVersion`이다.
+
+행사가 `ENDED`일 때만 저장한다. `ARCHIVED`는 `409 EVENT_ARCHIVED`, `DRAFT`·`ACTIVE`는 `409 INVALID_STATE_TRANSITION`(`eventStatus`)이다. 저장된 version이 `expectedVersion`과 다르면 `409 CONCURRENT_MODIFICATION`이고 확장 필드 `version`이 지금 version이다. 처음 저장은 `expectedVersion: 0`이다.
+
+`200` 본문은 읽기와 같다. version이 1 오른다. 저장마다 audit `EVENT_RETROSPECTIVE_UPDATED` 한 줄을 남기고 details는 `{ "version" }`뿐이다. 본문은 audit·로그·오류 응답에 넣지 않는다.
+
 ## 응답에 안 나오는 기록
 
 일부 성공은 응답 밖에 행을 남긴다. 그 행을 읽는 URL은 없다.
@@ -1079,11 +1118,11 @@ CSRF가 필요하다. 그 쿠키의 세션 행만 지운다. `204`이고 본문�
 다음을 이 서버에서 호출하면 제품 동작이 없다.
 
 - 비밀번호 로그인
-- SMTP. 초대 링크는 프로세스 메모리에만 남는다
+- SMTP. 초대 링크는 생성·다시 보내기 응답에 한 번 나오고, 메일 포트는 프로세스 메모리에만 담는다
 - 체크 항목 추가
 - 참가자 조회(`GET /api/v1/participant/me` 밖)
 - 회비, 조, 방, 차량, 체크인
-- Export, 회고, 공간 설정
+- Export, 공간 설정
 - 행사 기간·장소·유형을 바꾸는 `PATCH`. 이름만 바꾼다
 - 공간 소유권 이전의 전용 URL
 
@@ -1094,5 +1133,4 @@ CSRF가 필요하다. 그 쿠키의 세션 행만 지운다. `204`이고 본문�
 - [DEC-064](../../docs/product/PRODUCT_DECISIONS.md) Follow-up (2026-10-21)은 참가자 세션 발급, `GET /api/v1/participant/me`, `POST /api/v1/participant/auth/logout`를 Phase 3보다 앞서 MVP에 넣었다. 이 서버와 맞는다. [API Architecture](../../docs/architecture/api-architecture-v0.1.md)와 [Security](../../docs/architecture/security-privacy-v0.1.md)는 아직 Phase 3로 적는다.
 - [DEC-068](../../docs/product/PRODUCT_DECISIONS.md)의 질문 유형 9종, 질문·보기 표시 조건, 신청 접수 후 잠금, 숨겨진 답 버리기는 이 서버와 맞는다(#225). 운영자 빌더(#226)와 참가자 입력 화면(#227)은 아직 `label`과 `text`만 쓴다. 서버는 그 요청도 그대로 받는다.
 - [DEC-067](../../docs/product/PRODUCT_DECISIONS.md)의 개발용 로그인 profile gate, 로그인 body `email`, `SCENE_SESSION`·`SCENE_PSESSION`, 로그인 시 `changeSessionId()`는 이 서버와 맞는다. `local`·`test` 밖에서는 로그인 경로가 404다. 세션에 검증된 이메일이 없으면 초대 미리보기·수락은 `403 EMAIL_NOT_VERIFIED`다.
-- DEC-067은 회고를 draft 전용(mock, `unverified`)으로 두고 저장 API를 만들지 않는다. 서버에 회고 경로는 없다(위 "아직 없는 경로").
 - DEC-064는 public 세션 POST의 CSRF를 구현 때 정할 메모로 둔다. 이 서버의 public 체인은 다른 변경 요청과 같이 CSRF 쿠키 `XSRF-TOKEN`과 헤더 `X-XSRF-TOKEN`을 요구한다.

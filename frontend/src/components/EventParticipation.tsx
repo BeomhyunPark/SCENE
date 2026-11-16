@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router";
 import arrowLeft from "../assets/event-create/arrow-left.svg";
@@ -7,14 +7,17 @@ import checklist from "../assets/event-home/checklist.svg";
 import dateIcon from "../assets/event-home/date.svg";
 import { Button } from "./Button";
 import { OperatorShell } from "./OperatorShell";
+import { listApplications } from "../api/applications";
 import type { EventDetail } from "../api/events";
 import { listForms } from "../api/forms";
 import { reloadQuery } from "../api/queryClient";
 import { queryKeys } from "../api/queryKeys";
 import { EventScreen } from "./EventScreen";
-import { eventContext, lifecycleLabel } from "./eventFormat";
+import { applicantName, eventContext, formatSubmittedAt, lifecycleLabel } from "./eventFormat";
 import { markEventArea } from "./eventLocalState";
 import "./EventHome.css";
+
+const PAGE_SIZE = 50;
 
 const ways = [
   { title: "신청 링크 만들기", detail: "공유할 주소를 만들어요", badge: "시작", action: "준비" },
@@ -81,6 +84,75 @@ function ApplyAddress({ eventId }: { eventId: string }) {
   );
 }
 
+function Applicants({ eventId, empty }: { eventId: string; empty: ReactNode }) {
+  const [page, setPage] = useState(0);
+  const applications = useQuery({
+    queryKey: queryKeys.applications(eventId, page),
+    queryFn: ({ signal }) => listApplications(eventId, { page, size: PAGE_SIZE }, signal),
+    enabled: eventId.length > 0,
+  });
+
+  if (applications.isPending) {
+    return (
+      <section className="event-home__applicants">
+        <p>불러오는 중이에요.</p>
+      </section>
+    );
+  }
+  if (applications.isError) {
+    return (
+      <section className="event-home__applicants">
+        <p>신청자를 불러오지 못했어요.</p>
+        <Button type="button" variant="secondary" size={40} onClick={() => reloadQuery(applications)}>
+          다시 시도
+        </Button>
+      </section>
+    );
+  }
+  const { items, page: info } = applications.data;
+  if (info.totalItems === 0) return <>{empty}</>;
+
+  return (
+    <section className="event-home__applicants" aria-labelledby="applicants-title">
+      <div className="event-home__applicants-head">
+        <h2 id="applicants-title">신청자</h2>
+        <span className="event-home__count">{info.totalItems}명</span>
+      </div>
+      <ul className="event-home__applicant-rows">
+        {items.map((item) => (
+          <li key={item.applicationId}>
+            <Link className="event-home__applicant" to={`/events/${eventId}/participants/${item.applicationId}`}>
+              <span className={item.name ? "event-home__applicant-name" : "event-home__applicant-name is-missing"}>
+                {applicantName(item.name)}
+              </span>
+              <span className="event-home__applicant-time">{formatSubmittedAt(item.submittedAt)}</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+      {info.totalPages > 1 ? (
+        <div className="event-home__pager">
+          <Button type="button" variant="secondary" size={40} disabled={page === 0} onClick={() => setPage(page - 1)}>
+            이전
+          </Button>
+          <span>
+            {info.number + 1} / {info.totalPages}
+          </span>
+          <Button
+            type="button"
+            variant="secondary"
+            size={40}
+            disabled={page + 1 >= info.totalPages}
+            onClick={() => setPage(page + 1)}
+          >
+            다음
+          </Button>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 function ParticipationBody({ event, spaceName }: { event: EventDetail; spaceName?: string }) {
   const navigate = useNavigate();
   const eventId = event.eventId;
@@ -117,18 +189,23 @@ function ParticipationBody({ event, spaceName }: { event: EventDetail; spaceName
           </div>
           <span className="event-home__badge">참가 운영</span>
         </div>
-        <section className="event-home__welcome">
-          <span className="event-home__mark" aria-hidden="true">
-            <img src={calendarCheck} alt="" />
-          </span>
-          <div className="event-home__welcome-copy">
-            <h2>아직 참가자가 없어요.</h2>
-            <p>신청을 열거나 운영자가 직접 추가할 수 있어요.</p>
-          </div>
-          <Button type="button" variant="primary" size={40} onClick={() => setupPath && navigate(setupPath)}>
-            참가 신청 준비
-          </Button>
-        </section>
+        <Applicants
+          eventId={eventId}
+          empty={
+            <section className="event-home__welcome">
+              <span className="event-home__mark" aria-hidden="true">
+                <img src={calendarCheck} alt="" />
+              </span>
+              <div className="event-home__welcome-copy">
+                <h2>아직 참가자가 없어요.</h2>
+                <p>신청을 열거나 운영자가 직접 추가할 수 있어요.</p>
+              </div>
+              <Button type="button" variant="primary" size={40} onClick={() => setupPath && navigate(setupPath)}>
+                참가 신청 준비
+              </Button>
+            </section>
+          }
+        />
         <ApplyAddress eventId={eventId} />
         <div className="event-home__work-intro">
           <h2>참가자를 받는 방법</h2>

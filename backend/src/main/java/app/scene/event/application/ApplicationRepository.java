@@ -22,8 +22,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Component
 public class ApplicationRepository {
 
-  /** Server order. Client sort is not accepted. */
-  static final String LIST_ORDER = "submitted_at ASC, id ASC";
+  /** Server order. Client sort is not accepted. The list query aliases applications as app. */
+  static final String LIST_ORDER = "app.submitted_at ASC, app.id ASC";
 
   /** Answer order follows the field, then the field id. */
   static final String ANSWER_ORDER = "f.position ASC, f.id ASC";

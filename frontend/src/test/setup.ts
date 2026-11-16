@@ -4,6 +4,7 @@ import { afterAll, afterEach, beforeAll } from "vitest";
 import { server } from "../mocks/server";
 import { resetOperatorSession } from "../mocks/handlers/session";
 import { resetFormStore } from "../mocks/formStore";
+import { resetInvitationStore } from "../mocks/invitationStore";
 import { resetOperatorStore } from "../mocks/operatorStore";
 import { resetParticipantStore } from "../mocks/participantStore";
 import { resetRetrospectiveStore } from "../mocks/retrospectiveStore";
@@ -24,6 +25,7 @@ afterEach(() => {
   resetParticipantStore();
   resetAccessKeyCapture();
   resetFormStore();
+  resetInvitationStore();
   window.history.replaceState(null, "", window.location.pathname);
   document.cookie = "XSRF-TOKEN=; Path=/; Max-Age=0";
 });

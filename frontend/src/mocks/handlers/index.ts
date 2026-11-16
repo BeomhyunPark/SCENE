@@ -1,5 +1,7 @@
+import { applicationHandlers } from "./applications";
 import { eventHandlers } from "./events";
 import { formHandlers } from "./forms";
+import { invitationHandlers } from "./invitations";
 import { lifecycleHandlers } from "./lifecycle";
 import { retrospectiveHandlers } from "./retrospective";
 import { operatorHandlers } from "./operators";
@@ -13,9 +15,11 @@ export const handlers = [
   ...spaceHandlers,
   ...eventHandlers,
   ...operatorHandlers,
+  ...invitationHandlers,
   ...taskHandlers,
   ...formHandlers,
   ...participantHandlers,
+  ...applicationHandlers,
   ...lifecycleHandlers,
   ...retrospectiveHandlers,
 ];

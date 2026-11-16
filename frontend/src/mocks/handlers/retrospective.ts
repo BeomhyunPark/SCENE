@@ -2,36 +2,30 @@ import { http, HttpResponse } from "msw";
 import { currentOperator } from "./session";
 import { csrfMatches } from "../csrf";
 import { problem } from "../problem";
-import { retrospectiveText, saveRetrospectiveText } from "../retrospectiveStore";
-import { unverified } from "../unverified";
+import { readRetrospective, writeRetrospective, type RetrospectiveFailure } from "../retrospectiveStore";
 
-const NOTE = "서버에 회고 저장 API가 없다";
-
+/** Shaped like RetrospectiveController (#237). No longer marked unverified. */
 export const retrospectiveHandlers = [
-  unverified(
-    http.get("/api/v1/operator/events/:eventId/retrospective", ({ params }) => {
-      if (!currentOperator()) return problem(401, "AUTHENTICATION_REQUIRED");
-      const text = retrospectiveText(String(params.eventId));
-      if (text === null) return problem(404, "RESOURCE_NOT_FOUND");
-      return HttpResponse.json({ text });
-    }),
-    NOTE,
-  ),
-  unverified(
-    http.put("/api/v1/operator/events/:eventId/retrospective", async ({ request, params, cookies }) => {
-      if (!csrfMatches(request, cookies)) return problem(403, "FORBIDDEN");
-      if (!currentOperator()) return problem(401, "AUTHENTICATION_REQUIRED");
-      const body = await readJson(request);
-      if (!isRecord(body) || typeof body.text !== "string") {
-        return problem(400, "VALIDATION_FAILED", { errors: [{ field: "text" }] });
-      }
-      const text = body.text;
-      saveRetrospectiveText(String(params.eventId), text);
-      return HttpResponse.json({ text });
-    }),
-    NOTE,
-  ),
+  http.get("/api/v1/operator/events/:eventId/retrospective", ({ params }) => {
+    const operator = currentOperator();
+    if (!operator) return problem(401, "AUTHENTICATION_REQUIRED");
+    const result = readRetrospective(String(params.eventId), operator.userId);
+    if ("code" in result) return fail(result);
+    return HttpResponse.json(result);
+  }),
+  http.put("/api/v1/operator/events/:eventId/retrospective", async ({ request, params, cookies }) => {
+    if (!csrfMatches(request, cookies)) return problem(403, "FORBIDDEN");
+    const operator = currentOperator();
+    if (!operator) return problem(401, "AUTHENTICATION_REQUIRED");
+    const result = writeRetrospective(String(params.eventId), operator.userId, await readJson(request));
+    if ("code" in result) return fail(result);
+    return HttpResponse.json(result);
+  }),
 ];
+
+function fail(failure: RetrospectiveFailure): Response {
+  return problem(failure.status, failure.code, { errors: failure.errors, version: failure.version, detail: "hidden" });
+}
 
 async function readJson(request: Request): Promise<unknown> {
   const text = await request.text();
@@ -41,8 +35,4 @@ async function readJson(request: Request): Promise<unknown> {
   } catch {
     return null;
   }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
 }

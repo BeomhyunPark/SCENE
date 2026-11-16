@@ -69,6 +69,8 @@ export function OperatorShell({
   const { pathname } = useLocation();
   const onParticipants = matchesPath(pathname, participantsHref);
   const onTasks = matchesPath(pathname, tasksHref);
+  const operatorsHref = eventHref ? `${eventHref}/operators` : undefined;
+  const onOperators = matchesPath(pathname, operatorsHref);
   return (
     <div className="operator-shell">
       <aside className="operator-shell__sidebar">
@@ -96,7 +98,7 @@ export function OperatorShell({
                   />
                 </li>
               </ul>
-              {eventAreas.includes("participants") || eventAreas.includes("tasks") ? (
+              {eventAreas.includes("participants") || eventAreas.includes("tasks") || operatorsHref ? (
                 <div className="operator-shell__section">
                   <p className="operator-shell__section-label">행사 운영</p>
                   <ul className="operator-shell__group">
@@ -115,6 +117,11 @@ export function OperatorShell({
                             to: participantsHref,
                           }}
                         />
+                      </li>
+                    ) : null}
+                    {operatorsHref ? (
+                      <li>
+                        <NavItem item={{ label: "운영 멤버", icon: briefcase, current: onOperators, to: operatorsHref }} />
                       </li>
                     ) : null}
                   </ul>

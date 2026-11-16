@@ -4,10 +4,12 @@ import app.scene.event.lifecycle.InvitationRow;
 import app.scene.event.lifecycle.param.InvitationAccept;
 import app.scene.event.lifecycle.param.InvitationInsert;
 import app.scene.event.lifecycle.param.InvitationKey;
+import app.scene.event.lifecycle.param.InvitationListQuery;
 import app.scene.event.lifecycle.param.InvitationPendingClose;
 import app.scene.event.lifecycle.param.InvitationRevoke;
 import app.scene.event.lifecycle.param.InvitationSingleRevoke;
 import app.scene.event.lifecycle.param.InvitationToken;
+import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
@@ -18,6 +20,10 @@ public interface EventInvitationMapper {
   InvitationRow findForUpdate(InvitationKey key);
 
   InvitationRow findByTokenHash(InvitationToken token);
+
+  long countByStatus(InvitationListQuery query);
+
+  List<InvitationRow> findPageByStatus(InvitationListQuery query);
 
   int acceptPending(InvitationAccept update);
 

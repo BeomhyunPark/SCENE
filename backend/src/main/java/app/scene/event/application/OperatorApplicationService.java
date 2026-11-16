@@ -138,6 +138,6 @@ public class OperatorApplicationService {
 
   private static ApplicationListItem item(ApplicationRow row) {
     return new ApplicationListItem(
-        row.applicationId(), row.formId(), row.status(), row.submittedAt());
+        row.applicationId(), row.formId(), row.status(), row.submittedAt(), row.name());
   }
 }

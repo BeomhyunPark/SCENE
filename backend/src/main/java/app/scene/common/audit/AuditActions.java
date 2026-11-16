@@ -13,5 +13,8 @@ public final class AuditActions {
   public static final String EVENT_ARCHIVE = "EVENT_ARCHIVE";
   public static final String EVENT_UNARCHIVE = "EVENT_UNARCHIVE";
 
+  /** Details carry the new version only. The retrospective text is never audited. */
+  public static final String EVENT_RETROSPECTIVE_UPDATED = "EVENT_RETROSPECTIVE_UPDATED";
+
   private AuditActions() {}
 }

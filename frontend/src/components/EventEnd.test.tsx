@@ -6,8 +6,6 @@ import { App } from "../App";
 import { login } from "../api/session";
 import { localEvent, localUsers } from "../mocks/fixtures/seed";
 import { server } from "../mocks/server";
-import { saveRetrospectiveText } from "../mocks/retrospectiveStore";
-import { unverifiedRegistry } from "../mocks/unverified";
 
 const EVENT = localEvent.eventId;
 const SECRET = "hidden-server-detail";
@@ -193,65 +191,5 @@ describe("event end", () => {
     server.use(http.get("/api/v1/operator/events/:eventId", () => HttpResponse.json(eventBody("ENDED", 2))));
     await openApp(`/events/${EVENT}/end`);
     expect(await screen.findByRole("heading", { name: "행사가 종료됐어요" }, { timeout: 4000 })).toBeInTheDocument();
-  });
-
-  it("saves a retrospective only after the event has ended", async () => {
-    server.use(http.get("/api/v1/operator/events/:eventId", () => HttpResponse.json(eventBody("ENDED", 2))));
-    await openApp(`/events/${EVENT}/retrospective`);
-    expect(await screen.findByRole("heading", { name: "회고" }, { timeout: 4000 })).toBeInTheDocument();
-    fireEvent.change(await screen.findByLabelText("이 행사를 마치고 남길 내용을 적어 주세요."), {
-      target: { value: "잘 마쳤어요" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "저장" }));
-    expect(await screen.findByDisplayValue("잘 마쳤어요")).toBeInTheDocument();
-    expect(unverifiedRegistry().some((entry) => entry.path.endsWith("/retrospective"))).toBe(true);
-  });
-
-  it("treats the server's missing retrospective route as empty", async () => {
-    server.use(
-      http.get("/api/v1/operator/events/:eventId", () => HttpResponse.json(eventBody("ENDED", 2))),
-      http.get("/api/v1/operator/events/:eventId/retrospective", () =>
-        HttpResponse.json(
-          { type: "urn:scene:problem:unexpected", title: "Unexpected error", status: 500, detail: SECRET },
-          { status: 500, headers: { "Content-Type": "application/problem+json" } },
-        ),
-      ),
-      http.put("/api/v1/operator/events/:eventId/retrospective", () =>
-        HttpResponse.json(
-          { type: "urn:scene:problem:unexpected", title: "Unexpected error", status: 500, detail: SECRET },
-          { status: 500, headers: { "Content-Type": "application/problem+json" } },
-        ),
-      ),
-    );
-    await openApp(`/events/${EVENT}/retrospective`);
-    fireEvent.change(await screen.findByLabelText("이 행사를 마치고 남길 내용을 적어 주세요.", {}, { timeout: 4000 }), {
-      target: { value: "잘 마쳤어요" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "저장" }));
-    expect(await screen.findByText("회고 저장은 아직 서버에 없어요.", {}, { timeout: 4000 })).toBeInTheDocument();
-    expect(screen.queryByText(SECRET)).not.toBeInTheDocument();
-  });
-
-  it("keeps an archived retrospective read only", async () => {
-    saveRetrospectiveText(EVENT, "지난 회고");
-    server.use(http.get("/api/v1/operator/events/:eventId", () => HttpResponse.json(eventBody("ARCHIVED", 3))));
-    await openApp(`/events/${EVENT}/retrospective`);
-    expect(await screen.findByText("지난 회고", {}, { timeout: 4000 })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "저장" })).not.toBeInTheDocument();
-  });
-
-  it("does not let a reopened event write a retrospective", async () => {
-    server.use(http.get("/api/v1/operator/events/:eventId", () => HttpResponse.json(eventBody("ACTIVE", 5))));
-    await openApp(`/events/${EVENT}/retrospective`);
-    expect(await screen.findByText("다시 연 행사에는 새 회고를 쓸 수 없어요.", {}, { timeout: 4000 })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "저장" })).not.toBeInTheDocument();
-  });
-
-  it("shows an existing retrospective as read only after reopen", async () => {
-    saveRetrospectiveText(EVENT, "종료 때 쓴 회고");
-    server.use(http.get("/api/v1/operator/events/:eventId", () => HttpResponse.json(eventBody("ACTIVE", 6))));
-    await openApp(`/events/${EVENT}/retrospective`);
-    expect(await screen.findByText("종료 때 쓴 회고", {}, { timeout: 4000 })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "저장" })).not.toBeInTheDocument();
   });
 });

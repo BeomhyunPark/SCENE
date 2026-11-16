@@ -114,7 +114,7 @@ DEC-066의 C7 경고 범위를 질문 제목에서 **설명과 보기 문구까�
 
 ## 9. 저장 구조 (구현 메모, #225)
 
-- V8 (`V8__field_answer_types.sql`): `fields`에 `answer_type varchar(16)`, `required boolean`, `description varchar(500)`, `config jsonb`, `show_when jsonb`, `hidden boolean`을 더한다. `fields_one_custom`을 지운다. 기존 CUSTOM은 `SHORT_TEXT`, `required=false`로 옮긴다.
+- V9 (`V9__field_answer_types.sql`, 회고 V8 다음): `fields`에 `answer_type varchar(16)`, `required boolean`, `description varchar(500)`, `config jsonb`, `show_when jsonb`, `hidden boolean`을 더한다. `fields_one_custom`을 지운다. 기존 CUSTOM은 `SHORT_TEXT`, `required=false`로 옮긴다.
 - 보기는 `config.options`에, 질문 조건은 `show_when` 열에, 보기 조건은 각 보기의 `showWhen`에 둔다. 보기만 따로 조회하거나 집계할 일이 생기면 그때 테이블로 나눈다.
 - 날짜 `min`·`max`는 서버가 행사 기간으로 채우지 않는다. 운영자 화면(#226)이 질문을 만들 때 행사 기간을 기본값으로 넣는다.
 - API 계약은 [backend/docs/api.md](../../backend/docs/api.md)의 "신청서"와 "공개 신청서"에 있다.

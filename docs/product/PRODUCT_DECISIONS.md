@@ -1810,6 +1810,16 @@ DEC-039로 조직 Membership 없이 특정 행사만 운영하는 협력자를 �
 
 [#11 기술 계약](https://github.com/BeomhyunPark/SCENE/issues/11#issuecomment-5922367345), [#11 결정 (10/1 현)](https://github.com/BeomhyunPark/SCENE/issues/11#issuecomment-5922384963), 2026-10-02 #27 보강(현 승인, 단톡방 5번 항목), [#27 화면 매핑](https://github.com/BeomhyunPark/SCENE/issues/27#issuecomment-5945556067).
 
+### Follow-up (2026-11-16): 메일 발송 전 링크 전달과 대기 초대 목록 (#222)
+
+- SMTP가 없는 동안 생성·재전송 응답이 초대 링크(`/operator/invitations#<token>`)를 **한 번만** 돌려준다. 행사 OWNER가 복사해 전달한다. 서버는 여전히 해시만 저장하며 링크를 DB·audit·로그에 남기지 않는다. 같은 링크를 다시 볼 방법은 없고, 잃어버리면 재전송한다. 메일 포트 호출은 그대로 둔다.
+- 수락 조건은 바뀌지 않는다. 세션의 검증된 이메일이 초대 이메일과 같아야 하므로 링크를 본 OWNER가 대신 수락할 수 없다.
+- 행사 OWNER는 `GET /api/v1/operator/events/{eventId}/invitations`로 대기(`PENDING`) 초대를 본다. 항목은 id·이메일·역할·상태·만료 시각이고 토큰과 해시는 없다. 권한은 초대 command와 같다.
+- 화면은 사이드바 "운영 멤버"(`/events/{eventId}/operators`)에서 운영자 목록과 함께 둔다. 링크는 생성 직후 한 번 보여 주고 브라우저 저장소에 쓰지 않는다.
+- 버린 안: 응답은 그대로 두고 `local`·`test` 전용 경로로 캡처 링크 읽기(운영 환경에서는 전달할 길이 없다), SMTP 먼저 붙이기(발송 방식·도메인 결정이 먼저 필요하다), 이번 화면에서 만든 초대만 기억하기(새로고침하면 다시 보내기·취소 대상을 잃는다).
+
+현 결정 2026-11-16.
+
 ---
 
 ## DEC-061 — 보존은 정책표로, 정리·삭제·Export는 미리보기와 별도 작업으로 처리한다
@@ -2114,6 +2124,20 @@ AI 없이 출시하는 안은 시장 기대에 맞지 않아 채택하지 않았
 - 참여자 세션(`SCENE_PSESSION`) TTL, 접근 키 TTL은 DEC-064대로 여전히 OPEN이다.
 
 현 결정 2026-11-02.
+
+### Follow-up (2026-11-16): 회고 저장 API (#237)
+
+slice (d)를 연다. 위 Decision의 "회고는 draft 전용, 저장 API는 아직 만들지 않는다"는 이 Follow-up으로 대체한다.
+
+- 행사당 회고 글 하나를 서버에 저장한다. `GET`·`PUT /api/v1/operator/events/{eventId}/retrospective`. 응답은 `{ text, version, updatedAt, updatedByDisplayName }`다.
+- 쓰기는 effective `EVENT_UPDATE`(행사 OWNER 기본, 개인별 GRANT 가능)다. 읽기는 effective `EVENT_READ` 또는 활성 공간 `OWNER`·`ADMIN`이다. 회고 전용 권한 키는 만들지 않는다.
+- 쓰기는 `ENDED`에서만 한다(DEC-051). `ARCHIVED`는 `409 EVENT_ARCHIVED`, `DRAFT`·`ACTIVE`는 `409 INVALID_STATE_TRANSITION`이다. 읽기는 모든 상태에서 된다.
+- `PUT`은 `{ text, expectedVersion }`를 받고 저장된 version과 다르면 `409 CONCURRENT_MODIFICATION`이다. `text`는 0~10,000자(잠정)다.
+- 아직 없는 회고는 `200 { text: "", version: 0, updatedAt: null, updatedByDisplayName: null }`이다.
+- 저장마다 audit `EVENT_RETROSPECTIVE_UPDATED`를 남기고 details에는 새 version만 둔다. 본문은 audit·로그·오류 응답에 넣지 않는다.
+- 버린 안: OWNER만 쓰기(GRANT로 넓힐 수 없음), MANAGER 기본 쓰기(RoleDefaults 변경), `ACTIVE`에서도 쓰기(DEC-051 범위 확대), 운영자별 여러 글·섹션 구조, 없는 회고 `404`, audit 없음.
+
+현 결정 2026-11-16.
 
 ### Evidence
 

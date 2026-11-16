@@ -3,6 +3,8 @@ package app.scene.event.invitation;
 import app.scene.common.error.ErrorCode;
 import app.scene.common.error.SceneException;
 import app.scene.common.ratelimit.InMemoryRateLimiter;
+import app.scene.common.web.ItemPage;
+import app.scene.common.web.PageRequest;
 import app.scene.event.lifecycle.EventInvitationRepository;
 import app.scene.event.lifecycle.EventLocation;
 import app.scene.event.lifecycle.EventRepository;
@@ -15,7 +17,9 @@ import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
@@ -25,7 +29,8 @@ import tools.jackson.databind.JsonNode;
 
 /**
  * DEC-060 invitation commands. The document names no audit action for create, resend, revoke,
- * preview, or accept, so this service does not write one.
+ * preview, or accept, so this service does not write one. Create and resend return the fragment
+ * link once (DEC-060 Follow-up 2026-11-16). It is not stored, logged, or audited.
  */
 @Service
 public class EventInvitationService {
@@ -76,8 +81,24 @@ public class EventInvitationService {
     this.clock = clock;
   }
 
+  /** Pending invitations, newest first. Event owner only, like the commands. */
+  @Transactional(readOnly = true)
+  public ItemPage<InvitationListItem> list(UUID actorId, UUID eventId, Integer page, Integer size) {
+    EventLocation location = location(eventId);
+    permissions.requireEventOwner(actorId, location.spaceId(), eventId);
+    PageRequest request = PageRequest.of(page, size);
+    long total = invitations.countPending(location.spaceId(), eventId);
+    List<InvitationListItem> items = new ArrayList<>();
+    for (InvitationRow row : invitations.listPending(location.spaceId(), eventId, request)) {
+      items.add(
+          new InvitationListItem(
+              row.id(), row.emailNormalized(), row.role(), row.status(), row.expiresAt()));
+    }
+    return ItemPage.of(items, request, total);
+  }
+
   @Transactional
-  public InvitationResult create(UUID actorId, UUID eventId, JsonNode body) {
+  public IssuedInvitation create(UUID actorId, UUID eventId, JsonNode body) {
     EventLocation location = location(eventId);
     permissions.requireEventOwner(actorId, location.spaceId(), eventId);
     String email = requiredEmail(body);
@@ -90,7 +111,7 @@ public class EventInvitationService {
   }
 
   @Transactional
-  public InvitationResult resend(UUID actorId, UUID eventId, UUID invitationId) {
+  public IssuedInvitation resend(UUID actorId, UUID eventId, UUID invitationId) {
     EventLocation location = location(eventId);
     permissions.requireEventOwner(actorId, location.spaceId(), eventId);
     if (invitations.find(location.spaceId(), eventId, invitationId).isEmpty()) {
@@ -179,7 +200,7 @@ public class EventInvitationService {
     return new InvitationAcceptance("ACCEPTED");
   }
 
-  private InvitationResult issue(EventLocation location, UUID actorId, String email, String role) {
+  private IssuedInvitation issue(EventLocation location, UUID actorId, String email, String role) {
     Instant now = clock.instant();
     invitations.supersedePending(location.spaceId(), location.id(), email, now);
     Issued issued = issueToken();
@@ -188,7 +209,7 @@ public class EventInvitationService {
     invitations.savePending(
         id, location.spaceId(), location.id(), email, role, issued.hash(), expiresAt, actorId, now);
     mailer.send(new InvitationMail(email, role, location.name(), issued.link()));
-    return new InvitationResult(id, role, PENDING, expiresAt);
+    return new IssuedInvitation(id, role, PENDING, expiresAt, issued.link());
   }
 
   private Issued issueToken() {
