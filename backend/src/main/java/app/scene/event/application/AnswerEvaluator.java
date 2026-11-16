@@ -28,6 +28,8 @@ public final class AnswerEvaluator {
 
   static final int OTHER_MAX = 200;
   static final int PHONE_DIGITS_MIN = 4;
+  static final int COHORT_DIGITS = 2;
+  private static final String COHORT = "COHORT";
   private static final JsonNodeFactory NODES = JsonNodeFactory.instance;
 
   private AnswerEvaluator() {}
@@ -116,7 +118,7 @@ public final class AnswerEvaluator {
       FieldDefinition field, JsonNode raw, Map<UUID, ObjectNode> kept) {
     ObjectNode config = field.config();
     return switch (field.answerType()) {
-      case SHORT_TEXT, LONG_TEXT -> text(raw, config);
+      case SHORT_TEXT, LONG_TEXT -> text(field, raw, config);
       case SINGLE_CHOICE, DROPDOWN -> single(field, raw, kept);
       case MULTI_CHOICE -> multi(field, raw, kept);
       case DATE -> date(raw, config);
@@ -126,7 +128,7 @@ public final class AnswerEvaluator {
     };
   }
 
-  private static ObjectNode text(JsonNode raw, ObjectNode config) {
+  private static ObjectNode text(FieldDefinition field, JsonNode raw, ObjectNode config) {
     only(raw, "text");
     JsonNode node = raw.get("text");
     if (node == null || !node.isString()) {
@@ -145,6 +147,10 @@ public final class AnswerEvaluator {
       throw invalid();
     }
     if (format != null && "DIGITS".equals(format.asString()) && digits.length() != text.length()) {
+      throw invalid();
+    }
+    // 또래 is the last two digits of the birth year, 00–99 (DEC-070).
+    if (COHORT.equals(field.systemKey()) && digits.length() != COHORT_DIGITS) {
       throw invalid();
     }
     ObjectNode out = NODES.objectNode();

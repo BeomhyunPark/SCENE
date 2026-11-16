@@ -191,12 +191,53 @@ public final class FieldRules {
     if ("PHONE".equals(systemKey)) {
       out.put("maxLength", 50);
       out.put("format", "PHONE");
+    } else if ("COHORT".equals(systemKey)) {
+      out.put("maxLength", 2);
+      out.put("format", "DIGITS");
+      out.put("placeholder", "예: 94");
+      return out;
     } else {
       out.put("maxLength", SHORT_TEXT_MAX);
       out.put("format", "NONE");
     }
     out.putNull("placeholder");
     return out;
+  }
+
+  /**
+   * A SYSTEM question's settings with a new placeholder (DEC-070). The request {@code config} may
+   * hold {@code placeholder} only; length and format stay fixed.
+   */
+  public static ObjectNode systemPlaceholder(ObjectNode before, JsonNode raw) {
+    if (raw == null || !raw.isObject()) {
+      throw invalid("config");
+    }
+    allowOnly(raw, "placeholder");
+    ObjectNode out = before.deepCopy();
+    putText(out, "placeholder", raw.get("placeholder"), PLACEHOLDER_MAX);
+    return out;
+  }
+
+  /**
+   * True when two settings of a generated question differ only in wording: the placeholder and
+   * option labels (DEC-070). Option ids, order, groups, hidden flags, and conditions must match.
+   */
+  public static boolean sameStructure(ObjectNode before, ObjectNode after) {
+    return structure(before).equals(structure(after));
+  }
+
+  private static ObjectNode structure(ObjectNode config) {
+    ObjectNode copy = config.deepCopy();
+    if (copy.has("placeholder")) {
+      copy.putNull("placeholder");
+    }
+    JsonNode list = copy.get("options");
+    if (list != null && list.isArray()) {
+      for (JsonNode option : list) {
+        ((ObjectNode) option).put("label", "");
+      }
+    }
+    return copy;
   }
 
   /** Shape of a question or option condition. Null means always shown. */

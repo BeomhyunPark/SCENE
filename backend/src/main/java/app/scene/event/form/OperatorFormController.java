@@ -86,6 +86,14 @@ public class OperatorFormController {
     return forms.reorderFields(actor(), eventId, formId, body);
   }
 
+  @PutMapping("/api/v1/operator/events/{eventId}/forms/{formId}/setup")
+  FormDetail putSetup(
+      @PathVariable UUID eventId,
+      @PathVariable UUID formId,
+      @RequestBody(required = false) JsonNode body) {
+    return forms.putSetup(actor(), eventId, formId, body);
+  }
+
   @DeleteMapping("/api/v1/operator/events/{eventId}/forms/{formId}/fields/{fieldId}")
   ResponseEntity<Void> deleteField(
       @PathVariable UUID eventId, @PathVariable UUID formId, @PathVariable UUID fieldId) {

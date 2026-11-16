@@ -10,12 +10,14 @@ import app.scene.event.form.param.FieldInsert;
 import app.scene.event.form.param.FieldKey;
 import app.scene.event.form.param.FieldListQuery;
 import app.scene.event.form.param.FieldPositionUpdate;
+import app.scene.event.form.param.FieldPresetStateUpdate;
 import app.scene.event.form.param.FieldUpdate;
 import app.scene.event.form.param.FieldValues;
 import app.scene.event.form.param.FormAcceptingUpdate;
 import app.scene.event.form.param.FormInsert;
 import app.scene.event.form.param.FormKey;
 import app.scene.event.form.param.FormListQuery;
+import app.scene.event.form.param.FormSetupUpdate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -109,6 +111,35 @@ public class FormRepository {
       FieldValues values) {
     return fields.save(
         FieldInsert.of(id, spaceId, eventId, formId, kind, systemKey, label, position, values));
+  }
+
+  /** Stores a generated question with its preset key and state (DEC-070). */
+  @Transactional
+  public int savePreset(
+      UUID id,
+      UUID spaceId,
+      UUID eventId,
+      UUID formId,
+      String label,
+      int position,
+      FieldValues values,
+      String presetKey,
+      String presetState) {
+    return fields.save(
+        FieldInsert.preset(
+            id, spaceId, eventId, formId, label, position, values, presetKey, presetState));
+  }
+
+  @Transactional
+  public int updatePresetState(
+      UUID spaceId, UUID eventId, UUID formId, UUID fieldId, String presetState) {
+    return fields.updatePresetState(
+        FieldPresetStateUpdate.of(spaceId, eventId, formId, fieldId, presetState));
+  }
+
+  @Transactional
+  public int updateSetup(UUID spaceId, UUID eventId, UUID formId, String setup) {
+    return forms.updateSetup(FormSetupUpdate.of(spaceId, eventId, formId, setup));
   }
 
   @Transactional

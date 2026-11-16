@@ -74,13 +74,18 @@ class FormCommandHttpIT {
                 .header("Idempotency-Key", "same-key"));
     JsonNode body = json.readTree(created);
     assertThat(body.propertyNames())
-        .containsExactly("formId", "acceptingApplications", "fields", "locked");
+        .containsExactly("formId", "acceptingApplications", "fields", "locked", "setup");
+    assertThat(body.get("setup").isNull()).isTrue();
     assertThat(body.get("locked").booleanValue()).isFalse();
     UUID formId = UUID.fromString(body.get("formId").asString());
     assertThat(body.get("acceptingApplications").asBoolean()).isFalse();
-    assertThat(body.get("fields")).hasSize(2);
+    assertThat(body.get("fields")).hasSize(3);
     assertField(body.get("fields").get(0), "SYSTEM", "NAME", "이름", 0);
     assertField(body.get("fields").get(1), "SYSTEM", "PHONE", "전화", 1);
+    assertField(body.get("fields").get(2), "SYSTEM", "COHORT", "또래", 2);
+    JsonNode cohortConfig = body.get("fields").get(2).get("config");
+    assertThat(cohortConfig.get("maxLength").asInt()).isEqualTo(2);
+    assertThat(cohortConfig.get("placeholder").asString()).isEqualTo("예: 94");
     assertThat(created).doesNotContain("\"answers\"", "\"value\"", "phone", "accessKey");
     assertThat(accepting(formId)).isFalse();
     assertThat(auditCount(event.eventId)).isZero();
@@ -92,7 +97,7 @@ class FormCommandHttpIT {
         "CONFLICT",
         "req-second");
     assertThat(formCount(event.eventId)).isEqualTo(1);
-    assertThat(fieldCount(formId)).isEqualTo(2);
+    assertThat(fieldCount(formId)).isEqualTo(3);
 
     UUID otherEvent = openEvent("Other").eventId;
     String withCustom =
@@ -103,8 +108,8 @@ class FormCommandHttpIT {
                 "{\"customLabel\":\"  식사 여부  \"}",
                 "req-custom"));
     JsonNode customBody = json.readTree(withCustom);
-    assertThat(customBody.get("fields")).hasSize(3);
-    assertField(customBody.get("fields").get(2), "CUSTOM", null, "식사 여부", 2);
+    assertThat(customBody.get("fields")).hasSize(4);
+    assertField(customBody.get("fields").get(3), "CUSTOM", null, "식사 여부", 3);
     UUID customForm = UUID.fromString(customBody.get("formId").asString());
     assertThat(
             jdbc.queryForObject(
@@ -124,7 +129,7 @@ class FormCommandHttpIT {
     assertThat(listed).doesNotContain("이름", "fields");
 
     String detail = ok(read(admin, formPath(event.eventId, formId), "req-admin-read"));
-    assertThat(json.readTree(detail).get("fields")).hasSize(2);
+    assertThat(json.readTree(detail).get("fields")).hasSize(3);
     assertThat(eventRole(event.eventId, adminId)).isNull();
     problem(
         write(post(forms(event.eventId)), admin, "{}", "req-admin-create"),
@@ -242,7 +247,7 @@ class FormCommandHttpIT {
     JsonNode body = json.readTree(created);
     UUID formId = UUID.fromString(body.get("formId").asString());
     UUID nameId = UUID.fromString(body.get("fields").get(0).get("fieldId").asString());
-    UUID customId = UUID.fromString(body.get("fields").get(2).get("fieldId").asString());
+    UUID customId = UUID.fromString(body.get("fields").get(3).get("fieldId").asString());
 
     String second =
         created(
@@ -251,8 +256,8 @@ class FormCommandHttpIT {
                 event.owner,
                 "{\"label\":\"둘째\"}",
                 "req-second-custom"));
-    assertField(json.readTree(second).get("fields").get(3), "CUSTOM", null, "둘째", 3);
-    assertThat(fieldCount(formId)).isEqualTo(4);
+    assertField(json.readTree(second).get("fields").get(4), "CUSTOM", null, "둘째", 4);
+    assertThat(fieldCount(formId)).isEqualTo(5);
 
     String renamed =
         ok(
@@ -297,7 +302,7 @@ class FormCommandHttpIT {
                 .header("X-Request-Id", "req-delete-custom"))
         .andExpect(status().isNoContent())
         .andExpect(content().string(""));
-    assertThat(fieldCount(formId)).isEqualTo(3);
+    assertThat(fieldCount(formId)).isEqualTo(4);
     assertThat(customCount(formId)).isEqualTo(1);
   }
 
@@ -370,14 +375,19 @@ class FormCommandHttpIT {
             "description",
             "config",
             "showWhen",
-            "hidden");
+            "hidden",
+            "presetKey",
+            "presetActive");
+    assertThat(field.get("presetKey").isNull()).isTrue();
+    assertThat(field.get("presetActive").isNull()).isTrue();
     assertThat(field.get("kind").asString()).isEqualTo(kind);
     assertThat(field.get("answerType").asString()).isEqualTo("SHORT_TEXT");
     assertThat(field.get("required").booleanValue()).isEqualTo("SYSTEM".equals(kind));
     assertThat(field.get("showWhen").isNull()).isTrue();
     assertThat(field.get("hidden").booleanValue()).isFalse();
     assertThat(field.get("config").get("format").asString())
-        .isEqualTo("PHONE".equals(systemKey) ? "PHONE" : "NONE");
+        .isEqualTo(
+            "PHONE".equals(systemKey) ? "PHONE" : "COHORT".equals(systemKey) ? "DIGITS" : "NONE");
     if (systemKey == null) {
       assertThat(field.get("systemKey").isNull()).isTrue();
     } else {

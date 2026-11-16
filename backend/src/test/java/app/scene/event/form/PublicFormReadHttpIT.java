@@ -97,7 +97,8 @@ class PublicFormReadHttpIT {
     assertThat(body.get("fields")).hasSize(3);
     assertField(body.get("fields").get(0), "SYSTEM", "NAME", "이름", 0);
     assertField(body.get("fields").get(1), "SYSTEM", "PHONE", "전화", 1);
-    assertField(body.get("fields").get(2), "CUSTOM", null, "식사", 2);
+    // Position 2 is the hidden 또래 question, which the public form leaves out.
+    assertField(body.get("fields").get(2), "CUSTOM", null, "식사", 3);
     assertThat(listed)
         .doesNotContain("acceptingApplications", "answers", "accessKey", "이름답", "010");
 
@@ -151,7 +152,9 @@ class PublicFormReadHttpIT {
             "description",
             "config",
             "showWhen",
-            "hidden");
+            "hidden",
+            "presetKey",
+            "presetActive");
     assertThat(field.get("kind").asString()).isEqualTo(kind);
     assertThat(field.get("answerType").asString()).isEqualTo("SHORT_TEXT");
     assertThat(field.get("required").booleanValue()).isEqualTo("SYSTEM".equals(kind));
@@ -229,6 +232,20 @@ class PublicFormReadHttpIT {
             .getResponse()
             .getContentAsString();
     JsonNode body = json.readTree(created);
+    // 또래 is turned off here so these cases keep the two always-on SYSTEM questions (DEC-070).
+    mvc.perform(
+            write(
+                patch(
+                    "/api/v1/operator/events/"
+                        + event.eventId
+                        + "/forms/"
+                        + body.get("formId").asString()
+                        + "/fields/"
+                        + body.get("fields").get(2).get("fieldId").asString()),
+                event.owner,
+                "{\"hidden\":true}",
+                "req-cohort-off"))
+        .andExpect(status().isOk());
     return new Opened(
         event.eventId,
         UUID.fromString(body.get("formId").asString()),

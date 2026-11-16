@@ -14,4 +14,10 @@
     WHERE id = #{formId} AND space_id = #{spaceId} AND event_id = #{eventId}
   </update>
 
+  <update id="updateSetup">
+    UPDATE forms
+    SET setup = CAST(#{setup} AS jsonb)
+    WHERE id = #{formId} AND space_id = #{spaceId} AND event_id = #{eventId}
+  </update>
+
 </mapper>

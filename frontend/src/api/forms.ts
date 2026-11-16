@@ -57,6 +57,32 @@ export type FormField = {
   config: FieldConfig;
   showWhen: ShowWhen | null;
   hidden: boolean;
+  /** Fixed key of a question the form setup generated (DEC-070). Null on other questions. */
+  presetKey: string | null;
+  /** False when the form setup turned the generated question off. Null on other questions. */
+  presetActive: boolean | null;
+};
+
+/** One event day on the setup card: which meals and worship services it has. */
+export type SetupDay = { breakfast: boolean; lunch: boolean; dinner: boolean; worship: boolean };
+
+/** The operator's answers on the form setup card (DEC-070). The server builds questions from it. */
+export type FormSetup = {
+  gender: boolean;
+  middleGroup: boolean;
+  cell: boolean;
+  attendance: { partial: boolean; worshipOnly: boolean };
+  /** One entry per event day, in date order. */
+  schedule: SetupDay[];
+  transport: {
+    groupBus: boolean;
+    worshipShuttle: boolean;
+    car: boolean;
+    publicTransit: boolean;
+    support: boolean;
+  };
+  /** The event period the questions were generated for. Set by the server. */
+  generatedFor?: { startDate: string; endDate: string };
 };
 
 export type FormListItem = {
@@ -68,6 +94,8 @@ export type FormDetail = FormListItem & {
   fields: FormField[];
   /** True once a submitted application exists (DEC-068 edit lock). */
   locked: boolean;
+  /** Null until the first setup is saved. */
+  setup: FormSetup | null;
 };
 
 /** An option sent to the server. A new option has no `optionId`. */
@@ -128,7 +156,11 @@ export function addField(eventId: string, formId: string, input: FieldInput): Pr
   });
 }
 
-/** Sends only the keys that changed. A SYSTEM field takes `label` only. */
+/**
+ * Sends only the keys that changed. A SYSTEM field takes `label`, `description`, and
+ * `config.placeholder`; 또래 also takes `hidden`. A generated question takes wording, `required`,
+ * and `hidden` (DEC-070).
+ */
 export function updateField(
   eventId: string,
   formId: string,
@@ -151,5 +183,22 @@ export function reorderFields(eventId: string, formId: string, fieldIds: string[
 export function deleteField(eventId: string, formId: string, fieldId: string): Promise<void> {
   return apiRequest(`/api/v1/operator/events/${eventId}/forms/${formId}/fields/${fieldId}`, {
     method: "DELETE",
+  });
+}
+
+/** Saves the form setup. The server adds, hides, or removes generated questions to match. */
+export function putSetup(eventId: string, formId: string, setup: FormSetup): Promise<FormDetail> {
+  // generatedFor is the server's note on the last save and is not sent back.
+  const body = {
+    gender: setup.gender,
+    middleGroup: setup.middleGroup,
+    cell: setup.cell,
+    attendance: setup.attendance,
+    schedule: setup.schedule,
+    transport: setup.transport,
+  };
+  return apiRequest(`/api/v1/operator/events/${eventId}/forms/${formId}/setup`, {
+    method: "PUT",
+    body,
   });
 }

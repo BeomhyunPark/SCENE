@@ -1,11 +1,30 @@
-import type { AnswerType, FieldConfig, FieldOption, FormDetail, FormField, FormListItem, ShowWhen } from "../api/forms";
+import type {
+  AnswerType,
+  FieldConfig,
+  FieldOption,
+  FormDetail,
+  FormField,
+  FormListItem,
+  FormSetup,
+  ShowWhen,
+} from "../api/forms";
 import type { LifecycleResult } from "../api/lifecycle";
+import { PRESET_ORDER, eventDays, generatePreset, type PresetQuestion } from "./formPreset";
 import { eventById, setLifecycle, spacesFor } from "./operatorStore";
 import { permissionsFor } from "./taskStore";
 
 const LABEL_MAX = 200;
 
-type StoredField = FormField;
+/** The wording the setup generated last time. Text that still equals it follows a new setup. */
+type PresetDefaults = {
+  label: string;
+  description: string | null;
+  required: boolean;
+  placeholder: string | null;
+  options: Record<string, string>;
+};
+
+type StoredField = FormField & { presetDefaults?: PresetDefaults };
 
 type StoredForm = {
   eventId: string;
@@ -14,6 +33,7 @@ type StoredForm = {
   fields: StoredField[];
   /** Submitted applications. One or more locks type changes (DEC-068). */
   submitted: number;
+  setup: FormSetup | null;
 };
 
 const FIELD_KEYS = ["label", "answerType", "required", "description", "config", "showWhen", "hidden"];
@@ -63,11 +83,12 @@ export function createForm(eventId: string, actorId: string, body: unknown): For
     eventId,
     formId: crypto.randomUUID(),
     acceptingApplications: false,
-    fields: [systemField("NAME", "이름", 0), systemField("PHONE", "전화", 1)],
+    fields: [systemField("NAME", "이름", 0), systemField("PHONE", "전화", 1), systemField("COHORT", "또래", 2)],
     submitted: 0,
+    setup: null,
   };
   if (typeof customLabel === "string") {
-    form.fields.push(customField(customLabel, 2, "SHORT_TEXT", defaultConfig("SHORT_TEXT"), false, null, null, false));
+    form.fields.push(customField(customLabel, 3, "SHORT_TEXT", defaultConfig("SHORT_TEXT"), false, null, null, false));
   }
   forms.push(form);
   return toDetail(form);
@@ -169,14 +190,33 @@ export function updateField(
   const gate = requireWrite(eventId, actorId);
   if (gate) return gate;
   if (!isRecord(body) || Object.keys(body).length === 0) return invalid("label");
-  const allowed = field.kind === "SYSTEM" ? ["label"] : FIELD_KEYS;
+  const allowed = field.kind === "SYSTEM" ? ["label", "description", "config", "hidden"] : FIELD_KEYS;
   const extra = Object.keys(body).find((key) => !allowed.includes(key));
   if (extra) return invalid(extra);
   const label = "label" in body ? readLabel({ label: body.label }) : field.label;
   if (isFormFailure(label)) return label;
+  if (field.kind === "SYSTEM") {
+    // Wording only; 또래 may also be turned off (DEC-070).
+    if (body.hidden === true && field.systemKey !== "COHORT") return { status: 409, code: "CONFLICT" };
+    let placeholder = field.config.placeholder ?? null;
+    if ("config" in body) {
+      if (!isRecord(body.config) || Object.keys(body.config).some((key) => key !== "placeholder")) return invalid("config");
+      placeholder = cleanText(body.config.placeholder);
+    }
+    const next: StoredField = {
+      ...field,
+      label,
+      description: "description" in body ? cleanText(body.description) : field.description,
+      config: { ...field.config, placeholder },
+      hidden: "hidden" in body ? body.hidden === true : field.hidden,
+    };
+    found.fields = found.fields.map((item) => (item.fieldId === fieldId ? next : item));
+    return toDetail(found);
+  }
   const locked = found.submitted > 0;
   const type = "answerType" in body ? readType(body.answerType) : field.answerType;
   if (!type) return invalid("answerType");
+  if (field.presetKey && type !== field.answerType) return { status: 409, code: "CONFLICT" };
   if (locked && type !== field.answerType) return { status: 409, code: "FIELD_LOCKED" };
   let config = field.config;
   if ("config" in body || type !== field.answerType) {
@@ -208,11 +248,180 @@ export function updateField(
         : field.description,
     hidden: "hidden" in body ? body.hidden === true : field.hidden,
   };
+  if (
+    field.presetKey &&
+    (!sameCondition(showWhen, field.showWhen) ||
+      structureOf(config) !== structureOf(field.config) ||
+      (!next.hidden && field.presetActive === false))
+  ) {
+    // The form setup owns a generated question's structure and whether it is on (DEC-070).
+    return { status: 409, code: "CONFLICT" };
+  }
   const all = found.fields.map((item) => (item.fieldId === fieldId ? next : item));
   const conditions = checkConditions(all);
   if (conditions) return conditions;
   found.fields = all;
   return toDetail(found);
+}
+
+/**
+ * Mock of PUT /setup (DEC-070): generated questions are added, hidden, or removed to match, and
+ * operator wording stays. Looser than the server: it does not check locked condition changes.
+ */
+export function applySetup(eventId: string, formId: string, actorId: string, body: unknown): FormDetail | FormFailure {
+  const found = forms.find((form) => form.eventId === eventId && form.formId === formId);
+  if (!found) return { status: 404, code: "RESOURCE_NOT_FOUND" };
+  const gate = requireWrite(eventId, actorId);
+  if (gate) return gate;
+  const event = eventById(eventId);
+  if (!event?.startDate || !event.endDate || eventDays(event.startDate, event.endDate) > 10) return invalid("eventPeriod");
+  const setup = readSetup(body, eventDays(event.startDate, event.endDate));
+  if (isFormFailure(setup)) return setup;
+  const locked = found.submitted > 0;
+  const ids = new Map(found.fields.filter((field) => field.presetKey).map((field) => [field.presetKey!, field.fieldId]));
+  const idOf = (key: string) => {
+    if (!ids.has(key)) ids.set(key, crypto.randomUUID());
+    return ids.get(key)!;
+  };
+  const ideal = generatePreset(setup, event.startDate, event.endDate, idOf);
+  const wanted = new Map(ideal.map((question) => [question.key, question]));
+  const kept: StoredField[] = [];
+  for (const field of [...found.fields].sort((left, right) => left.position - right.position)) {
+    if (!field.presetKey) {
+      kept.push(field);
+      continue;
+    }
+    const question = wanted.get(field.presetKey);
+    if (question) kept.push(mergePreset(field, question, locked));
+    else if (locked || !untouched(field)) kept.push({ ...field, hidden: true, presetActive: false });
+  }
+  for (const question of ideal) {
+    if (kept.some((field) => field.presetKey === question.key)) continue;
+    const rank = PRESET_ORDER.indexOf(question.key);
+    const lastSystem = kept.reduce((last, field, index) => (field.kind === "SYSTEM" ? index : last), -1);
+    const presetBefore = kept.reduce(
+      (last, field, index) => (field.presetKey && PRESET_ORDER.indexOf(field.presetKey) < rank ? index : last),
+      -1,
+    );
+    kept.splice((presetBefore >= 0 ? presetBefore : lastSystem) + 1, 0, {
+      fieldId: idOf(question.key),
+      kind: "CUSTOM",
+      systemKey: null,
+      label: question.label,
+      position: 0,
+      answerType: question.answerType,
+      required: question.required,
+      description: question.description,
+      config: question.config,
+      showWhen: question.showWhen,
+      hidden: false,
+      presetKey: question.key,
+      presetActive: true,
+      presetDefaults: defaultsOf(question),
+    });
+  }
+  const numbered = kept.map((field, position) => ({ ...field, position }));
+  if (checkConditions(numbered)) return { status: 409, code: "CONFLICT" };
+  found.fields = numbered;
+  found.setup = { ...setup, generatedFor: { startDate: event.startDate, endDate: event.endDate } };
+  return toDetail(found);
+}
+
+function defaultsOf(question: PresetQuestion): PresetDefaults {
+  return {
+    label: question.label,
+    description: question.description,
+    required: question.required,
+    placeholder: question.config.placeholder ?? null,
+    options: Object.fromEntries((question.config.options ?? []).map((option) => [option.optionId, option.label])),
+  };
+}
+
+function untouched(field: StoredField): boolean {
+  const defaults = field.presetDefaults;
+  if (!defaults) return true;
+  return (
+    field.label === defaults.label &&
+    field.description === defaults.description &&
+    field.required === defaults.required &&
+    (field.config.placeholder ?? null) === defaults.placeholder &&
+    (field.config.options ?? []).every(
+      (option) => defaults.options[option.optionId] === undefined || defaults.options[option.optionId] === option.label,
+    )
+  );
+}
+
+function mergePreset(field: StoredField, question: PresetQuestion, locked: boolean): StoredField {
+  const before = field.presetDefaults ?? defaultsOf(question);
+  const keep = <T,>(current: T, generatedBefore: T, generatedNow: T): T =>
+    current === generatedBefore ? generatedNow : current;
+  const config: FieldConfig = structuredClone(question.config);
+  if ("placeholder" in config) {
+    config.placeholder = keep(field.config.placeholder ?? null, before.placeholder, config.placeholder ?? null);
+  }
+  if (config.options) {
+    const existing = new Map((field.config.options ?? []).map((option) => [option.optionId, option]));
+    config.options = config.options.map((option) => {
+      const was = existing.get(option.optionId);
+      return was ? { ...option, label: keep(was.label, before.options[option.optionId], option.label) } : option;
+    });
+    if (locked) {
+      const listed = new Set(config.options.map((option) => option.optionId));
+      for (const option of field.config.options ?? []) {
+        if (!listed.has(option.optionId)) config.options.push({ ...option, hidden: true });
+      }
+    }
+  }
+  return {
+    ...field,
+    label: keep(field.label, before.label, question.label),
+    description: keep(field.description, before.description, question.description),
+    required: field.required === before.required ? question.required : field.required,
+    answerType: question.answerType,
+    config,
+    showWhen: question.showWhen,
+    hidden: field.presetActive !== false && field.hidden,
+    presetActive: true,
+    presetDefaults: defaultsOf(question),
+  };
+}
+
+function readSetup(body: unknown, days: number): FormSetup | FormFailure {
+  if (!isRecord(body)) return invalid("setup");
+  const { attendance, transport, schedule } = body;
+  const flags = (value: unknown, keys: string[]) =>
+    isRecord(value) && keys.every((key) => typeof value[key] === "boolean");
+  if (!flags(body, ["gender", "middleGroup", "cell"])) return invalid("setup");
+  if (!flags(attendance, ["partial", "worshipOnly"])) return invalid("attendance");
+  if (!flags(transport, ["groupBus", "worshipShuttle", "car", "publicTransit", "support"])) return invalid("transport");
+  if (
+    !Array.isArray(schedule) ||
+    schedule.length !== days ||
+    !schedule.every((day) => flags(day, ["breakfast", "lunch", "dinner", "worship"]))
+  ) {
+    return invalid("schedule");
+  }
+  return structuredClone({
+    gender: body.gender,
+    middleGroup: body.middleGroup,
+    cell: body.cell,
+    attendance,
+    schedule,
+    transport,
+  }) as FormSetup;
+}
+
+/** Option ids, order, groups, hidden flags, and conditions. Labels and the placeholder are wording. */
+function structureOf(config: FieldConfig): string {
+  return JSON.stringify({
+    ...config,
+    placeholder: null,
+    options: config.options?.map((option) => ({ ...option, label: "" })),
+  });
+}
+
+function cleanText(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
 export function reorderFields(eventId: string, formId: string, actorId: string, body: unknown): FormDetail | FormFailure {
@@ -243,7 +452,7 @@ export function deleteField(eventId: string, formId: string, fieldId: string, ac
   if (gate) return gate;
   const field = found.fields.find((item) => item.fieldId === fieldId);
   if (!field) return { status: 404, code: "RESOURCE_NOT_FOUND" };
-  if (field.kind === "SYSTEM") return { status: 409, code: "CONFLICT" };
+  if (field.kind === "SYSTEM" || field.presetKey) return { status: 409, code: "CONFLICT" };
   if (found.submitted > 0) return { status: 409, code: "FIELD_LOCKED" };
   const target = found.fields.some(
     (item) =>
@@ -406,12 +615,16 @@ function toDetail(form: StoredForm): FormDetail {
   return {
     formId: form.formId,
     acceptingApplications: form.acceptingApplications,
-    fields: structuredClone(fields),
+    fields: structuredClone(fields).map((field) => {
+      delete field.presetDefaults;
+      return field;
+    }),
     locked: form.submitted > 0,
+    setup: structuredClone(form.setup),
   };
 }
 
-function systemField(systemKey: "NAME" | "PHONE", label: string, position: number): StoredField {
+function systemField(systemKey: "NAME" | "PHONE" | "COHORT", label: string, position: number): StoredField {
   return {
     fieldId: crypto.randomUUID(),
     kind: "SYSTEM",
@@ -420,13 +633,17 @@ function systemField(systemKey: "NAME" | "PHONE", label: string, position: numbe
     position,
     answerType: "SHORT_TEXT",
     required: true,
-    description: null,
+    description: systemKey === "COHORT" ? "출생연도 뒤 두 자리를 적어주세요." : null,
     config:
       systemKey === "PHONE"
         ? { maxLength: 50, format: "PHONE", placeholder: null }
-        : { maxLength: 200, format: "NONE", placeholder: null },
+        : systemKey === "COHORT"
+          ? { maxLength: 2, format: "DIGITS", placeholder: "예: 94" }
+          : { maxLength: 200, format: "NONE", placeholder: null },
     showWhen: null,
     hidden: false,
+    presetKey: null,
+    presetActive: null,
   };
 }
 
@@ -452,6 +669,8 @@ function customField(
     config,
     showWhen,
     hidden,
+    presetKey: null,
+    presetActive: null,
   };
 }
 

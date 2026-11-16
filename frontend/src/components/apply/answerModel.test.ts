@@ -20,6 +20,8 @@ function field(
     config,
     showWhen: null,
     hidden: false,
+    presetKey: null,
+    presetActive: null,
     ...extra,
   };
 }
@@ -98,5 +100,17 @@ describe("answer model", () => {
     expect(problemFor(stay, { start: "2027-01-23" })).toBe("시작과 끝을 모두 골라 주세요.");
     expect(problemFor(stay, { start: "2027-01-24", end: "2027-01-22" })).toBe("끝이 시작보다 빠를 수 없어요.");
     expect(problemFor(stay, { start: "2027-01-21", end: "2027-01-22" })).toBe("2027-01-22부터 2027-01-24까지 고를 수 있어요.");
+  });
+  it("takes exactly two digits for 또래", () => {
+    const cohort = field("cohort", "SHORT_TEXT", { maxLength: 2, format: "DIGITS", placeholder: "예: 94" }, {
+      kind: "SYSTEM",
+      systemKey: "COHORT",
+      required: true,
+    });
+    expect(problemFor(cohort, { text: "94" })).toBeNull();
+    expect(problemFor(cohort, { text: "00" })).toBeNull();
+    expect(problemFor(cohort, { text: "9" })).toContain("두 자리");
+    expect(problemFor(cohort, { text: "9a" })).not.toBeNull();
+    expect(problemFor(cohort, {})).not.toBeNull();
   });
 });

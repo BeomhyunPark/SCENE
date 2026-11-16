@@ -23,7 +23,9 @@ public record FieldDefinition(
     String description,
     ObjectNode config,
     JsonNode showWhen,
-    boolean hidden) {
+    boolean hidden,
+    String presetKey,
+    ObjectNode presetState) {
 
   public static final String SYSTEM = "SYSTEM";
   public static final String CUSTOM = "CUSTOM";
@@ -50,7 +52,50 @@ public record FieldDefinition(
         row.description(),
         object,
         showWhen == null || showWhen.isNull() ? null : showWhen,
-        row.hidden());
+        row.hidden(),
+        row.presetKey(),
+        row.presetState() == null ? null : (ObjectNode) json.readTree(row.presetState()));
+  }
+
+  /** A CUSTOM question the operator made by hand. */
+  public static FieldDefinition custom(
+      UUID fieldId,
+      String label,
+      int position,
+      AnswerType answerType,
+      boolean required,
+      String description,
+      ObjectNode config,
+      JsonNode showWhen,
+      boolean hidden) {
+    return new FieldDefinition(
+        fieldId,
+        CUSTOM,
+        null,
+        label,
+        position,
+        answerType,
+        required,
+        description,
+        config,
+        showWhen,
+        hidden,
+        null,
+        null);
+  }
+
+  /** True for a question the form setup generated (DEC-070). */
+  public boolean isPreset() {
+    return presetKey != null;
+  }
+
+  /** False when the setup turned this generated question off. Null for other questions. */
+  public Boolean presetActive() {
+    if (presetState == null) {
+      return null;
+    }
+    JsonNode active = presetState.get("active");
+    return active == null || active.booleanValue();
   }
 
   public boolean isSystem() {
@@ -100,7 +145,9 @@ public record FieldDefinition(
         description,
         config,
         showWhen,
-        hidden);
+        hidden,
+        presetKey,
+        presetActive());
   }
 
   /** The public view drops hidden options. Hidden fields are dropped by the caller. */
@@ -128,7 +175,9 @@ public record FieldDefinition(
         description,
         copy,
         showWhen,
-        false);
+        false,
+        presetKey,
+        presetKey == null ? null : Boolean.TRUE);
   }
 
   public FieldDefinition withPosition(int next) {
@@ -143,7 +192,9 @@ public record FieldDefinition(
         description,
         config,
         showWhen,
-        hidden);
+        hidden,
+        presetKey,
+        presetState);
   }
 
   /** One choice option. */
