@@ -105,7 +105,7 @@ class ApplicationReadHttpIT {
     assertThat(item.get("submittedAt").asString()).isEqualTo("2026-10-08T03:00:00Z");
     assertThat(list.get("page").get("number").asInt()).isZero();
     assertThat(list.get("page").get("size").asInt()).isEqualTo(50);
-    assertThat(listed).doesNotContain("전화답", "커스텀답", "answers", "phone", "PHONE");
+    assertThat(listed).doesNotContain("전화답", "커스텀답", "숨긴답", "answers", "phone", "PHONE");
     assertThat(auditCount(event.eventId)).isEqualTo(audits);
 
     String asAdmin = ok(read(admin, applications(event.eventId), "req-admin"));
@@ -127,10 +127,24 @@ class ApplicationReadHttpIT {
     JsonNode body = json.readTree(detail);
     assertThat(body.propertyNames())
         .containsExactly("applicationId", "formId", "status", "submittedAt", "answers");
-    assertThat(body.get("answers")).hasSize(3);
+    assertThat(body.get("answers")).hasSize(5);
     assertAnswer(body.get("answers").get(0), "SYSTEM", "NAME", "이름", 0, "이름답");
     assertAnswer(body.get("answers").get(1), "SYSTEM", "PHONE", "전화", 1, "전화답");
     assertAnswer(body.get("answers").get(2), "CUSTOM", null, "식사", 2, "커스텀답");
+    JsonNode meals = body.get("answers").get(3);
+    assertThat(meals.propertyNames()).containsExactly(ANSWER_KEYS);
+    assertThat(meals.get("answerType").asString()).isEqualTo("MULTI_CHOICE");
+    assertThat(meals.get("hidden").asBoolean()).isFalse();
+    JsonNode options = meals.get("config").get("options");
+    assertThat(options).hasSize(2);
+    assertThat(options.get(1).get("optionId").asString()).isEqualTo("opt_dinner");
+    assertThat(options.get(1).get("label").asString()).isEqualTo("저녁");
+    assertThat(options.get(1).get("hidden").asBoolean()).isTrue();
+    assertThat(meals.get("value").get("optionIds").get(1).asString()).isEqualTo("opt_dinner");
+    JsonNode retired = body.get("answers").get(4);
+    assertThat(retired.get("label").asString()).isEqualTo("옛 질문");
+    assertThat(retired.get("hidden").asBoolean()).isTrue();
+    assertThat(retired.get("value").get("text").asString()).isEqualTo("숨긴답");
     assertThat(auditCount(event.eventId)).isEqualTo(audits);
 
     problem(
@@ -308,6 +322,34 @@ class ApplicationReadHttpIT {
             FieldRules.config(AnswerType.SHORT_TEXT, null, null).toString(),
             null,
             false));
+    UUID mealsId = UUID.randomUUID();
+    forms.saveField(
+        mealsId,
+        event.spaceId,
+        event.eventId,
+        formId,
+        "CUSTOM",
+        null,
+        "식사 선택",
+        3,
+        new FieldValues("MULTI_CHOICE", false, null, MEALS_CONFIG, null, false));
+    UUID retiredId = UUID.randomUUID();
+    forms.saveField(
+        retiredId,
+        event.spaceId,
+        event.eventId,
+        formId,
+        "CUSTOM",
+        null,
+        "옛 질문",
+        4,
+        new FieldValues(
+            "SHORT_TEXT",
+            false,
+            null,
+            FieldRules.config(AnswerType.SHORT_TEXT, null, null).toString(),
+            null,
+            true));
     UUID participantId = participant(event, "0".repeat(64));
     UUID applicationId = UUID.randomUUID();
     applications.save(
@@ -340,7 +382,21 @@ class ApplicationReadHttpIT {
                 event.eventId,
                 applicationId,
                 customId,
-                "{\"text\":\"커스텀답\"}")));
+                "{\"text\":\"커스텀답\"}"),
+            AnswerInsert.of(
+                UUID.randomUUID(),
+                event.spaceId,
+                event.eventId,
+                applicationId,
+                mealsId,
+                "{\"optionIds\":[\"opt_lunch\",\"opt_dinner\"]}"),
+            AnswerInsert.of(
+                UUID.randomUUID(),
+                event.spaceId,
+                event.eventId,
+                applicationId,
+                retiredId,
+                "{\"text\":\"숨긴답\"}")));
     return new Seeded(formId, applicationId);
   }
 
@@ -363,8 +419,10 @@ class ApplicationReadHttpIT {
 
   private void assertAnswer(
       JsonNode answer, String kind, String systemKey, String label, int position, String text) {
-    assertThat(answer.propertyNames())
-        .containsExactly("fieldId", "kind", "systemKey", "label", "position", "value");
+    assertThat(answer.propertyNames()).containsExactly(ANSWER_KEYS);
+    assertThat(answer.get("answerType").asString()).isEqualTo("SHORT_TEXT");
+    assertThat(answer.get("hidden").asBoolean()).isFalse();
+    assertThat(answer.get("config").get("maxLength").isInt()).isTrue();
     assertThat(answer.get("kind").asString()).isEqualTo(kind);
     if (systemKey == null) {
       assertThat(answer.get("systemKey").isNull()).isTrue();
@@ -542,6 +600,18 @@ class ApplicationReadHttpIT {
             "SELECT count(*) FROM audit_logs WHERE event_id = ?", Integer.class, eventId);
     return count == null ? 0 : count;
   }
+
+  private static final String[] ANSWER_KEYS = {
+    "fieldId", "kind", "systemKey", "label", "position", "answerType", "hidden", "config", "value"
+  };
+
+  private static final String MEALS_CONFIG =
+      """
+      {"options": [
+        {"optionId": "opt_lunch", "label": "점심", "group": null, "hidden": false, "showWhen": null},
+        {"optionId": "opt_dinner", "label": "저녁", "group": null, "hidden": true, "showWhen": null}
+      ], "allowOther": false, "minSelect": 0, "maxSelect": null}
+      """;
 
   private record Held(UUID spaceId, UUID eventId, Cookie owner) {}
 

@@ -968,13 +968,16 @@ CUSTOM 필드를 지운다. `204`이고 본문이 없다. SYSTEM 필드 삭제�
       "systemKey": "NAME",
       "label": "이름",
       "position": 0,
+      "answerType": "SHORT_TEXT",
+      "hidden": false,
+      "config": { "maxLength": 200, "format": "NONE", "placeholder": null },
       "value": { "text": "김" }
     }
   ]
 }
 ```
 
-`answers`는 필드 position 순이다.
+`answers`는 필드 position 순이다. 받은 답만 있고, 답이 없는 질문은 빠진다. `answerType`·`hidden`·`config`는 그 질문의 **현재** 값이다(운영자 신청서 상세의 필드와 같은 모양). 화면은 이것으로 선택형 답의 `optionId`를 지금 보기 문구로 바꾸고, 숨긴 질문(`hidden: true`)과 숨긴 보기(`config.options[].hidden: true`)에 "(숨김)"을 붙인다(DEC-068 §6). `value` 모양은 DEC-068 §1을 따른다.
 
 ## 공개 신청서
 

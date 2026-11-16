@@ -92,6 +92,9 @@ public class OperatorApplicationService {
               answer.systemKey(),
               answer.label(),
               answer.position(),
+              answer.answerType(),
+              answer.hidden(),
+              json.readTree(answer.config()),
               json.readTree(answer.value())));
     }
     return new ApplicationDetail(
