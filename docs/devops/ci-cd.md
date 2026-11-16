@@ -1,6 +1,6 @@
 # SCENE CI/CD pipeline
 
-Status: baseline CI. CD intentionally not enabled (hosting undecided).
+Status: baseline CI. CD intentionally not enabled (hosting undecided; comparison and recommendation in [hosting-decision.md](hosting-decision.md), #231).
 
 ## Workflows
 
