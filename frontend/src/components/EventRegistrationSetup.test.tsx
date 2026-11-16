@@ -360,4 +360,35 @@ describe("event registration setup", () => {
     fireEvent.click(list.getByRole("button", { name: "또래 켜기" }));
     await waitFor(() => expect(preview.getByPlaceholderText("예: 94")).toBeInTheDocument());
   });
+  it("turns 또래 off from the setup card without resetting the card or blocking the page", async () => {
+    await login({ userId: localUsers[0].userId });
+    const retreat = await createEvent(localSpace.spaceId, {
+      name: "겨울 수련회",
+      startDate: "2027-01-22",
+      endDate: "2027-01-23",
+    });
+    renderSetup(retreat.eventId);
+    fireEvent.click(await screen.findByRole("button", { name: "신청서 만들기" }, { timeout: 4000 }));
+    fireEvent.click(await screen.findByRole("button", { name: "질문 만들기" }));
+    const list = await questionList();
+    expect(await list.findByText("성별")).toBeInTheDocument();
+
+    // An unsaved choice on the card, then the 또래 switch.
+    fireEvent.click(screen.getByRole("checkbox", { name: "중그룹" }));
+    const cohort = screen.getByRole("checkbox", { name: /^또래/ });
+    fireEvent.click(cohort);
+    // Nothing goes into a loading or disabled state while the switch saves.
+    expect(cohort).toBeEnabled();
+    expect(screen.getByRole("button", { name: "신청 열기" })).toBeEnabled();
+    expect(list.getByRole("button", { name: "성별 수정" })).toBeEnabled();
+    await waitFor(() => expect(cohort).not.toBeChecked());
+    expect(await list.findByText("꺼짐")).toBeInTheDocument();
+    await waitFor(() => {
+      const patched = operatorRequests.filter((request) => request.method === "PATCH" && request.url.includes("/fields/"));
+      expect(patched.at(-1)?.body).toEqual({ hidden: true });
+    });
+    // The server answered with a new form; the unsaved card choice is still there.
+    expect(screen.getByRole("checkbox", { name: "중그룹" })).toBeChecked();
+    expect(screen.getByRole("button", { name: "설정 저장" })).toBeEnabled();
+  });
 });

@@ -80,9 +80,12 @@ export function SetupCard({
   const [draft, setDraft] = useState<FormSetup>(() => initialSetup(saved, usable ? days : 0));
   const [touched, setTouched] = useState(false);
   // A saved setup from the server replaces the draft unless the operator is mid-edit.
-  const [seen, setSeen] = useState(saved);
-  if (saved !== seen) {
-    setSeen(saved);
+  // Every server response carries a new setup object, so compare by content. Saving 또래 or a
+  // question must not throw away what the operator is choosing on this card.
+  const savedKey = JSON.stringify(saved);
+  const [seen, setSeen] = useState(savedKey);
+  if (savedKey !== seen) {
+    setSeen(savedKey);
     setDraft(initialSetup(saved, usable ? days : 0));
     setTouched(false);
   }
@@ -139,7 +142,7 @@ export function SetupCard({
         <div className="setup-card__checks">
           {check("이름", true, () => undefined, undefined, true)}
           {check("전화", true, () => undefined, undefined, true)}
-          {check("또래", cohortOn, onCohort, "출생연도 뒤 두 자리 (예: 94)", pending)}
+          {check("또래", cohortOn, onCohort, "출생연도 뒤 두 자리 (예: 94)")}
           {check("성별", draft.gender, (gender) => change({ ...draft, gender }))}
           {check("중그룹", draft.middleGroup, (middleGroup) => change({ ...draft, middleGroup }))}
           {check("셀", draft.cell, (cell) => change({ ...draft, cell }))}
