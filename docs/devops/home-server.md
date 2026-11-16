@@ -47,6 +47,12 @@ cd /opt/scene/deploy/home && cp .env.example .env && chmod 600 .env
 ```
 
 4. `.env`에 `SCENE_DB_PASSWORD`(`openssl rand -base64 32`로 만든 값)와 `CLOUDFLARE_TUNNEL_TOKEN`을 채운다.
+   - **Google 로그인(#232):** Google Cloud 콘솔 → API 및 서비스 → 사용자 인증 정보 → OAuth 클라이언트 ID(웹 애플리케이션)를 만든다.
+     - 승인된 리디렉션 URI: `https://scene.greengroove.app/login/oauth2/code/google`
+     - OAuth 동의 화면: 외부, 게시됨(In production), 범위 `openid email profile`
+     - 받은 값을 `SCENE_GOOGLE_CLIENT_ID`·`SCENE_GOOGLE_CLIENT_SECRET`에 넣는다.
+   - **첫 관리자(DEC-069):** `SCENE_BOOTSTRAP_OWNER_EMAIL`에 첫 관리자의 Google 이메일을, `SCENE_BOOTSTRAP_SPACE_NAME`에 조직 이름을 넣는다.
+     - 그 계정이 처음 로그인할 때 조직이 아직 없으면 조직을 만들고 OWNER로 넣는다. 한 번만 일어난다.
 5. 실행한다.
 
 ```bash
@@ -80,7 +86,7 @@ age -d -i scene-backup.key scene-YYYYMMDD-HHMMSS.sql.gz.age | gunzip | docker co
 
 ## 5. 신청 시작 전 체크리스트 (12/15 전)
 
-- [ ] Google 로그인(#232) 동작, 운영진 계정으로 로그인 확인
+- [ ] Google 로그인(#232): 첫 관리자 로그인 → 조직이 생겼는지 확인 → 행사 만들기 → 다른 운영진을 초대해 Google로 수락
 - [ ] 리허설로 만든 행사·신청 삭제 (또는 DB를 새로 만들기)
 - [ ] 백업 자동 실행 + 복구 리허설 1회
 - [ ] 휴대폰 LTE(집 Wi-Fi 아님)로 신청 페이지 접속 확인
