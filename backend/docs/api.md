@@ -19,7 +19,7 @@ operator 경로는 운영자 세션이 필요하다. public 경로는 세션을 
 | 오류 본문 | `application/problem+json` |
 | 요청 id | 헤더 `X-Request-Id`. 형식은 1–128자의 `A-Za-z0-9._-`. 없거나 형식이 다르면 서버가 UUID를 만든다. 응답 헤더와 오류 본문 `traceId`가 같은 값이다. 분산 trace id가 아니다 |
 
-`Idempotency-Key`는 읽지 않는다.
+`Idempotency-Key`는 읽지 않는다. 예외는 [체크인](#체크인)의 체크인·취소다(계약, #282).
 
 ### CSRF
 
@@ -1111,6 +1111,150 @@ CSRF가 필요하다. `Idempotency-Key`는 읽지 않는다.
 
 CSRF가 필요하다. 그 쿠키의 세션 행만 지운다. `204`이고 본문이 없다. 쿠키가 없거나 모르는 값이면 지울 행이 없고 역시 `204`다. 다른 참가자의 세션은 남는다.
 
+## 체크인
+
+> 계약만 있고 서버는 아직 없다([#282](https://github.com/BeomhyunPark/SCENE/issues/282)). 정책은 [DEC-071](../../docs/product/PRODUCT_DECISIONS.md)이다.
+
+참가자는 행사당 한 번 도착 체크인한다. 대상은 그 행사에 `SUBMITTED` 신청이 있는 참가자다. 읽기(현황·명단)는 유효한 `EVENT_READ`, 또는 활성 공간 `OWNER`·`ADMIN`이다. 쓰기(체크인·취소)와 이력은 유효한 `CHECKIN_WRITE`다. 공간 역할만으로는 쓰지 못한다. 기본 역할은 `OWNER`·`MANAGER`·`STAFF` 모두 `CHECKIN_WRITE`를 갖는다.
+
+판정 순서는 행사 없음·멤버 아님(`404`·`403 NOT_A_MEMBER`) → 권한(`403 FORBIDDEN`) → 본문·`Idempotency-Key`(`400`) → 행사 상태(`409`) → 대상 찾기(`404`) → 참가 자격(`409`) → 결과(`200`)다. 읽기는 행사 상태로 막지 않는다.
+
+| 행사 상태 | 체크인·취소 |
+|---|---|
+| `DRAFT` | `409 INVALID_STATE_TRANSITION`, 확장 필드 `eventStatus` |
+| `ACTIVE` | 가능 |
+| `ENDED` | `409 EVENT_ENDED` |
+| `ARCHIVED` | `409 EVENT_ARCHIVED` |
+
+`EVENT_ENDED`의 `detail`은 #282에서 "종료된 행사에서는 이 작업을 할 수 없습니다."로 바꾼다. 클라이언트는 `code`로 분기한다.
+
+### 체크인 객체
+
+```json
+{
+  "checkInId": "…",
+  "participantId": "…",
+  "status": "CHECKED_IN",
+  "method": "QR",
+  "checkedInAt": "2027-01-15T01:42:00Z",
+  "checkedInByUserId": "…",
+  "checkedInByDisplayName": "김OO",
+  "cancelledAt": null,
+  "cancelledByUserId": null,
+  "cancelledByDisplayName": null,
+  "cancelReason": null
+}
+```
+
+`status`는 `CHECKED_IN` 또는 `CANCELLED`다. 참가자당 한 행이고 처음 체크인할 때 생긴다. 취소 뒤 다시 체크인하면 같은 `checkInId`가 다시 `CHECKED_IN`이 되고 `checkedIn…`이 새 값, `cancelled…`·`cancelReason`은 `null`이 된다. 지난 값은 이력에 남는다. 처리자 참조는 업무와 같이 `users.id`와 이름만이다(DEC-060). 운영자에서 제거돼도 남는다.
+
+### QR 값
+
+`SCENE-CI1.` + base64url(패딩 없음, 참가자 id 16바이트 ‖ HMAC-SHA256(`scene.checkin.code-secret`, `checkin|1|{eventId}|{participantId}|0`) 앞 16바이트)이다. 서버는 값을 저장하지 않는다. 판정은 접두사 → base64url → 길이 32바이트 → 그 행사의 참가자 → 서명 비교(상수 시간) 순이다. 어느 단계에서 틀려도 `404 RESOURCE_NOT_FOUND`이고 어디서 틀렸는지 구분하지 않는다. 로그에 값을 남기지 않는다.
+
+### `GET /api/v1/participant/check-in`
+
+참가자 세션 쿠키가 필요하다. CSRF는 필요 없다. 쿠키가 없거나 저장된 세션이 아니면 `401 AUTHENTICATION_REQUIRED`다.
+
+`200`
+
+```json
+{ "status": "AVAILABLE", "code": "SCENE-CI1.…", "checkedIn": false, "checkedInAt": null }
+```
+
+| `status` | 경우 | `code` |
+|---|---|---|
+| `AVAILABLE` | 행사 `ACTIVE`, `SUBMITTED` 신청 있음 | 값 |
+| `NOT_STARTED` | 행사 `DRAFT` | `null` |
+| `ENDED` | 행사 `ENDED`·`ARCHIVED` | `null` |
+| `NOT_ELIGIBLE` | `SUBMITTED` 신청 없음(철회) | `null` |
+
+같은 참가자는 몇 번을 받아도 같은 `code`다. `checkedIn`은 지금 `status`가 `CHECKED_IN`인지다.
+
+### `GET /api/v1/operator/events/{eventId}/check-ins/summary`
+
+```json
+{ "eventStatus": "ACTIVE", "total": 120, "checkedIn": 87, "notCheckedIn": 33 }
+```
+
+`total`은 `SUBMITTED` 신청이 있는 참가자 수다. `checkedIn`은 그중 `CHECKED_IN`인 수다. 취소는 미완료다.
+
+### `GET /api/v1/operator/events/{eventId}/check-in-roster`
+
+쿼리: `q`(선택), `checkedIn`(`true`·`false`, 선택), `page`, `size`([목록](#목록)과 같음). 대상은 `SUBMITTED` 신청이 있는 참가자다. 순서는 이름, 그다음 참가자 id다.
+
+`q`는 앞뒤 공백을 자르고 1–50자다. 숫자 정확히 4개면 전화 끝 4자리가 같거나 이름에 그 글자가 든 참가자, 그 밖에는 이름에 든 참가자다(대소문자 무시). 끝 4자리 검색은 `CHECKIN_WRITE`가 없으면 이름만 본다.
+
+항목:
+
+```json
+{
+  "participantId": "…",
+  "name": "김",
+  "cohort": "94",
+  "phoneLast4": "1234",
+  "checkIn": { "checkInId": "…", "status": "CHECKED_IN", "method": "MANUAL", "checkedInAt": "…", "checkedInByDisplayName": "김OO" }
+}
+```
+
+- `cohort`는 `SUBMITTED` 신청의 SYSTEM `COHORT` 답 `value.text`다. 없거나 꺼져 있으면 `null`이다.
+- `phoneLast4`는 `CHECKIN_WRITE`가 있을 때만 값이 있고, 없으면 `null`이다. `CONTACT_VIEW`는 남기지 않는다. 전체 전화는 이 응답에 없다.
+- `checkIn`은 한 번도 체크인하지 않았으면 `null`이다.
+
+### `POST /api/v1/operator/events/{eventId}/check-ins`
+
+CSRF와 `Idempotency-Key` 헤더(1–100자)가 필요하다. 헤더가 없거나 길이가 틀리면 `400 VALIDATION_FAILED`이고 필드는 `Idempotency-Key`다.
+
+```json
+{ "mode": "QR", "code": "SCENE-CI1.…" }
+```
+
+```json
+{ "mode": "MANUAL", "participantId": "…" }
+```
+
+`mode`가 없거나 다른 값이거나, 그 `mode`의 필드가 없으면 `400 VALIDATION_FAILED`다. 없는 참가자·틀린 QR은 `404 RESOURCE_NOT_FOUND`다. `SUBMITTED` 신청이 없으면 `409 INVALID_STATE_TRANSITION`이고 확장 필드 `reason`은 `APPLICATION_NOT_SUBMITTED`다.
+
+`200`
+
+```json
+{
+  "result": "CHECKED_IN",
+  "participant": { "participantId": "…", "name": "김", "cohort": "94" },
+  "checkIn": { "checkInId": "…", "status": "CHECKED_IN", "…": "체크인 객체" }
+}
+```
+
+| `result` | 경우 | 기록 |
+|---|---|---|
+| `CHECKED_IN` | 체크인한 적 없거나 `CANCELLED`였다 | `checkins` 생성·갱신, `checkin_logs` `CHECKED_IN`, audit `CHECKIN_CREATED` |
+| `ALREADY_CHECKED_IN` | 이미 `CHECKED_IN`이다 | 없음. `checkIn`은 처음 체크인 그대로 |
+
+두 운영자가 같은 참가자를 동시에 체크인하면 먼저 커밋한 쪽이 `CHECKED_IN`, 다른 쪽이 `ALREADY_CHECKED_IN`이다.
+
+### `POST /api/v1/operator/events/{eventId}/check-ins/{checkInId}/cancel`
+
+CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고 생략할 수 있다. `reason`은 앞뒤 공백을 자르고 200자 이하다. 넘으면 `400 VALIDATION_FAILED`다. 그 행사의 체크인이 아니면 `404 RESOURCE_NOT_FOUND`다.
+
+`200` 본문은 `{ "result", "checkIn" }`이다.
+
+| `result` | 경우 | 기록 |
+|---|---|---|
+| `CANCELLED` | `CHECKED_IN`이었다 | `checkins` 갱신, `checkin_logs` `CANCELLED`, audit `CHECKIN_CANCELLED` |
+| `ALREADY_CANCELLED` | 이미 `CANCELLED`다 | 없음 |
+
+### 같은 `Idempotency-Key`
+
+키는 행사 안에서 `checkin_logs`에 남긴다. 같은 키가 이미 기록을 만들었으면 다시 처리하지 않고 그 기록의 결과(`CHECKED_IN`·`CANCELLED`)와 지금 체크인 객체를 돌려준다. 그 키가 다른 참가자나 다른 동작에 쓰였으면 `409 CONFLICT`다. 기록을 만들지 않은 결과(`ALREADY_…`)는 키를 남기지 않고 상태로 다시 판정한다.
+
+### `GET /api/v1/operator/events/{eventId}/check-in-logs?participantId=…`
+
+`CHECKIN_WRITE`가 필요하다. `participantId`는 필수다. 그 행사 참가자가 아니면 `404 RESOURCE_NOT_FOUND`다. 항목은 `{ "logId", "checkInId", "action", "method", "actorUserId", "actorDisplayName", "reason", "createdAt" }`이고 `action`은 `CHECKED_IN`·`CANCELLED`, 순서는 최신부터다. `page`·`size`는 [목록](#목록)과 같다. 전체 감사는 기존 `GET /audit-logs`(`AUDIT_LOG_READ`)다.
+
+### 감사 로그
+
+`CHECKIN_CREATED`, `CHECKIN_CANCELLED`. detail은 `checkInId`, `participantId`, `method`(취소는 `null`), `reason`(체크인은 `null`)이다. actor는 처리한 운영자다. `ALREADY_…` 결과는 남기지 않는다.
+
 ## 회고
 
 컨트롤러는 `event/retrospective/RetrospectiveController`다. 행사당 글 하나다(DEC-067 Follow-up 2026-11-16). `Idempotency-Key`는 읽지 않는다.
@@ -1179,7 +1323,8 @@ CSRF가 필요하다. 그 쿠키의 세션 행만 지운다. `204`이고 본문�
 - SMTP. 초대 링크는 생성·다시 보내기 응답에 한 번 나오고, 메일 포트는 프로세스 메모리에만 담는다
 - 체크 항목 추가
 - 참가자 조회(`GET /api/v1/participant/me` 밖)
-- 회비, 조, 방, 차량, 체크인
+- 회비, 조, 방, 차량
+- 체크인. 계약은 [체크인](#체크인)에 있고 서버는 #282다
 - Export, 공간 설정
 - 행사 기간·장소·유형을 바꾸는 `PATCH`. 이름만 바꾼다
 - 공간 소유권 이전의 전용 URL
