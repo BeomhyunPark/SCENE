@@ -24,6 +24,7 @@ import { EventScreen } from "./EventScreen";
 import { formatSubmittedAt } from "./eventFormat";
 import { readEventAreas } from "./eventLocalState";
 import { OperatorShell } from "./OperatorShell";
+import { participantLabel } from "./participantLabel";
 import {
   isEventBlocked,
   targetOf,
@@ -147,13 +148,13 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
   const [cancelBusy, setCancelBusy] = useState(false);
 
   function checkIn(item: RosterItem) {
-    const action: CheckInAction = { kind: "check-in", mode: "MANUAL", participantId: item.participantId, name: item.name };
+    const action: CheckInAction = { kind: "check-in", mode: "MANUAL", participantId: item.participantId, name: participantLabel(item) };
     setNotice(null);
     void queue.submit(action).then((delivery) => report(action, delivery));
   }
 
   function cancel(item: RosterItem, checkInId: string, reason: string) {
-    const action: CheckInAction = { kind: "cancel", checkInId, participantId: item.participantId, name: item.name, reason };
+    const action: CheckInAction = { kind: "cancel", checkInId, participantId: item.participantId, name: participantLabel(item), reason };
     setNotice(null);
     setCancelBusy(true);
     void queue.submit(action).then((delivery) => {
@@ -394,13 +395,15 @@ function RosterRow({
   const unknown = request !== undefined && !busy;
   const done = item.checkIn?.status === "CHECKED_IN";
   const wasCancelled = item.checkIn?.status === "CANCELLED";
-  const meta = [item.cohort, item.phoneLast4 ? `끝자리 ${item.phoneLast4}` : null].filter(Boolean).join(" · ");
+  // 또래 is in the title ("94 김하늘"), so the line below keeps only phone last 4.
+  const label = participantLabel(item);
+  const meta = item.phoneLast4 ? `끝자리 ${item.phoneLast4}` : "";
   const labelId = useId();
   return (
     <li className="event-field__row" aria-labelledby={labelId}>
       <div className="event-field__row-main">
         <p className="event-field__name" id={labelId}>
-          {item.name}
+          {label}
         </p>
         {meta ? <p className="event-field__meta">{meta}</p> : null}
         {done && item.checkIn ? (
@@ -426,7 +429,7 @@ function RosterRow({
             variant="secondary"
             size={48}
             disabled={disabled || request.phase === "offline"}
-            aria-label={`${item.name} ${request.action.kind === "cancel" ? "체크인 취소" : "체크인"} 다시 시도`}
+            aria-label={`${label} ${request.action.kind === "cancel" ? "체크인 취소" : "체크인"} 다시 시도`}
             onClick={onRetry}
           >
             다시 시도
@@ -439,7 +442,7 @@ function RosterRow({
             disabled={disabled || busy}
             loading={busy}
             aria-describedby={disabled ? "field-blocked" : undefined}
-            aria-label={`${item.name} 체크인 취소`}
+            aria-label={`${label} 체크인 취소`}
             onClick={onCancel}
           >
             체크인 취소
@@ -452,7 +455,7 @@ function RosterRow({
             disabled={disabled}
             loading={busy}
             aria-describedby={disabled ? "field-blocked" : undefined}
-            aria-label={`${item.name} 체크인`}
+            aria-label={`${label} 체크인`}
             onClick={onCheckIn}
           >
             체크인
@@ -521,7 +524,7 @@ function CancelDialog({
   const [reason, setReason] = useState("");
   return (
     <ConfirmDialog
-      title={`${item.name} 님의 체크인을 취소할까요?`}
+      title={`${participantLabel(item)} 님의 체크인을 취소할까요?`}
       onClose={onClose}
       footer={
         <>
@@ -610,7 +613,7 @@ function reconnectNotice(settled: Settled[]): Notice {
 }
 
 function checkInNotice(result: CheckInResult): Notice {
-  const name = result.participant.name;
+  const name = participantLabel(result.participant);
   if (result.result === "ALREADY_CHECKED_IN") {
     const by = result.checkIn.checkedInByDisplayName ? ` · ${result.checkIn.checkedInByDisplayName}` : "";
     return { tone: "info", text: `${name} 님은 이미 체크인했어요 (${formatSubmittedAt(result.checkIn.checkedInAt)}${by}).` };

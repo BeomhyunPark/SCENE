@@ -3,6 +3,7 @@ import { isCheckInQr, type CheckInResult } from "../api/checkIns";
 import { isApiError } from "../api/errors";
 import { Button } from "./Button";
 import { formatSubmittedAt } from "./eventFormat";
+import { participantLabel } from "./participantLabel";
 import { CameraError, startQrCamera, type CameraFailure } from "./qrCamera";
 import { isEventBlocked, type ActionDelivery, type CheckInAction } from "./useCheckInQueue";
 
@@ -180,10 +181,7 @@ function ScanOutcome({ outcome, onNext }: { outcome: Outcome; onNext: () => void
       <p className="event-field__scan-label">{copy.label}</p>
       {person ? (
         <>
-          <p className="event-field__scan-name">{person.participant.name}</p>
-          <p className="event-field__scan-cohort">
-            {person.participant.cohort ? `또래 ${person.participant.cohort}` : "또래 정보 없음"}
-          </p>
+          <p className="event-field__scan-name">{participantLabel(person.participant)}</p>
         </>
       ) : null}
       {copy.detail ? <p className="event-field__scan-detail">{copy.detail}</p> : null}
@@ -197,7 +195,7 @@ function ScanOutcome({ outcome, onNext }: { outcome: Outcome; onNext: () => void
 function outcomeCopy(outcome: Outcome): { tone: "success" | "info" | "error"; label: string; detail?: string } {
   switch (outcome.kind) {
     case "checked-in":
-      return { tone: "success", label: "체크인됨", detail: "이름과 또래가 맞는지 확인해 주세요." };
+      return { tone: "success", label: "체크인됨", detail: "또래와 이름이 맞는지 확인해 주세요." };
     case "already": {
       const check = outcome.result.checkIn;
       const by = check.checkedInByDisplayName ? ` · ${check.checkedInByDisplayName}` : "";

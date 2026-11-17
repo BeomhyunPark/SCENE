@@ -62,9 +62,9 @@ describe("field check-in", () => {
     expect(summaryValue("전체")).toBe("8");
     expect(await screen.findByText("8명", {}, WAIT)).toBeInTheDocument();
 
-    const done = await rosterRow("박서준");
+    const done = await rosterRow("96 박서준");
     expect(within(done).getByText(/Local staff · QR/)).toBeInTheDocument();
-    expect(within(done).getByRole("button", { name: "박서준 체크인 취소" })).toBeEnabled();
+    expect(within(done).getByRole("button", { name: "96 박서준 체크인 취소" })).toBeEnabled();
 
     fireEvent.click(screen.getByRole("button", { name: "완료" }));
     expect(await screen.findByText("1명", {}, WAIT)).toBeInTheDocument();
@@ -72,7 +72,7 @@ describe("field check-in", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "미완료" }));
     expect(await screen.findByText("7명", {}, WAIT)).toBeInTheDocument();
-    expect(screen.queryByText("박서준")).not.toBeInTheDocument();
+    expect(screen.queryByText("96 박서준")).not.toBeInTheDocument();
   });
 
   it("finds by name or phone last 4 and shows last 4 to tell same names apart", async () => {
@@ -81,13 +81,17 @@ describe("field check-in", () => {
 
     await search("이수아");
     expect(await screen.findByText("2명", {}, WAIT)).toBeInTheDocument();
-    expect(screen.getByText("94 · 끝자리 1357")).toBeInTheDocument();
-    expect(screen.getByText("97 · 끝자리 8642")).toBeInTheDocument();
+    // 또래 leads the title ("94 이수아"), so the line below keeps only phone last 4.
+    expect(screen.getByText("94 이수아", { selector: ".event-field__name" })).toBeInTheDocument();
+    expect(screen.getByText("97 이수아", { selector: ".event-field__name" })).toBeInTheDocument();
+    expect(screen.getByText("끝자리 1357")).toBeInTheDocument();
+    expect(screen.getByText("끝자리 8642")).toBeInTheDocument();
+    expect(screen.queryByText(/94 · 끝자리/)).not.toBeInTheDocument();
 
     await search("1234");
-    expect(await screen.findByText("김하늘", {}, WAIT)).toBeInTheDocument();
+    expect(await screen.findByText("94 김하늘", {}, WAIT)).toBeInTheDocument();
     expect(screen.getByText("2명")).toBeInTheDocument();
-    expect(screen.getByText("최예린")).toBeInTheDocument();
+    expect(screen.getByText("98 최예린")).toBeInTheDocument();
 
     await search("없는사람");
     expect(await screen.findByText("'없는사람'에 맞는 참가자가 없어요.", {}, WAIT)).toBeInTheDocument();
@@ -102,18 +106,18 @@ describe("field check-in", () => {
     });
     await openAs(2);
     await search("김하늘");
-    const row = await rosterRow("김하늘");
-    fireEvent.click(within(row).getByRole("button", { name: "김하늘 체크인" }));
+    const row = await rosterRow("94 김하늘");
+    fireEvent.click(within(row).getByRole("button", { name: "94 김하늘 체크인" }));
 
-    expect(await screen.findByRole("status", {}, WAIT)).toHaveTextContent("김하늘 님을 체크인했어요.");
-    expect(await screen.findByRole("button", { name: "김하늘 체크인 취소" }, WAIT)).toBeInTheDocument();
+    expect(await screen.findByRole("status", {}, WAIT)).toHaveTextContent("94 김하늘 님을 체크인했어요.");
+    expect(await screen.findByRole("button", { name: "94 김하늘 체크인 취소" }, WAIT)).toBeInTheDocument();
     await screen.findByText("1", { selector: "strong" }, WAIT);
     expect(summaryValue("체크인 완료")).toBe("1");
 
     await search("김하람");
-    const next = await rosterRow("김하람");
-    fireEvent.click(within(next).getByRole("button", { name: "김하람 체크인" }));
-    expect(await screen.findByText("김하람 님을 체크인했어요.", {}, WAIT)).toBeInTheDocument();
+    const next = await rosterRow("95 김하람");
+    fireEvent.click(within(next).getByRole("button", { name: "95 김하람 체크인" }));
+    expect(await screen.findByText("95 김하람 님을 체크인했어요.", {}, WAIT)).toBeInTheDocument();
 
     expect(keys).toHaveLength(2);
     expect(keys[0]).not.toBe("");
@@ -124,13 +128,13 @@ describe("field check-in", () => {
   it("shows ALREADY_CHECKED_IN as a notice with time and who checked in", async () => {
     await openAs(2);
     await search("김하늘");
-    const row = await rosterRow("김하늘");
+    const row = await rosterRow("94 김하늘");
     // Another operator checks the same person in after this roster loaded.
     seedCheckIn(EVENT, participant("김하늘").participantId, "2027-01-15T01:42:00Z");
-    fireEvent.click(within(row).getByRole("button", { name: "김하늘 체크인" }));
+    fireEvent.click(within(row).getByRole("button", { name: "94 김하늘 체크인" }));
 
     const notice = await screen.findByRole("status", {}, WAIT);
-    expect(notice).toHaveTextContent("김하늘 님은 이미 체크인했어요");
+    expect(notice).toHaveTextContent("94 김하늘 님은 이미 체크인했어요");
     expect(notice).toHaveTextContent("Local staff");
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
@@ -143,20 +147,20 @@ describe("field check-in", () => {
     seedCheckIn(EVENT, participant("한지우").participantId);
     await openAs(2);
     await search("한지우");
-    const row = await rosterRow("한지우");
-    fireEvent.click(within(row).getByRole("button", { name: "한지우 체크인 취소" }));
+    const row = await rosterRow("95 한지우");
+    fireEvent.click(within(row).getByRole("button", { name: "95 한지우 체크인 취소" }));
 
-    const dialog = await screen.findByRole("dialog", { name: "한지우 님의 체크인을 취소할까요?" });
+    const dialog = await screen.findByRole("dialog", { name: "95 한지우 님의 체크인을 취소할까요?" });
     fireEvent.click(within(dialog).getByRole("button", { name: "돌아가기" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
-    fireEvent.click(within(row).getByRole("button", { name: "한지우 체크인 취소" }));
+    fireEvent.click(within(row).getByRole("button", { name: "95 한지우 체크인 취소" }));
     const again = await screen.findByRole("dialog");
     fireEvent.change(within(again).getByLabelText("취소 사유 (선택)"), { target: { value: "다른 사람 QR" } });
     fireEvent.click(within(again).getByRole("button", { name: "취소하기" }));
 
-    expect(await screen.findByText("한지우 님의 체크인을 취소했어요.", {}, WAIT)).toBeInTheDocument();
-    expect(await screen.findByRole("button", { name: "한지우 체크인" }, WAIT)).toBeInTheDocument();
+    expect(await screen.findByText("95 한지우 님의 체크인을 취소했어요.", {}, WAIT)).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "95 한지우 체크인" }, WAIT)).toBeInTheDocument();
     expect(reason).toBe("다른 사람 QR");
     server.events.removeAllListeners();
 
@@ -176,18 +180,18 @@ describe("field check-in", () => {
     );
     seedCheckIn(EVENT, participant("박서준").participantId);
     await search("박서준");
-    fireEvent.click(await screen.findByRole("button", { name: "박서준 체크인 취소" }, WAIT));
+    fireEvent.click(await screen.findByRole("button", { name: "96 박서준 체크인 취소" }, WAIT));
     fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "취소하기" }));
-    expect(await screen.findByText("박서준 님의 체크인은 이미 취소돼 있어요.", {}, WAIT)).toBeInTheDocument();
+    expect(await screen.findByText("96 박서준 님의 체크인은 이미 취소돼 있어요.", {}, WAIT)).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("is read only without CHECKIN_WRITE and hides phone last 4", async () => {
     revokePermissions(EVENT, localUsers[2].userId, ["CHECKIN_WRITE"]);
     await openAs(2);
-    const row = await rosterRow("김하늘");
+    const row = await rosterRow("94 김하늘");
     expect(await screen.findByRole("note", {}, WAIT)).toHaveTextContent("체크인 권한이 없어 명단만 볼 수 있어요.");
-    expect(within(row).getByRole("button", { name: "김하늘 체크인" })).toBeDisabled();
+    expect(within(row).getByRole("button", { name: "94 김하늘 체크인" })).toBeDisabled();
     expect(screen.queryByText(/끝자리/)).not.toBeInTheDocument();
 
     await search("1234");
@@ -201,18 +205,18 @@ describe("field check-in", () => {
   ] as const)("blocks check-in on a %s event and says why", async (status, copy) => {
     seedCheckIn(EVENT, participant("박서준").participantId);
     await openAs(0, status);
-    const row = await rosterRow("김하늘");
+    const row = await rosterRow("94 김하늘");
     expect(await screen.findByRole("note", {}, WAIT)).toHaveTextContent(copy);
-    expect(within(row).getByRole("button", { name: "김하늘 체크인" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "박서준 체크인 취소" })).toBeDisabled();
+    expect(within(row).getByRole("button", { name: "94 김하늘 체크인" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "96 박서준 체크인 취소" })).toBeDisabled();
     expect(summaryValue("체크인 완료")).toBe("1");
   });
 
   it("says the event ended when the server refuses a check-in", async () => {
     await openAs(2);
-    const row = await rosterRow("김하늘");
+    const row = await rosterRow("94 김하늘");
     setLifecycle(EVENT, "ENDED", 3);
-    fireEvent.click(within(row).getByRole("button", { name: "김하늘 체크인" }));
+    fireEvent.click(within(row).getByRole("button", { name: "94 김하늘 체크인" }));
     expect(await screen.findByRole("alert", {}, WAIT)).toHaveTextContent("종료된 행사라 체크인과 취소를 할 수 없어요.");
     expect(await screen.findByRole("note", {}, WAIT)).toBeInTheDocument();
   });

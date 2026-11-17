@@ -80,9 +80,9 @@ describe("field check-in retry", () => {
     server.use(http.post(CHECK_INS, () => HttpResponse.error(), { once: true }));
     server.use(http.post(CHECK_INS, () => HttpResponse.json({}, { status: 503 }), { once: true }));
     await openField();
-    fireEvent.click(within(await rosterRow("김하늘")).getByRole("button", { name: "김하늘 체크인" }));
+    fireEvent.click(within(await rosterRow("94 김하늘")).getByRole("button", { name: "94 김하늘 체크인" }));
 
-    expect(await screen.findByText("김하늘 님을 체크인했어요.", {}, WAIT)).toBeInTheDocument();
+    expect(await screen.findByText("94 김하늘 님을 체크인했어요.", {}, WAIT)).toBeInTheDocument();
     expect(keys).toHaveLength(3);
     expect(new Set(keys).size).toBe(1);
     await waitFor(() => expect(summaryValue("체크인 완료")).toBe("1"), WAIT);
@@ -103,9 +103,9 @@ describe("field check-in retry", () => {
       ),
     );
     await openField();
-    fireEvent.click(within(await rosterRow("박서준")).getByRole("button", { name: "박서준 체크인" }));
+    fireEvent.click(within(await rosterRow("96 박서준")).getByRole("button", { name: "96 박서준 체크인" }));
 
-    expect(await screen.findByText("박서준 님을 체크인했어요.", {}, WAIT)).toBeInTheDocument();
+    expect(await screen.findByText("96 박서준 님을 체크인했어요.", {}, WAIT)).toBeInTheDocument();
     expect(keys).toHaveLength(2);
     expect(keys[0]).toBe(keys[1]);
     expect(checkInLogsOf(EVENT)).toEqual([{ participantId: participant("박서준").participantId, action: "CHECKED_IN" }]);
@@ -116,26 +116,26 @@ describe("field check-in retry", () => {
     const keys = postKeys();
     server.use(http.post(CHECK_INS, () => HttpResponse.error()));
     await openField();
-    fireEvent.click(within(await rosterRow("한지우")).getByRole("button", { name: "한지우 체크인" }));
+    fireEvent.click(within(await rosterRow("95 한지우")).getByRole("button", { name: "95 한지우 체크인" }));
 
-    expect(await screen.findByRole("alert", {}, WAIT)).toHaveTextContent("한지우 님 체크인이 처리됐는지 확인하지 못했어요.");
+    expect(await screen.findByRole("alert", {}, WAIT)).toHaveTextContent("95 한지우 님 체크인이 처리됐는지 확인하지 못했어요.");
     expect(keys).toHaveLength(4);
-    const row = await rosterRow("한지우");
+    const row = await rosterRow("95 한지우");
     expect(within(row).getByText("확인 안 됨")).toBeInTheDocument();
     expect(within(row).queryByText("체크인 완료")).not.toBeInTheDocument();
     const pending = pendingRegion()!;
     expect(pending).toHaveTextContent("확인 안 된 요청 1건");
     expect(pending).toHaveTextContent("이 화면을 닫거나 새로 고치면 이 목록은 사라져요.");
-    expect(within(pending).getByText("한지우 님 체크인")).toBeInTheDocument();
+    expect(within(pending).getByText("95 한지우 님 체크인")).toBeInTheDocument();
 
     // Pressing 체크인 is gone for this row; 다시 시도 keeps the key.
     server.resetHandlers();
-    fireEvent.click(within(row).getByRole("button", { name: "한지우 체크인 다시 시도" }));
-    expect(await screen.findByText("한지우 님을 체크인했어요.", {}, WAIT)).toBeInTheDocument();
+    fireEvent.click(within(row).getByRole("button", { name: "95 한지우 체크인 다시 시도" }));
+    expect(await screen.findByText("95 한지우 님을 체크인했어요.", {}, WAIT)).toBeInTheDocument();
     expect(keys).toHaveLength(5);
     expect(new Set(keys).size).toBe(1);
     await waitFor(() => expect(pendingRegion()).not.toBeInTheDocument(), WAIT);
-    expect(await screen.findByRole("button", { name: "한지우 체크인 취소" }, WAIT)).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "95 한지우 체크인 취소" }, WAIT)).toBeInTheDocument();
     expect(checkInLogsOf(EVENT)).toHaveLength(1);
   });
 
@@ -145,10 +145,10 @@ describe("field check-in retry", () => {
     server.use(http.post(CANCEL, () => HttpResponse.error(), { once: true }));
     await openField();
     fireEvent.change(screen.getByLabelText("이름 또는 전화 끝 4자리"), { target: { value: "1357" } });
-    fireEvent.click(await screen.findByRole("button", { name: "이수아 체크인 취소" }, WAIT));
+    fireEvent.click(await screen.findByRole("button", { name: "94 이수아 체크인 취소" }, WAIT));
     fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "취소하기" }));
 
-    expect(await screen.findByText("이수아 님의 체크인을 취소했어요.", {}, WAIT)).toBeInTheDocument();
+    expect(await screen.findByText("94 이수아 님의 체크인을 취소했어요.", {}, WAIT)).toBeInTheDocument();
     expect(keys).toHaveLength(2);
     expect(keys[0]).toBe(keys[1]);
     expect(checkInLogsOf(EVENT)).toEqual([{ participantId: participant("이수아").participantId, action: "CANCELLED" }]);
@@ -161,17 +161,17 @@ describe("field check-in retry", () => {
     setOnline(false);
     expect(await screen.findByText(/오프라인이에요. 연결되면 확인 안 된 요청을 다시 보내고/)).toBeInTheDocument();
 
-    fireEvent.click(within(await rosterRow("최예린")).getByRole("button", { name: "최예린 체크인" }));
-    expect(await screen.findByText("오프라인이에요. 연결되면 최예린 님 체크인을 다시 보낼게요.", {}, WAIT)).toBeInTheDocument();
+    fireEvent.click(within(await rosterRow("98 최예린")).getByRole("button", { name: "98 최예린 체크인" }));
+    expect(await screen.findByText("오프라인이에요. 연결되면 98 최예린 님 체크인을 다시 보낼게요.", {}, WAIT)).toBeInTheDocument();
     expect(keys).toHaveLength(0);
-    expect(within(await rosterRow("최예린")).getByText("확인 안 됨")).toBeInTheDocument();
+    expect(within(await rosterRow("98 최예린")).getByText("확인 안 됨")).toBeInTheDocument();
     expect(pendingRegion()).toHaveTextContent("오프라인이라 연결되면 다시 보내요.");
-    expect(within(pendingRegion()!).getByRole("button", { name: "최예린 님 체크인 다시 시도" })).toBeDisabled();
+    expect(within(pendingRegion()!).getByRole("button", { name: "98 최예린 님 체크인 다시 시도" })).toBeDisabled();
 
     // Meanwhile another operator checked someone else in; the reload after reconnecting shows both.
     seedCheckIn(EVENT, participant("김하람").participantId);
     setOnline(true);
-    expect(await screen.findByText("최예린 님을 체크인했어요.", {}, WAIT)).toBeInTheDocument();
+    expect(await screen.findByText("98 최예린 님을 체크인했어요.", {}, WAIT)).toBeInTheDocument();
     expect(keys).toHaveLength(1);
     expect(screen.queryByText(/오프라인이에요. 연결되면 확인 안 된/)).not.toBeInTheDocument();
     await waitFor(() => expect(summaryValue("체크인 완료")).toBe("2"), WAIT);
@@ -206,8 +206,8 @@ describe("field check-in retry", () => {
       http.post(CHECK_INS, () => HttpResponse.json({ code: "CONFLICT", status: 409 }, { status: 409 }), { once: true }),
     );
     await openField();
-    fireEvent.click(within(await rosterRow("김하람")).getByRole("button", { name: "김하람 체크인" }));
-    expect(await screen.findByText("김하람 님을 체크인했어요.", {}, WAIT)).toBeInTheDocument();
+    fireEvent.click(within(await rosterRow("95 김하람")).getByRole("button", { name: "95 김하람 체크인" }));
+    expect(await screen.findByText("95 김하람 님을 체크인했어요.", {}, WAIT)).toBeInTheDocument();
     expect(keys).toHaveLength(2);
     expect(keys[0]).not.toBe(keys[1]);
   });
@@ -225,7 +225,7 @@ describe("field check-in retry", () => {
       ),
     );
     await openField();
-    fireEvent.click(within(await rosterRow("김하늘")).getByRole("button", { name: "김하늘 체크인" }));
+    fireEvent.click(within(await rosterRow("94 김하늘")).getByRole("button", { name: "94 김하늘 체크인" }));
 
     expect(await screen.findByRole("alert", {}, WAIT)).toHaveTextContent("종료된 행사라 체크인과 취소를 할 수 없어요.");
     expect(keys).toHaveLength(2);
@@ -237,14 +237,14 @@ describe("field check-in retry", () => {
   it("drops what is still unconfirmed once the event has ended", async () => {
     server.use(http.post(CHECK_INS, () => HttpResponse.error()));
     await openField();
-    fireEvent.click(within(await rosterRow("한지우")).getByRole("button", { name: "한지우 체크인" }));
+    fireEvent.click(within(await rosterRow("95 한지우")).getByRole("button", { name: "95 한지우 체크인" }));
     await screen.findByText("확인 안 된 요청 1건", {}, WAIT);
-    fireEvent.click(within(await rosterRow("박서준")).getByRole("button", { name: "박서준 체크인" }));
+    fireEvent.click(within(await rosterRow("96 박서준")).getByRole("button", { name: "96 박서준 체크인" }));
     await waitFor(() => expect(screen.getAllByText("응답을 받지 못했어요. 다시 시도해 주세요.")).toHaveLength(2), WAIT);
 
     server.resetHandlers();
     setLifecycle(EVENT, "ENDED", 3);
-    fireEvent.click(within(pendingRegion()!).getByRole("button", { name: "한지우 님 체크인 다시 시도" }));
+    fireEvent.click(within(pendingRegion()!).getByRole("button", { name: "95 한지우 님 체크인 다시 시도" }));
     expect(await screen.findByRole("alert", {}, WAIT)).toHaveTextContent("종료된 행사라 체크인과 취소를 할 수 없어요.");
     await waitFor(() => expect(pendingRegion()).not.toBeInTheDocument(), WAIT);
   });
@@ -255,7 +255,7 @@ describe("field check-in retry", () => {
     // jsdom has no IndexedDB; with one, opening it would be the write to catch.
     const idb = typeof indexedDB === "undefined" ? null : vi.spyOn(indexedDB, "open");
     await openField();
-    fireEvent.click(within(await rosterRow("한지우")).getByRole("button", { name: "한지우 체크인" }));
+    fireEvent.click(within(await rosterRow("95 한지우")).getByRole("button", { name: "95 한지우 체크인" }));
     await screen.findByText("응답을 받지 못했어요. 다시 시도해 주세요.", {}, WAIT);
     const written = setItem.mock.calls.map((call) => call.join("=")).join("\n");
     expect(written).not.toContain(participant("한지우").participantId);

@@ -390,13 +390,9 @@
   margin: 4px 0 0;
   color: var(--color-text-primary);
   font: var(--scene-display);
+  /* "94 김하늘": 또래 and 이름 break as a unit before breaking inside the name. */
   overflow-wrap: anywhere;
-}
-
-.event-field__scan-cohort {
-  margin: 0;
-  color: var(--color-text-primary);
-  font: var(--scene-heading-m);
+  word-break: keep-all;
 }
 
 .event-field__scan-detail {
