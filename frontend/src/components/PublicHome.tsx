@@ -85,7 +85,7 @@ export function PublicHome() {
             <br />
             더 집중할 수 있도록.
           </h1>
-          <p className="public-home__support">행사 운영 플랫폼, SCENE.</p>
+          <p className="public-home__support">교회 공동체를 위한 행사 운영 플랫폼, SCENE.</p>
           <div className="public-home__actions">
             <Link className="scene-button scene-button--primary scene-button--size-40" to="/login">
               <span className="scene-button__label">로그인</span>
