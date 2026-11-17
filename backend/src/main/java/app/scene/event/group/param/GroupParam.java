@@ -23,6 +23,9 @@ public final class GroupParam {
   private String cause;
   private UUID actorUserId;
   private Instant at;
+  private UUID publicationId;
+  private long boardVersion;
+  private String snapshot;
 
   private GroupParam(UUID spaceId, UUID eventId) {
     this.spaceId = spaceId;
@@ -77,6 +80,13 @@ public final class GroupParam {
   public GroupParam actor(UUID userId, Instant when) {
     this.actorUserId = userId;
     this.at = when;
+    return this;
+  }
+
+  public GroupParam publication(UUID id, long version, String snapshotJson) {
+    this.publicationId = id;
+    this.boardVersion = version;
+    this.snapshot = snapshotJson;
     return this;
   }
 
@@ -147,5 +157,17 @@ public final class GroupParam {
 
   public Instant getAt() {
     return at;
+  }
+
+  public UUID getPublicationId() {
+    return publicationId;
+  }
+
+  public long getBoardVersion() {
+    return boardVersion;
+  }
+
+  public String getSnapshot() {
+    return snapshot;
   }
 }
