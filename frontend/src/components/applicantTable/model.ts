@@ -42,17 +42,38 @@ export type Filter =
 
 export type Sort = { id: string; dir: "asc" | "desc" };
 
+export type Density = "comfortable" | "compact";
+
 export type ViewState = {
   filters: Record<string, Filter>;
   sorts: Sort[];
-  /** Explicit visible column ids, or null for the default set. */
+  /** Explicit visible column ids in screen order, or null for the default set. */
   visible: string[] | null;
   tab: "list" | "count";
   countA: string | null;
   countB: string | null;
+  /** Column widths in px the operator dragged; others use the type's default. */
+  widths: Record<string, number>;
+  /** "comfortable" is the design's row cards; "compact" is sheet-like 36px lines. */
+  density: Density;
+  /** Rows grouped by this column, or null. */
+  groupBy: string | null;
 };
 
-export const EMPTY_VIEW: ViewState = { filters: {}, sorts: [], visible: null, tab: "list", countA: null, countB: null };
+export const EMPTY_VIEW: ViewState = {
+  filters: {},
+  sorts: [],
+  visible: null,
+  tab: "list",
+  countA: null,
+  countB: null,
+  widths: {},
+  density: "comfortable",
+  groupBy: null,
+};
+
+export const MIN_WIDTH = 64;
+export const MAX_WIDTH = 640;
 
 const CHOICE_TYPES: AnswerType[] = ["SINGLE_CHOICE", "DROPDOWN", "MULTI_CHOICE", "YES_NO"];
 
@@ -460,23 +481,96 @@ export function crossCount(rows: readonly TableRow[], a: ColumnDef, b: ColumnDef
   return { rows: rowBuckets, columns: columnBuckets, cells, rowTotals, columnTotals };
 }
 
-/** The summary line under the table: answered count, and sum and average for numbers. */
+/**
+ * The summary line under the table, over the filtered rows: people for 참가자, answered and
+ * distinct counts for other columns, and sum, average, min and max for numbers.
+ */
 export function summarize(rows: readonly TableRow[], column: ColumnDef): string {
   if (column.type === "person") return `${rows.length}명`;
-  if (column.type === "status") return `도착 ${rows.filter((row) => row.checkedInAt).length}`;
-  if (column.type === "group") return `배정 ${rows.filter((row) => row.group).length}`;
-  const answered = rows.filter((row) => column.buckets(row).length > 0).length;
+  if (column.type === "status") return `도착 ${rows.filter((row) => row.checkedInAt).length} · 전 ${rows.filter((row) => !row.checkedInAt).length}`;
+  if (column.type === "group") {
+    const groups = new Set(rows.flatMap((row) => (row.group ? [row.group.groupId] : [])));
+    return `배정 ${rows.filter((row) => row.group).length} · ${groups.size}개 조`;
+  }
   if (column.number) {
     const values = rows.map(column.number).filter((value): value is number => value !== null);
     if (values.length === 0) return "응답 0";
     const sum = values.reduce((total, value) => total + value, 0);
-    return `합 ${round(sum)} · 평균 ${round(sum / values.length)}`;
+    return `합 ${round(sum)} · 평균 ${round(sum / values.length)} · 최소 ${Math.min(...values)} · 최대 ${Math.max(...values)}`;
   }
-  return `응답 ${answered}`;
+  const distinct = new Set<string>();
+  let answered = 0;
+  for (const row of rows) {
+    const keys = column.buckets(row);
+    if (keys.length === 0) continue;
+    answered++;
+    for (const key of keys) distinct.add(key);
+  }
+  return `응답 ${answered} · 고유 ${distinct.size}`;
 }
 
 function round(value: number): string {
   return String(Math.round(value * 10) / 10);
+}
+
+// --- grouping ---
+
+export type RowGroup = { key: string; label: string; rows: TableRow[] };
+
+/**
+ * Rows grouped by one column in its bucket order, empty groups left out. A multiple-choice answer
+ * puts the row under each chosen option, the same rule as counting; 응답 없음 comes last.
+ */
+export function groupRows(rows: readonly TableRow[], column: ColumnDef): RowGroup[] {
+  const byKey = new Map<string, TableRow[]>();
+  for (const row of rows) {
+    const keys = column.buckets(row);
+    for (const key of keys.length === 0 ? [NONE] : new Set(keys)) {
+      const list = byKey.get(key) ?? [];
+      list.push(row);
+      byKey.set(key, list);
+    }
+  }
+  return bucketsOf(column, rows)
+    .filter((bucket) => byKey.has(bucket.key))
+    .map((bucket) => ({ ...bucket, rows: byKey.get(bucket.key)! }));
+}
+
+// --- copying ---
+
+/**
+ * A rectangle of cells as tab-separated text, the way a sheet copies. Only the text on screen goes
+ * out, so a column the reader cannot see (phone without contact access) cannot be copied either.
+ * Tabs and line breaks inside a cell become spaces.
+ */
+export function copyText(rows: readonly TableRow[], columns: readonly ColumnDef[]): string {
+  const clean = (text: string) => text.replace(/[\t\r\n]+/g, " ");
+  return rows.map((row) => columns.map((column) => clean(column.text(row))).join("\t")).join("\n");
+}
+
+// --- column order ---
+
+/** Moves one id up or down the explicit column order. 참가자 stays first. */
+export function moveColumn(order: readonly string[], id: string, delta: -1 | 1): string[] {
+  const next = order.filter((item) => item !== "person");
+  const index = next.indexOf(id);
+  const target = index + delta;
+  if (index < 0 || target < 0 || target >= next.length) return [...next];
+  [next[index], next[target]] = [next[target], next[index]];
+  return next;
+}
+
+export function defaultWidth(column: ColumnDef): number {
+  if (column.type === "person") return 180;
+  if (column.type === "status" || column.type === "number") return 120;
+  if (column.type === "group") return 120;
+  if (column.type === "date") return 150;
+  if (column.type === "multi") return 220;
+  return 170;
+}
+
+export function clampWidth(width: number): number {
+  return Math.round(Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, width)));
 }
 
 // --- address ---
@@ -506,6 +600,12 @@ export function readView(params: URLSearchParams): ViewState {
     })
     .filter((sort) => sort.id);
   const cols = params.get("cols");
+  const widths: Record<string, number> = {};
+  for (const part of (params.get("w") ?? "").split(",")) {
+    const [id, px] = part.split(":");
+    const width = Number(px);
+    if (id && Number.isFinite(width)) widths[id] = clampWidth(width);
+  }
   return {
     filters,
     sorts,
@@ -513,6 +613,9 @@ export function readView(params: URLSearchParams): ViewState {
     tab: params.get("view") === "count" ? "count" : "list",
     countA: params.get("a"),
     countB: params.get("b"),
+    widths,
+    density: params.get("density") === "compact" ? "compact" : "comfortable",
+    groupBy: params.get("group"),
   };
 }
 
@@ -528,12 +631,23 @@ export function writeView(view: ViewState): URLSearchParams {
   if (view.tab === "count") params.set("view", "count");
   if (view.countA) params.set("a", view.countA);
   if (view.countB) params.set("b", view.countB);
+  const widths = Object.entries(view.widths ?? {});
+  if (widths.length > 0) params.set("w", widths.map(([id, px]) => `${id}:${px}`).join(","));
+  if (view.density === "compact") params.set("density", "compact");
+  if (view.groupBy) params.set("group", view.groupBy);
   return params;
 }
 
+/** Visible columns: 참가자 first, then the explicit order, or the default set in canonical order. */
 export function visibleColumns(columns: readonly ColumnDef[], visible: string[] | null): ColumnDef[] {
   if (!visible) return columns.filter((column) => column.defaultVisible);
-  return columns.filter((column) => column.id === "person" || visible.includes(column.id));
+  const byId = new Map(columns.map((column) => [column.id, column]));
+  const person = columns.filter((column) => column.id === "person");
+  const rest = visible
+    .filter((id) => id !== "person")
+    .map((id) => byId.get(id))
+    .filter((column): column is ColumnDef => column !== undefined);
+  return [...person, ...rest];
 }
 
 // --- text ---
