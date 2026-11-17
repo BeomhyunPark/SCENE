@@ -89,6 +89,16 @@ export function submittedApplications(eventId: string): {
     }));
 }
 
+/** Raw stored answers of every submitted application, oldest first, for the summary mock. */
+export function submittedAnswers(eventId: string): { applicationId: string; answers: Map<string, Record<string, unknown>> }[] {
+  return issued
+    .filter((row) => row.eventId === eventId)
+    .map((row) => ({
+      applicationId: row.applicationId,
+      answers: new Map(row.answers.map((answer) => [answer.fieldId, answer.value])),
+    }));
+}
+
 /** One submitted application with every answer, in field order. Null when it is not in that event. */
 export function submittedApplication(
   eventId: string,

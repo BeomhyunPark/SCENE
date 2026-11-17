@@ -115,6 +115,12 @@ export function formFields(eventId: string, formId: string): FormDetail["fields"
   return found ? toDetail(found).fields : [];
 }
 
+/** The event's form with its stored setup, for the summary mock. Null when the event has no form. */
+export function eventFormDetail(eventId: string): FormDetail | null {
+  const found = forms.find((form) => form.eventId === eventId);
+  return found ? toDetail(found) : null;
+}
+
 /** Same read gate as the form read: EVENT_READ, or an active space OWNER or ADMIN. */
 export function requireEventRead(eventId: string, actorId: string): FormFailure | null {
   return requireRead(eventId, actorId);
