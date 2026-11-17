@@ -972,9 +972,10 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
 ```json
 {
   "gender": true,
-  "middleGroup": false,
-  "cell": false,
-  "newcomer": true,
+  "middleGroup": true,
+  "cell": true,
+  "middleGroups": ["1중그룹", "2중그룹"],
+  "cells": [],
   "attendance": { "partial": true, "worshipOnly": false, "mode": "RANGE" },
   "schedule": [
     { "breakfast": false, "lunch": false, "dinner": true, "worship": true },
@@ -987,8 +988,14 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
 }
 ```
 
-- 모든 키가 필수이고 값은 boolean이다. 다만 `newcomer`(새가족 질문, 나중에 더한 키)는 없어도 되고 없으면 `false`다. `attendance.mode`와 `transport.partialByTime`도 없어도 된다(아래). 응답의 `setup`에는 늘 있다. 모르는 키나 다른 타입은 `400`이고 필드는 `setup`, `attendance`, `schedule`, `transport` 중 해당 묶음이다. 응답의 `generatedFor`는 다시 보내도 무시한다.
-- `newcomer`가 `true`면 `NEWCOMER` 질문(`YES_NO`, style `YES_NO`, 필수, 조건 없음, 제목 "새가족이신가요?")이 셀 다음·참석 방식 앞 자리에 생긴다. 답은 `{ "value": true|false }`다. 신청이 들어온 뒤에도 켜고 끌 수 있다: 켜면 질문이 추가되고 그 전 신청자는 답이 없다. 끄면 질문을 숨기고 답은 남긴다.
+- 모든 키가 필수이고 값은 boolean이다. 다만 `middleGroups`·`cells`(이름 목록)는 없어도 되고 없으면 빈 목록이다. `attendance.mode`와 `transport.partialByTime`도 없어도 된다(아래). 응답의 `setup`에는 늘 있다. 모르는 키나 다른 타입은 `400`이고 필드는 `setup`, `attendance`, `schedule`, `transport`, `middleGroups`, `cells` 중 해당 묶음이다. 응답의 `generatedFor`는 다시 보내도 무시한다. 예전 `newcomer` 스위치(같은 날 대체됨)는 보내도 무시하고 응답·저장에서 빠진다.
+- 중그룹·셀과 새가족(DEC-070 Follow-up 2026-11-17 "새가족은 중그룹·셀 보기로", [#333](https://github.com/BeomhyunPark/SCENE/issues/333)).
+  - `middleGroups`·`cells`는 문자열 배열이다. 앞뒤 공백을 자르고, 빈 항목은 빼고, 같은 이름은 한 번만 둔다. 이름은 50자, 목록은 49개까지이고 넘으면 `400`이다.
+  - 스위치가 켜져 있고 목록이 있으면 그 질문은 `DROPDOWN`·필수이고 보기는 목록 순서다. 보기 id는 이름에서 계산한다(`opt_mg_<8자리>`, `opt_cell_<8자리>`). 같은 이름은 저장할 때마다 같은 id이고, 이름을 바꾸면 새 보기다. 목록이 없으면 지금까지처럼 `SHORT_TEXT`·선택(자유 입력)이다.
+  - 첫 번째 목록 질문(중그룹, 중그룹 목록이 없으면 셀)의 마지막 보기로 `opt_newcomer`("새가족 (등반X)")가 생긴다. 운영자가 문구를 고칠 수 있고 판정은 id로 한다. 끄는 스위치는 없다.
+  - 중그룹이 목록 질문이면 `CELL`은 `MIDDLE_GROUP ∈ {목록 보기 전부}`일 때만 보인다. 새가족은 셀을 묻지 않는다.
+  - 신청이 들어온 신청서(`locked`)에서도 목록에 이름을 더하고 빼고 문구를 고칠 수 있다. 뺀 보기는 숨긴다. `CELL` 조건은 이전 보기 id를 그대로 두고 새 id만 더한다. 자유 입력 ↔ 목록 전환(목록을 처음 채우거나 다 비우기)과 중그룹 스위치를 켜고 끄는 것(셀 조건이 생기거나 없어짐)은 `409 FIELD_LOCKED`다. 목록은 접수 전에 정한다.
+  - 중그룹·셀이 둘 다 꺼졌거나 둘 다 목록이 없으면 새가족을 알 수 없다(편성판 `newcomer`는 모두 `null`).
 - `attendance.mode`는 부분 참석자가 참석 칸을 알리는 방식이다(DEC-074). `RANGE`(도착~출발만 받기)와 `SLOTS`(칸마다 고르기) 중 하나이고 다른 값은 `400`이고 필드는 `attendance`다. **없어도 된다**: 저장된 설정이 있으면 그 방식을 그대로 쓰고(DEC-074 전에 저장돼 키가 없는 설정은 `SLOTS`), 설정이 처음이면 `RANGE`다. 응답의 `setup.attendance.mode`에는 늘 있다.
   - `RANGE`: 부분 참석이 켜져 있고 일정표에 칸이 있으면 `ARRIVAL_SLOT`("수련회장에 언제 도착하나요?")·`DEPARTURE_SLOT`("수련회장에서 언제 출발하나요?")이 생긴다. 둘 다 `SINGLE_CHOICE`·`LIST`·필수이고 `ATTENDANCE = opt_partial`일 때만 보인다. 보기는 일정표의 칸을 칸 순서(일차, 아침 → 점심 → 저녁 → 집회)로 펼친 것이고, 보기 id는 칸 id(`opt_d<일차>_<칸>`, `MEALS` 보기 id와 같다), 문구는 `1월 22일 (금) 저녁부터` / `1월 22일 (금) 저녁까지` 꼴이다. 도착 칸부터 출발 칸까지(둘 다 포함) 모든 칸에 참석한 것으로 센다. `ARRIVAL_AT`·`DEPARTURE_AT`(날짜·시각)과 `LODGING`은 만들지 않는다. 숙박은 구간에서 계산한다. `MEALS`는 집회만 참석이 켜져 있고 집회 칸이 있을 때만 생기고, 제목 "참석할 집회를 선택해주세요", `ATTENDANCE = opt_worship`일 때만 보이며, 식사 보기는 숨긴(`hidden: true`) 채 집회 보기만 보인다. `PARTIAL_NOTE` 설명은 "중간에 나갔다가 다시 오거나 수련회장에서 자지 않는다면 적어 주세요."다.
   - `SLOTS`: 지금까지와 같다(`ARRIVAL_AT`·`DEPARTURE_AT`·`LODGING`·`MEALS`). `MEALS` 설명 기본 문구는 "참석하는 일정에 포함되는 식사와 프로그램을 모두 선택해 주세요. ※ 식사는 실제 식사 여부와 관계없이 참석 일정에 포함된 경우 신청 인원에 반영됩니다."다.
@@ -1546,8 +1553,8 @@ CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고
 ```
 
 - `participants`는 활성 참가자 전원이고 순서는 이름, 그다음 참가자 id다. 페이지는 없다. 전화·접근 키는 없다.
-- `cohort`·`middleGroup`·`cell`은 `SUBMITTED` 신청의 `COHORT`·`MIDDLE_GROUP`·`CELL` 답 `value.text`(앞뒤 공백 자름)다. `gender`는 `GENDER` 답의 보기 id와 지금 보기 문구다. 답이 없거나 질문이 없거나 꺼져 있으면 `null`이다.
-- `newcomer`는 `NEWCOMER` 답의 `value`(`true`·`false`)다. 답이 없거나(질문을 켜기 전에 신청함) 질문이 없거나 꺼져 있으면 `null`이고 화면은 "응답 없음"으로 묶는다. 돌봄 관련 정보라 편성판에만 있다. 참가자의 내 조(`GET /participant/group`, 조장의 조원 명단 포함)와 운영자 공개본 조회에는 없다.
+- `cohort`는 `SUBMITTED` 신청의 `COHORT` 답 `value.text`(앞뒤 공백 자름)다. `middleGroup`·`cell`은 `MIDDLE_GROUP`·`CELL` 답이 자유 입력이면 `value.text`(앞뒤 공백 자름), 목록 보기면 고른 보기의 지금 문구다(새가족이면 `"새가족 (등반X)"` 또는 운영자가 고친 문구). `gender`는 `GENDER` 답의 보기 id와 지금 보기 문구다. 답이 없거나 질문이 없거나 꺼져 있으면 `null`이다.
+- `newcomer`는 새가족 보기(`opt_newcomer`)를 가진 보이는 질문(중그룹이 가지면 중그룹, 아니면 셀)의 답으로 정한다: 그 보기를 골랐으면 `true`, 다른 보기면 `false`, 답이 없거나 그런 질문이 없으면 `null`이고 화면은 "응답 없음"으로 묶는다. 예전 `NEWCOMER` 예/아니오 답은 읽지 않는다. 돌봄 관련 정보라 편성판에만 있다. 참가자의 내 조(`GET /participant/group`, 조장의 조원 명단 포함)와 운영자 공개본 조회에는 없다.
 - `attendance`는 `ATTENDANCE` 답의 `opt_full`·`opt_partial`·`opt_worship`을 `FULL`·`PARTIAL`·`WORSHIP_ONLY`로 바꾼 값이다. 질문이 없거나 꺼져 있으면 `FULL`이다(DEC-070 §3). 질문이 켜진 뒤 들어온 신청이 아니라서 답이 없을 때도 `FULL`이다. `null`이 아니다.
 - `groupId`가 `null`이면 미배정이다. `publishedGroupId`·`publishedLeader`는 가장 최근 공개본의 값이고, 공개한 적이 없거나 그 공개본에 없으면 `null`·`false`다.
 - `withdrawn`은 배정 행이 남아 있지만 활성 참가자가 아닌 사람이다. `groupId`는 참고값이다. 조별 인원·미배정 수에 넣지 않는다.
