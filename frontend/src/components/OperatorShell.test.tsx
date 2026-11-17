@@ -3,6 +3,37 @@ import { MemoryRouter, Route, Routes } from "react-router";
 import { describe, expect, it } from "vitest";
 import { OperatorShell } from "./OperatorShell";
 
+function renderOrgAt(path: string) {
+  return render(
+    <MemoryRouter initialEntries={[path]}>
+      <Routes>
+        <Route
+          path="*"
+          element={
+            <OperatorShell title="조직" spaceName="Local space">
+              <p>본문</p>
+            </OperatorShell>
+          }
+        />
+      </Routes>
+    </MemoryRouter>,
+  );
+}
+
+const orgMenus = [
+  ["행사", "/events"],
+  ["알림", "/notifications"],
+  ["기록", "/history"],
+  ["준비 업무", "/tasks"],
+  ["안내", "/guides"],
+  ["일정", "/schedule"],
+  ["현장 운영", "/field"],
+  ["참가자", "/participants"],
+  ["운영 멤버", "/operators"],
+  ["연동", "/integrations"],
+  ["설정", "/settings"],
+] as const;
+
 function renderAt(path: string) {
   return render(
     <MemoryRouter initialEntries={[path]}>
@@ -46,5 +77,24 @@ describe("operator shell", () => {
     cleanup();
     renderAt("/events/e1/tasks/task-1");
     expect(screen.getByRole("link", { name: "준비 업무" })).toHaveAttribute("aria-current", "page");
+  });
+
+  it("links every organization menu to its own address", () => {
+    renderOrgAt("/events");
+    for (const [label, href] of orgMenus) {
+      expect(screen.getByRole("link", { name: label })).toHaveAttribute("href", href);
+    }
+  });
+
+  it("marks only the menu for the current address", () => {
+    for (const [label, href] of orgMenus) {
+      renderOrgAt(href);
+      const current = screen
+        .getAllByRole("link")
+        .filter((link) => link.getAttribute("aria-current") === "page")
+        .map((link) => link.textContent);
+      expect(current).toEqual([label]);
+      cleanup();
+    }
   });
 });
