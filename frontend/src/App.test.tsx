@@ -38,7 +38,7 @@ describe("public shell", () => {
         name: /함께하는 순간에,\s*더 집중할 수 있도록\./,
       }),
     ).toBeInTheDocument();
-    expect(screen.getByText("교회와 공동체를 위한 행사 운영, SCENE.")).toBeInTheDocument();
+    expect(screen.getByText("교회 공동체를 위한 행사 운영 플랫폼, SCENE.")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "시작하기" })).toBeNull();
     expect(screen.getByText(/계정이 없으신가요\?/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "계정 만들기" })).toHaveAttribute("type", "button");
