@@ -1,0 +1,135 @@
+/* Figma P18 · group · 내 조 (667:75530) and P18 · unpublished · 내 조 (667:75584), SCENE Color v2. */
+.participant-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+  width: 100%;
+  margin-top: 12px;
+  padding-top: 20px;
+  border-top: 1px solid var(--color-border-default);
+}
+
+.participant-group__heading {
+  margin: 0;
+  color: var(--color-text-primary);
+  font: var(--scene-heading-s);
+  letter-spacing: 0;
+}
+
+.participant-group__summary {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.participant-group__owner {
+  margin: 0;
+  color: var(--color-text-tertiary);
+  font: var(--scene-body-l);
+  letter-spacing: 0;
+}
+
+.participant-group__name {
+  margin: 0;
+  color: var(--color-text-primary);
+  font: var(--scene-display);
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+.participant-group__leaders {
+  margin: 0;
+  color: var(--color-text-tertiary);
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 27px;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+.participant-group__gap {
+  display: inline-block;
+  width: 0.6em;
+}
+
+.participant-group__roster {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.participant-group__roster-title {
+  margin: 0;
+  color: var(--color-text-primary);
+  font: var(--scene-body-l-strong);
+  letter-spacing: 0;
+}
+
+.participant-group__members {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--color-border-default);
+  border-radius: 8px;
+}
+
+.participant-group__member {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  color: var(--color-text-primary);
+  font: var(--scene-body-l);
+  letter-spacing: 0;
+}
+
+.participant-group__member + .participant-group__member {
+  border-top: 1px solid var(--color-border-default);
+}
+
+.participant-group__badge {
+  padding: 2px 8px;
+  color: var(--color-text-brand);
+  background: var(--color-bg-brand-subtle);
+  border-radius: 999px;
+  font: var(--scene-label-s);
+  letter-spacing: 0;
+}
+
+.participant-group__updated {
+  margin: 0;
+  color: var(--color-text-tertiary);
+  font: var(--scene-body-m);
+  letter-spacing: 0;
+}
+
+/* SCENE / Feedback (566:3916), info banner on a surface. */
+.participant-group__notice {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  padding: 16px;
+  background: var(--color-bg-brand-subtle);
+  border: 1px solid var(--color-border-default);
+  border-radius: 10px;
+}
+
+.participant-group__notice-title {
+  margin: 0;
+  color: var(--color-text-primary);
+  font: var(--scene-body-l-strong);
+  letter-spacing: 0;
+}
+
+.participant-group__notice-body {
+  margin: 0;
+  color: var(--color-text-tertiary);
+  font: var(--scene-body-s);
+  letter-spacing: 0;
+}

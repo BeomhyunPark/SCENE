@@ -998,7 +998,7 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
 
 ## 신청 읽기
 
-컨트롤러는 `event/application/OperatorApplicationController`다. 읽기는 신청서와 같다. `EVENT_READ` 또는 활성 공간 `OWNER`·`ADMIN`이다. 신청자 CSV만 `DATA_EXPORT`다(아래). `APPLICATION_READ`는 보지 않는다. `sort` 허용 필드는 없다. 순서는 신청 id다.
+컨트롤러는 `event/application/OperatorApplicationController`다. 읽기는 신청서와 같다. `EVENT_READ` 또는 활성 공간 `OWNER`·`ADMIN`이다. [신청 집계](#get-apiv1operatoreventseventidapplicationssummary)도 같다. 신청자 CSV만 `DATA_EXPORT`다(아래). `APPLICATION_READ`는 보지 않는다. `sort` 허용 필드는 없다. 순서는 신청 id다.
 
 `status` 쿼리는 `SUBMITTED`, `SUPERSEDED`, `WITHDRAWN`만 받는다. 다른 값은 `400`이고 필드는 `status`다. 아는 값이어도 목록을 거르지 않는다. 순서는 `submittedAt`, 그다음 신청 id다.
 
@@ -1058,6 +1058,101 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
 신청이 0건이면 머리글 한 줄만 있는 파일이다. 신청서가 없으면 `제출 시각` 열만 있다.
 
 파일은 요청 안에서 만들어 바로 보낸다. 그래서 권한은 내려받을 때마다 다시 본다. #12의 목적 선택, 재인증, 생성 작업과 만료 다운로드 링크는 없다. 내려받을 때마다 audit `APPLICATIONS_EXPORTED` 한 줄을 남긴다. 행사·실행자·시각은 그 행의 열이고, detail은 `{ "count" }`(행 수)뿐이다. 답·이름·전화는 audit·로그·오류 응답에 넣지 않는다. 권한이 없어 막힌 요청은 남기지 않는다.
+
+### `GET /api/v1/operator/events/{eventId}/applications/summary`
+
+신청 집계다. 운영자 화면 하나를 이 응답 하나로 그린다([#251](https://github.com/BeomhyunPark/SCENE/issues/251), [DEC-073](../../docs/product/PRODUCT_DECISIONS.md)). 서비스는 `ApplicationSummaryService`다.
+
+**권한과 기본 동작**
+- 권한은 위 신청 읽기와 같다. 유효한 `EVENT_READ`, 또는 활성 공간 `OWNER`·`ADMIN`이다.
+- 판정 순서는 행사 없음·멤버 아님(`404`·`403 NOT_A_MEMBER`) → 권한(`403 FORBIDDEN`)이다. 다른 공간의 행사는 `404 RESOURCE_NOT_FOUND`다.
+- 행사 상태로 막지 않는다(`ARCHIVED` 포함). audit는 남기지 않는다.
+- 세는 대상은 `SUBMITTED` 신청이다. 집계는 저장하지 않고 요청마다 센다.
+- **전화·접근 키는 없다.** 연락이 필요하면 `applicationId`로 [신청 원본](#get-apiv1operatoreventseventidapplicationsapplicationid)을 연다.
+
+`200`
+
+```json
+{
+  "eventStatus": "ACTIVE",
+  "formId": "…",
+  "fromSetup": true,
+  "total": 6,
+  "attendance": { "asked": true, "full": 3, "partial": 2, "worshipOnly": 1 },
+  "gender": {
+    "options": [
+      { "optionId": "opt_female", "label": "여성", "hidden": false, "count": 4 },
+      { "optionId": "opt_male", "label": "남성", "hidden": false, "count": 2 }
+    ],
+    "noAnswer": 0
+  },
+  "cohorts": { "items": [{ "cohort": "00", "count": 1 }, { "cohort": "94", "count": 2 }], "noAnswer": 0 },
+  "meals": {
+    "days": [
+      {
+        "day": 1, "date": "2027-01-22", "label": "1월 22일 (금)",
+        "slots": [
+          { "optionId": "opt_d1_dinner", "meal": "DINNER", "label": "저녁", "count": 4 },
+          { "optionId": "opt_d1_worship", "meal": "WORSHIP", "label": "집회", "count": 4 }
+        ]
+      }
+    ],
+    "unanswered": 0
+  },
+  "lodging": {
+    "nights": [
+      { "optionId": "opt_n1", "night": 1, "date": "2027-01-22", "label": "첫째 밤 (1월 22일 (금))", "count": 3 }
+    ],
+    "unanswered": 0
+  },
+  "transport": {
+    "in":  { "options": [{ "optionId": "opt_group", "label": "단체 이동 차량", "hidden": false, "count": 1 }], "noAnswer": 0 },
+    "out": { "options": [{ "optionId": "opt_car", "label": "자차", "hidden": false, "count": 2 }], "noAnswer": 0 }
+  },
+  "shuttle": {
+    "in":  { "options": [{ "optionId": "opt_d1", "label": "1월 22일 (금) 집회 전", "hidden": false, "count": 1 }], "noAnswer": 0 },
+    "out": { "options": [{ "optionId": "opt_d2", "label": "1월 23일 (토) 집회 후", "hidden": false, "count": 1 }], "noAnswer": 0 }
+  },
+  "carpool": {
+    "offerCount": 1,
+    "seatTotal": 3,
+    "offers": [
+      { "applicationId": "…", "name": "나래", "cohort": "95", "seats": 3, "area": "분당", "note": "판교 경유 가능" }
+    ]
+  },
+  "mobility": {
+    "in":  [{ "applicationId": "…", "name": "라온", "cohort": "00", "area": "수원" }],
+    "out": [{ "applicationId": "…", "name": "라온", "cohort": "00", "area": "수원역" }]
+  }
+}
+```
+
+**영역별 규칙.** 답은 자동 질문의 `presetKey`와 보기 id로 찾는다(DEC-070). **꺼진 질문(`hidden`)은 묻지 않은 것으로 본다.** 그 질문의 영역은 `null`이고, 그 질문에 저장된 답은 세지 않는다(DEC-072와 같다).
+
+- `fromSetup`: 신청서를 설정 카드로 만들었는지다. `false`이면 `total`·`cohorts`·`attendance`(모두 전체 참석)만 값이 있고, 나머지는 `null`이다. 신청서가 없으면 `formId: null`, `total: 0`이다.
+- `attendance`: `ATTENDANCE`가 없거나 꺼졌으면 `asked: false`이고 모두 `full`이다. 답이 없거나 모르는 보기를 골랐을 때도 `full`이다. 조 편성판의 `attendance`와 같은 규칙이다.
+- `gender`: `GENDER`의 보기 순서다. 모든 영역의 `options`는 꺼진 보기도 `hidden: true`로 포함한다. 화면은 `count`가 0인 꺼진 보기를 숨기고, 0이 아니면 "(꺼짐)"으로 보여 준다.
+- `cohorts`: SYSTEM `COHORT` 답의 앞뒤 공백을 자른 글자별 인원이다. 글자 오름차순이므로 `00`이 `94`보다 앞이다. 또래가 꺼졌으면 `null`이다.
+- `meals`: 일차와 칸은 저장된 설정(`setup.schedule`)의 순서다. 칸은 아침 → 점심 → 저녁 → 집회 순이고, 칸이 없는 날은 빠진다. `label`은 `MEALS` 보기의 지금 문구이고, 보기가 없으면 기본 문구를 쓴다. 칸이 하나도 없으면 `meals`는 `null`이다.
+  - 전체 참석자는 모든 칸에 센다.
+  - 부분·집회만 참석자는 고른 칸에만 센다.
+  - `MEALS` 답이 없는 부분·집회만 참석자(질문이 꺼졌거나 질문이 생기기 전에 낸 신청)는 칸에 넣지 않고 `unanswered`로 센다.
+- `lodging`: 밤은 `setup.generatedFor` 기간의 N박이고, 하루짜리 행사면 `null`이다. `date`는 그 밤의 날짜다.
+  - 전체 참석자는 모든 밤에 센다. 집회만 참석자는 어느 밤에도 세지 않는다.
+  - 부분 참석자는 고른 밤에만 센다. 선택 질문이라 답이 없으면 숙박하지 않는 것이다.
+  - `LODGING`이 보이지 않으면 부분 참석자를 `unanswered`로 센다.
+- `transport`: `TRANSPORT_IN`이 없거나 꺼졌으면 `null`이다.
+  - `in`은 가는 길 보기 순서다.
+  - `out`도 같은 순서다. **가는 길이 자차면 오는 길도 `opt_car`로 센다**(DEC-070 §3). 자차 행의 문구는 가는 길 질문의 것이고, 다른 행은 `TRANSPORT_OUT`의 것이다.
+  - `noAnswer`는 답이 없는 신청 수다. 오는 길에서는 가는 길 답이 없는 사람과, 자차가 아니면서 오는 길 답이 없는 사람을 센다.
+- `shuttle`: `in`·`out`은 각각 `SHUTTLE_IN`·`SHUTTLE_OUT` 회차별 인원이다. 질문이 없거나 꺼졌으면 그쪽만 `null`이고, 둘 다 `null`이면 `shuttle`이 `null`이다. 한 사람이 여러 회차를 고를 수 있어 합이 인원보다 클 수 있다. `noAnswer`는 집회 차량을 골랐는데 회차 답이 없는 사람이다.
+- `carpool`: `CARPOOL_OFFER`가 보일 때만 있다.
+  - `offers`는 동승을 "예"라고 답한 사람을 이름순(같으면 `applicationId`순)으로 나열한다.
+  - `seats`·`area`·`note`는 답이 없거나 질문이 꺼졌으면 `null`이다. `seatTotal`은 `seats`의 합이다.
+- `mobility`: `in`·`out`은 `MOBILITY_IN`·`MOBILITY_OUT`에 동네를 적은 사람을 이름순으로 나열한다. 한쪽 질문만 꺼졌으면 그쪽만 `null`이고, 둘 다 없으면 `mobility`가 `null`이다.
+- 카풀과 이동 지원은 나란히 보여 주기만 하고 서버가 짝을 맞추지 않는다.
+- `name`·`cohort`는 SYSTEM `NAME`·`COHORT` 답이다. 또래가 꺼졌으면 `cohort`는 `null`이다.
+- 숨김이거나 조건에 맞지 않아 보이지 않은 질문의 답은 저장되지 않으므로(DEC-068) 집계에도 없다.
 
 ## 공개 신청서
 

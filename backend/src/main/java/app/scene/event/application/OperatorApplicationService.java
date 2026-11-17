@@ -103,9 +103,10 @@ public class OperatorApplicationService {
 
   /**
    * Effective {@code EVENT_READ}, or an active space owner or admin. This does not insert an
-   * operator row and does not check {@code APPLICATION_READ}.
+   * operator row and does not check {@code APPLICATION_READ}. The summary (#251) uses the same
+   * check.
    */
-  private boolean mayRead(EventAccessGate.Opened opened, UUID actorId) {
+  boolean mayRead(EventAccessGate.Opened opened, UUID actorId) {
     if (allows(opened, actorId, Permission.EVENT_READ)) {
       return true;
     }

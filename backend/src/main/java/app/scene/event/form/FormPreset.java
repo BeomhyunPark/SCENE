@@ -193,13 +193,7 @@ public final class FormPreset {
         ArrayNode nights = NODES.arrayNode();
         for (int night = 1; night < days; night++) {
           LocalDate date = start.plusDays(night - 1L);
-          nights.add(
-              option(
-                  "opt_n" + night,
-                  ORDINALS[night - 1] + " 밤 (" + dayLabel(date) + ")",
-                  null,
-                  false,
-                  null));
+          nights.add(option("opt_n" + night, nightLabel(night, date), null, false, null));
         }
         out.add(
             new Question(
@@ -425,8 +419,13 @@ public final class FormPreset {
     return out;
   }
 
+  /** Example: {@code 첫째 밤 (1월 22일 (금))}. {@code date} is the evening of that night. */
+  public static String nightLabel(int night, LocalDate date) {
+    return ORDINALS[night - 1] + " 밤 (" + dayLabel(date) + ")";
+  }
+
   /** Example: {@code 1월 22일 (금)}. */
-  static String dayLabel(LocalDate date) {
+  public static String dayLabel(LocalDate date) {
     return date.getMonthValue()
         + "월 "
         + date.getDayOfMonth()
