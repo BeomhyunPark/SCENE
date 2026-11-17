@@ -8,7 +8,11 @@ import dateIcon from "../assets/event-home/date.svg";
 import { ApplicantsExport } from "./ApplicantsExport";
 import { Button } from "./Button";
 import { OperatorShell } from "./OperatorShell";
-import { getApplicationTable } from "../api/applications";
+import { getApplicationTable, type TableRow } from "../api/applications";
+import type { LifecycleStatus } from "../api/events";
+import { getMyPermissions } from "../api/operators";
+import { getMe } from "../api/session";
+import { OperationDrawer } from "./OperationDrawer";
 import { ApplicantTable } from "./applicantTable/ApplicantTable";
 import type { EventDetail } from "../api/events";
 import { listForms } from "../api/forms";
@@ -84,12 +88,27 @@ function ApplyAddress({ eventId }: { eventId: string }) {
   );
 }
 
-function Applicants({ eventId, empty }: { eventId: string; empty: ReactNode }) {
+function Applicants({
+  eventId,
+  eventStatus,
+  empty,
+}: {
+  eventId: string;
+  eventStatus: LifecycleStatus;
+  empty: ReactNode;
+}) {
   const table = useQuery({
     queryKey: queryKeys.applicationTable(eventId),
     queryFn: ({ signal }) => getApplicationTable(eventId, signal),
     enabled: eventId.length > 0,
   });
+  const me = useQuery({ queryKey: queryKeys.me, queryFn: getMe });
+  const permissions = useQuery({
+    queryKey: queryKeys.permissions(eventId, me.data?.userId ?? ""),
+    queryFn: () => getMyPermissions(eventId, me.data!.userId),
+    enabled: Boolean(me.data?.userId),
+  });
+  const [editing, setEditing] = useState<string | null>(null);
 
   if (table.isPending) {
     return (
@@ -117,23 +136,45 @@ function Applicants({ eventId, empty }: { eventId: string; empty: ReactNode }) {
       </>
     );
   }
+  // 수정 (#337) shows for anyone who can change something in the drawer: the memo or the group.
+  const effective = permissions.data?.effective ?? [];
+  const mayEdit =
+    effective.includes("PARTICIPANT_WRITE") || (table.data.groupVisible && effective.includes("GROUP_WRITE"));
+  const editRow = editing ? table.data.rows.find((row) => row.applicationId === editing) : undefined;
   return (
-    <ApplicantTable
-      eventId={eventId}
-      table={table.data}
-      actions={
-        <>
-          {/* 신청 집계 (#251): a secondary toolbar button, as 정렬·필터 on 1325:5059. */}
-          <Link
-            className="scene-button scene-button--secondary scene-button--size-40 event-home__summary-link"
-            to={`/events/${eventId}/participants/summary`}
-          >
-            신청 집계
-          </Link>
-          <ApplicantsExport eventId={eventId} total={total} />
-        </>
-      }
-    />
+    <>
+      <ApplicantTable
+        eventId={eventId}
+        table={table.data}
+        onEdit={mayEdit ? (row: TableRow) => setEditing(row.applicationId) : undefined}
+        editNote={
+          permissions.isSuccess && !mayEdit
+            ? "운영 메모·조 배정을 고칠 권한이 없어 수정 버튼이 없어요. 행사 소유자에게 요청해 주세요."
+            : undefined
+        }
+        actions={
+          <>
+            {/* 신청 집계 (#251): a secondary toolbar button, as 정렬·필터 on 1325:5059. */}
+            <Link
+              className="scene-button scene-button--secondary scene-button--size-40 event-home__summary-link"
+              to={`/events/${eventId}/participants/summary`}
+            >
+              신청 집계
+            </Link>
+            <ApplicantsExport eventId={eventId} total={total} />
+          </>
+        }
+      />
+      {editRow ? (
+        <OperationDrawer
+          eventId={eventId}
+          eventStatus={eventStatus}
+          table={table.data}
+          row={editRow}
+          onClose={() => setEditing(null)}
+        />
+      ) : null}
+    </>
   );
 }
 
@@ -175,6 +216,7 @@ function ParticipationBody({ event, spaceName }: { event: EventDetail; spaceName
         </div>
         <Applicants
           eventId={eventId}
+          eventStatus={event.lifecycleStatus}
           empty={
             <section className="event-home__welcome">
               <span className="event-home__mark" aria-hidden="true">

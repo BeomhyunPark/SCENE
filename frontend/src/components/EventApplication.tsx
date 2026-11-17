@@ -1,8 +1,11 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router";
 import arrowLeft from "../assets/event-create/arrow-left.svg";
-import { getApplication } from "../api/applications";
+import { getApplication, getApplicationTable, type ApplicationOperation } from "../api/applications";
+import { getMyPermissions } from "../api/operators";
+import { getMe } from "../api/session";
+import { OperationDrawer } from "./OperationDrawer";
 import { isApiError } from "../api/errors";
 import type { EventDetail } from "../api/events";
 import { reloadQuery } from "../api/queryClient";
@@ -62,6 +65,9 @@ function Detail({ event, spaceName, applicationId }: { event: EventDetail; space
         {application.isPending ? <p>불러오는 중이에요.</p> : null}
         {application.isError ? <Failure error={application.error} onRetry={() => reloadQuery(application)} /> : null}
         {application.data ? (
+          <OperationSection event={event} applicationId={applicationId} operation={application.data.operation} />
+        ) : null}
+        {application.data ? (
           <section className="event-home__answers" aria-labelledby="answers-title">
             <div className="event-home__applicants-head">
               <h2 id="answers-title">신청 내용</h2>
@@ -80,6 +86,67 @@ function Detail({ event, spaceName, applicationId }: { event: EventDetail; space
         ) : null}
       </div>
     </OperatorShell>
+  );
+}
+
+/**
+ * 운영 메모 on the detail (#337, DEC-075): everyone who reads the detail sees it; 수정 opens the same
+ * drawer as the table, fed by the table row (it carries the group and participant id).
+ */
+function OperationSection({
+  event,
+  applicationId,
+  operation,
+}: {
+  event: EventDetail;
+  applicationId: string;
+  operation: ApplicationOperation;
+}) {
+  const eventId = event.eventId;
+  const [open, setOpen] = useState(false);
+  const table = useQuery({
+    queryKey: queryKeys.applicationTable(eventId),
+    queryFn: ({ signal }) => getApplicationTable(eventId, signal),
+  });
+  const me = useQuery({ queryKey: queryKeys.me, queryFn: getMe });
+  const permissions = useQuery({
+    queryKey: queryKeys.permissions(eventId, me.data?.userId ?? ""),
+    queryFn: () => getMyPermissions(eventId, me.data!.userId),
+    enabled: Boolean(me.data?.userId),
+  });
+  const effective = permissions.data?.effective ?? [];
+  const row = table.data?.rows.find((item) => item.applicationId === applicationId);
+  const mayEdit =
+    effective.includes("PARTICIPANT_WRITE") || Boolean(table.data?.groupVisible && effective.includes("GROUP_WRITE"));
+  // The table row is fresher after a save from the drawer; the detail refetches behind it.
+  const shown = row?.operation ?? operation;
+  return (
+    <section className="event-home__answers" aria-labelledby="operation-title">
+      <div className="event-home__applicants-head">
+        <h2 id="operation-title">운영 메모</h2>
+        {shown.version > 0 && shown.updatedAt ? (
+          <span className="event-home__applicant-time">
+            {formatSubmittedAt(shown.updatedAt)}
+            {shown.updatedByDisplayName ? ` · ${shown.updatedByDisplayName}` : ""}
+          </span>
+        ) : null}
+        {mayEdit && row ? (
+          <Button type="button" variant="secondary" size={32} onClick={() => setOpen(true)}>
+            수정
+          </Button>
+        ) : null}
+      </div>
+      <p className="event-home__memo">{shown.memo || "아직 메모가 없어요."}</p>
+      {open && row && table.data ? (
+        <OperationDrawer
+          eventId={eventId}
+          eventStatus={event.lifecycleStatus}
+          table={table.data}
+          row={row}
+          onClose={() => setOpen(false)}
+        />
+      ) : null}
+    </section>
   );
 }
 
