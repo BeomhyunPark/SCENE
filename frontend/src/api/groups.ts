@@ -6,7 +6,8 @@ import type { LifecycleStatus } from "./events";
  * Operator group board (#301, DEC-072, backend/docs/api.md "조 편성"). The board (작업본) is read with
  * GROUP_WRITE or an active space OWNER·ADMIN; every write needs GROUP_WRITE and a DRAFT or ACTIVE event.
  * There is no Idempotency-Key: an assignment already at its destination counts as done, so a resend
- * cannot apply twice. When a result is unknown, read the board again (DEC-047). Publishing is #302.
+ * cannot apply twice. When a result is unknown, read the board again (DEC-047). Publishing (#302) snapshots
+ * the working copy for participants; see `publishGroups`.
  */
 export type Attendance = "FULL" | "PARTIAL" | "WORSHIP_ONLY";
 
@@ -50,6 +51,16 @@ export type GroupBoard = {
   participants: BoardParticipant[];
   withdrawn: WithdrawnParticipant[];
   publication: Publication;
+};
+
+export type PublishResult = {
+  result: "PUBLISHED" | "ALREADY_PUBLISHED";
+  publicationId: string;
+  publishedAt: string;
+  boardVersion: number;
+  assignedCount: number;
+  unassignedCount: number;
+  changedParticipantCount: number;
 };
 
 export type AssignmentChange = { participantId: string; fromGroupId: string | null; toGroupId: string | null };
@@ -135,6 +146,51 @@ export function setGroupLeaders(
     const { group, boardVersion } = parseGroupResult(value);
     return { group, leaderIds: value.leaderIds as string[], boardVersion };
   });
+}
+
+/**
+ * Publishes the working copy (#300). Server order after event state: 409 CONCURRENT_MODIFICATION
+ * (+boardVersion) → 200 ALREADY_PUBLISHED → 409 CONFIRMATION_REQUIRED (+unassignedCount) → PUBLISHED.
+ * After CONFIRMATION_REQUIRED, send the same `expectedBoardVersion` again with `confirmUnassigned: true`.
+ */
+export function publishGroups(
+  eventId: string,
+  expectedBoardVersion: number,
+  confirmUnassigned: boolean,
+): Promise<PublishResult> {
+  return apiRequest<unknown>(`${base(eventId)}/groups/publish`, {
+    method: "POST",
+    body: { expectedBoardVersion, confirmUnassigned },
+  }).then((value) => {
+    if (
+      !isRecord(value) ||
+      (value.result !== "PUBLISHED" && value.result !== "ALREADY_PUBLISHED") ||
+      typeof value.publicationId !== "string" ||
+      typeof value.publishedAt !== "string" ||
+      !isCount(value.boardVersion) ||
+      !isCount(value.assignedCount) ||
+      !isCount(value.unassignedCount) ||
+      !isCount(value.changedParticipantCount)
+    ) {
+      unexpected();
+    }
+    return {
+      result: value.result,
+      publicationId: value.publicationId,
+      publishedAt: value.publishedAt,
+      boardVersion: value.boardVersion,
+      assignedCount: value.assignedCount,
+      unassignedCount: value.unassignedCount,
+      changedParticipantCount: value.changedParticipantCount,
+    };
+  });
+}
+
+/** A count extension of a problem (`unassignedCount` of CONFIRMATION_REQUIRED, `boardVersion` of a 409). */
+export function problemCount(error: unknown, key: string): number | null {
+  if (!(error instanceof ApiError)) return null;
+  const raw = error.extensions[key];
+  return isCount(raw) ? raw : null;
 }
 
 /** `conflicts[]` of a 409 CONCURRENT_MODIFICATION from group-assignments; empty for anything else. */

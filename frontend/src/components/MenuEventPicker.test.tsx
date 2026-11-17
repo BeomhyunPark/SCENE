@@ -44,7 +44,7 @@ async function signInAndOpen(menu: string) {
 describe("organization menus that live inside an event", () => {
   it("opens the only open event directly", async () => {
     seed("00000000-0000-4000-8000-0000000000e1", "지난 행사", "ENDED");
-    await signInAndOpen("참가자");
+    await signInAndOpen("참가 현황");
     expect(await screen.findByTestId("where")).toHaveTextContent(`/events/${localEvent.eventId}/participants`);
   });
 

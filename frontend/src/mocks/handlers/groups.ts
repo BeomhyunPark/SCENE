@@ -4,6 +4,7 @@ import {
   assign,
   createGroup,
   deleteGroup,
+  publish,
   readBoard,
   renameGroup,
   reorderGroups,
@@ -13,7 +14,7 @@ import {
 import { problem } from "../problem";
 import { currentOperator } from "./session";
 
-/** Shaped like GroupController (#299). Publish and published reads (#300) are not mocked yet. */
+/** Shaped like GroupController (#299) and the publish of #300. The operator published read is not mocked yet. */
 const base = "/api/v1/operator/events/:eventId";
 
 export const groupHandlers = [
@@ -28,7 +29,13 @@ export const groupHandlers = [
     if (!operator) return problem(401, "AUTHENTICATION_REQUIRED");
     return reply(createGroup(String(params.eventId), operator.userId, await readJson(request)), 201);
   }),
-  // Registered before `groups/:groupId` so "order" is not read as a group id.
+  // Registered before `groups/:groupId` so "order" and "publish" are not read as a group id.
+  http.post(`${base}/groups/publish`, async ({ params, request, cookies }) => {
+    if (!csrfMatches(request, cookies)) return problem(403, "FORBIDDEN");
+    const operator = currentOperator();
+    if (!operator) return problem(401, "AUTHENTICATION_REQUIRED");
+    return reply(publish(String(params.eventId), operator.userId, await readJson(request)));
+  }),
   http.put(`${base}/groups/order`, async ({ params, request, cookies }) => {
     if (!csrfMatches(request, cookies)) return problem(403, "FORBIDDEN");
     const operator = currentOperator();
@@ -70,6 +77,7 @@ function reply(result: object, status = 200): Response {
       conflicts: result.conflicts,
       reason: result.reason,
       participantIds: result.participantIds,
+      unassignedCount: result.unassignedCount,
       detail: "hidden",
     });
   }
