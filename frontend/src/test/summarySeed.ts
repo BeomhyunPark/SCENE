@@ -21,7 +21,7 @@ export const RETREAT_SETUP: FormSetup = {
   newcomer: false,
   attendance: { partial: true, worshipOnly: true, mode: "SLOTS" },
   schedule: [slots(false, false, true, true), slots(true, true, true, true), slots(true, true, false, false)],
-  transport: { groupBus: true, worshipShuttle: true, car: true, publicTransit: false, support: true },
+  transport: { groupBus: true, worshipShuttle: true, car: true, publicTransit: false, support: true, partialByTime: false },
 };
 
 type Answer = string | { optionId: string } | { optionIds: string[] } | { value: boolean } | { number: number };

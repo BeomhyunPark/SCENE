@@ -1,3 +1,4 @@
+import { conditionHolds, type FormField } from "../api/forms";
 import { reversedRange } from "./attendedSlots";
 import { eventFormDetail, formFields, publicForm } from "./formStore";
 import { eventById } from "./operatorStore";
@@ -35,7 +36,8 @@ export function submitPublicApplication(
   if (!event) return { status: 404, code: "RESOURCE_NOT_FOUND" };
   const form = publicForm(eventId, formId);
   if (!("fields" in form)) return { status: form.status, code: form.code };
-  const answers = readAnswers(body);
+  const read = readAnswers(body);
+  const answers = read && keepShown(form.fields, read);
   if (!answers) return { status: 400, code: "APPLICATION_VALIDATION_FAILED" };
   const name = answerFor(form.fields, answers, "NAME");
   const phone = answerFor(form.fields, answers, "PHONE");
@@ -60,6 +62,35 @@ export function submitPublicApplication(
   };
   issued.push(row);
   return { applicationId: row.applicationId, participantId: row.participantId, accessKey: row.accessKey };
+}
+
+/**
+ * Like the server's AnswerEvaluator: walks the questions in position order and keeps only answers
+ * to shown questions, without the picks of options that are hidden by their condition.
+ */
+function keepShown(fields: FormField[], answers: StoredAnswer[]): StoredAnswer[] {
+  const given = new Map(answers.map((answer) => [answer.fieldId, answer.value]));
+  const kept = new Map<string, Record<string, unknown>>();
+  const out: StoredAnswer[] = [];
+  for (const field of [...fields].sort((a, b) => a.position - b.position)) {
+    const value = given.get(field.fieldId);
+    if (!value || field.hidden || !conditionHolds(field.showWhen, (id) => kept.get(id))) continue;
+    const shown = new Set(
+      (field.config.options ?? [])
+        .filter((option) => !option.hidden && conditionHolds(option.showWhen, (id) => kept.get(id)))
+        .map((option) => option.optionId),
+    );
+    let next: Record<string, unknown> | null = value;
+    if (field.config.options && typeof value.optionId === "string" && !shown.has(value.optionId)) next = null;
+    if (field.config.options && Array.isArray(value.optionIds)) {
+      const ids = value.optionIds.filter((id) => shown.has(String(id)));
+      next = ids.length > 0 || value.other ? { ...value, optionIds: ids } : null;
+    }
+    if (!next) continue;
+    kept.set(field.fieldId, next);
+    out.push({ fieldId: field.fieldId, value: next });
+  }
+  return out;
 }
 
 export function openParticipantSession(eventId: string, body: unknown): ParticipantFailure | null {

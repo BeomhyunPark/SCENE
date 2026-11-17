@@ -1,4 +1,4 @@
-import type { AnswerType, FieldConfig, FieldOption, FormSetup, ShowWhen } from "../api/forms";
+import type { AnswerType, Condition, FieldConfig, FieldOption, FormSetup, ShowWhen } from "../api/forms";
 
 /**
  * Mock copy of the server's generated questions (DEC-070, backend `FormPreset`). It follows the
@@ -204,6 +204,28 @@ export function generatePreset(
     const shuttle = transport.worshipShuttle && attendance && worshipDays.length > 0;
     const forBus = attendance ? when("ATTENDANCE", "opt_full", "opt_partial") : null;
     const forShuttle = attendance ? when("ATTENDANCE", "opt_partial", "opt_worship") : null;
+    let busIn = forBus;
+    let busOut = forBus;
+    let shuttleIn = forShuttle;
+    let shuttleOut = forShuttle;
+    if (transport.partialByTime && attendance && setup.attendance.partial && slots.length > 0) {
+      // #324: a partial attendee rides a church vehicle only when they come or leave with it.
+      const first = slots[0][0];
+      const last = slots[slots.length - 1][0];
+      const anyOf = (...clauses: ShowWhen[]): ShowWhen => ({ anyOf: clauses as Condition[] });
+      if (range) {
+        const worship = slots.map(([id]) => id).filter((id) => id.endsWith("_worship"));
+        busIn = anyOf(when("ATTENDANCE", "opt_full"), when("ARRIVAL_SLOT", first));
+        busOut = anyOf(when("ATTENDANCE", "opt_full"), when("DEPARTURE_SLOT", last));
+        if (worship.length > 0) {
+          shuttleIn = anyOf(when("ATTENDANCE", "opt_worship"), when("ARRIVAL_SLOT", ...worship));
+          shuttleOut = anyOf(when("ATTENDANCE", "opt_worship"), when("DEPARTURE_SLOT", ...worship));
+        }
+      } else {
+        busIn = anyOf(when("ATTENDANCE", "opt_full"), when("MEALS", first));
+        busOut = anyOf(when("ATTENDANCE", "opt_full"), when("MEALS", last));
+      }
+    }
     const rounds = (suffix: string) =>
       worshipDays.map((day) => option(`opt_d${day}`, `${dayLabel(start, day - 1)} ${suffix}`));
     add(
@@ -214,9 +236,10 @@ export function generatePreset(
       true,
       single(
         [
-          option("opt_group", "단체 이동 차량", { hidden: !transport.groupBus, showWhen: forBus }),
-          option("opt_shuttle", "집회 차량", { hidden: !shuttle, showWhen: forShuttle }),
-          option("opt_car", "자차", { hidden: !transport.car }),
+          option("opt_group", "단체 이동 차량", { hidden: !transport.groupBus, showWhen: busIn }),
+          option("opt_shuttle", "집회 차량", { hidden: !shuttle, showWhen: shuttleIn }),
+          option("opt_car", "자차 (직접 운전)", { hidden: !transport.car }),
+          option("opt_ride", "자차 합승 (다른 사람 차를 타요)", { hidden: !transport.car }),
           option("opt_public", "대중교통", { hidden: !transport.publicTransit }),
           option("opt_support", "이동 지원 요청", { hidden: !transport.support }),
         ],
@@ -254,8 +277,8 @@ export function generatePreset(
         true,
         single(
           [
-            option("opt_group", "단체 이동 차량", { hidden: !transport.groupBus, showWhen: forBus }),
-            option("opt_shuttle", "집회 차량", { hidden: !shuttle, showWhen: forShuttle }),
+            option("opt_group", "단체 이동 차량", { hidden: !transport.groupBus, showWhen: busOut }),
+            option("opt_shuttle", "집회 차량", { hidden: !shuttle, showWhen: shuttleOut }),
             option("opt_public", "대중교통", { hidden: !transport.publicTransit }),
             option("opt_support", "이동 지원 요청", { hidden: !transport.support }),
           ],

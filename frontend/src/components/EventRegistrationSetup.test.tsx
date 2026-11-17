@@ -274,7 +274,7 @@ describe("event registration setup", () => {
     expect(screen.getByRole("rowheader", { name: "3일차 · 1월 24일 (일)" })).toBeInTheDocument();
     expect(screen.getByRole("checkbox", { name: "이름" })).toBeDisabled();
     fireEvent.click(screen.getByRole("checkbox", { name: /집회만 받기/ }));
-    fireEvent.click(screen.getByRole("checkbox", { name: /집회 차량/ }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /^집회 차량/ }));
     // A new card asks partial attendees for arrival and departure only; this test asks slot by slot.
     expect(screen.getByRole("radio", { name: /도착~출발만 받기/ })).toBeChecked();
     fireEvent.click(screen.getByRole("radio", { name: /칸마다 고르기/ }));
@@ -304,7 +304,7 @@ describe("event registration setup", () => {
     expect(preview.getByRole("radio", { name: "집회 차량" })).toBeInTheDocument();
     fireEvent.click(preview.getByRole("radio", { name: "대중교통" }));
     expect(preview.getByText(/어떻게 돌아가세요/)).toBeInTheDocument();
-    fireEvent.click(preview.getByRole("radio", { name: "자차" }));
+    fireEvent.click(preview.getByRole("radio", { name: "자차 (직접 운전)" }));
     expect(preview.queryByText(/어떻게 돌아가세요/)).not.toBeInTheDocument();
     expect(preview.getByText(/동승자를 태울 수 있어요/)).toBeInTheDocument();
     fireEvent.click(preview.getByRole("button", { name: "처음부터" }));
@@ -360,8 +360,9 @@ describe("event registration setup", () => {
     fireEvent.click(preview.getByRole("radio", { name: "부분 참석" }));
     expect(preview.getAllByText("1월 23일 (토)").length).toBeGreaterThan(0);
     fireEvent.click(preview.getByRole("radio", { name: "1월 23일 (토) 점심부터" }));
-    fireEvent.click(preview.getByRole("radio", { name: "1월 22일 (금) 집회까지" }));
-    expect(preview.getByText(/출발은 도착보다 앞일 수 없어요/)).toBeInTheDocument();
+    // 출발 lists only the slots from the arrival on (#328), so a reversed range cannot be picked here.
+    expect(preview.queryByRole("radio", { name: "1월 22일 (금) 집회까지" })).not.toBeInTheDocument();
+    expect(preview.getByText("도착보다 앞선 칸은 빼고 보여 드려요.")).toBeInTheDocument();
     expect(preview.queryByText("이 일정에 포함돼요")).not.toBeInTheDocument();
     fireEvent.click(preview.getByRole("radio", { name: "1월 24일 (일) 아침까지" }));
     expect(preview.queryByText(/출발은 도착보다 앞일 수 없어요/)).not.toBeInTheDocument();
@@ -377,6 +378,59 @@ describe("event registration setup", () => {
     fireEvent.click(screen.getByRole("radio", { name: /칸마다 고르기/ }));
     fireEvent.click(screen.getByRole("button", { name: "설정 저장" }));
     expect(await screen.findByText(/부분 참석을 받는 방식을 바꿀 수 없어요/)).toBeInTheDocument();
+  });
+
+  it("shows vehicles by arrival and departure from a new card, previews it, and locks it (#328)", async () => {
+    await login({ userId: localUsers[0].userId });
+    const retreat = await createEvent(localSpace.spaceId, {
+      name: "차량 수련회",
+      startDate: "2027-01-22",
+      endDate: "2027-01-24",
+    });
+    const created = await createForm(retreat.eventId);
+    renderSetup(retreat.eventId);
+    const timing = await screen.findByRole("checkbox", { name: /도착·출발 시점에 맞는 차량만 보여 주기/ }, { timeout: 4000 });
+    expect(timing).toBeChecked();
+    const sample = within(screen.getByLabelText("부분 참석자에게 보이는 가는 길 보기"));
+    expect(sample.getByText("1월 22일 (금) 저녁부터 오면")).toBeInTheDocument();
+    expect(sample.getByText("1월 23일 (토) 아침부터 오면")).toBeInTheDocument();
+    expect(sample.getAllByText("단체 이동 차량")).toHaveLength(1);
+
+    // Without partial attendance the switch means nothing.
+    fireEvent.click(screen.getByRole("checkbox", { name: /부분 참석 받기/ }));
+    expect(timing).toBeDisabled();
+    expect(screen.getByText("부분 참석을 받을 때만 쓸 수 있어요.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("checkbox", { name: /부분 참석 받기/ }));
+    expect(timing).toBeEnabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "질문 만들기" }));
+    await (await questionList()).findByText("수련회장에 언제 도착하나요?");
+    const sent = operatorRequests.filter((request) => request.method === "PUT" && request.url.endsWith("/setup")).at(-1);
+    expect(sent?.body).toMatchObject({ transport: { partialByTime: true } });
+
+    // The preview follows the arrival slot and says why the bus is gone.
+    const preview = within(screen.getByRole("region", { name: "참가자 화면 미리보기" }));
+    fireEvent.click(preview.getByRole("radio", { name: "부분 참석" }));
+    fireEvent.click(preview.getByRole("radio", { name: "1월 22일 (금) 저녁부터" }));
+    expect(preview.getByRole("radio", { name: "단체 이동 차량" })).toBeInTheDocument();
+    fireEvent.click(preview.getByRole("radio", { name: "1월 23일 (토) 점심부터" }));
+    expect(preview.queryByRole("radio", { name: "단체 이동 차량" })).not.toBeInTheDocument();
+    expect(preview.getByText(/첫 일정부터 오는 분만 단체 이동 차량을 탈 수 있어요/)).toBeInTheDocument();
+    expect(preview.getByRole("radio", { name: "자차 합승 (다른 사람 차를 타요)" })).toBeInTheDocument();
+
+    markSubmitted(retreat.eventId, created.formId);
+    cleanup();
+    renderSetup(retreat.eventId);
+    expect(
+      await screen.findByRole("checkbox", { name: /도착·출발 시점에 맞는 차량만 보여 주기/ }, { timeout: 4000 }),
+    ).toBeDisabled();
+    expect(screen.getByText(/켜 둔 동안에는 부분 참석 받기와 첫·마지막·집회 칸도 바꿀 수 없어요/)).toBeInTheDocument();
+    server.use(
+      http.put("/api/v1/operator/events/:eventId/forms/:formId/setup", () => problem(409, "FIELD_LOCKED", { detail: "hidden" })),
+    );
+    fireEvent.click(screen.getByRole("checkbox", { name: "1일차 저녁" }));
+    fireEvent.click(screen.getByRole("button", { name: "설정 저장" }));
+    expect(await screen.findByText(/부분 참석 받기와 첫·마지막·집회 칸은 바꿀 수 없어요/)).toBeInTheDocument();
   });
 
   it("keeps the attendance mode once applications are in, and explains a refused change", async () => {

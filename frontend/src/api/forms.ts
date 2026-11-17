@@ -16,7 +16,33 @@ export type AnswerType =
   | "YES_NO";
 
 /** `optionIds` for a choice target, `equals` for a yes/no target. */
-export type ShowWhen = { fieldId: string; optionIds: string[] } | { fieldId: string; equals: boolean };
+export type Condition = { fieldId: string; optionIds: string[] } | { fieldId: string; equals: boolean };
+
+/**
+ * One condition, or `anyOf` 2–5 of them (true when any is true, no nesting). The server makes
+ * `anyOf` only on generated transport options when `partialByTime` is on (#324). The question
+ * editor shows it read-only.
+ */
+export type ShowWhen = Condition | { anyOf: Condition[] };
+
+export function conditionClauses(when: ShowWhen): Condition[] {
+  return "anyOf" in when ? when.anyOf : [when];
+}
+
+/** True when the condition is absent or holds against the stored answer `answerOf` returns. */
+export function conditionHolds(
+  when: ShowWhen | null,
+  answerOf: (fieldId: string) => Record<string, unknown> | null | undefined,
+): boolean {
+  if (!when) return true;
+  return conditionClauses(when).some((clause) => {
+    const answer = answerOf(clause.fieldId);
+    if (!answer) return false;
+    if ("equals" in clause) return answer.value === clause.equals;
+    const ids = [answer.optionId, ...(Array.isArray(answer.optionIds) ? answer.optionIds : [])];
+    return ids.some((id) => typeof id === "string" && clause.optionIds.includes(id));
+  });
+}
 
 export type FieldOption = {
   optionId: string;
@@ -89,6 +115,12 @@ export type FormSetup = {
     car: boolean;
     publicTransit: boolean;
     support: boolean;
+    /**
+     * Partial attendees see the church vehicles only when they come or leave with them (#324).
+     * Has no effect while partial attendance is off. Always in a response; a setup saved before
+     * the key reads as false.
+     */
+    partialByTime: boolean;
   };
   /** The event period the questions were generated for. Set by the server. */
   generatedFor?: { startDate: string; endDate: string };

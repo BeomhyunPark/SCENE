@@ -109,6 +109,11 @@ describe("신청 집계 screen", () => {
     const transport = await card("차량");
     expect(transport.getByRole("heading", { name: "집회 차량 회차" })).toBeInTheDocument();
     expect(transport.getAllByText("자차")).toHaveLength(2);
+    expect(transport.getAllByText("직접 운전 1 · 합승 0")).toHaveLength(2);
+    // Church vehicle seats come first, large, both ways.
+    const vehicles = within(transport.getByRole("list", { name: "교회 차량 탑승 인원" }));
+    expect(vehicles.getByText("단체 이동 차량").parentElement).toHaveTextContent("가는 길 1명오는 길 1명");
+    expect(vehicles.getByText("집회 차량").parentElement).toHaveTextContent("가는 길 1명오는 길 1명");
 
     const rides = await card("카풀·이동 지원");
     expect(rides.getByText(/운전자/)).toHaveTextContent("운전자 1명 · 좌석 3석");

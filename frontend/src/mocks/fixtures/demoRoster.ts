@@ -1,4 +1,4 @@
-import type { FormField } from "../../api/forms";
+import { conditionHolds, type FormField } from "../../api/forms";
 import { addField, applySetup, createForm, formFields, setAccepting } from "../formStore";
 import { eventById, setLifecycle } from "../operatorStore";
 import { seedApplication } from "../participantStore";
@@ -56,7 +56,7 @@ export function seedDemoRoster(count = 200, eventId: string = localEvent.eventId
     for (const field of fields) {
       if (field.hidden && index % 7 !== 0) continue;
       if (!visible(field, given)) continue;
-      const value = answerFor(field, index, random);
+      const value = answerFor(field, index, random, given);
       if (!value) continue;
       given[field.fieldId] = value;
       answers.push({ fieldId: field.fieldId, value });
@@ -78,14 +78,21 @@ const GIVEN = ["하늘", "서연", "민준", "지우", "도윤", "하은", "시�
 const MIDDLE = ["청년1부", "청년2부", "대학부", "새가족", "영어예배"];
 const CELLS = ["소망셀", "믿음셀", "사랑셀", "은혜셀", "나눔셀", "기쁨셀"];
 
-function answerFor(field: FormField, index: number, random: () => number): Record<string, unknown> | null {
+function answerFor(
+  field: FormField,
+  index: number,
+  random: () => number,
+  given: Record<string, Record<string, unknown>>,
+): Record<string, unknown> | null {
   if (field.systemKey === "NAME") return { text: FAMILY[index % FAMILY.length] + GIVEN[(index * 7) % GIVEN.length] };
   if (field.systemKey === "PHONE") return { text: `010-${pad(1000 + ((index * 37) % 9000))}-${pad(1000 + ((index * 91) % 9000))}` };
   if (field.systemKey === "COHORT") return { text: String(88 + (index % 14)).slice(-2) };
   if (field.presetKey === "MIDDLE_GROUP") return { text: MIDDLE[index % MIDDLE.length] };
   if (field.presetKey === "CELL") return random() < 0.9 ? { text: CELLS[index % CELLS.length] } : null;
   if (random() < 0.08 && !field.required) return null;
-  const options = (field.config.options ?? []).filter((option) => !option.hidden);
+  const options = (field.config.options ?? []).filter(
+    (option) => !option.hidden && conditionHolds(option.showWhen, (fieldId) => given[fieldId]),
+  );
   switch (field.answerType) {
     case "SINGLE_CHOICE":
     case "DROPDOWN":
@@ -122,13 +129,7 @@ function answerFor(field: FormField, index: number, random: () => number): Recor
 
 /** Mirrors the form's showWhen: an answer exists only when its question would be shown (DEC-068). */
 function visible(field: FormField, given: Record<string, Record<string, unknown>>): boolean {
-  const when = field.showWhen;
-  if (!when) return true;
-  const answer = given[when.fieldId];
-  if (!answer) return false;
-  if ("equals" in when) return answer.value === when.equals;
-  const ids = [answer.optionId, ...(Array.isArray(answer.optionIds) ? answer.optionIds : [])];
-  return ids.some((id) => typeof id === "string" && when.optionIds.includes(id));
+  return conditionHolds(field.showWhen, (fieldId) => given[fieldId]);
 }
 
 function pick<T>(items: readonly T[], random: () => number): T {

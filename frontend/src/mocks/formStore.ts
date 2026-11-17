@@ -1,12 +1,14 @@
-import type {
-  AnswerType,
-  FieldConfig,
-  FieldOption,
-  FormDetail,
-  FormField,
-  FormListItem,
-  FormSetup,
-  ShowWhen,
+import {
+  conditionClauses,
+  type AnswerType,
+  type Condition,
+  type FieldConfig,
+  type FieldOption,
+  type FormDetail,
+  type FormField,
+  type FormListItem,
+  type FormSetup,
+  type ShowWhen,
 } from "../api/forms";
 import type { LifecycleResult } from "../api/lifecycle";
 import { PRESET_ORDER, eventDays, generatePreset, type PresetQuestion } from "./formPreset";
@@ -295,6 +297,17 @@ export function applySetup(eventId: string, formId: string, actorId: string, bod
   const mode = setup.attendance.mode ?? stored ?? "RANGE";
   if (locked && stored !== null && mode !== stored) return { status: 409, code: "FIELD_LOCKED" };
   setup.attendance = { ...setup.attendance, mode };
+  // #324: partialByTime keeps the stored value when missing, false on a first save. The vehicle
+  // conditions follow it, so a form with applications refuses changes that move them.
+  const byTime = setup.transport.partialByTime ?? found.setup?.transport.partialByTime ?? false;
+  setup.transport = { ...setup.transport, partialByTime: byTime };
+  if (locked && found.setup) {
+    const before = found.setup;
+    const wasByTime = before.transport.partialByTime ?? false;
+    if (byTime !== wasByTime) return { status: 409, code: "FIELD_LOCKED" };
+    if (byTime && before.attendance.partial !== setup.attendance.partial) return { status: 409, code: "FIELD_LOCKED" };
+    if (byTime && slotEnds(before) !== slotEnds(setup)) return { status: 409, code: "FIELD_LOCKED" };
+  }
   const ids = new Map(found.fields.filter((field) => field.presetKey).map((field) => [field.presetKey!, field.fieldId]));
   const idOf = (key: string) => {
     if (!ids.has(key)) ids.set(key, crypto.randomUUID());
@@ -342,6 +355,17 @@ export function applySetup(eventId: string, formId: string, actorId: string, bod
   found.fields = numbered;
   found.setup = { ...setup, generatedFor: { startDate: event.startDate, endDate: event.endDate } };
   return toDetail(found);
+}
+
+/** The first, last, and worship slots: what the vehicle conditions read (#324). */
+function slotEnds(setup: FormSetup): string {
+  const slots: string[] = [];
+  setup.schedule.forEach((day, index) => {
+    for (const key of ["breakfast", "lunch", "dinner", "worship"] as const) {
+      if (day[key]) slots.push(`d${index + 1}_${key}`);
+    }
+  });
+  return JSON.stringify([slots[0] ?? null, slots.at(-1) ?? null, slots.filter((slot) => slot.endsWith("_worship"))]);
 }
 
 function defaultsOf(question: PresetQuestion): PresetDefaults {
@@ -415,6 +439,9 @@ function readSetup(body: unknown, days: number): FormSetup | FormFailure {
   const mode = (attendance as Record<string, unknown>).mode;
   if (mode !== undefined && mode !== "RANGE" && mode !== "SLOTS") return invalid("attendance");
   if (!flags(transport, ["groupBus", "worshipShuttle", "car", "publicTransit", "support"])) return invalid("transport");
+  // partialByTime was added later (#324): optional, resolved by the caller.
+  const byTime = (transport as Record<string, unknown>).partialByTime;
+  if (byTime !== undefined && typeof byTime !== "boolean") return invalid("transport");
   if (
     !Array.isArray(schedule) ||
     schedule.length !== days ||
@@ -478,8 +505,7 @@ export function deleteField(eventId: string, formId: string, fieldId: string, ac
   if (found.submitted > 0) return { status: 409, code: "FIELD_LOCKED" };
   const target = found.fields.some(
     (item) =>
-      item.showWhen?.fieldId === fieldId ||
-      (item.config.options ?? []).some((option) => option.showWhen?.fieldId === fieldId),
+      points(item.showWhen, fieldId) || (item.config.options ?? []).some((option) => points(option.showWhen, fieldId)),
   );
   if (target) return { status: 409, code: "CONFLICT" };
   found.fields = found.fields.filter((item) => item.fieldId !== fieldId);
@@ -755,10 +781,18 @@ function readConfig(type: AnswerType, raw: unknown, previous: StoredField | null
 }
 
 function readShowWhen(value: unknown): ShowWhen | null {
+  if (isRecord(value) && Array.isArray(value.anyOf)) {
+    const clauses = value.anyOf.map(readShowWhen).filter((clause): clause is Condition => !!clause && !("anyOf" in clause));
+    return clauses.length > 0 ? { anyOf: clauses } : null;
+  }
   if (!isRecord(value) || typeof value.fieldId !== "string") return null;
   if (Array.isArray(value.optionIds)) return { fieldId: value.fieldId, optionIds: value.optionIds.map(String) };
   if (typeof value.equals === "boolean") return { fieldId: value.fieldId, equals: value.equals };
   return null;
+}
+
+function points(when: ShowWhen | null, fieldId: string): boolean {
+  return !!when && conditionClauses(when).some((clause) => clause.fieldId === fieldId);
 }
 
 function sameCondition(left: ShowWhen | null, right: ShowWhen | null): boolean {
@@ -771,8 +805,10 @@ function checkConditions(fields: StoredField[]): FormFailure | null {
   for (const field of fields) {
     const checks: [ShowWhen | null, string][] = [[field.showWhen, "showWhen"]];
     for (const option of field.config.options ?? []) checks.push([option.showWhen, "config"]);
-    for (const [condition, name] of checks) {
-      if (!condition) continue;
+    for (const [when, name] of checks) {
+      if (!when) continue;
+      if ("anyOf" in when && (when.anyOf.length < 2 || when.anyOf.length > 5)) return invalid(name);
+      for (const condition of conditionClauses(when)) {
       const target = byId.get(condition.fieldId);
       if (!target || target.kind === "SYSTEM" || target.position >= field.position) return invalid(name);
       if (target.answerType === "YES_NO") {
@@ -782,6 +818,7 @@ function checkConditions(fields: StoredField[]): FormFailure | null {
       if (!CHOICE_TYPES.includes(target.answerType) || !("optionIds" in condition)) return invalid(name);
       const ids = new Set((target.config.options ?? []).map((option) => option.optionId));
       if (condition.optionIds.length === 0 || condition.optionIds.some((id) => !ids.has(id))) return invalid(name);
+      }
     }
   }
   return null;

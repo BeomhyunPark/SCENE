@@ -10,13 +10,26 @@ const SLOTS: { key: keyof SetupDay; label: string }[] = [
   { key: "dinner", label: "저녁" },
   { key: "worship", label: "집회" },
 ];
-const TRANSPORTS: { key: keyof FormSetup["transport"]; label: string; hint?: string }[] = [
+type TransportKey = Exclude<keyof FormSetup["transport"], "partialByTime">;
+const TRANSPORTS: { key: TransportKey; label: string; hint?: string }[] = [
   { key: "groupBus", label: "단체 이동 차량" },
   { key: "worshipShuttle", label: "집회 차량", hint: "부분 참석·집회만 참석자에게, 집회가 있는 날만 물어요." },
-  { key: "car", label: "자차 (카풀)", hint: "동승 가능 여부와 인원, 동네를 이어서 물어요." },
+  {
+    key: "car",
+    label: "자차 (카풀)",
+    hint: "'자차 (직접 운전)'과 '자차 합승'을 따로 보여요. 직접 운전하는 사람에게만 동승 가능 여부와 인원, 동네를 물어요.",
+  },
   { key: "publicTransit", label: "대중교통" },
   { key: "support", label: "이동 지원 요청", hint: "편한 동네를 묻고, 매칭이 보장되지 않는다고 안내해요." },
 ];
+
+const VEHICLE_SHORT: Record<TransportKey, string> = {
+  groupBus: "단체 이동 차량",
+  worshipShuttle: "집회 차량",
+  car: "자차 · 합승",
+  publicTransit: "대중교통",
+  support: "이동 지원",
+};
 
 /** Days from `start` to `end`, both included. */
 function daysBetween(start: string, end: string): number {
@@ -31,6 +44,16 @@ function dateLabel(start: string, index: number): string {
 
 function dayLabel(start: string, index: number): string {
   return `${index + 1}일차 · ${dateLabel(start, index)}`;
+}
+
+/** The slots on the schedule in order, with whether each is a worship service. */
+function slotKeys(start: string, schedule: SetupDay[]): { label: string; worship: boolean }[] {
+  return schedule.flatMap((day, index) =>
+    SLOTS.filter((slot) => day[slot.key]).map((slot) => ({
+      label: `${dateLabel(start, index)} ${slot.label}`,
+      worship: slot.key === "worship",
+    })),
+  );
 }
 
 /** The slots on the schedule in order, worded like the generated options (`1월 22일 (금) 저녁`). */
@@ -67,8 +90,10 @@ function initialSetup(saved: FormSetup | null, days: number): FormSetup {
   // A setup saved before the 새가족 switch existed has no key: keep it off there.
   // A setup saved before DEC-074 has no mode: it keeps asking slot by slot.
   if (saved) {
+    // A setup saved before #324 has no partialByTime: it keeps showing vehicles as before.
     const attendance = { ...saved.attendance, mode: saved.attendance.mode ?? "SLOTS" };
-    return { ...saved, newcomer: saved.newcomer ?? false, attendance, schedule };
+    const transport = { ...saved.transport, partialByTime: saved.transport.partialByTime ?? false };
+    return { ...saved, newcomer: saved.newcomer ?? false, attendance, schedule, transport };
   }
   return {
     gender: true,
@@ -77,7 +102,7 @@ function initialSetup(saved: FormSetup | null, days: number): FormSetup {
     newcomer: true,
     attendance: { partial: true, worshipOnly: false, mode: "RANGE" },
     schedule,
-    transport: { groupBus: true, worshipShuttle: false, car: true, publicTransit: true, support: false },
+    transport: { groupBus: true, worshipShuttle: false, car: true, publicTransit: true, support: false, partialByTime: true },
   };
 }
 
@@ -278,6 +303,12 @@ export function SetupCard({
             </span>
           ))}
         </div>
+        <VehicleTiming
+          setup={draft}
+          slots={slotKeys(startDate!, draft.schedule)}
+          fixed={modeFixed}
+          onChange={(partialByTime) => change({ ...draft, transport: { ...draft.transport, partialByTime } })}
+        />
         <p className="registration-setup__note">
           가는 길과 오는 길을 따로 물어요. 자차로 가는 사람에게는 오는 길을 묻지 않아요. 출발 장소와 시간은 만들어진 질문의
           설명에 적어 주세요.
@@ -376,5 +407,78 @@ function ModePicker({
         </div>
       ) : null}
     </fieldset>
+  );
+}
+
+/**
+ * `transport.partialByTime` (#324). New element: no Figma frame was found for it, so it reuses the
+ * card's check row and the mode picker's sample box.
+ */
+function VehicleTiming({
+  setup,
+  slots,
+  fixed,
+  onChange,
+}: {
+  setup: FormSetup;
+  slots: { label: string; worship: boolean }[];
+  fixed: boolean;
+  onChange: (on: boolean) => void;
+}) {
+  const partial = setup.attendance.partial;
+  const range = setup.attendance.mode === "RANGE";
+  const on = setup.transport.partialByTime;
+  const shuttle = setup.transport.worshipShuttle && slots.some((slot) => slot.worship);
+  const hint = range
+    ? "첫 일정부터 오는 사람만 가는 단체 이동 차량을, 마지막 일정까지 있는 사람만 오는 단체 이동 차량을 봐요. 집회 차량은 집회 시간에 오가는 사람만 봐요."
+    : "첫 칸을 고른 사람만 가는 단체 이동 차량을, 마지막 칸을 고른 사람만 오는 단체 이동 차량을 봐요.";
+  // What a partial attendee arriving at a slot would see on the way there.
+  const offered = (index: number) =>
+    TRANSPORTS.filter((item) => {
+      if (!setup.transport[item.key]) return false;
+      if (item.key === "groupBus") return !on || index === 0;
+      if (item.key === "worshipShuttle") return shuttle && (!on || !range || slots[index].worship);
+      return true;
+    }).map((item) => VEHICLE_SHORT[item.key]);
+  const middle = slots.findIndex((slot, index) => index > 0 && !slot.worship);
+  const samples = [0, middle].filter((index) => index >= 0);
+  return (
+    <div className="setup-card__mode">
+      <label className="setup-card__check">
+        <input
+          type="checkbox"
+          checked={partial && on}
+          disabled={!partial || fixed}
+          onChange={(event) => onChange(event.target.checked)}
+        />
+        <span>
+          부분 참석자는 도착·출발 시점에 맞는 차량만 보여 주기
+          <small>{partial ? hint : "부분 참석을 받을 때만 쓸 수 있어요."}</small>
+        </span>
+      </label>
+      {fixed && partial ? (
+        <p className="registration-setup__note">
+          신청이 들어온 신청서라 이 설정을 바꿀 수 없어요.
+          {on ? " 켜 둔 동안에는 부분 참석 받기와 첫·마지막·집회 칸도 바꿀 수 없어요." : null}
+        </p>
+      ) : null}
+      {partial && range && slots.length > 1 && samples.length > 0 ? (
+        <div className="setup-card__sample" aria-label="부분 참석자에게 보이는 가는 길 보기">
+          <p className="setup-card__sample-title">부분 참석자의 가는 길 보기</p>
+          {samples.map((index) => (
+            <div key={index}>
+              <p>{slots[index].label}부터 오면</p>
+              <div className="setup-card__sample-chips">
+                {offered(index).map((label) => (
+                  <span key={label} className="setup-card__sample-chip">
+                    {label}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
   );
 }

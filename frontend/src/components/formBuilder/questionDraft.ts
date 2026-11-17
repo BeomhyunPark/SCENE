@@ -1,4 +1,12 @@
-import type { AnswerType, FieldConfigInput, FieldInput, FormField, ShowWhen } from "../../api/forms";
+import {
+  conditionClauses,
+  type AnswerType,
+  type Condition,
+  type FieldConfigInput,
+  type FieldInput,
+  type FormField,
+  type ShowWhen,
+} from "../../api/forms";
 
 /** Korean names for the nine question types (DEC-068). */
 export const TYPE_LABELS: Record<AnswerType, string> = {
@@ -272,9 +280,15 @@ function optionalInt(value: string): number | null | undefined {
   return Number(trimmed);
 }
 
-/** One line for the list: type, then the condition in words. */
+/** One line for the list: type, then the condition in words. `anyOf` reads "A일 때 또는 B일 때". */
 export function conditionSummary(condition: ShowWhen | null, fields: FormField[]): string | null {
   if (!condition) return null;
+  return conditionClauses(condition)
+    .map((clause) => clauseSummary(clause, fields))
+    .join(" 또는 ");
+}
+
+function clauseSummary(condition: Condition, fields: FormField[]): string {
   const target = fields.find((field) => field.fieldId === condition.fieldId);
   if (!target) return "조건 대상 질문이 없어요";
   if ("equals" in condition) return `'${target.label}'에 ${condition.equals ? "예" : "아니오"}일 때`;

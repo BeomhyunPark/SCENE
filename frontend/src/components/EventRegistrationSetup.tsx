@@ -158,8 +158,21 @@ function SetupBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
     try {
       remember(await putSetup(eventId, form.data.formId, setup));
     } catch (caught) {
-      const before = form.data.setup?.attendance.mode ?? "SLOTS";
-      setSetupError(setupFailureCopy(caught, form.data.setup !== null && setup.attendance.mode !== before));
+      const saved = form.data.setup;
+      const savedByTime = saved?.transport.partialByTime ?? false;
+      const reason: LockReason =
+        saved === null
+          ? null
+          : setup.attendance.mode !== (saved.attendance.mode ?? "SLOTS")
+            ? "mode"
+            : setup.transport.partialByTime !== savedByTime
+              ? "byTime"
+              : savedByTime &&
+                  (setup.attendance.partial !== saved.attendance.partial ||
+                    JSON.stringify(setup.schedule) !== JSON.stringify(saved.schedule))
+                ? "byTimeOn"
+                : null;
+      setSetupError(setupFailureCopy(caught, reason));
       if (isMissing(caught)) await reloadQuery(forms);
     } finally {
       setPending(false);
@@ -632,10 +645,19 @@ function optionSummary(field: FormField): string {
   return labels.length > 6 ? `${labels.slice(0, 6).join(", ")} 외 ${labels.length - 6}개` : labels.join(", ");
 }
 
-function setupFailureCopy(caught: unknown, modeChanged: boolean): string {
+/** Which locked change a `409 FIELD_LOCKED` on the setup most likely refers to. */
+type LockReason = "mode" | "byTime" | "byTimeOn" | null;
+
+function setupFailureCopy(caught: unknown, reason: LockReason): string {
   if (isApiError(caught, "FORBIDDEN")) return "신청서를 바꿀 권한이 없어요.";
-  if (isApiError(caught, "FIELD_LOCKED") && modeChanged) {
+  if (isApiError(caught, "FIELD_LOCKED") && reason === "mode") {
     return "신청이 들어온 신청서라 부분 참석을 받는 방식을 바꿀 수 없어요. 방식을 원래대로 두고 저장해 주세요.";
+  }
+  if (isApiError(caught, "FIELD_LOCKED") && reason === "byTime") {
+    return "신청이 들어온 신청서라 '도착·출발 시점에 맞는 차량만 보여 주기'를 바꿀 수 없어요. 원래대로 두고 저장해 주세요.";
+  }
+  if (isApiError(caught, "FIELD_LOCKED") && reason === "byTimeOn") {
+    return "'도착·출발 시점에 맞는 차량만 보여 주기'가 켜진 채 신청이 들어와서, 부분 참석 받기와 첫·마지막·집회 칸은 바꿀 수 없어요. 원래대로 두고 저장해 주세요.";
   }
   if (isApiError(caught, "FIELD_LOCKED")) {
     return "신청이 들어온 뒤에는 이미 받은 질문의 표시 조건이 바뀌는 설정은 저장할 수 없어요. 참석 방식 질문을 통째로 없애거나 새로 만드는 변경이 여기에 해당해요.";
