@@ -7,10 +7,11 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
- * {@code groups}, {@code group_assignments}, {@code group_boards}, and {@code
- * group_assignment_logs}, scoped by space and event. Writers hold the event row lock.
+ * {@code groups}, {@code group_assignments}, {@code group_boards}, {@code group_assignment_logs},
+ * and {@code group_publications}, scoped by space and event. Writers hold the event row lock.
  */
 @Component
 public class GroupRepository {
@@ -20,9 +21,11 @@ public class GroupRepository {
   static final String GROUP_DELETED = "GROUP_DELETED";
 
   private final GroupMapper groups;
+  private final JsonMapper json;
 
-  public GroupRepository(GroupMapper groups) {
+  public GroupRepository(GroupMapper groups, JsonMapper json) {
     this.groups = groups;
+    this.json = json;
   }
 
   /** 0 before the first change. */
@@ -144,6 +147,48 @@ public class GroupRepository {
         GroupParam.of(spaceId, eventId)
             .participant(participantId)
             .log(UUID.randomUUID(), fromGroupId, toGroupId, leaderBefore, leaderAfter, cause)
+            .actor(actorId, at));
+  }
+
+  /** Every active participant of the event by name, then id. */
+  public List<ActiveParticipant> active(UUID spaceId, UUID eventId) {
+    return groups.findActive(GroupParam.of(spaceId, eventId));
+  }
+
+  /** Active participants among {@code participantIds} by name, then id. */
+  public List<ActiveParticipant> active(UUID spaceId, UUID eventId, List<UUID> participantIds) {
+    if (participantIds.isEmpty()) {
+      return List.of();
+    }
+    return groups.findActive(GroupParam.of(spaceId, eventId).participants(participantIds));
+  }
+
+  /** The latest publication by insertion order, or empty before the first one. */
+  public Optional<Publication> latestPublication(UUID spaceId, UUID eventId) {
+    PublicationRow row = groups.findLatestPublication(GroupParam.of(spaceId, eventId));
+    if (row == null) {
+      return Optional.empty();
+    }
+    return Optional.of(
+        new Publication(
+            row.publicationId(),
+            row.boardVersion(),
+            row.publishedAt(),
+            row.publishedByDisplayName(),
+            json.readValue(row.snapshot(), Snapshot.class)));
+  }
+
+  public void insertPublication(
+      UUID spaceId,
+      UUID eventId,
+      UUID publicationId,
+      long boardVersion,
+      Snapshot snapshot,
+      UUID actorId,
+      Instant at) {
+    groups.insertPublication(
+        GroupParam.of(spaceId, eventId)
+            .publication(publicationId, boardVersion, json.writeValueAsString(snapshot))
             .actor(actorId, at));
   }
 

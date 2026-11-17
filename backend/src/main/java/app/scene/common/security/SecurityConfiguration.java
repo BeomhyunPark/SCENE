@@ -28,8 +28,8 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 /**
  * Three filter chains. The operator chain stores its session in Spring Session JDBC. The
  * participant chain does not load that session or the in-memory stand-in. {@code /participant/me},
- * {@code /participant/check-in}, and logout read a separate cookie. Every other participant path
- * stays unauthenticated. Public does not require either session.
+ * {@code /participant/check-in}, {@code /participant/group}, and logout read a separate cookie.
+ * Every other participant path stays unauthenticated. Public does not require either session.
  */
 @Configuration(proxyBeanMethods = false)
 @EnableWebSecurity
@@ -99,6 +99,8 @@ class SecurityConfiguration {
                 .requestMatchers(HttpMethod.GET, "/api/v1/participant/me")
                 .permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/participant/check-in")
+                .permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/participant/group")
                 .permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/participant/auth/logout")
                 .permitAll()
