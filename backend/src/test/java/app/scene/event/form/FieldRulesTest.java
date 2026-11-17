@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import app.scene.common.error.ErrorCode;
 import app.scene.common.error.SceneException;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -111,6 +112,42 @@ class FieldRulesTest {
             FieldRules.showWhen(
                 json.readTree("{\"fieldId\":\"" + target + "\",\"optionIds\":[]}"), "showWhen"));
     assertThat(FieldRules.showWhen(json.readTree("null"), "showWhen")).isNull();
+  }
+
+  @Test
+  void anyOfHoldsTwoToFiveFlatClausesAndEachIsChecked() {
+    ObjectNode choice = config(AnswerType.SINGLE_CHOICE, "{\"options\":[{\"label\":\"A\"}]}");
+    FieldDefinition target = field(AnswerType.SINGLE_CHOICE, choice, 1, null);
+    FieldDefinition yesNo = field(AnswerType.YES_NO, config(AnswerType.YES_NO, "{}"), 2, null);
+    String onA =
+        "{\"fieldId\":\""
+            + target.fieldId()
+            + "\",\"optionIds\":[\""
+            + target.options().get(0).optionId()
+            + "\"]}";
+    String onYes = "{\"fieldId\":\"" + yesNo.fieldId() + "\",\"equals\":true}";
+    JsonNode either =
+        FieldRules.showWhen(json.readTree("{\"anyOf\":[" + onA + "," + onYes + "]}"), "showWhen");
+
+    FieldDefinition holder = field(AnswerType.SHORT_TEXT, text(), 3, either);
+
+    assertThat(FieldRules.clauses(either)).hasSize(2);
+    assertThat(FieldRules.isConditionTarget(List.of(target, yesNo, holder), yesNo.fieldId()))
+        .isTrue();
+    FieldRules.checkConditions(List.of(target, yesNo, holder));
+    // Every clause must point before the question that holds it.
+    invalid(
+        () ->
+            FieldRules.checkConditions(
+                List.of(target, yesNo, field(AnswerType.SHORT_TEXT, text(), 2, either))));
+
+    String one = "{\"anyOf\":[" + onA + "]}";
+    String six = "{\"anyOf\":[" + String.join(",", Collections.nCopies(6, onA)) + "]}";
+    String nested = "{\"anyOf\":[" + onA + ",{\"anyOf\":[" + onA + "," + onYes + "]}]}";
+    String mixed = "{\"anyOf\":[" + onA + "," + onYes + "],\"equals\":true}";
+    for (String raw : List.of(one, six, nested, mixed)) {
+      invalid(() -> FieldRules.showWhen(json.readTree(raw), "showWhen"));
+    }
   }
 
   @Test

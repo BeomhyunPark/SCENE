@@ -50,7 +50,10 @@ public record ApplicationSummary(
   /** {@code unanswered}: partial applicants when the lodging question is not visible. */
   public record Lodging(List<Night> nights, long unanswered) {}
 
-  /** {@code out} counts a driver there ({@code opt_car}) as a driver back. */
+  /**
+   * {@code out} counts a driver or rider there ({@code opt_car}, {@code opt_ride}) the same way
+   * back.
+   */
   public record Transport(Choice in, Choice out) {}
 
   /** Each side is null when its round question is not visible. */

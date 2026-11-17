@@ -55,6 +55,7 @@ public final class FormPreset {
   static final String GROUP_BUS = "opt_group";
   static final String SHUTTLE = "opt_shuttle";
   static final String CAR = "opt_car";
+  static final String RIDE = "opt_ride";
   static final String PUBLIC = "opt_public";
   static final String SUPPORT = "opt_support";
 
@@ -290,7 +291,7 @@ public final class FormPreset {
     }
 
     if (setup.anyTransport()) {
-      transport(out, setup, start, days, attendance, ids);
+      transport(out, setup, start, days, attendance, slots, ids);
     }
 
     ObjectNode consent = NODES.objectNode();
@@ -315,6 +316,7 @@ public final class FormPreset {
       LocalDate start,
       int days,
       boolean attendance,
+      List<String[]> slots,
       Function<String, UUID> ids) {
     // 집회 차량 runs only on days with a worship service, and only partial and worship-only
     // participants ride it. Without an attendance question everyone attends in full.
@@ -327,11 +329,43 @@ public final class FormPreset {
     boolean shuttle = setup.worshipShuttle() && attendance && !worshipDays.isEmpty();
     JsonNode forBus = attendance ? when(ids, "ATTENDANCE", FULL, PARTIAL) : null;
     JsonNode forShuttle = attendance ? when(ids, "ATTENDANCE", PARTIAL, WORSHIP) : null;
+    JsonNode busIn = forBus;
+    JsonNode busOut = forBus;
+    JsonNode shuttleIn = forShuttle;
+    JsonNode shuttleOut = forShuttle;
+    if (setup.partialByTime() && attendance && setup.partial() && !slots.isEmpty()) {
+      // A partial attendee rides the church vehicle only when they come or leave with it: the
+      // group bus at the first and last slot, the worship shuttle at a worship slot. In SLOTS mode
+      // the first chosen slot cannot be told apart, so the shuttle stays as it was.
+      String first = slots.get(0)[0];
+      String last = slots.get(slots.size() - 1)[0];
+      if (setup.range()) {
+        List<String> worship = new ArrayList<>();
+        for (String[] slot : slots) {
+          if (slot[0].endsWith("_worship")) {
+            worship.add(slot[0]);
+          }
+        }
+        String[] worshipIds = worship.toArray(String[]::new);
+        busIn = anyOf(when(ids, "ATTENDANCE", FULL), when(ids, "ARRIVAL_SLOT", first));
+        busOut = anyOf(when(ids, "ATTENDANCE", FULL), when(ids, "DEPARTURE_SLOT", last));
+        if (worshipIds.length > 0) {
+          shuttleIn =
+              anyOf(when(ids, "ATTENDANCE", WORSHIP), when(ids, "ARRIVAL_SLOT", worshipIds));
+          shuttleOut =
+              anyOf(when(ids, "ATTENDANCE", WORSHIP), when(ids, "DEPARTURE_SLOT", worshipIds));
+        }
+      } else {
+        busIn = anyOf(when(ids, "ATTENDANCE", FULL), when(ids, "MEALS", first));
+        busOut = anyOf(when(ids, "ATTENDANCE", FULL), when(ids, "MEALS", last));
+      }
+    }
 
     ArrayNode in = NODES.arrayNode();
-    in.add(option(GROUP_BUS, "단체 이동 차량", null, !setup.groupBus(), forBus));
-    in.add(option(SHUTTLE, "집회 차량", null, !shuttle, forShuttle));
-    in.add(option(CAR, "자차", null, !setup.car(), null));
+    in.add(option(GROUP_BUS, "단체 이동 차량", null, !setup.groupBus(), busIn));
+    in.add(option(SHUTTLE, "집회 차량", null, !shuttle, shuttleIn));
+    in.add(option(CAR, "자차 (직접 운전)", null, !setup.car(), null));
+    in.add(option(RIDE, "자차 합승 (다른 사람 차를 타요)", null, !setup.car(), null));
     in.add(option(PUBLIC, "대중교통", null, !setup.publicTransit(), null));
     in.add(option(SUPPORT, "이동 지원 요청", null, !setup.support(), null));
     out.add(
@@ -409,11 +443,12 @@ public final class FormPreset {
               when(ids, "TRANSPORT_IN", SUPPORT)));
     }
 
-    // A participant who drives there drives back, so the way back is asked of everyone else.
+    // A participant who drives or rides a car there comes back the same way, so the way back is
+    // asked of everyone else.
     if (setup.groupBus() || shuttle || setup.publicTransit() || setup.support()) {
       ArrayNode back = NODES.arrayNode();
-      back.add(option(GROUP_BUS, "단체 이동 차량", null, !setup.groupBus(), forBus));
-      back.add(option(SHUTTLE, "집회 차량", null, !shuttle, forShuttle));
+      back.add(option(GROUP_BUS, "단체 이동 차량", null, !setup.groupBus(), busOut));
+      back.add(option(SHUTTLE, "집회 차량", null, !shuttle, shuttleOut));
       back.add(option(PUBLIC, "대중교통", null, !setup.publicTransit(), null));
       back.add(option(SUPPORT, "이동 지원 요청", null, !setup.support(), null));
       out.add(
@@ -505,6 +540,15 @@ public final class FormPreset {
     ArrayNode list = out.putArray("optionIds");
     for (String id : optionIds) {
       list.add(id);
+    }
+    return out;
+  }
+
+  private static JsonNode anyOf(JsonNode... clauses) {
+    ObjectNode out = NODES.objectNode();
+    ArrayNode list = out.putArray("anyOf");
+    for (JsonNode clause : clauses) {
+      list.add(clause);
     }
     return out;
   }

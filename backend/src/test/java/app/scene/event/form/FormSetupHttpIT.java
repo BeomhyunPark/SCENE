@@ -265,13 +265,15 @@ class FormSetupHttpIT {
         .isEqualTo("[\"opt_partial\",\"opt_worship\"]");
     JsonNode in = preset(form, "TRANSPORT_IN");
     assertThat(optionIds(in))
-        .containsExactly("opt_group", "opt_shuttle", "opt_car", "opt_public", "opt_support");
+        .containsExactly(
+            "opt_group", "opt_shuttle", "opt_car", "opt_ride", "opt_public", "opt_support");
     assertThat(in.get("config").get("options").get(0).get("showWhen").get("optionIds").toString())
         .isEqualTo("[\"opt_full\",\"opt_partial\"]");
     assertThat(optionIds(preset(form, "SHUTTLE_IN"))).containsExactly("opt_d1", "opt_d2");
     JsonNode out = preset(form, "TRANSPORT_OUT");
-    assertThat(optionIds(out)).doesNotContain("opt_car");
-    assertThat(out.get("showWhen").get("optionIds").toString()).doesNotContain("opt_car");
+    assertThat(optionIds(out)).doesNotContain("opt_car", "opt_ride");
+    assertThat(out.get("showWhen").get("optionIds").toString())
+        .doesNotContain("opt_car", "opt_ride");
     assertThat(preset(form, "ARRIVAL_AT").get("config").get("max").asString())
         .isEqualTo("2027-01-24T23:59");
 
