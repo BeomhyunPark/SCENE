@@ -82,6 +82,53 @@ export async function apiRequest<T>(path: string, options?: ApiRequestOptions): 
   throw problemError(response.status, text);
 }
 
+/** A file response: the bytes and the name from `Content-Disposition`, if the server sent one. */
+export type ApiFile = { blob: Blob; fileName: string | null };
+
+/**
+ * A request whose success body is a file, such as the applicant CSV. CSRF and session work as in
+ * `apiRequest`; a failure is the same problem `ApiError`.
+ */
+export async function apiDownload(path: string, options?: { method?: ApiMethod; signal?: AbortSignal }): Promise<ApiFile> {
+  const method = options?.method ?? "GET";
+  const headers = new Headers();
+  headers.set("Accept", "text/csv, application/problem+json");
+  if (MUTATING.has(method)) {
+    headers.set(CSRF_HEADER, ensureCsrfToken());
+  }
+  let response: Response;
+  try {
+    response = await fetch(new URL(path, window.location.origin), {
+      method,
+      headers,
+      credentials: "include",
+      signal: options?.signal,
+    });
+  } catch {
+    throw new ApiError({ status: 0, code: "NETWORK_ERROR" });
+  }
+  noteMockResponse(response.headers);
+  if (!response.ok) {
+    throw problemError(response.status, await response.text());
+  }
+  return { blob: await response.blob(), fileName: fileNameFrom(response.headers.get("Content-Disposition")) };
+}
+
+/** `filename*=UTF-8''…` first, then a plain `filename="…"`. */
+export function fileNameFrom(header: string | null): string | null {
+  if (!header) return null;
+  const encoded = /filename\*\s*=\s*UTF-8''([^;]+)/i.exec(header);
+  if (encoded) {
+    try {
+      return decodeURIComponent(encoded[1].trim().replace(/^"|"$/g, ""));
+    } catch {
+      // fall through to the plain name
+    }
+  }
+  const plain = /filename\s*=\s*"([^"]*)"/i.exec(header) ?? /filename\s*=\s*([^;]+)/i.exec(header);
+  return plain ? plain[1].trim() : null;
+}
+
 function ensureCsrfToken(): string {
   const existing = readCookie(CSRF_COOKIE);
   if (existing) {

@@ -5,6 +5,7 @@ import arrowLeft from "../assets/event-create/arrow-left.svg";
 import calendarCheck from "../assets/event-home/calendar-check.svg";
 import checklist from "../assets/event-home/checklist.svg";
 import dateIcon from "../assets/event-home/date.svg";
+import { ApplicantsExport } from "./ApplicantsExport";
 import { Button } from "./Button";
 import { OperatorShell } from "./OperatorShell";
 import { listApplications } from "../api/applications";
@@ -110,7 +111,14 @@ function Applicants({ eventId, empty }: { eventId: string; empty: ReactNode }) {
     );
   }
   const { items, page: info } = applications.data;
-  if (info.totalItems === 0) return <>{empty}</>;
+  if (info.totalItems === 0) {
+    return (
+      <>
+        {empty}
+        <ApplicantsExport eventId={eventId} total={0} />
+      </>
+    );
+  }
 
   return (
     <section className="event-home__applicants" aria-labelledby="applicants-title">
@@ -118,6 +126,7 @@ function Applicants({ eventId, empty }: { eventId: string; empty: ReactNode }) {
         <h2 id="applicants-title">신청자</h2>
         <span className="event-home__count">{info.totalItems}명</span>
       </div>
+      <ApplicantsExport eventId={eventId} total={info.totalItems} />
       <ul className="event-home__applicant-rows">
         {items.map((item) => (
           <li key={item.applicationId}>
