@@ -18,6 +18,7 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import jakarta.servlet.http.Cookie;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -140,6 +141,7 @@ class GroupHttpIT {
             "newcomer",
             "groupId",
             "leader",
+            "position",
             "publishedGroupId",
             "publishedLeader",
             "slotIds");
@@ -527,14 +529,13 @@ class GroupHttpIT {
   }
 
   @Test
-  void leadersAreActiveMembersOfTheGroupUpToThree() throws Exception {
+  void aGroupHasAtMostOneLeaderAndNamingAnotherReplacesTheFirst() throws Exception {
     World w = world();
     String g1 = createGroup(w, "1조");
     String g2 = createGroup(w, "2조");
     UUID a = w.participant("가", "010-6000-0001", "94");
     UUID b = w.participant("나", "010-6000-0002", "95");
     UUID c = w.participant("다", "010-6000-0003", "96");
-    UUID d = w.participant("라", "010-6000-0004", "97");
     UUID outsider = w.participant("마", "010-6000-0005", "98");
     UUID gone = w.participant("바", "010-6000-0006", "99");
     assign(
@@ -542,45 +543,57 @@ class GroupHttpIT {
         change(a, null, g1),
         change(b, null, g1),
         change(c, null, g1),
-        change(d, null, g1),
         change(gone, null, g1),
         change(outsider, null, g2));
     w.withdraw(gone);
     long version = boardVersion(w);
 
-    JsonNode set = json.readTree(ok(leaders(w, g1, 0, a, b)));
+    JsonNode set = json.readTree(ok(leaders(w, g1, 0, a)));
     assertThat(set.propertyNames()).containsExactly("group", "leaderIds", "boardVersion");
     assertThat(set.get("group").get("version").asInt()).isEqualTo(1);
-    assertThat(set.get("leaderIds").size()).isEqualTo(2);
+    assertThat(set.get("leaderIds").size()).isEqualTo(1);
     assertThat(set.get("leaderIds").get(0).asString()).isEqualTo(a.toString());
     assertThat(set.get("boardVersion").asLong()).isEqualTo(version + 1);
-    JsonNode after = board(w);
-    assertThat(item(after.get("participants"), a).get("leader").asBoolean()).isTrue();
-    assertThat(item(after.get("participants"), c).get("leader").asBoolean()).isFalse();
 
-    JsonNode same = json.readTree(ok(leaders(w, g1, 1, b, a)));
+    JsonNode same = json.readTree(ok(leaders(w, g1, 1, a)));
     assertThat(same.get("group").get("version").asInt()).isEqualTo(1);
     assertThat(same.get("boardVersion").asLong()).isEqualTo(version + 1);
-    problem(leaders(w, g1, 0, c), 409, STALE).andExpect(jsonPath("$.version").value(1));
-    problem(leaders(w, g1, 1, a, outsider, gone), 409, "CONFLICT")
-        .andExpect(jsonPath("$.reason").value("LEADER_NOT_MEMBER"))
-        .andExpect(jsonPath("$.participantIds.length()").value(2));
-    problem(leaders(w, g1, 1, a, b, c, d), 400, BAD)
+
+    // Two leaders are refused; nothing changes.
+    problem(leaders(w, g1, 1, a, b), 400, BAD)
         .andExpect(jsonPath("$.errors[0].field").value("participantIds"));
     problem(leaders(w, g1, 1, a, a), 400, BAD)
         .andExpect(jsonPath("$.errors[0].field").value("participantIds"));
     problem(write(put(groupPath(w, g1) + "/leaders"), w.owner, "{\"participantIds\":[]}"), 400, BAD)
         .andExpect(jsonPath("$.errors[0].field").value("expectedVersion"));
+    problem(leaders(w, g1, 0, c), 409, STALE).andExpect(jsonPath("$.version").value(1));
+    problem(leaders(w, g1, 1, outsider), 409, "CONFLICT")
+        .andExpect(jsonPath("$.reason").value("LEADER_NOT_MEMBER"))
+        .andExpect(jsonPath("$.participantIds.length()").value(1));
+    problem(leaders(w, g1, 1, gone), 409, "CONFLICT")
+        .andExpect(jsonPath("$.reason").value("LEADER_NOT_MEMBER"));
     problem(leaders(w, UUID.randomUUID().toString(), 0, a), 404, MISSING);
 
-    JsonNode three = json.readTree(ok(leaders(w, g1, 1, b, c, d)));
-    assertThat(three.get("group").get("version").asInt()).isEqualTo(2);
+    // Naming someone else in one request clears the old leader.
+    JsonNode swapped = json.readTree(ok(leaders(w, g1, 1, b)));
+    assertThat(swapped.get("group").get("version").asInt()).isEqualTo(2);
+    assertThat(swapped.get("leaderIds").get(0).asString()).isEqualTo(b.toString());
+    JsonNode after = board(w);
+    assertThat(item(after.get("participants"), a).get("leader").asBoolean()).isFalse();
+    assertThat(item(after.get("participants"), b).get("leader").asBoolean()).isTrue();
     List<Map<String, Object>> leaderLogs =
         jdbc.queryForList(
             "SELECT participant_id, leader_before, leader_after FROM group_assignment_logs"
                 + " WHERE event_id = ? AND cause = 'LEADER' ORDER BY seq",
             w.eventId);
-    assertThat(leaderLogs).hasSize(5);
+    assertThat(leaderLogs).hasSize(3);
+    assertThat(leaderLogs.get(1).get("participant_id")).isEqualTo(a);
+    assertThat(leaderLogs.get(1).get("leader_after")).isEqualTo(false);
+    assertThat(leaderLogs.get(2).get("participant_id")).isEqualTo(b);
+    assertThat(leaderLogs.get(2).get("leader_after")).isEqualTo(true);
+
+    // A leader of another group is a separate mark.
+    ok(leaders(w, g2, 0, outsider));
     JsonNode cleared = json.readTree(ok(leaders(w, g1, 2)));
     assertThat(cleared.get("leaderIds").size()).isZero();
     assertThat(cleared.get("group").get("version").asInt()).isEqualTo(3);
@@ -589,7 +602,112 @@ class GroupHttpIT {
                 "SELECT count(*) FROM group_assignments WHERE event_id = ? AND leader",
                 Integer.class,
                 w.eventId))
-        .isZero();
+        .isEqualTo(1);
+  }
+
+  @Test
+  void assignmentsKeepMemberOrderAndPlaceArrivalsBeforeTheGivenMember() throws Exception {
+    World w = world();
+    String g1 = createGroup(w, "1조");
+    String g2 = createGroup(w, "2조");
+    UUID a = w.participant("가", "010-6100-0001", "94");
+    UUID b = w.participant("나", "010-6100-0002", "95");
+    UUID c = w.participant("다", "010-6100-0003", "96");
+    UUID d = w.participant("라", "010-6100-0004", "97");
+    UUID e = w.participant("마", "010-6100-0005", "98");
+
+    // New members go to the end in request order, not by name.
+    assign(w, change(c, null, g1), change(a, null, g1));
+    assertThat(members(board(w), g1)).containsExactly(c, a);
+    assign(w, change(b, null, g1));
+    assertThat(members(board(w), g1)).containsExactly(c, a, b);
+
+    // beforeParticipantId puts arrivals in front of that member, several in request order.
+    assign(w, placed(d, null, g1, a), placed(e, null, g1, a));
+    assertThat(members(board(w), g1)).containsExactly(c, d, e, a, b);
+
+    // An anchor that is not in the target group means the end.
+    assign(w, placed(c, g1, g2, null));
+    assign(w, placed(a, g1, g2, b));
+    assertThat(members(board(w), g2)).containsExactly(c, a);
+    assertThat(members(board(w), g1)).containsExactly(d, e, b);
+
+    // Already applied with an anchor changes nothing.
+    long version = boardVersion(w);
+    JsonNode again = assign(w, placed(a, g1, g2, c));
+    assertThat(again.get("alreadyApplied").asInt()).isEqualTo(1);
+    assertThat(again.get("boardVersion").asLong()).isEqualTo(version);
+    assertThat(members(board(w), g2)).containsExactly(c, a);
+
+    problem(
+            assignRequest(
+                w,
+                "{\"participantId\":\""
+                    + b
+                    + "\",\"fromGroupId\":\""
+                    + g1
+                    + "\",\"toGroupId\":\""
+                    + g2
+                    + "\",\"beforeParticipantId\":\"nope\"}"),
+            400,
+            BAD)
+        .andExpect(jsonPath("$.errors[0].field").value("changes"));
+  }
+
+  @Test
+  void memberOrderReordersOneGroupAndRefusesWhenSomeoneMovedMeanwhile() throws Exception {
+    World w = world();
+    String g1 = createGroup(w, "1조");
+    String g2 = createGroup(w, "2조");
+    UUID a = w.participant("가", "010-6200-0001", "94");
+    UUID b = w.participant("나", "010-6200-0002", "95");
+    UUID c = w.participant("다", "010-6200-0003", "96");
+    UUID gone = w.participant("철회", "010-6200-0004", "97");
+    UUID other = w.participant("라", "010-6200-0005", "98");
+    assign(
+        w,
+        change(a, null, g1),
+        change(gone, null, g1),
+        change(b, null, g1),
+        change(c, null, g1),
+        change(other, null, g2));
+    w.withdraw(gone);
+    ok(leaders(w, g1, 0, a));
+    int groupVersion = groupVersion(w, g1);
+    long version = boardVersion(w);
+
+    JsonNode out = json.readTree(ok(memberOrder(w, g1, c, a, b)));
+    assertThat(out.propertyNames()).containsExactly("boardVersion");
+    assertThat(out.get("boardVersion").asLong()).isEqualTo(version + 1);
+    JsonNode b1 = board(w);
+    assertThat(members(b1, g1)).containsExactly(c, a, b);
+    assertThat(item(b1.get("participants"), a).get("leader").asBoolean()).isTrue();
+    assertThat(groupVersion(w, g1)).isEqualTo(groupVersion);
+    // The withdrawn row goes after the active members.
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT position FROM group_assignments WHERE event_id = ? AND participant_id = ?",
+                Integer.class,
+                w.eventId,
+                gone))
+        .isEqualTo(3);
+
+    JsonNode same = json.readTree(ok(memberOrder(w, g1, c, a, b)));
+    assertThat(same.get("boardVersion").asLong()).isEqualTo(version + 1);
+
+    // Missing, extra, or another group's member: nothing is saved.
+    problem(memberOrder(w, g1, c, a), 409, STALE)
+        .andExpect(jsonPath("$.conflicts[0].participantId").value(b.toString()))
+        .andExpect(jsonPath("$.conflicts[0].currentGroupId").value(g1))
+        .andExpect(jsonPath("$.boardVersion").value(version + 1));
+    problem(memberOrder(w, g1, a, b, c, other), 409, STALE)
+        .andExpect(jsonPath("$.conflicts[0].participantId").value(other.toString()))
+        .andExpect(jsonPath("$.conflicts[0].currentGroupId").value(g2));
+    problem(memberOrder(w, g1, a, a, b, c), 400, BAD)
+        .andExpect(jsonPath("$.errors[0].field").value("participantIds"));
+    problem(memberOrder(w, UUID.randomUUID().toString(), a), 404, MISSING);
+    assertThat(members(board(w), g1)).containsExactly(c, a, b);
+    assertThat(boardVersion(w)).isEqualTo(version + 1);
   }
 
   @Test
@@ -830,6 +948,33 @@ class GroupHttpIT {
     return write(put(groupPath(w, groupId) + "/leaders"), session, body);
   }
 
+  private MockHttpServletRequestBuilder memberOrder(World w, String groupId, UUID... ids) {
+    List<String> list = new ArrayList<>();
+    for (UUID id : ids) {
+      list.add(id.toString());
+    }
+    String body = json.writeValueAsString(Map.of("participantIds", list));
+    return write(put(groupPath(w, groupId) + "/members/order"), w.owner, body);
+  }
+
+  /** Active members of the group in board order: position, then participant id. */
+  private static List<UUID> members(JsonNode board, String groupId) {
+    List<JsonNode> in = new ArrayList<>();
+    for (JsonNode p : board.get("participants")) {
+      if (!p.get("groupId").isNull() && groupId.equals(p.get("groupId").asString())) {
+        in.add(p);
+      }
+    }
+    in.sort(
+        Comparator.comparingInt((JsonNode p) -> p.get("position").asInt())
+            .thenComparing(p -> p.get("participantId").asString()));
+    List<UUID> out = new ArrayList<>();
+    for (JsonNode p : in) {
+      out.add(UUID.fromString(p.get("participantId").asString()));
+    }
+    return out;
+  }
+
   private JsonNode assign(World w, String... changes) throws Exception {
     return assignRequestOk(w.owner, w, changes);
   }
@@ -856,6 +1001,18 @@ class GroupHttpIT {
         + quoted(from)
         + ",\"toGroupId\":"
         + quoted(to)
+        + "}";
+  }
+
+  private static String placed(UUID participantId, String from, String to, UUID before) {
+    return "{\"participantId\":\""
+        + participantId
+        + "\",\"fromGroupId\":"
+        + quoted(from)
+        + ",\"toGroupId\":"
+        + quoted(to)
+        + ",\"beforeParticipantId\":"
+        + quoted(before == null ? null : before.toString())
         + "}";
   }
 

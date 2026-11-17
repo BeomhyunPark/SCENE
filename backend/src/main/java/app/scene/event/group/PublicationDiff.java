@@ -2,6 +2,7 @@ package app.scene.event.group;
 
 import app.scene.event.group.Snapshot.Placement;
 import app.scene.event.group.Snapshot.SnapshotGroup;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -14,7 +15,8 @@ import java.util.UUID;
  * Working copy against the latest publication (api.md group-board {@code publication}). {@code
  * changedParticipants} counts active participants whose group or leader mark differs; {@code
  * groupChanges} counts groups added, deleted, renamed, or moved in order. With no publication the
- * snapshot is empty, so every assigned participant and every group is a change.
+ * snapshot is empty, so every assigned participant and every group is a change. A group whose
+ * members present on both sides come in a different order also counts in {@code groupChanges}.
  */
 record PublicationDiff(long changedParticipants, long groupChanges) {
 
@@ -38,6 +40,16 @@ record PublicationDiff(long changedParticipants, long groupChanges) {
     for (SnapshotGroup group : snapshot.groups()) {
       published.put(group.groupId(), group);
     }
+    Map<UUID, List<UUID>> working = new HashMap<>();
+    List<ActiveParticipant> ordered = new ArrayList<>(active);
+    ordered.sort(GroupService.MEMBER_ORDER);
+    for (ActiveParticipant participant : ordered) {
+      if (participant.groupId() != null) {
+        working
+            .computeIfAbsent(participant.groupId(), id -> new ArrayList<>())
+            .add(participant.participantId());
+      }
+    }
     Set<UUID> seen = new HashSet<>();
     long groupChanges = 0;
     for (Group group : groups) {
@@ -45,7 +57,8 @@ record PublicationDiff(long changedParticipants, long groupChanges) {
       SnapshotGroup before = published.get(group.groupId());
       if (before == null
           || !before.name().equals(group.name())
-          || before.sortOrder() != group.sortOrder()) {
+          || before.sortOrder() != group.sortOrder()
+          || !sameOrder(working.getOrDefault(group.groupId(), List.of()), before)) {
         groupChanges++;
       }
     }
@@ -55,5 +68,18 @@ record PublicationDiff(long changedParticipants, long groupChanges) {
       }
     }
     return new PublicationDiff(changed, groupChanges);
+  }
+
+  /** Whether the members in both lists come in the same relative order. */
+  private static boolean sameOrder(List<UUID> working, SnapshotGroup published) {
+    List<UUID> before = new ArrayList<>();
+    for (Snapshot.SnapshotMember member : published.members()) {
+      before.add(member.participantId());
+    }
+    Set<UUID> inBefore = new HashSet<>(before);
+    Set<UUID> inWorking = new HashSet<>(working);
+    List<UUID> left = working.stream().filter(inBefore::contains).toList();
+    List<UUID> right = before.stream().filter(inWorking::contains).toList();
+    return left.equals(right);
   }
 }

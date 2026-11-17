@@ -1539,8 +1539,8 @@ CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고
 
 ### 버전
 
-- `boardVersion`: 행사당 하나. 작업본이 실제로 바뀔 때마다(조 추가·이름·삭제·순서, 배정, 조장) 1 오른다. 공개는 올리지 않는다. 처음은 0이다.
-- 조 `version`: 조마다. 이름 변경과 조장 변경에 1 오른다. 배정은 조 `version`을 올리지 않는다.
+- `boardVersion`: 행사당 하나. 작업본이 실제로 바뀔 때마다(조 추가·이름·삭제·순서, 배정, 조원 순서, 조장) 1 오른다. 공개는 올리지 않는다. 처음은 0이다.
+- 조 `version`: 조마다. 이름 변경과 조장 변경에 1 오른다. 배정과 조원 순서는 조 `version`을 올리지 않는다.
 
 ### `GET /api/v1/operator/events/{eventId}/group-board`
 
@@ -1565,6 +1565,7 @@ CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고
       "newcomer": true,
       "groupId": "…",
       "leader": false,
+      "position": 2,
       "publishedGroupId": "…",
       "publishedLeader": false,
       "slotIds": ["opt_d1_dinner", "opt_d1_worship", "opt_d2_breakfast"]
@@ -1596,9 +1597,9 @@ CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고
 - `cohort`는 `SUBMITTED` 신청의 `COHORT` 답 `value.text`(앞뒤 공백 자름)다. `middleGroup`·`cell`은 `MIDDLE_GROUP`·`CELL` 답이 자유 입력이면 `value.text`(앞뒤 공백 자름), 목록 보기면 고른 보기의 지금 문구다(새가족이면 `"새가족 (등반X)"` 또는 운영자가 고친 문구). `gender`는 `GENDER` 답의 보기 id와 지금 보기 문구다. 답이 없거나 질문이 없거나 꺼져 있으면 `null`이다.
 - `newcomer`는 새가족 보기(`opt_newcomer`)를 가진 보이는 질문(중그룹이 가지면 중그룹, 아니면 셀)의 답으로 정한다: 그 보기를 골랐으면 `true`, 다른 보기면 `false`, 답이 없거나 그런 질문이 없으면 `null`이고 화면은 "응답 없음"으로 묶는다. 예전 `NEWCOMER` 예/아니오 답은 읽지 않는다. 돌봄 관련 정보라 편성판에만 있다. 참가자의 내 조(`GET /participant/group`, 조장의 조원 명단 포함)와 운영자 공개본 조회에는 없다.
 - `attendance`는 `ATTENDANCE` 답의 `opt_full`·`opt_partial`·`opt_worship`을 `FULL`·`PARTIAL`·`WORSHIP_ONLY`로 바꾼 값이다. 질문이 없거나 꺼져 있으면 `FULL`이다(DEC-070 §3). 질문이 켜진 뒤 들어온 신청이 아니라서 답이 없을 때도 `FULL`이다. `null`이 아니다.
-- `groupId`가 `null`이면 미배정이다. `publishedGroupId`·`publishedLeader`는 가장 최근 공개본의 값이고, 공개한 적이 없거나 그 공개본에 없으면 `null`·`false`다.
+- `groupId`가 `null`이면 미배정이다. `position`([#343](https://github.com/BeomhyunPark/SCENE/issues/343))은 조 안 순서로, 작은 값이 앞이고 같으면 참가자 id 순이다. 값이 0부터 이어진다는 보장은 없다(빠진 번호가 있을 수 있다). 미배정이면 `null`이다. 화면은 조원을 이 순서로 그린다. `publishedGroupId`·`publishedLeader`는 가장 최근 공개본의 값이고, 공개한 적이 없거나 그 공개본에 없으면 `null`·`false`다.
 - `withdrawn`은 배정 행이 남아 있지만 활성 참가자가 아닌 사람이다. `groupId`는 참고값이다. 조별 인원·미배정 수에 넣지 않는다.
-- `publication`: 공개한 적이 없으면 `lastPublished…`가 `null`이다. `lastPublishedBoardVersion`은 그 공개 때의 `boardVersion`이다. `changedParticipantCount`는 활성 참가자 중 작업본과 최근 공개본의 조 또는 조장 표시가 다른 사람 수다(처음 공개 전에는 배정된 사람 수). `groupChanges`는 작업본과 최근 공개본 사이에 추가·삭제됐거나 이름 또는 `sortOrder` 값이 다른 조 수다(처음 공개 전에는 조 수). 비교는 내용으로 한다. 옮겼다가 되돌려 내용이 같으면 `boardVersion`이 올라도 변경이 없다. `hasUnpublishedChanges`는 둘 중 하나라도 0이 아니면 `true`다. 화면은 이 값으로 "미공개 변경 있음"을 보여 준다(DEC-040).
+- `publication`: 공개한 적이 없으면 `lastPublished…`가 `null`이다. `lastPublishedBoardVersion`은 그 공개 때의 `boardVersion`이다. `changedParticipantCount`는 활성 참가자 중 작업본과 최근 공개본의 조 또는 조장 표시가 다른 사람 수다(처음 공개 전에는 배정된 사람 수). `groupChanges`는 작업본과 최근 공개본 사이에 추가·삭제됐거나 이름 또는 `sortOrder` 값이 다른 조, 또는 양쪽에 다 있는 조원끼리의 순서가 다른 조의 수다(처음 공개 전에는 조 수). 순서만 바꿔도 미공개 변경이다(#343). 비교는 내용으로 한다. 옮겼다가 되돌려 내용이 같으면 `boardVersion`이 올라도 변경이 없다. 되돌린 사람은 조의 맨 뒤로 가므로, 원래 맨 뒤가 아니었다면 순서 변경으로 센다. `hasUnpublishedChanges`는 둘 중 하나라도 0이 아니면 `true`다. 화면은 이 값으로 "미공개 변경 있음"을 보여 준다(DEC-040).
 - `slots`·`slotIds`([#315](https://github.com/BeomhyunPark/SCENE/issues/315))는 각 사람이 언제 있는지를 막대로 보여 주기 위한 **참석 칸**이다. 칸은 신청서 설정의 일차별 식사·집회 표(DEC-070, 자동 질문 `MEALS`)이고, [신청 집계](#get-apiv1operatoreventseventidapplicationssummary)의 `meals.days[].slots[]`와 같은 칸·같은 순서·같은 규칙이다(서버는 같은 코드 `MealSlots`로 읽는다).
   - `slots`는 칸 정의를 일차 순, 하루 안에서는 아침 → 점심 → 저녁 → 집회 순으로 펼친 목록이다. `slotId`는 집계의 `optionId`(`MEALS` 보기 id, `opt_d<일차>_<칸>`)와 같다. `meal`은 `BREAKFAST`·`LUNCH`·`DINNER`·`WORSHIP`, `label`은 `MEALS` 보기의 지금 문구(질문이 꺼져도 그 문구, 보기가 없으면 기본 문구), `dayLabel`은 `1월 22일 (금)` 꼴, `sortOrder`는 목록 안 0부터의 위치다. 칸이 없는 날은 빠진다.
   - **`slots`가 `null`인 경우:** 신청서가 없거나 설정 카드로 만들지 않은 신청서(`fromSetup: false`), 또는 설정의 일정표에 식사·집회 칸이 하나도 없을 때. 이때 모든 참가자의 `slotIds`도 `null`이다. 빈 배열은 내지 않는다.
@@ -1644,6 +1645,7 @@ CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고
 }
 ```
 
+- 선택 키 `beforeParticipantId`(#343): 목적 조에서 이 사람 **앞에** 넣는다. 없거나 `null`이거나 그 사람이 지금 목적 조에 없으면 맨 뒤다. 같은 조로 가는 사람이 여럿이면 `changes` 순서대로 들어간다(같은 `beforeParticipantId`면 그 앞에 차례로). `toGroupId`가 `null`이면 읽지 않는다. 형식이 틀리면 `400`(필드 `changes`). 이미 반영된 사람(지금 = `toGroupId`)은 자리를 바꾸지 않는다. 조 안 순서만 바꿀 때는 [조원 순서](#put-apiv1operatoreventseventidgroupsgroupidmembersorder)를 쓴다.
 - `changes`는 1–200개이고 같은 `participantId`가 두 번 나오면 `400 VALIDATION_FAILED`(필드 `changes`)다. `fromGroupId`는 화면이 본 지금 조, `null`은 미배정이다. 둘 다 키가 있어야 한다.
 - 그 행사의 참가자나 `toGroupId`의 조가 아니면 `404 RESOURCE_NOT_FOUND`다. `fromGroupId`는 지금 조와 비교만 하므로, 지워진 조나 모르는 id면 충돌이다.
 - 사람마다 지금 조를 본다.
@@ -1652,7 +1654,7 @@ CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고
   - 그 밖: 충돌이다.
 - 충돌이 하나라도 있으면 **아무것도 저장하지 않고** `409 CONCURRENT_MODIFICATION`이다. 확장 필드는 `conflicts: [{ "participantId", "currentGroupId" }]`와 `boardVersion`이다. 화면은 최신 상태와 내 변경을 비교해 보여 준다(DEC-046).
 - 옮기는(이미 반영 아닌) 사람이 활성 참가자가 아니면 `409 INVALID_STATE_TRANSITION`이고 확장 필드 `reason`은 `APPLICATION_NOT_SUBMITTED`, `participantIds`가 그 사람들이다. 철회자를 미배정으로 빼는 것(`toGroupId: null`)은 된다.
-- 옮긴 사람은 조장 표시가 풀린다.
+- 옮긴 사람은 조장 표시가 풀린다. 떠난 조의 다른 조원 순서는 그대로다.
 
 `200`
 
@@ -1664,9 +1666,20 @@ CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고
 
 ### `PUT /api/v1/operator/events/{eventId}/groups/{groupId}/leaders`
 
-본문은 `{ "participantIds": ["…"], "expectedVersion": 3 }`다. 그 조의 조장 전체를 이 목록으로 바꾼다. 0–3명(잠정)이고 겹치거나 넘으면 `400 VALIDATION_FAILED`(필드 `participantIds`)다. 버전 처리는 조 `PATCH`와 같다. 지금 그 조의 활성 조원이 아닌 사람이 있으면 `409 CONFLICT`이고 확장 필드 `reason`은 `LEADER_NOT_MEMBER`, `participantIds`가 그 사람들이다. 목록이 그대로면 아무것도 바꾸지 않는다.
+본문은 `{ "participantIds": ["…"], "expectedVersion": 3 }`다. 그 조의 조장 전체를 이 목록으로 바꾼다. **조장은 조당 최대 1명이다**(사용자 결정 2026-11-17, #343). 목록은 0–1명이고 2명 이상이면 `400 VALIDATION_FAILED`(필드 `participantIds`)다. 다른 사람 한 명을 보내면 기존 조장은 같은 요청에서 풀린다(화면의 ♥를 다른 사람에게 누르는 동작이 요청 하나다). DB에도 조당 조장 1명 색인이 있다. 버전 처리는 조 `PATCH`와 같다. 지금 그 조의 활성 조원이 아닌 사람이 있으면 `409 CONFLICT`이고 확장 필드 `reason`은 `LEADER_NOT_MEMBER`, `participantIds`가 그 사람들이다. 목록이 그대로면 아무것도 바꾸지 않는다.
 
-`200` 본문은 `{ "group", "leaderIds": ["…"], "boardVersion" }`다. 조장 표시가 바뀐 사람마다 이력을 남긴다.
+`200` 본문은 `{ "group", "leaderIds": ["…"], "boardVersion" }`다. `leaderIds`는 0–1개 배열이다. 조장 표시가 바뀐 사람마다 이력을 남긴다(교체면 풀린 사람, 지정된 사람 순).
+
+### `PUT /api/v1/operator/events/{eventId}/groups/{groupId}/members/order`
+
+조 안 순서만 바꾼다(#343). 본문은 `{ "participantIds": ["…", "…"] }`다. 그 조의 **활성 조원 전체**를 정확히 한 번씩, 원하는 순서로 담는다.
+
+- 배열이 아니거나 id 형식이 틀리거나 겹치면 `400 VALIDATION_FAILED`(필드 `participantIds`). 그 행사의 조가 아니면 `404`.
+- 지금 조원과 다르면(그새 다른 운영자가 넣거나 뺐다) **아무것도 저장하지 않고** `409 CONCURRENT_MODIFICATION`, 확장 필드는 배정과 같은 `conflicts: [{ "participantId", "currentGroupId" }]`와 `boardVersion`이다. 목록에 있는데 그 조가 아닌 사람은 지금 조(미배정이면 `null`), 그 조인데 목록에 없는 사람은 이 조 id다.
+- 철회자 배정 행은 활성 조원 뒤로 간다(편성판에 보이지 않는다).
+- 순서가 그대로면 `boardVersion`을 올리지 않는다. 조 `version`은 올리지 않는다. 순서만 바뀐 것은 `group_assignment_logs`에 남기지 않는다.
+
+`200` 본문은 `{ "boardVersion" }`다.
 
 ### `POST /api/v1/operator/events/{eventId}/groups/publish`
 
@@ -1695,7 +1708,7 @@ CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고
 }
 ```
 
-`ALREADY_PUBLISHED`면 `publicationId`·`publishedAt`이 가장 최근 공개 값이고 `changedParticipantCount`는 0이다. `assignedCount`·`unassignedCount`는 지금 활성 참가자 기준이다. `PUBLISHED`의 `changedParticipantCount`는 직전 공개본과 비교한 값이다. `confirmUnassigned`가 불리언이 아니면 `400`(필드 `confirmUnassigned`), `expectedBoardVersion`이 0 이상 정수가 아니면 `400`(필드 `expectedBoardVersion`)이다. 공개는 `group_publications`에 한 행을 더한다. 내용은 조 id·이름·순서와 조마다 조원·조장의 참가자 id다(활성 참가자만). 이름·전화는 넣지 않는다. 같은 transaction에 audit `GROUPS_PUBLISHED`를 남긴다. 알림은 보내지 않는다(DEC-072 범위 밖). 조가 하나도 없어도 공개할 수 있고, 그러면 모두 미배정으로 보인다.
+`ALREADY_PUBLISHED`면 `publicationId`·`publishedAt`이 가장 최근 공개 값이고 `changedParticipantCount`는 0이다. `assignedCount`·`unassignedCount`는 지금 활성 참가자 기준이다. `PUBLISHED`의 `changedParticipantCount`는 직전 공개본과 비교한 값이다. `confirmUnassigned`가 불리언이 아니면 `400`(필드 `confirmUnassigned`), `expectedBoardVersion`이 0 이상 정수가 아니면 `400`(필드 `expectedBoardVersion`)이다. 공개는 `group_publications`에 한 행을 더한다. 내용은 조 id·이름·순서와 조마다 조원·조장의 참가자 id다(활성 참가자만). 조원은 작업본의 조 안 순서대로 담는다(#343). 이름·전화는 넣지 않는다. 같은 transaction에 audit `GROUPS_PUBLISHED`를 남긴다. 알림은 보내지 않는다(DEC-072 범위 밖). 조가 하나도 없어도 공개할 수 있고, 그러면 모두 미배정으로 보인다.
 
 ### `GET /api/v1/operator/events/{eventId}/groups/published`
 
@@ -1718,7 +1731,7 @@ CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고
 }
 ```
 
-공개한 적이 없으면 `{ "publishedAt": null, "groups": [], "unassigned": [] }`다. `404`가 아니다. 철회자는 빠진다. 공개 뒤 새로 신청한 활성 참가자는 `unassigned`에 들어간다. 조 안의 순서는 조장 먼저, 그다음 이름이다.
+공개한 적이 없으면 `{ "publishedAt": null, "groups": [], "unassigned": [] }`다. `404`가 아니다. 철회자는 빠진다. 공개 뒤 새로 신청한 활성 참가자는 `unassigned`에 들어간다. 조 안의 순서는 공개본에 담긴 운영자 순서다(#343. 그 전 공개본은 참가자 id 순으로 담겨 있다). `leaders`는 0–1개다. 체크인 조별 보기도 이 순서를 쓴다.
 
 ### `GET /api/v1/participant/group`
 
@@ -1745,8 +1758,8 @@ CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고
 
 - 신청을 먼저 본다. 신청이 없으면 공개 여부와 상관없이 `NOT_ELIGIBLE`이다.
 - `publishedAt`은 가장 최근 공개 시각이다(`NOT_PUBLISHED`·`NOT_ELIGIBLE`은 `null`). 화면은 "마지막 갱신"으로 보여 준다(DEC-043).
-- `group.leaders`는 이름만이다. 철회한 조장은 빠진다.
-- `leader`는 공개본에서 내가 그 조의 조장인지다. `members`는 `leader`가 `true`일 때만 있고, 그 조의 활성 조원(나 포함)의 이름·또래·조장 표시다. 그 밖에는 `null`이다. 전화·연락처는 없다.
+- `group.leaders`는 이름만이고 0–1개다(조장 1명, #343). 철회한 조장은 빠진다. 배열 모양은 그대로 둔다.
+- `leader`는 공개본에서 내가 그 조의 조장인지다. `members`는 `leader`가 `true`일 때만 있고, 그 조의 활성 조원(나 포함)의 이름·또래·조장 표시를 공개본의 운영자 순서로 담는다. 그 밖에는 `null`이다. 전화·연락처는 없다.
 - 일반 참가자는 다른 조원의 이름을 받지 않는다.
 - 조회는 audit을 남기지 않는다.
 
