@@ -37,6 +37,11 @@
     LIMIT 1
   </sql>
 
+  <!--
+    Names order by code point (COLLATE "C"): Hangul syllables then read 가나다 order whatever the
+    database locale, and match String order where the services sort in Java.
+  -->
+
   <select id="findBoardVersion" resultType="java.lang.Long">
     SELECT version FROM group_boards WHERE space_id = #{spaceId} AND event_id = #{eventId}
   </select>
@@ -139,7 +144,7 @@
     LEFT JOIN group_assignments ga
       ON ga.space_id = p.space_id AND ga.event_id = p.event_id AND ga.participant_id = p.id
     WHERE p.space_id = #{spaceId} AND p.event_id = #{eventId}
-    ORDER BY p.name, p.id
+    ORDER BY p.name COLLATE "C", p.id
   </select>
 
   <!-- Assignment rows whose participant has no SUBMITTED application. -->
@@ -150,7 +155,7 @@
       ON p.space_id = ga.space_id AND p.event_id = ga.event_id AND p.id = ga.participant_id
     WHERE ga.space_id = #{spaceId} AND ga.event_id = #{eventId}
       AND NOT <include refid="submitted"/>
-    ORDER BY p.name, p.id
+    ORDER BY p.name COLLATE "C", p.id
   </select>
 
   <sql id="assignmentColumns">
@@ -241,7 +246,7 @@
         #{id}
       </foreach>
     </if>
-    ORDER BY p.name, p.id
+    ORDER BY p.name COLLATE "C", p.id
   </select>
 
   <select id="findLatestPublication" resultType="app.scene.event.group.PublicationRow">
