@@ -19,6 +19,7 @@ import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import jakarta.servlet.http.Cookie;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -34,6 +35,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers;
 import org.springframework.session.web.http.SessionRepositoryFilter;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
@@ -432,21 +434,20 @@ class ParticipantCheckInHttpIT {
 
     /** Signs in through the public session path and returns the participant cookie. */
     Cookie session(String accessKey) throws Exception {
+      MockHttpServletRequestBuilder request =
+          post("/api/v1/public/events/" + eventId + "/participant-sessions")
+              .cookie(csrf())
+              .header(CSRF_HEADER, CSRF)
+              .contentType(MediaType.APPLICATION_JSON)
+              .content("{\"accessKey\":\"" + accessKey + "\"}");
+      MvcResult issued = mvc.perform(request).andExpect(status().isNoContent()).andReturn();
       String prefix = PARTICIPANT_COOKIE + "=";
-      List<String> headers =
-          mvc.perform(
-                  post("/api/v1/public/events/" + eventId + "/participant-sessions")
-                      .cookie(csrf())
-                      .header(CSRF_HEADER, CSRF)
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content("{\"accessKey\":\"" + accessKey + "\"}"))
-              .andExpect(status().isNoContent())
-              .andReturn()
-              .getResponse()
-              .getHeaders(HttpHeaders.SET_COOKIE)
-              .stream()
-              .filter(header -> header.startsWith(prefix))
-              .toList();
+      List<String> headers = new ArrayList<>();
+      for (String header : issued.getResponse().getHeaders(HttpHeaders.SET_COOKIE)) {
+        if (header.startsWith(prefix)) {
+          headers.add(header);
+        }
+      }
       assertThat(headers).hasSize(1);
       String header = headers.get(0);
       return new Cookie(PARTICIPANT_COOKIE, header.substring(prefix.length(), header.indexOf(';')));
