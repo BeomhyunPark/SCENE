@@ -7,3 +7,8 @@ spring:
     password: scene
   flyway:
     locations: classpath:db/migration,classpath:db/seed
+
+# Local only. Real environments set SCENE_CHECKIN_CODE_SECRET.
+scene:
+  checkin:
+    code-secret: local-checkin-code-secret-not-for-real-use

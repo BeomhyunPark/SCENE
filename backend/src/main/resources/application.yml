@@ -42,6 +42,10 @@ scene:
   bootstrap:
     owner-email: ${SCENE_BOOTSTRAP_OWNER_EMAIL:}
     space-name: ${SCENE_BOOTSTRAP_SPACE_NAME:}
+  # DEC-071. Signs the participant check-in QR value. Blank means no QR value verifies.
+  # Changing it voids every QR already shown, so it does not change during an event.
+  checkin:
+    code-secret: ${SCENE_CHECKIN_CODE_SECRET:}
   security:
     cors:
       allowed-origins: http://scene-frontend.placeholder.invalid

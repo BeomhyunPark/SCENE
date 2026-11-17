@@ -19,7 +19,7 @@ operator 경로는 운영자 세션이 필요하다. public 경로는 세션을 
 | 오류 본문 | `application/problem+json` |
 | 요청 id | 헤더 `X-Request-Id`. 형식은 1–128자의 `A-Za-z0-9._-`. 없거나 형식이 다르면 서버가 UUID를 만든다. 응답 헤더와 오류 본문 `traceId`가 같은 값이다. 분산 trace id가 아니다 |
 
-`Idempotency-Key`는 읽지 않는다. 예외는 [체크인](#체크인)의 체크인·취소다(계약, #282).
+`Idempotency-Key`는 읽지 않는다. 예외는 [체크인](#체크인)의 체크인·취소다(#282).
 
 ### CSRF
 
@@ -616,7 +616,7 @@ curl -sS \
 
 `EVENT_UPDATE`, `EVENT_USER_READ`, `PARTICIPANT_READ`, `PARTICIPANT_CONTACT_READ`, `PARTICIPANT_WRITE`, `FORM_WRITE`, `APPLICATION_READ`, `APPLICATION_MANAGE`, `TASK_WRITE`, `SCHEDULE_WRITE`, `NOTICE_WRITE`, `FINANCE_READ`, `FINANCE_WRITE`, `GROUP_WRITE`, `ROOM_WRITE`, `RIDE_WRITE`, `CLASS_WRITE`, `CHECKIN_WRITE`, `MISSION_WRITE`, `GUARDIAN_WRITE`, `GUARDIAN_CONTACT_READ`, `PRIVACY_LOG_READ`, `AUDIT_LOG_READ`, `DATA_EXPORT`, `EVENT_READ`, `EVENT_LIFECYCLE`, `EVENT_USER_MANAGE`.
 
-`OWNER`는 이 키를 모두 기본으로 가진다. `MANAGER`의 기본은 `EVENT_READ`와 `TASK_WRITE`다. `STAFF`의 기본은 `EVENT_READ`다. 키가 있다고 그 업무의 API가 열려 있는 것은 아니다. 지금 HTTP가 `PermissionEvaluator`로 보는 키는 `EVENT_READ`, `EVENT_UPDATE`, `FORM_WRITE`, `TASK_WRITE`, `EVENT_USER_MANAGE`다. 행사 이름 변경은 `EVENT_UPDATE`다. 신청서 쓰기는 `FORM_WRITE`다. 신청 읽기는 `APPLICATION_READ`가 아니라 `EVENT_READ`다. 행사 상태 변경은 그 키 대신 행사 역할 `OWNER`와 공간 역할 `OWNER`를 본다. `EVENT_LIFECYCLE`은 소유자 전용이라 다른 역할에 `GRANT`되지 않는다.
+`OWNER`는 이 키를 모두 기본으로 가진다. `MANAGER`의 기본은 `EVENT_READ`, `TASK_WRITE`, `CHECKIN_WRITE`다. `STAFF`의 기본은 `EVENT_READ`, `CHECKIN_WRITE`다(DEC-071). 키가 있다고 그 업무의 API가 열려 있는 것은 아니다. 지금 HTTP가 `PermissionEvaluator`로 보는 키는 `EVENT_READ`, `EVENT_UPDATE`, `FORM_WRITE`, `TASK_WRITE`, `CHECKIN_WRITE`, `EVENT_USER_MANAGE`다. 행사 이름 변경은 `EVENT_UPDATE`다. 신청서 쓰기는 `FORM_WRITE`다. 신청 읽기는 `APPLICATION_READ`가 아니라 `EVENT_READ`다. 행사 상태 변경은 그 키 대신 행사 역할 `OWNER`와 공간 역할 `OWNER`를 본다. `EVENT_LIFECYCLE`은 소유자 전용이라 다른 역할에 `GRANT`되지 않는다.
 
 ### `GET /api/v1/operator/events/{eventId}/operators`
 
@@ -660,9 +660,9 @@ curl -sS \
 {
   "userId": "…",
   "role": "MANAGER",
-  "roleDefaults": ["EVENT_READ", "TASK_WRITE"],
+  "roleDefaults": ["CHECKIN_WRITE", "EVENT_READ", "TASK_WRITE"],
   "overrides": { "grants": [], "revokes": [] },
-  "effective": ["EVENT_READ", "TASK_WRITE"]
+  "effective": ["CHECKIN_WRITE", "EVENT_READ", "TASK_WRITE"]
 }
 ```
 
@@ -1113,11 +1113,13 @@ CSRF가 필요하다. 그 쿠키의 세션 행만 지운다. `204`이고 본문�
 
 ## 체크인
 
-> 계약만 있고 서버는 아직 없다([#282](https://github.com/BeomhyunPark/SCENE/issues/282)). 정책은 [DEC-071](../../docs/product/PRODUCT_DECISIONS.md)이다.
+> 운영자 경로는 [#282](https://github.com/BeomhyunPark/SCENE/issues/282)에서 열렸다. 컨트롤러는 `event/checkin/CheckInController`다. 참가자 QR 경로(`GET /api/v1/participant/check-in`)는 아직 없다([#283](https://github.com/BeomhyunPark/SCENE/issues/283)). 정책은 [DEC-071](../../docs/product/PRODUCT_DECISIONS.md)이다.
 
 참가자는 행사당 한 번 도착 체크인한다. 대상은 그 행사에 `SUBMITTED` 신청이 있는 참가자다. 읽기(현황·명단)는 유효한 `EVENT_READ`, 또는 활성 공간 `OWNER`·`ADMIN`이다. 쓰기(체크인·취소)와 이력은 유효한 `CHECKIN_WRITE`다. 공간 역할만으로는 쓰지 못한다. 기본 역할은 `OWNER`·`MANAGER`·`STAFF` 모두 `CHECKIN_WRITE`를 갖는다.
 
-판정 순서는 행사 없음·멤버 아님(`404`·`403 NOT_A_MEMBER`) → 권한(`403 FORBIDDEN`) → 본문·`Idempotency-Key`(`400`) → 행사 상태(`409`) → 대상 찾기(`404`) → 참가 자격(`409`) → 결과(`200`)다. 읽기는 행사 상태로 막지 않는다.
+판정 순서는 행사 없음·멤버 아님(`404`·`403 NOT_A_MEMBER`) → 권한(`403 FORBIDDEN`) → `Idempotency-Key`·본문(`400`) → 행사 상태(`409`) → 대상 찾기(`404`) → [같은 키](#같은-idempotency-key) → 참가 자격(`409`) → 결과(`200`)다. 같은 키를 다시 보내도 행사 상태와 대상은 다시 본다. 그래서 종료된 행사에 같은 키를 보내면 `409 EVENT_ENDED`다. 읽기는 행사 상태로 막지 않는다.
+
+체크인·취소는 행사 행을 잠그고 처리한다. 같은 행사의 쓰기는 차례로 커밋된다.
 
 | 행사 상태 | 체크인·취소 |
 |---|---|
@@ -1126,7 +1128,7 @@ CSRF가 필요하다. 그 쿠키의 세션 행만 지운다. `204`이고 본문�
 | `ENDED` | `409 EVENT_ENDED` |
 | `ARCHIVED` | `409 EVENT_ARCHIVED` |
 
-`EVENT_ENDED`의 `detail`은 #282에서 "종료된 행사에서는 이 작업을 할 수 없습니다."로 바꾼다. 클라이언트는 `code`로 분기한다.
+`EVENT_ENDED`의 `detail`은 "종료된 행사에서는 이 작업을 할 수 없습니다."다(#282에서 신청 전용 문장을 바꿨다). 클라이언트는 `code`로 분기한다.
 
 ### 체크인 객체
 
@@ -1151,6 +1153,8 @@ CSRF가 필요하다. 그 쿠키의 세션 행만 지운다. `204`이고 본문�
 ### QR 값
 
 `SCENE-CI1.` + base64url(패딩 없음, 참가자 id 16바이트 ‖ HMAC-SHA256(`scene.checkin.code-secret`, `checkin|1|{eventId}|{participantId}|0`) 앞 16바이트)이다. 서버는 값을 저장하지 않는다. 판정은 접두사 → base64url → 길이 32바이트 → 그 행사의 참가자 → 서명 비교(상수 시간) 순이다. 어느 단계에서 틀려도 `404 RESOURCE_NOT_FOUND`이고 어디서 틀렸는지 구분하지 않는다. 로그에 값을 남기지 않는다.
+
+비밀값은 환경 변수 `SCENE_CHECKIN_CODE_SECRET`이다. 비어 있으면 어떤 값도 맞지 않아 QR 체크인은 모두 `404`다. 수동 체크인은 그대로 된다. 바꾸면 이미 보여 준 QR이 모두 무효가 되므로 행사 기간에 바꾸지 않는다.
 
 ### `GET /api/v1/participant/check-in`
 
@@ -1183,7 +1187,7 @@ CSRF가 필요하다. 그 쿠키의 세션 행만 지운다. `204`이고 본문�
 
 쿼리: `q`(선택), `checkedIn`(`true`·`false`, 선택), `page`, `size`([목록](#목록)과 같음). 대상은 `SUBMITTED` 신청이 있는 참가자다. 순서는 이름, 그다음 참가자 id다.
 
-`q`는 앞뒤 공백을 자르고 1–50자다. 숫자 정확히 4개면 전화 끝 4자리가 같거나 이름에 그 글자가 든 참가자, 그 밖에는 이름에 든 참가자다(대소문자 무시). 끝 4자리 검색은 `CHECKIN_WRITE`가 없으면 이름만 본다.
+`q`는 앞뒤 공백을 자르고 1–50자다. 공백뿐이거나 길면 `400 VALIDATION_FAILED`이고 필드는 `q`다. `checkedIn`이 `true`·`false`가 아니면 필드는 `checkedIn`이다. `%`·`_`는 일반 글자로 찾는다. 숫자 정확히 4개면 전화 끝 4자리가 같거나 이름에 그 글자가 든 참가자, 그 밖에는 이름에 든 참가자다(대소문자 무시). 끝 4자리 검색은 `CHECKIN_WRITE`가 없으면 이름만 본다.
 
 항목:
 
@@ -1213,7 +1217,7 @@ CSRF와 `Idempotency-Key` 헤더(1–100자)가 필요하다. 헤더가 없거�
 { "mode": "MANUAL", "participantId": "…" }
 ```
 
-`mode`가 없거나 다른 값이거나, 그 `mode`의 필드가 없으면 `400 VALIDATION_FAILED`다. 없는 참가자·틀린 QR은 `404 RESOURCE_NOT_FOUND`다. `SUBMITTED` 신청이 없으면 `409 INVALID_STATE_TRANSITION`이고 확장 필드 `reason`은 `APPLICATION_NOT_SUBMITTED`다.
+`mode`가 없거나 다른 값이거나, 그 `mode`의 필드가 없으면 `400 VALIDATION_FAILED`다. 필드는 `mode`, `code`, `participantId` 중 하나다. `participantId`가 UUID가 아니어도 `400`이다. 없는 참가자·틀린 QR은 `404 RESOURCE_NOT_FOUND`다. `SUBMITTED` 신청이 없으면 `409 INVALID_STATE_TRANSITION`이고 확장 필드 `reason`은 `APPLICATION_NOT_SUBMITTED`다.
 
 `200`
 
@@ -1234,7 +1238,7 @@ CSRF와 `Idempotency-Key` 헤더(1–100자)가 필요하다. 헤더가 없거�
 
 ### `POST /api/v1/operator/events/{eventId}/check-ins/{checkInId}/cancel`
 
-CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고 생략할 수 있다. `reason`은 앞뒤 공백을 자르고 200자 이하다. 넘으면 `400 VALIDATION_FAILED`다. 그 행사의 체크인이 아니면 `404 RESOURCE_NOT_FOUND`다.
+CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고 생략할 수 있다. `reason`은 앞뒤 공백을 자르고 200자 이하다. 넘으면 `400 VALIDATION_FAILED`이고 필드는 `reason`이다. 자른 뒤 비면 `null`로 저장한다. 철회된 신청이어도 취소는 된다. 그 행사의 체크인이 아니면 `404 RESOURCE_NOT_FOUND`다.
 
 `200` 본문은 `{ "result", "checkIn" }`이다.
 
@@ -1249,7 +1253,7 @@ CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고
 
 ### `GET /api/v1/operator/events/{eventId}/check-in-logs?participantId=…`
 
-`CHECKIN_WRITE`가 필요하다. `participantId`는 필수다. 그 행사 참가자가 아니면 `404 RESOURCE_NOT_FOUND`다. 항목은 `{ "logId", "checkInId", "action", "method", "actorUserId", "actorDisplayName", "reason", "createdAt" }`이고 `action`은 `CHECKED_IN`·`CANCELLED`, 순서는 최신부터다. `page`·`size`는 [목록](#목록)과 같다. 전체 감사는 기존 `GET /audit-logs`(`AUDIT_LOG_READ`)다.
+`CHECKIN_WRITE`가 필요하다. `participantId`는 필수다. 없거나 UUID가 아니면 `400 VALIDATION_FAILED`(필드 `participantId`)다. 그 행사 참가자가 아니면 `404 RESOURCE_NOT_FOUND`다. 항목은 `{ "logId", "checkInId", "action", "method", "actorUserId", "actorDisplayName", "reason", "createdAt" }`이고 `action`은 `CHECKED_IN`·`CANCELLED`, 순서는 최신부터다. `page`·`size`는 [목록](#목록)과 같다. 전체 감사는 기존 `GET /audit-logs`(`AUDIT_LOG_READ`)다.
 
 ### 감사 로그
 
@@ -1298,6 +1302,7 @@ CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고
 | `EVENT_ACTIVATE`, `EVENT_END`, `EVENT_REOPEN`, `EVENT_ARCHIVE`, `EVENT_UNARCHIVE` | 행사 상태가 실제로 옮겨질 때 |
 | `EVENT_USER_ROLE_CHANGED` | 운영자 역할을 다시 쓸 때 |
 | `EVENT_USER_PERMISSIONS_REPLACED` | 권한 override 내용이 바뀔 때 |
+| `CHECKIN_CREATED`, `CHECKIN_CANCELLED` | 체크인·취소가 기록을 만들 때. `ALREADY_…`와 같은 키 재전송은 남기지 않는다([체크인 감사 로그](#감사-로그)) |
 | `OWNER_TRANSFER_ACCEPTED` | 소유권 이전을 처음 수락할 때. 다시 수락하면 더 쓰지 않는다 |
 | `EVENT_ACCESS_REVOKED` | 운영자 제거 또는 공간 탈퇴로 그 행사 접근이 끊길 때. 탈퇴에서 유지한 행사는 끊지 않는다 |
 | `TASK_ASSIGNEE_CLEARED` | 그 제거 또는 탈퇴가 업무 담당을 비울 때. `DONE`과 `CANCELLED`를 포함해 담당인 업무마다 한 줄 |
@@ -1324,7 +1329,7 @@ CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고
 - 체크 항목 추가
 - 참가자 조회(`GET /api/v1/participant/me` 밖)
 - 회비, 조, 방, 차량
-- 체크인. 계약은 [체크인](#체크인)에 있고 서버는 #282다
+- 참가자 체크인 QR 받기(`GET /api/v1/participant/check-in`). 계약은 [체크인](#체크인)에 있고 서버는 #283이다
 - Export, 공간 설정
 - 행사 기간·장소·유형을 바꾸는 `PATCH`. 이름만 바꾼다
 - 공간 소유권 이전의 전용 URL

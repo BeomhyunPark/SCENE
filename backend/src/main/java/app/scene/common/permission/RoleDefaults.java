@@ -5,8 +5,10 @@ import java.util.Set;
 
 /**
  * Role to permission-set mapping. Only the approved defaults are filled in: every event role keeps
- * {@link Permission#EVENT_READ}, and {@link Permission#TASK_WRITE} is on OWNER and MANAGER. OWNER
- * holds the whole event set. Other MANAGER and STAFF defaults stay unset until they are approved.
+ * {@link Permission#EVENT_READ}, {@link Permission#TASK_WRITE} is on OWNER and MANAGER, and {@link
+ * Permission#CHECKIN_WRITE} is on every event role (DEC-071). OWNER holds the whole event set.
+ * Other MANAGER and STAFF defaults stay unset until they are approved. Defaults are computed, not
+ * stored, so a change applies to existing operators at once.
  */
 public final class RoleDefaults {
 
@@ -17,10 +19,10 @@ public final class RoleDefaults {
       return Permission.allEventKeys();
     }
     if ("MANAGER".equals(eventRole)) {
-      return EnumSet.of(Permission.EVENT_READ, Permission.TASK_WRITE);
+      return EnumSet.of(Permission.EVENT_READ, Permission.TASK_WRITE, Permission.CHECKIN_WRITE);
     }
     if ("STAFF".equals(eventRole)) {
-      return EnumSet.of(Permission.EVENT_READ);
+      return EnumSet.of(Permission.EVENT_READ, Permission.CHECKIN_WRITE);
     }
     return EnumSet.noneOf(Permission.class);
   }

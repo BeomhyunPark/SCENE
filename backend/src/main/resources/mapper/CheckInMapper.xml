@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="app.scene.event.checkin.mapper.CheckInMapper">
+
+  <!-- Latest SUBMITTED application of participant p. Outer row alias is p. -->
+  <sql id="submittedApplication">
+    SELECT a.id, a.form_id
+    FROM applications a
+    WHERE a.space_id = p.space_id AND a.event_id = p.event_id AND a.participant_id = p.id
+      AND a.status = 'SUBMITTED'
+    ORDER BY a.submitted_at DESC, a.id
+    LIMIT 1
+  </sql>
+
+  <!-- SYSTEM COHORT answer text of application app. A hidden question gives null. -->
+  <sql id="cohort">
+    SELECT ans.value ->> 'text' AS text
+    FROM fields f
+    JOIN answers ans
+      ON ans.space_id = f.space_id
+     AND ans.event_id = f.event_id
+     AND ans.field_id = f.id
+     AND ans.application_id = app.id
+    WHERE f.space_id = p.space_id AND f.event_id = p.event_id AND f.form_id = app.form_id
+      AND f.system_key = 'COHORT' AND NOT f.hidden
+    LIMIT 1
+  </sql>
+
+  <select id="findTarget" resultType="app.scene.event.checkin.CheckInTarget">
+    SELECT p.id AS participant_id, p.name, coh.text AS cohort, (app.id IS NOT NULL) AS submitted
+    FROM participants p
+    LEFT JOIN LATERAL (<include refid="submittedApplication"/>) app ON true
+    LEFT JOIN LATERAL (<include refid="cohort"/>) coh ON true
+    WHERE p.space_id = #{spaceId} AND p.event_id = #{eventId} AND p.id = #{participantId}
+  </select>
+
+  <select id="findCheckIn" resultType="app.scene.event.checkin.CheckIn">
+    SELECT c.id AS check_in_id, c.participant_id, c.status, c.method,
+           c.checked_in_at, c.checked_in_by AS checked_in_by_user_id,
+           ui.display_name AS checked_in_by_display_name,
+           c.cancelled_at, c.cancelled_by AS cancelled_by_user_id,
+           uc.display_name AS cancelled_by_display_name, c.cancel_reason
+    FROM checkins c
+    JOIN users ui ON ui.id = c.checked_in_by
+    LEFT JOIN users uc ON uc.id = c.cancelled_by
+    WHERE c.space_id = #{spaceId} AND c.event_id = #{eventId}
+    <if test="checkInId != null">AND c.id = #{checkInId}</if>
+    <if test="participantId != null">AND c.participant_id = #{participantId}</if>
+  </select>
+
+  <select id="findKeyedLog" resultType="app.scene.event.checkin.KeyedLog">
+    SELECT checkin_id AS check_in_id, participant_id, action
+    FROM checkin_logs
+    WHERE space_id = #{spaceId} AND event_id = #{eventId} AND idempotency_key = #{idempotencyKey}
+  </select>
+
+  <insert id="insertCheckIn">
+    INSERT INTO checkins (
+      id, space_id, event_id, participant_id, status, method, checked_in_at, checked_in_by)
+    VALUES (
+      #{checkInId}, #{spaceId}, #{eventId}, #{participantId}, 'CHECKED_IN', #{method},
+      #{at}, #{actorUserId})
+  </insert>
+
+  <update id="updateCheckedIn">
+    UPDATE checkins
+    SET status = 'CHECKED_IN', method = #{method}, checked_in_at = #{at},
+        checked_in_by = #{actorUserId}, cancelled_at = NULL, cancelled_by = NULL,
+        cancel_reason = NULL
+    WHERE space_id = #{spaceId} AND event_id = #{eventId} AND id = #{checkInId}
+      AND status = 'CANCELLED'
+  </update>
+
+  <update id="updateCancelled">
+    UPDATE checkins
+    SET status = 'CANCELLED', cancelled_at = #{at}, cancelled_by = #{actorUserId},
+        cancel_reason = #{reason}
+    WHERE space_id = #{spaceId} AND event_id = #{eventId} AND id = #{checkInId}
+      AND status = 'CHECKED_IN'
+  </update>
+
+  <insert id="insertLog">
+    INSERT INTO checkin_logs (
+      id, space_id, event_id, checkin_id, participant_id, action, method, actor_user_id,
+      reason, idempotency_key, created_at)
+    VALUES (
+      #{logId}, #{spaceId}, #{eventId}, #{checkInId}, #{participantId}, #{action}, #{method},
+      #{actorUserId}, #{reason}, #{idempotencyKey}, #{at})
+  </insert>
+
+  <select id="counts" resultType="app.scene.event.checkin.CheckInCounts">
+    SELECT count(*) AS total, count(*) FILTER (WHERE c.status = 'CHECKED_IN') AS checked_in
+    FROM participants p
+    LEFT JOIN checkins c
+      ON c.space_id = p.space_id AND c.event_id = p.event_id AND c.participant_id = p.id
+    WHERE p.space_id = #{spaceId} AND p.event_id = #{eventId}
+      AND EXISTS (
+        SELECT 1 FROM applications a
+        WHERE a.space_id = p.space_id AND a.event_id = p.event_id AND a.participant_id = p.id
+          AND a.status = 'SUBMITTED')
+  </select>
+
+  <!-- q is trimmed and matched with strpos, so % and _ are plain characters. -->
+  <sql id="rosterFrom">
+    FROM participants p
+    JOIN LATERAL (<include refid="submittedApplication"/>) app ON true
+    LEFT JOIN checkins c
+      ON c.space_id = p.space_id AND c.event_id = p.event_id AND c.participant_id = p.id
+  </sql>
+
+  <sql id="rosterWhere">
+    WHERE p.space_id = #{spaceId} AND p.event_id = #{eventId}
+    <if test="q != null">
+      AND (strpos(lower(p.name), lower(#{q})) &gt; 0
+      <if test="phoneSearch">OR p.phone_last4 = #{q}</if>)
+    </if>
+    <if test="checkedIn != null and checkedIn">AND c.status = 'CHECKED_IN'</if>
+    <if test="checkedIn != null and !checkedIn">
+      AND (c.status IS NULL OR c.status &lt;&gt; 'CHECKED_IN')
+    </if>
+  </sql>
+
+  <select id="countRoster" resultType="long">
+    SELECT count(*)
+    <include refid="rosterFrom"/>
+    <include refid="rosterWhere"/>
+  </select>
+
+  <select id="findRoster" resultType="app.scene.event.checkin.RosterRow">
+    SELECT p.id AS participant_id, p.name, coh.text AS cohort, p.phone_last4,
+           c.id AS check_in_id, c.status, c.method, c.checked_in_at,
+           u.display_name AS checked_in_by_display_name
+    <include refid="rosterFrom"/>
+    LEFT JOIN LATERAL (<include refid="cohort"/>) coh ON true
+    LEFT JOIN users u ON u.id = c.checked_in_by
+    <include refid="rosterWhere"/>
+    <include refid="app.scene.common.mybatis.CommonMapper.orderByAndPage"/>
+  </select>
+
+  <select id="countLogs" resultType="long">
+    SELECT count(*)
+    FROM checkin_logs
+    WHERE space_id = #{spaceId} AND event_id = #{eventId} AND participant_id = #{participantId}
+  </select>
+
+  <select id="findLogs" resultType="app.scene.event.checkin.CheckInLogItem">
+    SELECT l.id AS log_id, l.checkin_id AS check_in_id, l.action, l.method, l.actor_user_id,
+           u.display_name AS actor_display_name, l.reason, l.created_at
+    FROM checkin_logs l
+    JOIN users u ON u.id = l.actor_user_id
+    WHERE l.space_id = #{spaceId} AND l.event_id = #{eventId}
+      AND l.participant_id = #{participantId}
+    ORDER BY l.seq DESC
+    LIMIT #{page.size} OFFSET #{page.offset}
+  </select>
+
+</mapper>

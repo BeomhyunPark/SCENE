@@ -53,6 +53,7 @@ cd ~/scene/deploy/home && cp .env.example .env && chmod 600 .env
      - 받은 값을 `SCENE_GOOGLE_CLIENT_ID`·`SCENE_GOOGLE_CLIENT_SECRET`에 넣는다.
    - **첫 관리자(DEC-069):** `SCENE_BOOTSTRAP_OWNER_EMAIL`에 첫 관리자의 Google 이메일을, `SCENE_BOOTSTRAP_SPACE_NAME`에 조직 이름을 넣는다.
      - 그 계정이 처음 로그인할 때 조직이 아직 없으면 조직을 만들고 OWNER로 넣는다. 한 번만 일어난다.
+   - **체크인 QR(DEC-071):** `SCENE_CHECKIN_CODE_SECRET`에 `openssl rand -base64 32`로 만든 값을 넣는다. 비어 있으면 QR 체크인이 꺼지고 수동 체크인만 된다. 행사 기간에 바꾸면 이미 보여 준 QR이 모두 무효가 된다.
 5. 실행한다.
 
 ```bash

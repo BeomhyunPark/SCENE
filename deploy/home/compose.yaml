@@ -36,6 +36,8 @@ services:
       SCENE_GOOGLE_CLIENT_SECRET: ${SCENE_GOOGLE_CLIENT_SECRET:?set SCENE_GOOGLE_CLIENT_SECRET in .env}
       SCENE_BOOTSTRAP_OWNER_EMAIL: ${SCENE_BOOTSTRAP_OWNER_EMAIL:-}
       SCENE_BOOTSTRAP_SPACE_NAME: ${SCENE_BOOTSTRAP_SPACE_NAME:-}
+      # Check-in QR signing (#282, DEC-071). Empty means QR check-in answers 404.
+      SCENE_CHECKIN_CODE_SECRET: ${SCENE_CHECKIN_CODE_SECRET:-}
       TZ: Asia/Seoul
     healthcheck:
       test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/8080' || exit 1"]

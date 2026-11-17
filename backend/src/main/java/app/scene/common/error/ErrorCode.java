@@ -21,7 +21,7 @@ public enum ErrorCode {
   INVALID_STATE_TRANSITION(409, "Invalid state transition", "현재 상태에서는 이 전이를 할 수 없습니다."),
   CONFIRMATION_REQUIRED(409, "Confirmation required", "경고를 확인해야 진행할 수 있습니다."),
   EVENT_ARCHIVED(409, "Event archived", "보관된 행사에서는 이 변경을 할 수 없습니다."),
-  EVENT_ENDED(409, "Event ended", "종료된 행사에서는 이 신청을 받을 수 없습니다."),
+  EVENT_ENDED(409, "Event ended", "종료된 행사에서는 이 작업을 할 수 없습니다."),
   FORM_NOT_FOUND(404, "Form not found", "신청 폼을 찾을 수 없습니다."),
   FORM_CLOSED(409, "Form closed", "신청을 받지 않는 폼입니다."),
   APPLICATION_VALIDATION_FAILED(400, "Application validation failed", "신청 답변이 올바르지 않습니다."),
