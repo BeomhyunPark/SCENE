@@ -44,6 +44,8 @@ describe("mock attended slots (DEC-074, one rule for summary, table and CSV)", (
     expect(keys).toEqual(expect.arrayContaining(["ARRIVAL_SLOT", "DEPARTURE_SLOT", "MEALS", "PARTIAL_NOTE"]));
     expect(keys).not.toContain("ARRIVAL_AT");
     expect(keys).not.toContain("LODGING");
+    // A setup without the commuter switch (saved before it) asks no NO_LODGING.
+    expect(keys).not.toContain("NO_LODGING");
     const arrival = form.fields.find((field) => field.fieldId === retreat.fieldId("ARRIVAL_SLOT"))!;
     expect(arrival.config.options?.map((option) => option.optionId)).toEqual(ALL);
     expect(arrival.config.options?.[0].label).toBe("1월 22일 (금) 저녁부터");
@@ -99,6 +101,27 @@ describe("mock attended slots (DEC-074, one rule for summary, table and CSV)", (
     expect(byId[ids.weekend]).toEqual(["opt_d2_lunch", "opt_d2_dinner", "opt_d2_worship", "opt_d3_breakfast", "opt_d3_lunch"]);
     expect(byId[ids.worship]).toEqual(["opt_d1_worship", "opt_d2_worship"]);
     expect(byId[ids.unknown]).toBeNull();
+  });
+
+  it("drops commuters who checked 숙박하지 않아요 from every night (DEC-074 Follow-up)", () => {
+    const retreat = seedRetreat({ ...RANGE, attendance: { ...RANGE.attendance, noLodging: true } });
+    const form = eventFormDetail(RETREAT)!;
+    const stay = form.fields.find((field) => field.presetKey === "NO_LODGING")!;
+    expect(stay.answerType).toBe("MULTI_CHOICE");
+    expect(stay.required).toBe(false);
+    expect(stay.showWhen).toEqual({ fieldId: retreat.fieldId("ATTENDANCE"), optionIds: ["opt_full", "opt_partial"] });
+    const home = { NO_LODGING: { optionIds: ["opt_no_lodging"] } };
+    const partial = { ATTENDANCE: { optionId: "opt_partial" }, ARRIVAL_SLOT: { optionId: "opt_d1_dinner" }, DEPARTURE_SLOT: { optionId: "opt_d3_lunch" } };
+    retreat.apply({ NAME: "하나", ATTENDANCE: { optionId: "opt_full" } });
+    retreat.apply({ NAME: "둘", ATTENDANCE: { optionId: "opt_full" }, ...home });
+    retreat.apply({ NAME: "셋", ...partial });
+    retreat.apply({ NAME: "넷", ...partial, ...home });
+
+    const summary = applicationSummary(RETREAT);
+    expect(summary.lodging!.nights.map((night) => night.count)).toEqual([2, 2]);
+    expect(summary.lodging!.unanswered).toBe(0);
+    // Meals still follow the range.
+    expect(summary.meals!.days[0].slots[0].count).toBe(4);
   });
 
   it("refuses a departure before the arrival, and another mode once applications are in", () => {

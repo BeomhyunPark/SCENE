@@ -165,8 +165,13 @@ export function applicationSummary(eventId: string): ApplicationSummary {
     const labels = byKey.get("LODGING");
     const chosen = new Map<string, number>();
     const range = attendanceMode(form!) === "RANGE";
+    // DEC-074 Follow-up 2026-11-17: a commuter sleeps at home and drops out of every night.
+    const stay = shown("NO_LODGING");
+    const home = (person: (typeof groups.full)[number]) =>
+      optionIds(answer(person, stay))?.has("opt_no_lodging") ?? false;
     let rangeUnknown = 0;
     for (const person of groups.partial) {
+      if (home(person)) continue;
       if (!range) {
         optionIds(answer(person, field))?.forEach((id) => bump(chosen, id));
         continue;
@@ -188,7 +193,7 @@ export function applicationSummary(eventId: string): ApplicationSummary {
         night: index + 1,
         date: dateAt(from, index),
         label: optionLabel(labels, id) ?? `${ORDINALS[index]} 밤 (${dayLabel(from, index)})`,
-        count: groups.full.length + (chosen.get(id) ?? 0),
+        count: groups.full.filter((person) => !home(person)).length + (chosen.get(id) ?? 0),
       };
     });
     return { nights, unanswered: range ? rangeUnknown : field ? 0 : groups.partial.length };

@@ -16,6 +16,7 @@ export const PRESET_ORDER = [
   "ARRIVAL_SLOT",
   "DEPARTURE_SLOT",
   "LODGING",
+  "NO_LODGING",
   "MEALS",
   "PARTIAL_NOTE",
   "TRANSPORT_IN",
@@ -78,6 +79,9 @@ const single = (options: FieldOption[], buttons: boolean): FieldConfig => ({
 const multi = (options: FieldOption[]): FieldConfig => ({ options, allowOther: false, minSelect: 0, maxSelect: null });
 const shortText = (maxLength: number): FieldConfig => ({ maxLength, format: "NONE", placeholder: null });
 const longText = (): FieldConfig => ({ maxLength: 1000, placeholder: null });
+
+/** The one option of NO_LODGING. */
+export const NO_LODGING_OPTION = "opt_no_lodging";
 
 /** Option id of the 새가족 (등반X) option (DEC-070 Follow-up 2026-11-17). */
 export const NEWCOMER_OPTION = "opt_newcomer";
@@ -224,6 +228,19 @@ export function generatePreset(
       );
       add("LODGING", "숙박하는 밤을 모두 골라주세요", "숙박하지 않으면 비워 두세요.", "MULTI_CHOICE", false, multi(nights), whenPartial);
     }
+  }
+  // DEC-074 Follow-up 2026-11-17: commuters drop out of every night. SLOTS partial attendees
+  // choose nights in LODGING instead.
+  if (setup.attendance.noLodging && days > 1 && (range || !attendance)) {
+    add(
+      "NO_LODGING",
+      "숙박",
+      "집에서 오가며 참석한다면 체크해 주세요.",
+      "MULTI_CHOICE",
+      false,
+      multi([option(NO_LODGING_OPTION, "수련회장에서 숙박하지 않아요")]),
+      attendance ? when("ATTENDANCE", "opt_full", "opt_partial") : null,
+    );
   }
   const worshipDays: number[] = [];
   const cells = slots.map(([id, , group, word]) => option(id, word, { group }));

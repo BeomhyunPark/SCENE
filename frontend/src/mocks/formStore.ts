@@ -296,7 +296,9 @@ export function applySetup(eventId: string, formId: string, actorId: string, bod
   const stored = found.setup ? (found.setup.attendance.mode ?? "SLOTS") : null;
   const mode = setup.attendance.mode ?? stored ?? "RANGE";
   if (locked && stored !== null && mode !== stored) return { status: 409, code: "FIELD_LOCKED" };
-  setup.attendance = { ...setup.attendance, mode };
+  // DEC-074 Follow-up: noLodging keeps the stored value when missing, false on a first save.
+  const noLodging = setup.attendance.noLodging ?? found.setup?.attendance.noLodging ?? false;
+  setup.attendance = { ...setup.attendance, mode, noLodging };
   // #324: partialByTime keeps the stored value when missing, false on a first save. The vehicle
   // conditions follow it, so a form with applications refuses changes that move them.
   const byTime = setup.transport.partialByTime ?? found.setup?.transport.partialByTime ?? false;
@@ -454,6 +456,8 @@ function readSetup(body: unknown, days: number): FormSetup | FormFailure {
   if (!flags(attendance, ["partial", "worshipOnly"])) return invalid("attendance");
   const mode = (attendance as Record<string, unknown>).mode;
   if (mode !== undefined && mode !== "RANGE" && mode !== "SLOTS") return invalid("attendance");
+  const noLodging = (attendance as Record<string, unknown>).noLodging;
+  if (noLodging !== undefined && typeof noLodging !== "boolean") return invalid("attendance");
   if (!flags(transport, ["groupBus", "worshipShuttle", "car", "publicTransit", "support"])) return invalid("transport");
   // partialByTime was added later (#324): optional, resolved by the caller.
   const byTime = (transport as Record<string, unknown>).partialByTime;

@@ -91,7 +91,12 @@ function initialSetup(saved: FormSetup | null, days: number): FormSetup {
   // A setup saved before DEC-074 has no mode: it keeps asking slot by slot.
   if (saved) {
     // A setup saved before #324 has no partialByTime: it keeps showing vehicles as before.
-    const attendance = { ...saved.attendance, mode: saved.attendance.mode ?? "SLOTS" };
+    const attendance = {
+      ...saved.attendance,
+      mode: saved.attendance.mode ?? "SLOTS",
+      // A setup saved before the commuter switch has none: keep it off there.
+      noLodging: saved.attendance.noLodging ?? false,
+    };
     const transport = { ...saved.transport, partialByTime: saved.transport.partialByTime ?? false };
     return {
       ...saved,
@@ -108,7 +113,7 @@ function initialSetup(saved: FormSetup | null, days: number): FormSetup {
     cell: false,
     middleGroups: [],
     cells: [],
-    attendance: { partial: true, worshipOnly: false, mode: "RANGE" },
+    attendance: { partial: true, worshipOnly: false, mode: "RANGE", noLodging: true },
     schedule,
     transport: { groupBus: true, worshipShuttle: false, car: true, publicTransit: true, support: false, partialByTime: true },
   };
@@ -256,6 +261,17 @@ export function SetupCard({
         ) : null}
         {!draft.attendance.partial && !draft.attendance.worshipOnly ? (
           <p className="registration-setup__note">둘 다 끄면 참석 방식을 묻지 않고 모두 전체 참석으로 받아요.</p>
+        ) : null}
+        {draft.schedule.length > 1 &&
+        (draft.attendance.mode === "RANGE" || (!draft.attendance.partial && !draft.attendance.worshipOnly)) ? (
+          <div className="setup-card__checks">
+            {check(
+              "통근자 숙박 제외 받기",
+              draft.attendance.noLodging ?? false,
+              (noLodging) => change({ ...draft, attendance: { ...draft.attendance, noLodging } }),
+              "전체·부분 참석자에게 '수련회장에서 숙박하지 않아요' 체크를 보여요. 체크한 사람은 모든 밤 숙박 인원에서 빠져요.",
+            )}
+          </div>
         ) : null}
       </fieldset>
 
