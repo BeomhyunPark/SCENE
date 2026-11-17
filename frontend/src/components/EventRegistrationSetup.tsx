@@ -158,7 +158,8 @@ function SetupBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
     try {
       remember(await putSetup(eventId, form.data.formId, setup));
     } catch (caught) {
-      setSetupError(setupFailureCopy(caught));
+      const before = form.data.setup?.attendance.mode ?? "SLOTS";
+      setSetupError(setupFailureCopy(caught, form.data.setup !== null && setup.attendance.mode !== before));
       if (isMissing(caught)) await reloadQuery(forms);
     } finally {
       setPending(false);
@@ -631,8 +632,11 @@ function optionSummary(field: FormField): string {
   return labels.length > 6 ? `${labels.slice(0, 6).join(", ")} 외 ${labels.length - 6}개` : labels.join(", ");
 }
 
-function setupFailureCopy(caught: unknown): string {
+function setupFailureCopy(caught: unknown, modeChanged: boolean): string {
   if (isApiError(caught, "FORBIDDEN")) return "신청서를 바꿀 권한이 없어요.";
+  if (isApiError(caught, "FIELD_LOCKED") && modeChanged) {
+    return "신청이 들어온 신청서라 부분 참석을 받는 방식을 바꿀 수 없어요. 방식을 원래대로 두고 저장해 주세요.";
+  }
   if (isApiError(caught, "FIELD_LOCKED")) {
     return "신청이 들어온 뒤에는 이미 받은 질문의 표시 조건이 바뀌는 설정은 저장할 수 없어요. 참석 방식 질문을 통째로 없애거나 새로 만드는 변경이 여기에 해당해요.";
   }
