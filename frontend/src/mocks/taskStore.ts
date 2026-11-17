@@ -372,7 +372,7 @@ function operatorOn(eventId: string, userId: string): boolean {
 
 function defaultsFor(role: Role): string[] {
   // The server gives an event OWNER every event key. The mock lists the keys these screens read.
-  // DEC-071: OWNER, MANAGER and STAFF all check in by default.
+  // DEC-071: OWNER, MANAGER and STAFF all check in by default. DEC-072: only OWNER has GROUP_WRITE.
   if (role === "OWNER") {
     return [
       "EVENT_READ",

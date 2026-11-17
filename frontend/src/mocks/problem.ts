@@ -13,6 +13,9 @@ export function problem(
     currentStatus?: string;
     version?: number;
     warnings?: { openTasks: number };
+    conflicts?: { participantId: string; currentGroupId: string | null }[];
+    boardVersion?: number;
+    participantIds?: string[];
   },
 ): Response {
   return HttpResponse.json(
