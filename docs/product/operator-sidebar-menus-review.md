@@ -17,6 +17,7 @@
 - 2026-11-17 [#269](https://github.com/BeomhyunPark/SCENE/issues/269): 일정은 조직 달력과 행사 일정표 둘 다를 방향으로 하되 행사 일정표부터 만든다. 수련회 1차 범위에는 넣지 않고 `/schedule`은 "준비 중"을 유지한다. 후속: [#278](https://github.com/BeomhyunPark/SCENE/issues/278)
 - 2026-11-17 [#270](https://github.com/BeomhyunPark/SCENE/issues/270): 안내는 참가자 행사 안내 페이지 편집과 공지 발송 둘 다를 방향으로 하되, 하위 메뉴는 정해질 때까지 만들지 않는다. 펼침 화살표를 떼고 `/guides`는 "준비 중"을 유지한다.
 - 2026-11-17 [#271](https://github.com/BeomhyunPark/SCENE/issues/271): 알림은 운영자가 직접 확인할 요청(Owner 넘기기, 초대 수락)만 먼저([#279](https://github.com/BeomhyunPark/SCENE/issues/279)), 기록은 행사 안 변경 내역([#280](https://github.com/BeomhyunPark/SCENE/issues/280)), 연동은 1차 범위 밖으로 두고 CSV 내려받기([#233](https://github.com/BeomhyunPark/SCENE/issues/233)) 사용 뒤 다시 본다. 세 메뉴 모두 그때까지 "준비 중"을 유지한다.
+- 2026-11-17 [#301](https://github.com/BeomhyunPark/SCENE/issues/301): 조 편성은 행사 안 사이드바 "행사 운영"(현장 운영 아래)에 두고 `/events/:eventId/groups`로 간다. Figma `O3.01 · 조 편성`(134:8836)도 행사 안 사이드바에 둔다. 조직 사이드바에는 메뉴를 더하지 않는다(Figma 조직 사이드바에 없고, #267의 행사 고르기 메뉴는 이미 있는 세 개만이다). 조직 사이드바에서 들어갈 길이 필요하면 `/groups`를 행사 고르기로 더한다.
 
 ## 확인 방법
 

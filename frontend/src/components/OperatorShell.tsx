@@ -9,6 +9,7 @@ import envelope from "../assets/event-nav/envelope.svg";
 import caret from "../assets/event-nav/caret.svg";
 import calendar from "../assets/event-nav/calendar.svg";
 import chartLine from "../assets/event-nav/chart-line.svg";
+import people from "../assets/event-nav/users-three.svg";
 import address from "../assets/event-nav/address.svg";
 import briefcase from "../assets/event-nav/briefcase.svg";
 import squares from "../assets/event-nav/squares.svg";
@@ -95,6 +96,7 @@ export function OperatorShell({
   const areasHref = eventHref ? `${eventHref}/areas` : undefined;
   const settingsHref = eventHref ? `${eventHref}/settings` : undefined;
   const fieldHref = eventHref ? `${eventHref}/field` : undefined;
+  const groupsHref = eventHref ? `${eventHref}/groups` : undefined;
   const [collapsed, setCollapsed] = useState(readCollapsed);
   function toggleCollapsed() {
     setCollapsed((value) => {
@@ -159,6 +161,11 @@ export function OperatorShell({
                     <li>
                       <NavItem
                         item={{ label: "현장 운영", icon: chartLine, current: matchesPath(pathname, fieldHref), to: fieldHref }}
+                      />
+                    </li>
+                    <li>
+                      <NavItem
+                        item={{ label: "조 편성", icon: people, current: matchesPath(pathname, groupsHref), to: groupsHref }}
                       />
                     </li>
                     {operatorsHref ? (
