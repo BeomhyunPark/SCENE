@@ -28,6 +28,24 @@ export type BoardParticipant = {
   leader: boolean;
   publishedGroupId: string | null;
   publishedLeader: boolean;
+  /**
+   * Attendance slots (#315) in `slots` order. FULL is every slot. null is "모름" (PARTIAL·WORSHIP_ONLY with no
+   * MEALS answer), which is not the same as [] (no slot). Always null when the board has no `slots`.
+   */
+  slotIds: string[] | null;
+};
+
+export type SlotMeal = "BREAKFAST" | "LUNCH" | "DINNER" | "WORSHIP";
+
+/** One 참석 칸: a meal or worship of one day of the form setup (DEC-070), same ids as the summary's MEALS. */
+export type AttendanceSlot = {
+  slotId: string;
+  day: number;
+  date: string | null;
+  dayLabel: string;
+  meal: SlotMeal;
+  label: string;
+  sortOrder: number;
 };
 
 export type WithdrawnParticipant = { participantId: string; name: string; groupId: string | null };
@@ -51,6 +69,8 @@ export type GroupBoard = {
   participants: BoardParticipant[];
   withdrawn: WithdrawnParticipant[];
   publication: Publication;
+  /** null when the form was not made from the setup card or has no meal·worship slot: no bars then. */
+  slots: AttendanceSlot[] | null;
 };
 
 export type PublishResult = {
@@ -257,6 +277,7 @@ function parseBoard(value: unknown): GroupBoard {
     participants: value.participants.map(parseParticipant),
     withdrawn: withdrawn.map(parseWithdrawn),
     publication: parsePublication(value.publication),
+    slots: Array.isArray(value.slots) ? value.slots.flatMap(parseSlot).sort((a, b) => a.sortOrder - b.sortOrder) : null,
   };
 }
 
@@ -285,7 +306,32 @@ function parseParticipant(value: unknown): BoardParticipant {
     leader: value.leader === true,
     publishedGroupId: typeof value.publishedGroupId === "string" ? value.publishedGroupId : null,
     publishedLeader: value.publishedLeader === true,
+    slotIds: Array.isArray(value.slotIds) ? value.slotIds.filter((id): id is string => typeof id === "string") : null,
   };
+}
+
+function parseSlot(value: unknown): AttendanceSlot[] {
+  if (
+    !isRecord(value) ||
+    typeof value.slotId !== "string" ||
+    !isCount(value.day) ||
+    typeof value.label !== "string" ||
+    !isCount(value.sortOrder) ||
+    (value.meal !== "BREAKFAST" && value.meal !== "LUNCH" && value.meal !== "DINNER" && value.meal !== "WORSHIP")
+  ) {
+    return [];
+  }
+  return [
+    {
+      slotId: value.slotId,
+      day: value.day,
+      date: typeof value.date === "string" ? value.date : null,
+      dayLabel: typeof value.dayLabel === "string" ? value.dayLabel : `${value.day}일차`,
+      meal: value.meal,
+      label: value.label,
+      sortOrder: value.sortOrder,
+    },
+  ];
 }
 
 function parseWithdrawn(value: unknown): WithdrawnParticipant {

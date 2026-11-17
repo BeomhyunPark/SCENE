@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ApplicationTable, TableColumn, TableRow } from "../../api/applications";
 import {
+  bucketsOf,
   applyFilters,
   buildColumns,
   copyText,
@@ -251,6 +252,19 @@ describe("sorting", () => {
         ]),
       ),
     ).toEqual(["이셋", "김하나", "박둘"]);
+  });
+
+  it("orders 또래 by birth year (98, 99, 00) in the person and 또래 columns and their buckets", () => {
+    const rows = [
+      row("4", { name: { text: "가" }, cohort: { text: "00" } }),
+      row("5", { name: { text: "나" }, cohort: { text: "99" } }),
+      row("6", { name: { text: "다" } }),
+      row("7", { name: { text: "라" }, cohort: { text: "98" } }),
+    ];
+    expect(names(sortRows(rows, COLS, [{ id: "person", dir: "asc" }]))).toEqual(["라", "나", "가", "다"]);
+    expect(names(sortRows(rows, COLS, [{ id: "cohort", dir: "asc" }]))).toEqual(["라", "나", "가", "다"]);
+    const cohort = COLS.find((item) => item.id === "cohort")!;
+    expect(bucketsOf(cohort, rows).map((bucket) => bucket.label)).toEqual(["98", "99", "00", "응답 없음"]);
   });
 
   it("cycles a header ascending, descending, off, and adds keys with shift", () => {

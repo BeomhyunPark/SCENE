@@ -22,7 +22,11 @@ type Person = {
   cell: string | null;
   newcomer: boolean | null;
   submitted: boolean;
+  /** Chosen MEALS slots for PARTIAL·WORSHIP_ONLY; null is no answer ("모름"). FULL reads as every slot. */
+  chosenSlots: string[] | null;
 };
+
+type Slot = { slotId: string; day: number; date: string; dayLabel: string; meal: string; label: string; sortOrder: number };
 
 type GroupRow = { groupId: string; name: string; sortOrder: number; version: number };
 type Assignment = { groupId: string | null; leader: boolean };
@@ -44,6 +48,8 @@ type Board = {
   people: Person[];
   logs: Log[];
   publications: Publication[];
+  /** 참석 칸 (#315); null when the form has no setup slots. */
+  slots: Slot[] | null;
 };
 
 export type GroupFailure = {
@@ -69,17 +75,28 @@ const MALE = { optionId: "opt_male", label: "남" };
 let boards = new Map<string, Board>();
 
 export function resetGroupStore(): void {
-  boards = new Map([[localEvent.eventId, newBoard(seedPeople())]]);
+  boards = new Map([[localEvent.eventId, newBoard(seedPeople(), retreatSlots())]]);
 }
 resetGroupStore();
 
 /** Test and mock-click seam: a retreat-sized roster (`count` people, `groups` empty groups named 1조…). */
 export function seedLargeGroupBoard(eventId: string, count: number, groups: number): void {
-  const board = newBoard(largePeople(count));
+  const board = newBoard(largePeople(count), retreatSlots());
   for (let index = 0; index < groups; index += 1) {
     board.groups.push({ groupId: crypto.randomUUID(), name: `${index + 1}조`, sortOrder: index, version: 0 });
   }
   boards.set(eventId, board);
+}
+
+/** Test seam: the form has no setup slots (or none on any day), so the board sends `slots: null`. */
+export function clearBoardSlots(eventId: string): void {
+  boardOf(eventId).slots = null;
+}
+
+/** Test seam: what one person chose in MEALS (null = no answer). */
+export function setChosenSlots(eventId: string, participantId: string, slotIds: string[] | null): void {
+  const person = peopleOf(eventId).find((item) => item.participantId === participantId);
+  if (person) person.chosenSlots = slotIds;
 }
 
 /** Test seam: a group made by another operator before this screen loaded or after. */
@@ -158,6 +175,7 @@ export function readBoard(eventId: string, actorId: string) {
         leader: assignment.leader,
         publishedGroupId: place?.groupId ?? null,
         publishedLeader: place?.leader ?? false,
+        slotIds: slotIdsOf(board, person),
       };
     }),
     withdrawn: people
@@ -178,6 +196,7 @@ export function readBoard(eventId: string, actorId: string) {
       groupChanges: diff.groups,
       hasUnpublishedChanges: diff.people > 0 || diff.groups > 0,
     },
+    slots: board.slots ? board.slots.map((slot) => ({ ...slot })) : null,
   };
 }
 
@@ -303,6 +322,41 @@ export function seedAssignment(
   }
   board.assignments.set(participantId, { groupId: group?.groupId ?? null, leader: Boolean(group?.leader) });
   board.version += 1;
+}
+
+/** Like the server's MealSlots: FULL is every slot; otherwise the chosen slots in `slots` order; null stays null. */
+function slotIdsOf(board: Board, person: Person): string[] | null {
+  if (!board.slots) return null;
+  if (person.attendance === "FULL") return board.slots.map((slot) => slot.slotId);
+  if (person.chosenSlots === null) return null;
+  const chosen = new Set(person.chosenSlots);
+  return board.slots.filter((slot) => chosen.has(slot.slotId)).map((slot) => slot.slotId);
+}
+
+/** A three-day retreat, 10 slots: 금 저녁·집회, 토와 일 아침·점심·저녁·집회. */
+function retreatSlots(): Slot[] {
+  const days = [
+    { day: 1, date: "2027-01-22", dayLabel: "1월 22일 (금)", meals: ["DINNER", "WORSHIP"] },
+    { day: 2, date: "2027-01-23", dayLabel: "1월 23일 (토)", meals: ["BREAKFAST", "LUNCH", "DINNER", "WORSHIP"] },
+    { day: 3, date: "2027-01-24", dayLabel: "1월 24일 (일)", meals: ["BREAKFAST", "WORSHIP", "LUNCH", "DINNER"] },
+  ];
+  const labels: Record<string, string> = { BREAKFAST: "아침", LUNCH: "점심", DINNER: "저녁", WORSHIP: "집회" };
+  const order = ["BREAKFAST", "LUNCH", "DINNER", "WORSHIP"];
+  const slots: Slot[] = [];
+  for (const day of days) {
+    for (const meal of order.filter((item) => day.meals.includes(item))) {
+      slots.push({
+        slotId: `opt_d${day.day}_${meal === "WORSHIP" ? "worship" : meal.toLowerCase()}`,
+        day: day.day,
+        date: day.date,
+        dayLabel: day.dayLabel,
+        meal,
+        label: labels[meal],
+        sortOrder: slots.length,
+      });
+    }
+  }
+  return slots;
 }
 
 function activePeople(eventId: string): Person[] {
@@ -574,8 +628,8 @@ function boardOf(eventId: string): Board {
   return board;
 }
 
-function newBoard(people: Person[]): Board {
-  return { version: 0, groups: [], assignments: new Map(), people, logs: [], publications: [] };
+function newBoard(people: Person[], slots: Slot[] | null = null): Board {
+  return { version: 0, groups: [], assignments: new Map(), people, logs: [], publications: [], slots };
 }
 
 /** Seeded people plus anyone who applied through the mock form (cohort only; other answers missing). */
@@ -593,6 +647,7 @@ function peopleOf(eventId: string): Person[] {
       cell: null,
       newcomer: null,
       submitted: true,
+      chosenSlots: null,
     });
   }
   return board.people;
@@ -643,6 +698,13 @@ function seedPeople(): Person[] {
     cell,
     newcomer: index in newcomers ? newcomers[index] : false,
     submitted: true,
+    // 박서준: 토요일 저녁부터 끝까지. 이수아(97): 집회만. 한지우: 부분 참석인데 칸 답 없음(모름).
+    chosenSlots:
+      index === 2
+        ? ["opt_d2_dinner", "opt_d2_worship", "opt_d3_breakfast", "opt_d3_lunch", "opt_d3_worship"]
+        : index === 4
+          ? ["opt_d1_worship", "opt_d2_worship", "opt_d3_worship"]
+          : null,
   }));
 }
 
@@ -663,7 +725,20 @@ function largePeople(count: number): Person[] {
       cell: index % 8 === 7 ? null : cells[index % cells.length],
       newcomer: index % 15 === 14 ? null : index % 7 === 3,
       submitted: true,
+      chosenSlots: largeChosenSlots(index),
     });
   }
   return out;
+}
+
+/** PARTIAL people come late, leave early or skip a day; WORSHIP_ONLY take the worships; every 5th has no answer. */
+function largeChosenSlots(index: number): string[] | null {
+  if (index % 45 === 0) return null;
+  const all = retreatSlots().map((slot) => slot.slotId);
+  if (index % 9 !== 0) return all.filter((id) => id.endsWith("worship"));
+  const shape = Math.floor(index / 9) % 4;
+  if (shape === 0) return all.slice(2);
+  if (shape === 1) return all.slice(0, 6);
+  if (shape === 2) return [...all.slice(0, 2), ...all.slice(6)];
+  return all.slice(3, 8);
 }

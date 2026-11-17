@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { compareCohort } from "./cohort";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router";
 import arrowLeft from "../assets/event-create/arrow-left.svg";
@@ -209,7 +210,7 @@ function Overview({ data }: { data: ApplicationSummary }) {
               <p className="app-summary__hint">아직 답이 없어요.</p>
             ) : (
               <ul className="app-summary__chips">
-                {data.cohorts.items.map((item) => (
+                {[...data.cohorts.items].sort((a, b) => compareCohort(a.cohort, b.cohort)).map((item) => (
                   <Chip key={item.cohort} label={item.cohort} count={item.count} />
                 ))}
                 {data.cohorts.noAnswer > 0 ? <Chip label="답 없음" count={data.cohorts.noAnswer} muted /> : null}

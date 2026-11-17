@@ -126,6 +126,17 @@ describe("신청 집계 screen", () => {
     expect(screen.getByRole("button", { name: "인쇄" })).toBeInTheDocument();
   });
 
+  it("orders 또래 chips by birth year: 98, 99, 00, 01", async () => {
+    seedRetreat();
+    const cohorts = { items: ["00", "01", "98", "99"].map((cohort) => ({ cohort, count: 1 })), noAnswer: 0 };
+    server.use(http.get(SUMMARY_PATH, () => HttpResponse.json({ ...partlyAsked, cohorts })));
+    await login({ userId: OWNER });
+    openSummary();
+    const overview = await card("신청");
+    const chips = within(overview.getByText("또래").parentElement!).getAllByRole("listitem");
+    expect(chips.map((chip) => chip.firstChild?.textContent)).toEqual(["98", "99", "00", "01"]);
+  });
+
   it("says why an area is missing, keeps used turned-off options and shows unanswered", async () => {
     seedRetreat();
     server.use(http.get(SUMMARY_PATH, () => HttpResponse.json(partlyAsked)));

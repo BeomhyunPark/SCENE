@@ -482,34 +482,116 @@
   opacity: 0.5;
 }
 
-.event-groups__timeline {
+/* 참석 막대 (#318): one column per 참석 칸. Attended cells are filled, absent cells are outlines (Figma 1325:5669). */
+.event-groups__slot-legend {
   display: flex;
-  gap: 2px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 14px;
+  margin: 0 0 10px;
+  color: var(--color-text-secondary);
+  font: var(--scene-caption-s);
+}
+
+.event-groups__legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.event-groups__legend-item .event-groups__slot-cell {
+  width: 16px;
   height: 8px;
 }
 
-.event-groups__timeline-cell {
-  flex: 1;
+.event-groups__legend-note {
+  color: var(--color-text-tertiary);
+}
+
+.event-groups__slot-head,
+.event-groups__slot-bar,
+.event-groups__headcount-cells {
+  display: grid;
+  grid-template-columns: repeat(var(--slot-count), minmax(0, 1fr));
+}
+
+.event-groups__slot-head {
+  row-gap: 2px;
+  margin: 0 0 4px;
+  padding: 0 10px;
+  color: var(--color-text-tertiary);
+  font: var(--scene-caption-s);
+  text-align: center;
+}
+
+.event-groups__slot-day {
+  border-bottom: 1px solid var(--color-border-default);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.event-groups__slot-day + .event-groups__slot-day {
+  border-left: 1px solid var(--color-border-default);
+}
+
+.event-groups__slot-bar {
+  column-gap: 2px;
+  height: 8px;
+}
+
+.event-groups__slot-cell {
+  display: inline-block;
+  min-width: 0;
   border: 1px solid var(--color-attendance-absent-border);
   border-radius: 2px;
   background: var(--color-attendance-absent);
 }
 
-.event-groups__timeline-cell--full {
+.event-groups__slot-cell--full {
   border-color: var(--color-attendance-full);
   background: var(--color-attendance-full);
 }
 
-.event-groups__timeline-cell--partial,
-.event-groups__timeline-cell--worship_only {
+.event-groups__slot-cell--partial {
   border-color: var(--color-attendance-partial);
   background: var(--color-attendance-partial);
 }
 
+/* A continuous run reads as one bar: the cell reaches back over the gap to the previous one. */
+.event-groups__slot-cell--joined {
+  margin-left: -2px;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.event-groups__slot-unknown {
+  color: var(--color-text-tertiary);
+  font: var(--scene-caption-s);
+}
+
 .event-groups__headcount {
-  margin: 0;
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border-default);
+}
+
+.event-groups__headcount-title {
+  margin: 0 0 4px;
   color: var(--color-text-secondary);
   font: var(--scene-caption-s);
+}
+
+.event-groups__headcount-unknown {
+  color: var(--color-text-tertiary);
+}
+
+.event-groups__headcount-cells {
+  margin: 0;
+  padding: 0 10px;
+  list-style: none;
+  font: var(--scene-label-s);
+  text-align: center;
 }
 
 .event-groups__send {
