@@ -30,7 +30,8 @@ public record FormSetup(
     boolean car,
     boolean publicTransit,
     boolean support,
-    boolean partialByTime) {
+    boolean partialByTime,
+    boolean noLodging) {
 
   /** Events longer than this cannot use the setup. Meals fit in one question's 50 options. */
   public static final int DAYS_MAX = 10;
@@ -70,6 +71,15 @@ public record FormSetup(
     }
   }
 
+  /**
+   * True when the form asks {@code NO_LODGING} (DEC-074 Follow-up 2026-11-17): the switch is on,
+   * the event has a night, and nights come from the range or from full attendance, not from the
+   * SLOTS-mode LODGING question.
+   */
+  public boolean asksNoLodging(int days) {
+    return noLodging && days > 1 && (range() || !asksAttendance());
+  }
+
   /** True when the form asks how the participant attends. */
   public boolean asksAttendance() {
     return partial || worshipOnly;
@@ -99,7 +109,8 @@ public record FormSetup(
    * (the stored mode, or RANGE for a form without a setup). {@code transport.partialByTime} may be
    * missing too; then {@code fallbackByTime} is used (the stored value, or false).
    */
-  public static FormSetup parse(JsonNode body, int days, Mode fallback, boolean fallbackByTime) {
+  public static FormSetup parse(
+      JsonNode body, int days, Mode fallback, boolean fallbackByTime, boolean fallbackNoLodging) {
     if (body == null || !body.isObject()) {
       throw FieldRules.invalid("setup");
     }
@@ -117,7 +128,7 @@ public record FormSetup(
         "transport",
         "generatedFor");
     JsonNode attendance = object(body.get("attendance"), "attendance");
-    only(attendance, "attendance", "partial", "worshipOnly", "mode");
+    only(attendance, "attendance", "partial", "worshipOnly", "mode", "noLodging");
     Mode mode = fallback;
     if (attendance.has("mode")) {
       JsonNode node = attendance.get("mode");
@@ -172,7 +183,10 @@ public record FormSetup(
         flag(transport, "support", "transport"),
         transport.has("partialByTime")
             ? flag(transport, "partialByTime", "transport")
-            : fallbackByTime);
+            : fallbackByTime,
+        attendance.has("noLodging")
+            ? flag(attendance, "noLodging", "attendance")
+            : fallbackNoLodging);
   }
 
   /**
@@ -181,6 +195,15 @@ public record FormSetup(
    */
   public static boolean partialByTime(JsonNode setup) {
     JsonNode node = setup == null ? null : setup.path("transport").path("partialByTime");
+    return node != null && node.isBoolean() && node.booleanValue();
+  }
+
+  /**
+   * {@code attendance.noLodging} of a stored setup. A setup saved before the key existed is false,
+   * so no question appears on its own.
+   */
+  public static boolean noLodging(JsonNode setup) {
+    JsonNode node = setup == null ? null : setup.path("attendance").path("noLodging");
     return node != null && node.isBoolean() && node.booleanValue();
   }
 
@@ -198,6 +221,7 @@ public record FormSetup(
     attendance.put("partial", partial);
     attendance.put("worshipOnly", worshipOnly);
     attendance.put("mode", mode.name());
+    attendance.put("noLodging", noLodging);
     ArrayNode days = out.putArray("schedule");
     for (Day day : schedule) {
       ObjectNode entry = days.addObject();

@@ -495,6 +495,33 @@ describe("event registration setup", () => {
     await waitFor(() => expect(preview.queryByRole("textbox", { name: /^셀/ })).not.toBeInTheDocument());
   });
 
+  it("asks commuters to skip lodging by default in a new RANGE setup and can turn it off", async () => {
+    await login({ userId: localUsers[0].userId });
+    const retreat = await createEvent(localSpace.spaceId, {
+      name: "통근 수련회",
+      startDate: "2027-01-22",
+      endDate: "2027-01-24",
+    });
+    renderSetup(retreat.eventId);
+    fireEvent.click(await screen.findByRole("button", { name: "신청서 만들기" }, { timeout: 4000 }));
+
+    const commute = await screen.findByRole("checkbox", { name: /통근자 숙박 제외 받기/ });
+    expect(commute).toBeChecked();
+    fireEvent.click(screen.getByRole("button", { name: "질문 만들기" }));
+    const preview = within(await screen.findByRole("region", { name: "참가자 화면 미리보기" }));
+    const puts = () => operatorRequests.filter((request) => request.method === "PUT" && request.url.endsWith("/setup"));
+    await waitFor(() => expect(puts().at(-1)?.body).toMatchObject({ attendance: { mode: "RANGE", noLodging: true } }));
+    fireEvent.click(preview.getByRole("radio", { name: "전체 참석" }));
+    expect(await preview.findByRole("checkbox", { name: "수련회장에서 숙박하지 않아요" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("checkbox", { name: /통근자 숙박 제외 받기/ }));
+    fireEvent.click(screen.getByRole("button", { name: "설정 저장" }));
+    await waitFor(() => expect(puts().at(-1)?.body).toMatchObject({ attendance: { noLodging: false } }));
+    await waitFor(() =>
+      expect(preview.queryByRole("checkbox", { name: "수련회장에서 숙박하지 않아요" })).not.toBeInTheDocument(),
+    );
+  });
+
   it("rewords and moves base questions and turns 또래 off", async () => {
     await login({ userId: localUsers[0].userId });
     renderSetup();

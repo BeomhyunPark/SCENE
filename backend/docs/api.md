@@ -996,6 +996,7 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
   - 중그룹이 목록 질문이면 `CELL`은 `MIDDLE_GROUP ∈ {목록 보기 전부}`일 때만 보인다. 새가족은 셀을 묻지 않는다.
   - 신청이 들어온 신청서(`locked`)에서도 목록에 이름을 더하고 빼고 문구를 고칠 수 있다. 뺀 보기는 숨긴다. `CELL` 조건은 이전 보기 id를 그대로 두고 새 id만 더한다. 자유 입력 ↔ 목록 전환(목록을 처음 채우거나 다 비우기)과 중그룹 스위치를 켜고 끄는 것(셀 조건이 생기거나 없어짐)은 `409 FIELD_LOCKED`다. 목록은 접수 전에 정한다.
   - 중그룹·셀이 둘 다 꺼졌거나 둘 다 목록이 없으면 새가족을 알 수 없다(편성판 `newcomer`는 모두 `null`).
+- `attendance.noLodging`(통근자 숙박 제외, DEC-074 Follow-up 2026-11-17)은 **없어도 된다**: 저장된 값을 쓰고, 없으면 `false`다. 응답의 `setup.attendance.noLodging`에는 늘 있다. `true`이고 행사가 이틀 이상이며 `RANGE`이거나 참석 방식 질문이 없으면 `NO_LODGING`(`MULTI_CHOICE`, 보기 `opt_no_lodging` "수련회장에서 숙박하지 않아요" 하나, 선택, `minSelect` 0)이 `LODGING` 자리(도착·출발 뒤, `MEALS` 앞)에 생긴다. 참석 방식 질문이 있으면 `ATTENDANCE ∈ {opt_full, opt_partial}`일 때만 보인다. 답은 `{ "optionIds": ["opt_no_lodging"] }`이다. 신청이 들어온 뒤에도 켜고 끌 수 있다.
 - `attendance.mode`는 부분 참석자가 참석 칸을 알리는 방식이다(DEC-074). `RANGE`(도착~출발만 받기)와 `SLOTS`(칸마다 고르기) 중 하나이고 다른 값은 `400`이고 필드는 `attendance`다. **없어도 된다**: 저장된 설정이 있으면 그 방식을 그대로 쓰고(DEC-074 전에 저장돼 키가 없는 설정은 `SLOTS`), 설정이 처음이면 `RANGE`다. 응답의 `setup.attendance.mode`에는 늘 있다.
   - `RANGE`: 부분 참석이 켜져 있고 일정표에 칸이 있으면 `ARRIVAL_SLOT`("수련회장에 언제 도착하나요?")·`DEPARTURE_SLOT`("수련회장에서 언제 출발하나요?")이 생긴다. 둘 다 `SINGLE_CHOICE`·`LIST`·필수이고 `ATTENDANCE = opt_partial`일 때만 보인다. 보기는 일정표의 칸을 칸 순서(일차, 아침 → 점심 → 저녁 → 집회)로 펼친 것이고, 보기 id는 칸 id(`opt_d<일차>_<칸>`, `MEALS` 보기 id와 같다), 문구는 `1월 22일 (금) 저녁부터` / `1월 22일 (금) 저녁까지` 꼴이다. 도착 칸부터 출발 칸까지(둘 다 포함) 모든 칸에 참석한 것으로 센다. `ARRIVAL_AT`·`DEPARTURE_AT`(날짜·시각)과 `LODGING`은 만들지 않는다. 숙박은 구간에서 계산한다. `MEALS`는 집회만 참석이 켜져 있고 집회 칸이 있을 때만 생기고, 제목 "참석할 집회를 선택해주세요", `ATTENDANCE = opt_worship`일 때만 보이며, 식사 보기는 숨긴(`hidden: true`) 채 집회 보기만 보인다. `PARTIAL_NOTE` 설명은 "중간에 나갔다가 다시 오거나 수련회장에서 자지 않는다면 적어 주세요."다.
   - `SLOTS`: 지금까지와 같다(`ARRIVAL_AT`·`DEPARTURE_AT`·`LODGING`·`MEALS`). `MEALS` 설명 기본 문구는 "참석하는 일정에 포함되는 식사와 프로그램을 모두 선택해 주세요. ※ 식사는 실제 식사 여부와 관계없이 참석 일정에 포함된 경우 신청 인원에 반영됩니다."다.
@@ -1195,6 +1196,7 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
   - 부분 참석자는 고른 밤에만 센다. 선택 질문이라 답이 없으면 숙박하지 않는 것이다.
   - `LODGING`이 보이지 않으면 부분 참석자를 `unanswered`로 센다.
   - `RANGE` 설정에서는 `LODGING`을 보지 않는다. 부분 참석자는 도착 칸의 일차가 N 이하이고 출발 칸의 일차가 N+1 이상이면 N번째 밤(N일 저녁)에 센다. 같은 날 도착·출발이면 숙박이 없다. 도착·출발 답이 없으면 `unanswered`로 센다.
+  - 보이는 `NO_LODGING`에서 `opt_no_lodging`을 체크한 전체·부분 참석자는 어느 밤에도 세지 않고 `unanswered`에도 넣지 않는다(DEC-074 Follow-up 2026-11-17).
 - `transport`: `TRANSPORT_IN`이 없거나 꺼졌으면 `null`이다.
   - `in`은 가는 길 보기 순서다.
   - `out`도 같은 순서다. **가는 길이 자차(`opt_car`)·합승(`opt_ride`)이면 오는 길도 같은 보기로 센다**(DEC-070 §3). 이 두 행의 문구는 가는 길 질문의 것이고, 다른 행은 `TRANSPORT_OUT`의 것이다.

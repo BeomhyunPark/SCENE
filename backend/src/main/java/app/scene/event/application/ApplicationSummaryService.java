@@ -268,7 +268,8 @@ public class ApplicationSummaryService {
    * Partial attendees count on the nights they chose; the question is optional, so no answer is no
    * night. When the question is not visible, partial attendees count in {@code unanswered}. In
    * RANGE mode (DEC-074) partial nights come from the arrival and departure slots, and a partial
-   * attendee without a usable range counts in {@code unanswered}.
+   * attendee without a usable range counts in {@code unanswered}. A full or partial attendee who
+   * checked {@code NO_LODGING} counts on no night, and a partial one is not unanswered either.
    */
   private static Lodging lodging(
       JsonNode setup, Answers answers, Map<String, List<Applicant>> byAttendance) {
@@ -280,10 +281,15 @@ public class ApplicationSummaryService {
     boolean range = MealSlots.mode(setup) == FormSetup.Mode.RANGE;
     Question question = range ? null : answers.visible("LODGING");
     Question labels = answers.any("LODGING");
-    long full = byAttendance.get(FULL).size();
+    // DEC-074 Follow-up 2026-11-17: a commuter sleeps at home and drops out of every night.
+    Question noLodging = answers.visible("NO_LODGING");
+    long full = byAttendance.get(FULL).stream().filter(person -> !home(person, noLodging)).count();
     Map<String, Long> chosen = new HashMap<>();
     long unknown = 0;
     for (Applicant person : byAttendance.get(PARTIAL)) {
+      if (home(person, noLodging)) {
+        continue;
+      }
       if (range) {
         // DEC-074: nights follow the arrival and departure slots.
         List<Integer> nights = MealSlots.nights(slotAnswers(answers, person));
@@ -315,6 +321,15 @@ public class ApplicationSummaryService {
     }
     long unanswered = range ? unknown : question == null ? byAttendance.get(PARTIAL).size() : 0;
     return new Lodging(nights, unanswered);
+  }
+
+  /** True when the participant checked {@code 수련회장에서 숙박하지 않아요}. */
+  private static boolean home(Applicant person, Question noLodging) {
+    if (noLodging == null) {
+      return false;
+    }
+    Set<String> ids = optionIds(person.answer(noLodging));
+    return ids != null && ids.contains(FormPreset.NO_LODGING);
   }
 
   private static MealSlots.Answers slotAnswers(Answers answers, Applicant person) {
