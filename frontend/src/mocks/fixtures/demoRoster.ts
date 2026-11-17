@@ -3,7 +3,7 @@ import { addField, applySetup, createForm, formFields, setAccepting } from "../f
 import { eventById, setLifecycle } from "../operatorStore";
 import { seedApplication } from "../participantStore";
 import { seedCheckIn } from "../checkInStore";
-import { assignTableGroup } from "../tableGroupStore";
+import { seedAssignment } from "../groupStore";
 import { localEvent, localUsers } from "./seed";
 
 /**
@@ -66,7 +66,7 @@ export function seedDemoRoster(count = 200, eventId: string = localEvent.eventId
     const submitted = seedApplication(eventId, form.formId, `2026-12-${String(15 + (index % 10)).padStart(2, "0")}T${hour}:${minute}:00Z`, answers);
     if (random() < 0.8) {
       const group = groups[index % groups.length];
-      assignTableGroup(eventId, submitted.participantId, { ...group, leader: index % 17 === 0 });
+      seedAssignment(eventId, submitted.participantId, { ...group, leader: index % 17 === 0 });
     }
     if (random() < 0.35) seedCheckIn(eventId, submitted.participantId, "2027-01-22T01:30:00Z");
   }

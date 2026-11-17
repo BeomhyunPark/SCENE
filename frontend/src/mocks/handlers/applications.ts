@@ -8,7 +8,7 @@ import { eventById, operatorRequests } from "../operatorStore";
 import { permissionsFor } from "../taskStore";
 import { submittedApplication, submittedApplications, tableApplications } from "../participantStore";
 import { checkedInAtOf } from "../checkInStore";
-import { tableGroupOf } from "../tableGroupStore";
+import { workingGroupOf } from "../groupStore";
 import { problem } from "../problem";
 
 const DEFAULT_SIZE = 50;
@@ -90,7 +90,7 @@ export const applicationHandlers = [
           applicationId: row.applicationId,
           submittedAt: row.submittedAt,
           answers: Object.fromEntries(Object.entries(row.answers).filter(([fieldId]) => shown.has(fieldId))),
-          group: groupVisible ? tableGroupOf(eventId, row.participantId) : null,
+          group: groupVisible ? workingGroupOf(eventId, row.participantId) : null,
           checkedInAt: checkedInAtOf(eventId, row.participantId),
         })),
       },

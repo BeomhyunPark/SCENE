@@ -1,5 +1,5 @@
 import { http, HttpResponse } from "msw";
-import { readParticipantGroup } from "../participantGroupStore";
+import { readParticipantGroup } from "../groupStore";
 import { currentParticipant } from "../participantStore";
 import { problem } from "../problem";
 

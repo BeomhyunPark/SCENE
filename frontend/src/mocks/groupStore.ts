@@ -1,4 +1,4 @@
-import { localEvent } from "./fixtures/seed";
+import { localEvent, localUsers } from "./fixtures/seed";
 import { eventById, spacesFor } from "./operatorStore";
 import { checkInCandidates } from "./participantStore";
 import { permissionsFor } from "./taskStore";
@@ -6,8 +6,9 @@ import { permissionsFor } from "./taskStore";
 /**
  * Shaped like GroupController (#299). Write order follows backend/docs/api.md "조 편성":
  * 404·403 NOT_A_MEMBER → 403 FORBIDDEN → 400 body → 409 event state → 404 target → 409 version·conflict
- * → 409 eligibility·rules → 200. Reads are not blocked by event state. Publishing (#300) is not mocked:
- * the board always reads "never published".
+ * → 409 eligibility·rules → 200. Reads are not blocked by event state. Publishing (#300) keeps snapshots
+ * of participant ids only, like `group_publications`; the participant "내 조" read and the 참가 현황 table's
+ * group column read this store, so a publish here shows up on the participant screen (#302).
  */
 type Attendance = "FULL" | "PARTIAL" | "WORSHIP_ONLY";
 
@@ -27,12 +28,22 @@ type GroupRow = { groupId: string; name: string; sortOrder: number; version: num
 type Assignment = { groupId: string | null; leader: boolean };
 type Log = { participantId: string; from: string | null; to: string | null; cause: "MOVE" | "LEADER" | "GROUP_DELETED"; actorId: string };
 
+type PublishedGroup = { groupId: string; name: string; sortOrder: number; members: { participantId: string; leader: boolean }[] };
+type Publication = {
+  publicationId: string;
+  publishedAt: string;
+  publishedBy: string;
+  boardVersion: number;
+  groups: PublishedGroup[];
+};
+
 type Board = {
   version: number;
   groups: GroupRow[];
   assignments: Map<string, Assignment>;
   people: Person[];
   logs: Log[];
+  publications: Publication[];
 };
 
 export type GroupFailure = {
@@ -44,6 +55,7 @@ export type GroupFailure = {
   conflicts?: { participantId: string; currentGroupId: string | null }[];
   reason?: string;
   participantIds?: string[];
+  unassignedCount?: number;
 };
 
 const NAME_MAX = 50;
@@ -123,12 +135,16 @@ export function readBoard(eventId: string, actorId: string) {
     .filter((person) => person.submitted)
     .sort((a, b) => a.name.localeCompare(b.name, "ko") || a.participantId.localeCompare(b.participantId));
   const assigned = active.filter((person) => assignmentOf(board, person.participantId).groupId !== null).length;
+  const latest = board.publications.at(-1) ?? null;
+  const published = publishedPlaces(latest);
+  const diff = differences(board, active, latest);
   return {
     eventStatus: eventById(eventId)!.lifecycleStatus,
     boardVersion: board.version,
     groups: [...board.groups].sort((a, b) => a.sortOrder - b.sortOrder).map((group) => ({ ...group })),
     participants: active.map((person) => {
       const assignment = assignmentOf(board, person.participantId);
+      const place = published.get(person.participantId);
       return {
         participantId: person.participantId,
         name: person.name,
@@ -140,8 +156,8 @@ export function readBoard(eventId: string, actorId: string) {
         newcomer: person.newcomer,
         groupId: assignment.groupId,
         leader: assignment.leader,
-        publishedGroupId: null,
-        publishedLeader: false,
+        publishedGroupId: place?.groupId ?? null,
+        publishedLeader: place?.leader ?? false,
       };
     }),
     withdrawn: people
@@ -152,17 +168,180 @@ export function readBoard(eventId: string, actorId: string) {
         groupId: assignmentOf(board, person.participantId).groupId,
       })),
     publication: {
-      lastPublishedAt: null,
-      lastPublishedByDisplayName: null,
-      lastPublishedBoardVersion: null,
+      lastPublishedAt: latest?.publishedAt ?? null,
+      lastPublishedByDisplayName: latest ? displayName(latest.publishedBy) : null,
+      lastPublishedBoardVersion: latest?.boardVersion ?? null,
       activeCount: active.length,
       assignedCount: assigned,
       unassignedCount: active.length - assigned,
-      changedParticipantCount: assigned,
-      groupChanges: board.groups.length,
-      hasUnpublishedChanges: assigned > 0 || board.groups.length > 0,
+      changedParticipantCount: diff.people,
+      groupChanges: diff.groups,
+      hasUnpublishedChanges: diff.people > 0 || diff.groups > 0,
     },
   };
+}
+
+/**
+ * POST …/groups/publish (#300). After the gates and the body: event state → 409 CONCURRENT_MODIFICATION
+ * (+boardVersion) → 200 ALREADY_PUBLISHED (only once published before) → 409 CONFIRMATION_REQUIRED
+ * (+unassignedCount) → PUBLISHED. Publishing does not raise boardVersion.
+ */
+export function publish(eventId: string, actorId: string, body: unknown, now = new Date()) {
+  const gate = writeGate(eventId, actorId);
+  if (gate) return gate;
+  const record = isRecord(body) ? body : {};
+  if (!isCount(record.expectedBoardVersion)) return field("expectedBoardVersion");
+  if (record.confirmUnassigned !== undefined && typeof record.confirmUnassigned !== "boolean") {
+    return field("confirmUnassigned");
+  }
+  const state = stateGate(eventId);
+  if (state) return state;
+  const board = boardOf(eventId);
+  if (board.version !== record.expectedBoardVersion) {
+    return { status: 409, code: "CONCURRENT_MODIFICATION", boardVersion: board.version };
+  }
+  const active = activePeople(eventId);
+  const assigned = active.filter((person) => assignmentOf(board, person.participantId).groupId !== null).length;
+  const unassignedCount = active.length - assigned;
+  const latest = board.publications.at(-1) ?? null;
+  const diff = differences(board, active, latest);
+  if (latest && diff.people === 0 && diff.groups === 0) {
+    return {
+      result: "ALREADY_PUBLISHED",
+      publicationId: latest.publicationId,
+      publishedAt: latest.publishedAt,
+      boardVersion: board.version,
+      assignedCount: assigned,
+      unassignedCount,
+      changedParticipantCount: 0,
+    };
+  }
+  if (unassignedCount > 0 && record.confirmUnassigned !== true) {
+    return { status: 409, code: "CONFIRMATION_REQUIRED", unassignedCount };
+  }
+  const activeIds = new Set(active.map((person) => person.participantId));
+  const publication: Publication = {
+    publicationId: crypto.randomUUID(),
+    publishedAt: now.toISOString(),
+    publishedBy: actorId,
+    boardVersion: board.version,
+    groups: [...board.groups]
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map((group) => ({
+        groupId: group.groupId,
+        name: group.name,
+        sortOrder: group.sortOrder,
+        members: [...board.assignments]
+          .filter(([participantId, assignment]) => assignment.groupId === group.groupId && activeIds.has(participantId))
+          .map(([participantId, assignment]) => ({ participantId, leader: assignment.leader })),
+      })),
+  };
+  board.publications.push(publication);
+  return {
+    result: "PUBLISHED",
+    publicationId: publication.publicationId,
+    publishedAt: publication.publishedAt,
+    boardVersion: board.version,
+    assignedCount: assigned,
+    unassignedCount,
+    changedParticipantCount: diff.people,
+  };
+}
+
+export type ParticipantGroupBody = {
+  status: "NOT_ELIGIBLE" | "NOT_PUBLISHED" | "UNASSIGNED" | "ASSIGNED";
+  publishedAt: string | null;
+  group: { name: string; leaders: { name: string }[] } | null;
+  leader: boolean;
+  members: { name: string; cohort: string | null; leader: boolean }[] | null;
+};
+
+/**
+ * GET /api/v1/participant/group (#300, DEC-072 §6) from the latest publication. Names and 또래 are read
+ * now; withdrawn people drop out of the roster and the leader names.
+ */
+export function readParticipantGroup(eventId: string, participantId: string): ParticipantGroupBody {
+  const active = new Map(activePeople(eventId).map((person) => [person.participantId, person]));
+  const none = { group: null, leader: false, members: null };
+  if (!active.has(participantId)) return { status: "NOT_ELIGIBLE", publishedAt: null, ...none };
+  const publication = boardOf(eventId).publications.at(-1);
+  if (!publication) return { status: "NOT_PUBLISHED", publishedAt: null, ...none };
+  const group = publication.groups.find((item) => item.members.some((member) => member.participantId === participantId));
+  if (!group) return { status: "UNASSIGNED", publishedAt: publication.publishedAt, ...none };
+  const members = group.members.flatMap((member) => {
+    const person = active.get(member.participantId);
+    return person ? [{ name: person.name, cohort: person.cohort, leader: member.leader }] : [];
+  });
+  const ordered = [...members.filter((member) => member.leader), ...members.filter((member) => !member.leader)];
+  const leader = group.members.some((member) => member.participantId === participantId && member.leader);
+  return {
+    status: "ASSIGNED",
+    publishedAt: publication.publishedAt,
+    group: { name: group.name, leaders: ordered.filter((member) => member.leader).map((member) => ({ name: member.name })) },
+    leader,
+    members: leader ? ordered : null,
+  };
+}
+
+/** Working-copy group of one person, for the 참가 현황 table's group column (#308). */
+export function workingGroupOf(eventId: string, participantId: string): { groupId: string; name: string; leader: boolean } | null {
+  const board = boardOf(eventId);
+  const assignment = assignmentOf(board, participantId);
+  const group = board.groups.find((row) => row.groupId === assignment.groupId);
+  return group ? { groupId: group.groupId, name: group.name, leader: assignment.leader } : null;
+}
+
+/** Seed seam (demo roster, tests): puts someone in a group, creating the group under that id if missing. */
+export function seedAssignment(
+  eventId: string,
+  participantId: string,
+  group: { groupId: string; name: string; leader: boolean } | null,
+): void {
+  const board = boardOf(eventId);
+  if (group && !board.groups.some((row) => row.groupId === group.groupId)) {
+    board.groups.push({ groupId: group.groupId, name: group.name, sortOrder: board.groups.length, version: 0 });
+  }
+  board.assignments.set(participantId, { groupId: group?.groupId ?? null, leader: Boolean(group?.leader) });
+  board.version += 1;
+}
+
+function activePeople(eventId: string): Person[] {
+  return peopleOf(eventId).filter((person) => person.submitted);
+}
+
+function publishedPlaces(publication: Publication | null): Map<string, { groupId: string; leader: boolean }> {
+  const places = new Map<string, { groupId: string; leader: boolean }>();
+  for (const group of publication?.groups ?? []) {
+    for (const member of group.members) places.set(member.participantId, { groupId: group.groupId, leader: member.leader });
+  }
+  return places;
+}
+
+/** Content comparison with the latest publication; before the first one, assigned people and all groups. */
+function differences(board: Board, active: Person[], latest: Publication | null): { people: number; groups: number } {
+  if (!latest) {
+    return {
+      people: active.filter((person) => assignmentOf(board, person.participantId).groupId !== null).length,
+      groups: board.groups.length,
+    };
+  }
+  const places = publishedPlaces(latest);
+  const people = active.filter((person) => {
+    const now = assignmentOf(board, person.participantId);
+    const then = places.get(person.participantId) ?? { groupId: null, leader: false };
+    return now.groupId !== then.groupId || now.leader !== then.leader;
+  }).length;
+  const ids = new Set([...board.groups.map((group) => group.groupId), ...latest.groups.map((group) => group.groupId)]);
+  const groups = [...ids].filter((id) => {
+    const now = board.groups.find((group) => group.groupId === id);
+    const then = latest.groups.find((group) => group.groupId === id);
+    return !now || !then || now.name !== then.name || now.sortOrder !== then.sortOrder;
+  }).length;
+  return { people, groups };
+}
+
+function displayName(userId: string): string {
+  return localUsers.find((user) => user.userId === userId)?.displayName ?? "운영자";
 }
 
 export function createGroup(eventId: string, actorId: string, body: unknown) {
@@ -396,7 +575,7 @@ function boardOf(eventId: string): Board {
 }
 
 function newBoard(people: Person[]): Board {
-  return { version: 0, groups: [], assignments: new Map(), people, logs: [] };
+  return { version: 0, groups: [], assignments: new Map(), people, logs: [], publications: [] };
 }
 
 /** Seeded people plus anyone who applied through the mock form (cohort only; other answers missing). */

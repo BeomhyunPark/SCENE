@@ -6,7 +6,7 @@ import { login } from "../../api/session";
 import { seedDemoRoster } from "../../mocks/fixtures/demoRoster";
 import { localEvent, localUsers } from "../../mocks/fixtures/seed";
 import { tableApplications } from "../../mocks/participantStore";
-import { tableGroupOf } from "../../mocks/tableGroupStore";
+import { workingGroupOf } from "../../mocks/groupStore";
 
 const EVENT = localEvent.eventId;
 const OWNER = localUsers[0].userId;
@@ -108,7 +108,7 @@ describe("참가 현황 table at retreat size", () => {
     // Numeric order: 1조, 2조, … 10조, then 미배정 last.
     expect(within(within(table).getAllByRole("row")[1]).getAllByRole("cell")[4].textContent).toMatch(/^1조/);
 
-    const unassigned = tableApplications(EVENT).filter((row) => !tableGroupOf(EVENT, row.participantId)).length;
+    const unassigned = tableApplications(EVENT).filter((row) => !workingGroupOf(EVENT, row.participantId)).length;
     const chip = screen.getByRole("button", { name: new RegExp(`미배정 ${unassigned}`) });
     fireEvent.click(chip);
     expect(chip).toHaveAttribute("aria-pressed", "true");
