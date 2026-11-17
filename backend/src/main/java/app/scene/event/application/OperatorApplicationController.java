@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Operator application reads and the applicant CSV. These routes do not read {@code
+ * Operator application reads, the summary, and the applicant CSV. These routes do not read {@code
  * Idempotency-Key}. Public and participant routes stay closed. There is no create, update, or
  * delete.
  */
@@ -29,11 +29,15 @@ public class OperatorApplicationController {
 
   private final OperatorApplicationService applications;
   private final ApplicationExportService exports;
+  private final ApplicationSummaryService summaries;
 
   public OperatorApplicationController(
-      OperatorApplicationService applications, ApplicationExportService exports) {
+      OperatorApplicationService applications,
+      ApplicationExportService exports,
+      ApplicationSummaryService summaries) {
     this.applications = applications;
     this.exports = exports;
+    this.summaries = summaries;
   }
 
   @GetMapping("/api/v1/operator/events/{eventId}/applications")
@@ -44,6 +48,12 @@ public class OperatorApplicationController {
       @RequestParam(required = false) List<String> sort,
       @RequestParam(required = false) List<String> status) {
     return applications.list(actor(), eventId, page, size, sort, status);
+  }
+
+  /** Counts for the summary screen (#251, DEC-073). The literal path wins over {@code {id}}. */
+  @GetMapping("/api/v1/operator/events/{eventId}/applications/summary")
+  ApplicationSummary summary(@PathVariable UUID eventId) {
+    return summaries.summary(actor(), eventId);
   }
 
   @GetMapping("/api/v1/operator/events/{eventId}/applications/{applicationId}")

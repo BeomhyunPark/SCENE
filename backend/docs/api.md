@@ -996,7 +996,7 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
 
 ## 신청 읽기
 
-컨트롤러는 `event/application/OperatorApplicationController`다(참가 현황 표는 `ApplicationTableController`). 읽기는 신청서와 같다. `EVENT_READ` 또는 활성 공간 `OWNER`·`ADMIN`이다. 신청자 CSV만 `DATA_EXPORT`다(아래). `APPLICATION_READ`는 보지 않는다. `sort` 허용 필드는 없다. 순서는 신청 id다.
+컨트롤러는 `event/application/OperatorApplicationController`다(참가 현황 표는 `ApplicationTableController`). 읽기는 신청서와 같다. `EVENT_READ` 또는 활성 공간 `OWNER`·`ADMIN`이다. [신청 집계](#get-apiv1operatoreventseventidapplicationssummary)도 같다. 신청자 CSV만 `DATA_EXPORT`다(아래). `APPLICATION_READ`는 보지 않는다. `sort` 허용 필드는 없다. 순서는 신청 id다.
 
 `status` 쿼리는 `SUBMITTED`, `SUPERSEDED`, `WITHDRAWN`만 받는다. 다른 값은 `400`이고 필드는 `status`다. 아는 값이어도 목록을 거르지 않는다. 순서는 `submittedAt`, 그다음 신청 id다.
 
@@ -1056,6 +1056,101 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
 신청이 0건이면 머리글 한 줄만 있는 파일이다. 신청서가 없으면 `제출 시각` 열만 있다.
 
 파일은 요청 안에서 만들어 바로 보낸다. 그래서 권한은 내려받을 때마다 다시 본다. #12의 목적 선택, 재인증, 생성 작업과 만료 다운로드 링크는 없다. 내려받을 때마다 audit `APPLICATIONS_EXPORTED` 한 줄을 남긴다. 행사·실행자·시각은 그 행의 열이고, detail은 `{ "count" }`(행 수)뿐이다. 답·이름·전화는 audit·로그·오류 응답에 넣지 않는다. 권한이 없어 막힌 요청은 남기지 않는다.
+
+### `GET /api/v1/operator/events/{eventId}/applications/summary`
+
+신청 집계다. 운영자 화면 하나를 이 응답 하나로 그린다([#251](https://github.com/BeomhyunPark/SCENE/issues/251), [DEC-073](../../docs/product/PRODUCT_DECISIONS.md)). 서비스는 `ApplicationSummaryService`다.
+
+**권한과 기본 동작**
+- 권한은 위 신청 읽기와 같다. 유효한 `EVENT_READ`, 또는 활성 공간 `OWNER`·`ADMIN`이다.
+- 판정 순서는 행사 없음·멤버 아님(`404`·`403 NOT_A_MEMBER`) → 권한(`403 FORBIDDEN`)이다. 다른 공간의 행사는 `404 RESOURCE_NOT_FOUND`다.
+- 행사 상태로 막지 않는다(`ARCHIVED` 포함). audit는 남기지 않는다.
+- 세는 대상은 `SUBMITTED` 신청이다. 집계는 저장하지 않고 요청마다 센다.
+- **전화·접근 키는 없다.** 연락이 필요하면 `applicationId`로 [신청 원본](#get-apiv1operatoreventseventidapplicationsapplicationid)을 연다.
+
+`200`
+
+```json
+{
+  "eventStatus": "ACTIVE",
+  "formId": "…",
+  "fromSetup": true,
+  "total": 6,
+  "attendance": { "asked": true, "full": 3, "partial": 2, "worshipOnly": 1 },
+  "gender": {
+    "options": [
+      { "optionId": "opt_female", "label": "여성", "hidden": false, "count": 4 },
+      { "optionId": "opt_male", "label": "남성", "hidden": false, "count": 2 }
+    ],
+    "noAnswer": 0
+  },
+  "cohorts": { "items": [{ "cohort": "00", "count": 1 }, { "cohort": "94", "count": 2 }], "noAnswer": 0 },
+  "meals": {
+    "days": [
+      {
+        "day": 1, "date": "2027-01-22", "label": "1월 22일 (금)",
+        "slots": [
+          { "optionId": "opt_d1_dinner", "meal": "DINNER", "label": "저녁", "count": 4 },
+          { "optionId": "opt_d1_worship", "meal": "WORSHIP", "label": "집회", "count": 4 }
+        ]
+      }
+    ],
+    "unanswered": 0
+  },
+  "lodging": {
+    "nights": [
+      { "optionId": "opt_n1", "night": 1, "date": "2027-01-22", "label": "첫째 밤 (1월 22일 (금))", "count": 3 }
+    ],
+    "unanswered": 0
+  },
+  "transport": {
+    "in":  { "options": [{ "optionId": "opt_group", "label": "단체 이동 차량", "hidden": false, "count": 1 }], "noAnswer": 0 },
+    "out": { "options": [{ "optionId": "opt_car", "label": "자차", "hidden": false, "count": 2 }], "noAnswer": 0 }
+  },
+  "shuttle": {
+    "in":  { "options": [{ "optionId": "opt_d1", "label": "1월 22일 (금) 집회 전", "hidden": false, "count": 1 }], "noAnswer": 0 },
+    "out": { "options": [{ "optionId": "opt_d2", "label": "1월 23일 (토) 집회 후", "hidden": false, "count": 1 }], "noAnswer": 0 }
+  },
+  "carpool": {
+    "offerCount": 1,
+    "seatTotal": 3,
+    "offers": [
+      { "applicationId": "…", "name": "나래", "cohort": "95", "seats": 3, "area": "분당", "note": "판교 경유 가능" }
+    ]
+  },
+  "mobility": {
+    "in":  [{ "applicationId": "…", "name": "라온", "cohort": "00", "area": "수원" }],
+    "out": [{ "applicationId": "…", "name": "라온", "cohort": "00", "area": "수원역" }]
+  }
+}
+```
+
+**영역별 규칙.** 답은 자동 질문의 `presetKey`와 보기 id로 찾는다(DEC-070). **꺼진 질문(`hidden`)은 묻지 않은 것으로 본다.** 그 질문의 영역은 `null`이고, 그 질문에 저장된 답은 세지 않는다(DEC-072와 같다).
+
+- `fromSetup`: 신청서를 설정 카드로 만들었는지다. `false`이면 `total`·`cohorts`·`attendance`(모두 전체 참석)만 값이 있고, 나머지는 `null`이다. 신청서가 없으면 `formId: null`, `total: 0`이다.
+- `attendance`: `ATTENDANCE`가 없거나 꺼졌으면 `asked: false`이고 모두 `full`이다. 답이 없거나 모르는 보기를 골랐을 때도 `full`이다. 조 편성판의 `attendance`와 같은 규칙이다.
+- `gender`: `GENDER`의 보기 순서다. 모든 영역의 `options`는 꺼진 보기도 `hidden: true`로 포함한다. 화면은 `count`가 0인 꺼진 보기를 숨기고, 0이 아니면 "(꺼짐)"으로 보여 준다.
+- `cohorts`: SYSTEM `COHORT` 답의 앞뒤 공백을 자른 글자별 인원이다. 글자 오름차순이므로 `00`이 `94`보다 앞이다. 또래가 꺼졌으면 `null`이다.
+- `meals`: 일차와 칸은 저장된 설정(`setup.schedule`)의 순서다. 칸은 아침 → 점심 → 저녁 → 집회 순이고, 칸이 없는 날은 빠진다. `label`은 `MEALS` 보기의 지금 문구이고, 보기가 없으면 기본 문구를 쓴다. 칸이 하나도 없으면 `meals`는 `null`이다.
+  - 전체 참석자는 모든 칸에 센다.
+  - 부분·집회만 참석자는 고른 칸에만 센다.
+  - `MEALS` 답이 없는 부분·집회만 참석자(질문이 꺼졌거나 질문이 생기기 전에 낸 신청)는 칸에 넣지 않고 `unanswered`로 센다.
+- `lodging`: 밤은 `setup.generatedFor` 기간의 N박이고, 하루짜리 행사면 `null`이다. `date`는 그 밤의 날짜다.
+  - 전체 참석자는 모든 밤에 센다. 집회만 참석자는 어느 밤에도 세지 않는다.
+  - 부분 참석자는 고른 밤에만 센다. 선택 질문이라 답이 없으면 숙박하지 않는 것이다.
+  - `LODGING`이 보이지 않으면 부분 참석자를 `unanswered`로 센다.
+- `transport`: `TRANSPORT_IN`이 없거나 꺼졌으면 `null`이다.
+  - `in`은 가는 길 보기 순서다.
+  - `out`도 같은 순서다. **가는 길이 자차면 오는 길도 `opt_car`로 센다**(DEC-070 §3). 자차 행의 문구는 가는 길 질문의 것이고, 다른 행은 `TRANSPORT_OUT`의 것이다.
+  - `noAnswer`는 답이 없는 신청 수다. 오는 길에서는 가는 길 답이 없는 사람과, 자차가 아니면서 오는 길 답이 없는 사람을 센다.
+- `shuttle`: `in`·`out`은 각각 `SHUTTLE_IN`·`SHUTTLE_OUT` 회차별 인원이다. 질문이 없거나 꺼졌으면 그쪽만 `null`이고, 둘 다 `null`이면 `shuttle`이 `null`이다. 한 사람이 여러 회차를 고를 수 있어 합이 인원보다 클 수 있다. `noAnswer`는 집회 차량을 골랐는데 회차 답이 없는 사람이다.
+- `carpool`: `CARPOOL_OFFER`가 보일 때만 있다.
+  - `offers`는 동승을 "예"라고 답한 사람을 이름순(같으면 `applicationId`순)으로 나열한다.
+  - `seats`·`area`·`note`는 답이 없거나 질문이 꺼졌으면 `null`이다. `seatTotal`은 `seats`의 합이다.
+- `mobility`: `in`·`out`은 `MOBILITY_IN`·`MOBILITY_OUT`에 동네를 적은 사람을 이름순으로 나열한다. 한쪽 질문만 꺼졌으면 그쪽만 `null`이고, 둘 다 없으면 `mobility`가 `null`이다.
+- 카풀과 이동 지원은 나란히 보여 주기만 하고 서버가 짝을 맞추지 않는다.
+- `name`·`cohort`는 SYSTEM `NAME`·`COHORT` 답이다. 또래가 꺼졌으면 `cohort`는 `null`이다.
+- 숨김이거나 조건에 맞지 않아 보이지 않은 질문의 답은 저장되지 않으므로(DEC-068) 집계에도 없다.
 
 ### `GET /api/v1/operator/events/{eventId}/applications/table`
 
@@ -1343,7 +1438,7 @@ CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고
 
 ## 조 편성
 
-> 작업본(편성판, 조, 배정, 조장)은 서버에 있다([#299](https://github.com/BeomhyunPark/SCENE/issues/299), 컨트롤러 `event/group/GroupController`, 스키마 `V13__groups.sql`). 공개(`POST …/groups/publish`), 공개본 조회, 참가자 내 조는 아직 계약만 있고 [#300](https://github.com/BeomhyunPark/SCENE/issues/300)에서 연다. 정책은 [DEC-072](../../docs/product/PRODUCT_DECISIONS.md)와 DEC-040~048이다.
+> 작업본(편성판, 조, 배정, 조장)은 [#299](https://github.com/BeomhyunPark/SCENE/issues/299), 공개·공개본 조회·참가자 내 조는 [#300](https://github.com/BeomhyunPark/SCENE/issues/300)에서 서버에 열었다(컨트롤러 `event/group/GroupController`·`ParticipantGroupController`, 스키마 `V13__groups.sql`·`V14__group_publications.sql`). 정책은 [DEC-072](../../docs/product/PRODUCT_DECISIONS.md)와 DEC-040~048이다.
 
 운영자가 조를 만들고 참가자를 넣는 **작업본**과, 공개할 때 한 번에 찍는 **공개본**(스냅샷)이 따로 있다. 작업본 저장은 참가자에게 보이지 않는다. 참가자와 조장은 가장 최근 공개본만 본다.
 
@@ -1420,7 +1515,7 @@ CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고
 - `attendance`는 `ATTENDANCE` 답의 `opt_full`·`opt_partial`·`opt_worship`을 `FULL`·`PARTIAL`·`WORSHIP_ONLY`로 바꾼 값이다. 질문이 없거나 꺼져 있으면 `FULL`이다(DEC-070 §3). 질문이 켜진 뒤 들어온 신청이 아니라서 답이 없을 때도 `FULL`이다. `null`이 아니다.
 - `groupId`가 `null`이면 미배정이다. `publishedGroupId`·`publishedLeader`는 가장 최근 공개본의 값이고, 공개한 적이 없거나 그 공개본에 없으면 `null`·`false`다.
 - `withdrawn`은 배정 행이 남아 있지만 활성 참가자가 아닌 사람이다. `groupId`는 참고값이다. 조별 인원·미배정 수에 넣지 않는다.
-- `publication`: 공개한 적이 없으면 `lastPublished…`가 `null`이다. #300 전까지는 늘 공개 전이다. `changedParticipantCount`는 활성 참가자 중 작업본과 최근 공개본의 조 또는 조장 표시가 다른 사람 수다(처음 공개 전에는 배정된 사람 수). `groupChanges`는 조 추가·삭제·이름·순서가 다른 조 수다. `hasUnpublishedChanges`는 둘 중 하나라도 0이 아니면 `true`다. 화면은 이 값으로 "미공개 변경 있음"을 보여 준다(DEC-040).
+- `publication`: 공개한 적이 없으면 `lastPublished…`가 `null`이다. `lastPublishedBoardVersion`은 그 공개 때의 `boardVersion`이다. `changedParticipantCount`는 활성 참가자 중 작업본과 최근 공개본의 조 또는 조장 표시가 다른 사람 수다(처음 공개 전에는 배정된 사람 수). `groupChanges`는 작업본과 최근 공개본 사이에 추가·삭제됐거나 이름 또는 `sortOrder` 값이 다른 조 수다(처음 공개 전에는 조 수). 비교는 내용으로 한다. 옮겼다가 되돌려 내용이 같으면 `boardVersion`이 올라도 변경이 없다. `hasUnpublishedChanges`는 둘 중 하나라도 0이 아니면 `true`다. 화면은 이 값으로 "미공개 변경 있음"을 보여 준다(DEC-040).
 
 ### `POST /api/v1/operator/events/{eventId}/groups`
 
@@ -1490,7 +1585,7 @@ CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고
 `expectedBoardVersion`이 없으면 `400`(필드 `expectedBoardVersion`). `confirmUnassigned`는 생략하면 `false`다. 판정은 행사 상태 다음에 이 순서다.
 
 1. `boardVersion`이 다르면 `409 CONCURRENT_MODIFICATION`, 확장 필드 `boardVersion`. 화면은 최신 편성판을 보여 주고 다시 확인받는다(DEC-046).
-2. 작업본이 가장 최근 공개본과 같으면(`hasUnpublishedChanges: false`) `200`, `result: ALREADY_PUBLISHED`. 아무것도 남기지 않는다. 같은 공개 요청을 다시 보낸 경우가 여기다.
+2. 공개한 적이 있고 작업본이 가장 최근 공개본과 같으면(`hasUnpublishedChanges: false`) `200`, `result: ALREADY_PUBLISHED`. 아무것도 남기지 않는다. 같은 공개 요청을 다시 보낸 경우가 여기다. 공개한 적이 없으면 이 단계를 건너뛰어 조·배정이 없어도 첫 공개가 된다.
 3. 미배정 활성 참가자가 있고 `confirmUnassigned`가 `false`면 `409 CONFIRMATION_REQUIRED`, 확장 필드 `unassignedCount`(DEC-041).
 4. 공개한다.
 
@@ -1508,7 +1603,7 @@ CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고
 }
 ```
 
-`ALREADY_PUBLISHED`면 `publicationId`·`publishedAt`이 가장 최근 공개 값이다. 공개는 `group_publications`에 한 행을 더한다. 내용은 조 id·이름·순서와 조마다 조원·조장의 참가자 id다(활성 참가자만). 이름·전화는 넣지 않는다. 같은 transaction에 audit `GROUPS_PUBLISHED`를 남긴다. 알림은 보내지 않는다(DEC-072 범위 밖). 조가 하나도 없어도 공개할 수 있고, 그러면 모두 미배정으로 보인다.
+`ALREADY_PUBLISHED`면 `publicationId`·`publishedAt`이 가장 최근 공개 값이고 `changedParticipantCount`는 0이다. `assignedCount`·`unassignedCount`는 지금 활성 참가자 기준이다. `PUBLISHED`의 `changedParticipantCount`는 직전 공개본과 비교한 값이다. `confirmUnassigned`가 불리언이 아니면 `400`(필드 `confirmUnassigned`), `expectedBoardVersion`이 0 이상 정수가 아니면 `400`(필드 `expectedBoardVersion`)이다. 공개는 `group_publications`에 한 행을 더한다. 내용은 조 id·이름·순서와 조마다 조원·조장의 참가자 id다(활성 참가자만). 이름·전화는 넣지 않는다. 같은 transaction에 audit `GROUPS_PUBLISHED`를 남긴다. 알림은 보내지 않는다(DEC-072 범위 밖). 조가 하나도 없어도 공개할 수 있고, 그러면 모두 미배정으로 보인다.
 
 ### `GET /api/v1/operator/events/{eventId}/groups/published`
 
@@ -1613,6 +1708,7 @@ audit `GROUPS_PUBLISHED`: detail은 `publicationId`, `boardVersion`, `assignedCo
 | `EVENT_USER_ROLE_CHANGED` | 운영자 역할을 다시 쓸 때 |
 | `EVENT_USER_PERMISSIONS_REPLACED` | 권한 override 내용이 바뀔 때 |
 | `CHECKIN_CREATED`, `CHECKIN_CANCELLED` | 체크인·취소가 기록을 만들 때. `ALREADY_…`와 같은 키 재전송은 남기지 않는다([체크인 감사 로그](#감사-로그)) |
+| `GROUPS_PUBLISHED` | 조 편성을 공개할 때. `ALREADY_PUBLISHED`는 남기지 않는다. detail은 [이력과 감사 로그](#이력과-감사-로그) |
 | `APPLICATIONS_EXPORTED` | 신청자 CSV를 내려받을 때마다. detail은 `count`뿐이다([신청자 CSV](#post-apiv1operatoreventseventidapplicationsexport)) |
 | `OWNER_TRANSFER_ACCEPTED` | 소유권 이전을 처음 수락할 때. 다시 수락하면 더 쓰지 않는다 |
 | `EVENT_ACCESS_REVOKED` | 운영자 제거 또는 공간 탈퇴로 그 행사 접근이 끊길 때. 탈퇴에서 유지한 행사는 끊지 않는다 |
@@ -1638,9 +1734,8 @@ audit `GROUPS_PUBLISHED`: detail은 `publicationId`, `boardVersion`, `assignedCo
 - 비밀번호 로그인
 - SMTP. 초대 링크는 생성·다시 보내기 응답에 한 번 나오고, 메일 포트는 프로세스 메모리에만 담는다
 - 체크 항목 추가
-- 참가자 조회(`GET /api/v1/participant/me`·`GET /api/v1/participant/check-in` 밖)
+- 참가자 조회(`GET /api/v1/participant/me`·`GET /api/v1/participant/check-in`·`GET /api/v1/participant/group` 밖)
 - 회비, 방, 차량
-- 조 공개, 공개본 조회, 참가자 내 조. [계약](#조-편성)만 있고 서버는 #300에서 연다
 - 신청자 CSV([신청자 CSV](#post-apiv1operatoreventseventidapplicationsexport)) 밖의 Export, 공간 설정
 - 행사 기간·장소·유형을 바꾸는 `PATCH`. 이름만 바꾼다
 - 공간 소유권 이전의 전용 URL
