@@ -115,7 +115,9 @@
            (nc.value ->> 'value')::boolean AS newcomer,
            ga.group_id,
            coalesce(ga.leader, false) AS leader,
-           mea.value::text AS meals_answer
+           mea.value::text AS meals_answer,
+           arr.value::text AS arrival_answer,
+           dep.value::text AS departure_answer
     FROM participants p
     JOIN LATERAL (<include refid="submittedApplication"/>) app ON true
     LEFT JOIN LATERAL (
@@ -153,6 +155,16 @@
         <property name="column" value="preset_key"/>
         <property name="key" value="MEALS"/>
       </include>) mea ON true
+    LEFT JOIN LATERAL (
+      <include refid="keyedAnswer">
+        <property name="column" value="preset_key"/>
+        <property name="key" value="ARRIVAL_SLOT"/>
+      </include>) arr ON true
+    LEFT JOIN LATERAL (
+      <include refid="keyedAnswer">
+        <property name="column" value="preset_key"/>
+        <property name="key" value="DEPARTURE_SLOT"/>
+      </include>) dep ON true
     LEFT JOIN group_assignments ga
       ON ga.space_id = p.space_id AND ga.event_id = p.event_id AND ga.participant_id = p.id
     WHERE p.space_id = #{spaceId} AND p.event_id = #{eventId}

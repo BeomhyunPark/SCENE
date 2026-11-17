@@ -23,7 +23,19 @@ class FormPresetTest {
   void withoutAnAttendanceQuestionEveryoneAttendsInFull() {
     FormSetup setup =
         new FormSetup(
-            false, true, true, false, false, false, days(2, true), true, true, true, false, false);
+            false,
+            true,
+            true,
+            false,
+            false,
+            false,
+            FormSetup.Mode.SLOTS,
+            days(2, true),
+            true,
+            true,
+            true,
+            false,
+            false);
 
     List<FormPreset.Question> questions = generate(setup, FRIDAY, FRIDAY.plusDays(1));
 
@@ -57,6 +69,7 @@ class FormPresetTest {
             false,
             true,
             false,
+            FormSetup.Mode.SLOTS,
             days(1, false),
             false,
             false,
@@ -79,11 +92,27 @@ class FormPresetTest {
   void everyGeneratedQuestionIsAKnownKeyInOrderAndPassesTheConditionRules() {
     FormSetup setup =
         new FormSetup(
-            true, true, true, true, true, true, days(10, true), true, true, true, true, true);
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            FormSetup.Mode.SLOTS,
+            days(10, true),
+            true,
+            true,
+            true,
+            true,
+            true);
 
     List<FormPreset.Question> questions = generate(setup, FRIDAY, FRIDAY.plusDays(9));
 
-    assertThat(keys(questions)).isEqualTo(FormPreset.ORDER);
+    assertThat(keys(questions))
+        .isEqualTo(
+            FormPreset.ORDER.stream()
+                .filter(key -> !key.equals("ARRIVAL_SLOT") && !key.equals("DEPARTURE_SLOT"))
+                .toList());
     assertThat(find(questions, "LODGING").config().get("options")).hasSize(9);
     assertThat(find(questions, "MEALS").config().get("options")).hasSize(40);
     List<FieldDefinition> fields = new ArrayList<>();
@@ -110,7 +139,19 @@ class FormPresetTest {
   void theNewcomerQuestionIsARequiredYesNoAfterTheCellAndBeforeAttendance() {
     FormSetup setup =
         new FormSetup(
-            true, false, true, true, true, false, days(2, true), false, false, false, false, false);
+            true,
+            false,
+            true,
+            true,
+            true,
+            false,
+            FormSetup.Mode.SLOTS,
+            days(2, true),
+            false,
+            false,
+            false,
+            false,
+            false);
 
     List<FormPreset.Question> questions = generate(setup, FRIDAY, FRIDAY.plusDays(1));
 
@@ -136,11 +177,81 @@ class FormPresetTest {
                         + "\"dinner\":false,\"worship\":false}],"
                         + "\"transport\":{\"groupBus\":false,\"worshipShuttle\":false,"
                         + "\"car\":false,\"publicTransit\":false,\"support\":false}}"),
-            1);
+            1,
+            FormSetup.Mode.SLOTS);
 
     assertThat(setup.newcomer()).isFalse();
     assertThat(keys(generate(setup, FRIDAY, FRIDAY))).containsExactly("CONSENT");
     assertThat(setup.toJson(FRIDAY, FRIDAY).get("newcomer").booleanValue()).isFalse();
+  }
+
+  @Test
+  void rangeAsksArrivalAndDepartureSlotsAndOnlyServicesForWorshipOnly() {
+    FormSetup setup =
+        new FormSetup(
+            false,
+            false,
+            false,
+            false,
+            true,
+            true,
+            FormSetup.Mode.RANGE,
+            days(2, true),
+            false,
+            false,
+            false,
+            false,
+            false);
+
+    List<FormPreset.Question> questions = generate(setup, FRIDAY, FRIDAY.plusDays(1));
+
+    assertThat(keys(questions))
+        .containsExactly(
+            "ATTENDANCE", "ARRIVAL_SLOT", "DEPARTURE_SLOT", "MEALS", "PARTIAL_NOTE", "CONSENT");
+    JsonNode from = find(questions, "ARRIVAL_SLOT").config().get("options");
+    assertThat(from).hasSize(8);
+    assertThat(from.get(0).get("optionId").asString()).isEqualTo("opt_d1_breakfast");
+    assertThat(from.get(3).get("label").asString()).isEqualTo("1월 22일 (금) 집회부터");
+    JsonNode to = find(questions, "DEPARTURE_SLOT").config().get("options");
+    assertThat(to.get(7).get("label").asString()).isEqualTo("1월 23일 (토) 집회까지");
+    assertThat(find(questions, "ARRIVAL_SLOT").showWhen().get("optionIds"))
+        .hasToString("[\"opt_partial\"]");
+    JsonNode meals = find(questions, "MEALS").config().get("options");
+    assertThat(meals).hasSize(8);
+    for (JsonNode option : meals) {
+      assertThat(option.get("hidden").booleanValue())
+          .isEqualTo(!option.get("optionId").asString().endsWith("_worship"));
+    }
+    assertThat(find(questions, "MEALS").showWhen().get("optionIds"))
+        .hasToString("[\"opt_worship\"]");
+  }
+
+  @Test
+  void slotOrderAndRangeNights() {
+    assertThat(MealSlots.order("opt_d1_worship")).isLessThan(MealSlots.order("opt_d2_breakfast"));
+    assertThat(MealSlots.order("opt_d2_lunch")).isLessThan(MealSlots.order("opt_d2_dinner"));
+    assertThat(MealSlots.order("opt_full")).isEqualTo(-1);
+    assertThat(MealSlots.order("opt_dx_lunch")).isEqualTo(-1);
+    JsonMapper mapper = JsonMapper.builder().build();
+    assertThat(
+            MealSlots.nights(
+                new MealSlots.Answers(
+                    null,
+                    mapper.readTree("{\"optionId\":\"opt_d1_worship\"}"),
+                    mapper.readTree("{\"optionId\":\"opt_d3_breakfast\"}"))))
+        .containsExactly(1, 2);
+    assertThat(
+            MealSlots.nights(
+                new MealSlots.Answers(
+                    null,
+                    mapper.readTree("{\"optionId\":\"opt_d2_lunch\"}"),
+                    mapper.readTree("{\"optionId\":\"opt_d2_dinner\"}"))))
+        .isEmpty();
+    assertThat(
+            MealSlots.nights(
+                new MealSlots.Answers(
+                    null, mapper.readTree("{\"optionId\":\"opt_d2_lunch\"}"), null)))
+        .isNull();
   }
 
   private List<FormPreset.Question> generate(FormSetup setup, LocalDate start, LocalDate end) {

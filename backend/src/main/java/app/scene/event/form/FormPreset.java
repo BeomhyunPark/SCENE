@@ -32,6 +32,8 @@ public final class FormPreset {
           "ATTENDANCE",
           "ARRIVAL_AT",
           "DEPARTURE_AT",
+          "ARRIVAL_SLOT",
+          "DEPARTURE_SLOT",
           "LODGING",
           "MEALS",
           "PARTIAL_NOTE",
@@ -170,7 +172,36 @@ public final class FormPreset {
               null));
     }
     JsonNode whenPartial = attendance ? when(ids, "ATTENDANCE", PARTIAL) : null;
-    if (setup.partial()) {
+    List<String[]> slots = slots(setup, start, days);
+    if (setup.partial() && setup.range()) {
+      // DEC-074: the arrival and departure slots stand for every slot between them.
+      if (!slots.isEmpty()) {
+        ArrayNode from = NODES.arrayNode();
+        ArrayNode to = NODES.arrayNode();
+        for (String[] slot : slots) {
+          from.add(option(slot[0], slot[1] + "부터", null, false, null));
+          to.add(option(slot[0], slot[1] + "까지", null, false, null));
+        }
+        out.add(
+            new Question(
+                "ARRIVAL_SLOT",
+                "수련회장에 언제 도착하나요?",
+                "도착부터 출발까지의 식사와 프로그램에 모두 참석하는 것으로 신청됩니다.",
+                AnswerType.SINGLE_CHOICE,
+                true,
+                single(from, false),
+                whenPartial));
+        out.add(
+            new Question(
+                "DEPARTURE_SLOT",
+                "수련회장에서 언제 출발하나요?",
+                null,
+                AnswerType.SINGLE_CHOICE,
+                true,
+                single(to, false),
+                whenPartial));
+      }
+    } else if (setup.partial()) {
       out.add(
           new Question(
               "ARRIVAL_AT",
@@ -206,34 +237,44 @@ public final class FormPreset {
                 whenPartial));
       }
     }
-    if (attendance) {
+    if (attendance && !setup.range()) {
       ArrayNode cells = NODES.arrayNode();
-      for (int day = 1; day <= days; day++) {
-        FormSetup.Day slots = setup.schedule().get(day - 1);
-        String group = dayLabel(start.plusDays(day - 1L));
-        if (slots.breakfast()) {
-          cells.add(option("opt_d" + day + "_breakfast", "아침", group, false, null));
-        }
-        if (slots.lunch()) {
-          cells.add(option("opt_d" + day + "_lunch", "점심", group, false, null));
-        }
-        if (slots.dinner()) {
-          cells.add(option("opt_d" + day + "_dinner", "저녁", group, false, null));
-        }
-        if (slots.worship()) {
-          cells.add(option("opt_d" + day + "_worship", "집회", group, false, null));
-        }
+      for (String[] slot : slots) {
+        cells.add(option(slot[0], slot[3], slot[2], false, null));
       }
       if (!cells.isEmpty()) {
         out.add(
             new Question(
                 "MEALS",
                 "참석할 프로그램과 식사를 선택해주세요",
-                "식수 인원 확인을 위해 식사도 빠짐없이 골라주세요.",
+                "참석하는 일정에 포함되는 식사와 프로그램을 모두 선택해 주세요."
+                    + " ※ 식사는 실제 식사 여부와 관계없이 참석 일정에 포함된 경우 신청 인원에 반영됩니다.",
                 AnswerType.MULTI_CHOICE,
                 true,
                 multi(cells),
                 when(ids, "ATTENDANCE", PARTIAL, WORSHIP)));
+      }
+    }
+    if (setup.worshipOnly() && setup.range()) {
+      // DEC-074: a worship-only attendee still picks services; meals stay listed but hidden so
+      // option ids stay the same as in SLOTS mode.
+      ArrayNode cells = NODES.arrayNode();
+      boolean anyWorship = false;
+      for (String[] slot : slots) {
+        boolean worship = slot[0].endsWith("_worship");
+        anyWorship |= worship;
+        cells.add(option(slot[0], slot[3], slot[2], !worship, null));
+      }
+      if (anyWorship) {
+        out.add(
+            new Question(
+                "MEALS",
+                "참석할 집회를 선택해주세요",
+                null,
+                AnswerType.MULTI_CHOICE,
+                true,
+                multi(cells),
+                when(ids, "ATTENDANCE", WORSHIP)));
       }
     }
     if (setup.partial()) {
@@ -241,7 +282,7 @@ public final class FormPreset {
           new Question(
               "PARTIAL_NOTE",
               "운영진이 알아야 할 부분 참석 메모가 있나요?",
-              null,
+              setup.range() ? "중간에 나갔다가 다시 오거나 수련회장에서 자지 않는다면 적어 주세요." : null,
               AnswerType.LONG_TEXT,
               false,
               longText(),
@@ -407,6 +448,30 @@ public final class FormPreset {
                 when(ids, "TRANSPORT_OUT", SUPPORT)));
       }
     }
+  }
+
+  /**
+   * The setup's slots in {@link MealSlots} order: option id, {@code 1월 22일 (금) 저녁}, the day label,
+   * and the meal wording.
+   */
+  private static List<String[]> slots(FormSetup setup, LocalDate start, int days) {
+    List<String[]> out = new ArrayList<>();
+    for (int day = 1; day <= days; day++) {
+      FormSetup.Day slots = setup.schedule().get(day - 1);
+      String group = dayLabel(start.plusDays(day - 1L));
+      boolean[] on = {slots.breakfast(), slots.lunch(), slots.dinner(), slots.worship()};
+      String[] keys = {"breakfast", "lunch", "dinner", "worship"};
+      String[] words = {"아침", "점심", "저녁", "집회"};
+      for (int kind = 0; kind < keys.length; kind++) {
+        if (on[kind]) {
+          out.add(
+              new String[] {
+                "opt_d" + day + "_" + keys[kind], group + " " + words[kind], group, words[kind]
+              });
+        }
+      }
+    }
+    return out;
   }
 
   private static ArrayNode rounds(List<Integer> worshipDays, LocalDate start, String suffix) {

@@ -460,7 +460,7 @@ class GroupBoardSlotsHttpIT {
         + attendance
         + ",\"worshipOnly\":"
         + attendance
-        + "},\"schedule\":"
+        + ",\"mode\":\"SLOTS\"},\"schedule\":"
         + schedule
         + ",\"transport\":{\"groupBus\":false,\"worshipShuttle\":false,\"car\":false,"
         + "\"publicTransit\":false,\"support\":false}}";

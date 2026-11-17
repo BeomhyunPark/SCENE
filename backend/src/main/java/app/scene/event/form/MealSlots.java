@@ -90,13 +90,132 @@ public final class MealSlots {
     return out::get;
   }
 
+  /** {@code attendance.mode} of a stored setup. A setup saved before the key existed is SLOTS. */
+  public static FormSetup.Mode mode(JsonNode setup) {
+    JsonNode mode = setup == null ? null : setup.path("attendance").path("mode");
+    return mode != null && mode.isString() && "RANGE".equals(mode.asString())
+        ? FormSetup.Mode.RANGE
+        : FormSetup.Mode.SLOTS;
+  }
+
+  /**
+   * Position of a slot id in slot order (day, then breakfast → lunch → dinner → worship), or -1
+   * when {@code id} is not a slot id. Arrival and departure answers compare by this.
+   */
+  public static int order(String id) {
+    if (id == null || !id.startsWith("opt_d")) {
+      return -1;
+    }
+    int bar = id.indexOf('_', 5);
+    if (bar < 0) {
+      return -1;
+    }
+    int day;
+    try {
+      day = Integer.parseInt(id.substring(5, bar));
+    } catch (NumberFormatException exception) {
+      return -1;
+    }
+    String kind = id.substring(bar + 1);
+    for (int index = 0; index < KINDS.size(); index++) {
+      if (KINDS.get(index)[0].equals(kind)) {
+        return day * KINDS.size() + index;
+      }
+    }
+    return -1;
+  }
+
+  /** Day number of a slot id, or -1. */
+  public static int day(String id) {
+    int order = order(id);
+    return order < 0 ? -1 : order / KINDS.size();
+  }
+
+  /**
+   * One participant's answers that decide attended slots. Each is the stored value of a visible
+   * question, or null: {@code meals} is {@code MEALS}, {@code arrival} and {@code departure} are
+   * {@code ARRIVAL_SLOT} and {@code DEPARTURE_SLOT} (DEC-074).
+   */
+  public record Answers(JsonNode meals, JsonNode arrival, JsonNode departure) {}
+
+  /** {@code kind} values, as the summary and the board name them. */
+  public static final String FULL = "FULL";
+
+  public static final String PARTIAL = "PARTIAL";
+  public static final String WORSHIP_ONLY = "WORSHIP_ONLY";
+
+  /**
+   * Slot ids the participant attends, in slot order. The one rule for the summary, the board, the
+   * table and the CSV (DEC-073, DEC-074).
+   *
+   * <ul>
+   *   <li>A full attendee ({@code kind} FULL) attends every slot.
+   *   <li>In SLOTS mode, and for a worship-only attendee in either mode, the slots chosen in {@code
+   *       MEALS}.
+   *   <li>In RANGE mode a partial attendee attends every slot from the arrival slot to the
+   *       departure slot, both included.
+   * </ul>
+   *
+   * Null means unknown: no usable answer (the question is off, the application came before it, or a
+   * range runs backwards).
+   */
+  public static List<String> attended(
+      JsonNode setup, List<Day> days, String kind, Answers answers) {
+    if (FULL.equals(kind)) {
+      return attended(days, true, null);
+    }
+    if (mode(setup) == FormSetup.Mode.RANGE && PARTIAL.equals(kind)) {
+      int from = order(optionId(answers.arrival()));
+      int to = order(optionId(answers.departure()));
+      if (from < 0 || to < 0 || from > to) {
+        return null;
+      }
+      List<String> out = new ArrayList<>();
+      for (Day day : days) {
+        for (Slot slot : day.slots()) {
+          int at = order(slot.optionId());
+          if (at >= from && at <= to) {
+            out.add(slot.optionId());
+          }
+        }
+      }
+      return out;
+    }
+    return attended(days, false, answers.meals());
+  }
+
+  /**
+   * Nights a RANGE-mode partial attendee sleeps over: night {@code n} (the evening of day {@code
+   * n}) when they arrive on day {@code n} or earlier and leave on day {@code n + 1} or later. Null
+   * when the range is unknown, as in {@link #attended(JsonNode, List, String, Answers)}.
+   */
+  public static List<Integer> nights(Answers answers) {
+    String arrival = optionId(answers.arrival());
+    String departure = optionId(answers.departure());
+    int from = order(arrival);
+    int to = order(departure);
+    if (from < 0 || to < 0 || from > to) {
+      return null;
+    }
+    List<Integer> out = new ArrayList<>();
+    for (int night = day(arrival); night < day(departure); night++) {
+      out.add(night);
+    }
+    return out;
+  }
+
+  private static String optionId(JsonNode answer) {
+    JsonNode id = answer == null ? null : answer.get("optionId");
+    return id != null && id.isString() ? id.asString() : null;
+  }
+
   /**
    * Slot ids the participant attends, in slot order. A full attendee attends every slot. A partial
    * or worship-only attendee attends the slots chosen in {@code mealsAnswer}; ids that are not a
    * slot are dropped. Null means unknown: not full, and no {@code MEALS} answer (the question is
    * off, or the application came before it).
    */
-  public static List<String> attended(List<Day> days, boolean full, JsonNode mealsAnswer) {
+  static List<String> attended(List<Day> days, boolean full, JsonNode mealsAnswer) {
     Set<String> chosen = null;
     if (!full) {
       if (mealsAnswer == null || !mealsAnswer.path("optionIds").isArray()) {

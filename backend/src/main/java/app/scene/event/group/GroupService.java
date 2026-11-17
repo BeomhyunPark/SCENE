@@ -112,12 +112,13 @@ public class GroupService {
     List<BoardParticipant> participants = new ArrayList<>();
     List<ActiveParticipant> active = new ArrayList<>();
     long assigned = 0;
-    List<MealSlots.Day> days = slotDays(spaceId, eventId);
+    JsonNode setup = setup(spaceId, eventId);
+    List<MealSlots.Day> days = slotDays(spaceId, eventId, setup);
     for (BoardRow row : groups.boardParticipants(spaceId, eventId)) {
       if (row.groupId() != null) {
         assigned++;
       }
-      participants.add(participant(row, placements.get(row.participantId()), days));
+      participants.add(participant(row, placements.get(row.participantId()), setup, days));
       active.add(
           new ActiveParticipant(row.participantId(), null, null, row.groupId(), row.leader()));
     }
@@ -148,9 +149,14 @@ public class GroupService {
    * Slot days of the event's form setup, labelled with the current MEALS option labels even when
    * the question is turned off (as in the summary). Empty when there is no form or no setup.
    */
-  private List<MealSlots.Day> slotDays(UUID spaceId, UUID eventId) {
+  private JsonNode setup(UUID spaceId, UUID eventId) {
     FormRow form = forms.findByEvent(spaceId, eventId).orElse(null);
-    if (form == null || form.setup() == null) {
+    return form == null || form.setup() == null ? null : json.readTree(form.setup());
+  }
+
+  private List<MealSlots.Day> slotDays(UUID spaceId, UUID eventId, JsonNode setup) {
+    FormRow form = forms.findByEvent(spaceId, eventId).orElse(null);
+    if (form == null || setup == null) {
       return List.of();
     }
     JsonNode meals = null;
@@ -159,7 +165,7 @@ public class GroupService {
         meals = field.config() == null ? null : json.readTree(field.config());
       }
     }
-    return MealSlots.days(json.readTree(form.setup()), MealSlots.labels(meals));
+    return MealSlots.days(setup, MealSlots.labels(meals));
   }
 
   private static List<BoardSlot> slots(List<MealSlots.Day> days) {
@@ -572,7 +578,7 @@ public class GroupService {
   }
 
   private BoardParticipant participant(
-      BoardRow row, Snapshot.Placement published, List<MealSlots.Day> days) {
+      BoardRow row, Snapshot.Placement published, JsonNode setup, List<MealSlots.Day> days) {
     BoardParticipant.Gender gender =
         row.genderOptionId() == null
             ? null
@@ -597,9 +603,17 @@ public class GroupService {
         days.isEmpty()
             ? null
             : MealSlots.attended(
+                setup,
                 days,
-                FULL.equals(attendance),
-                row.mealsAnswer() == null ? null : json.readTree(row.mealsAnswer())));
+                attendance,
+                new MealSlots.Answers(
+                    tree(row.mealsAnswer()),
+                    tree(row.arrivalAnswer()),
+                    tree(row.departureAnswer()))));
+  }
+
+  private JsonNode tree(String text) {
+    return text == null ? null : json.readTree(text);
   }
 
   private UUID openForWrite(UUID actorId, UUID eventId) {

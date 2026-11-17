@@ -552,7 +552,7 @@ class ApplicationSummaryHttpIT {
 
   private static String setup(boolean car, boolean shuttle, boolean support) {
     return "{\"gender\":true,\"middleGroup\":false,\"cell\":false,"
-        + "\"attendance\":{\"partial\":true,\"worshipOnly\":true},\"schedule\":"
+        + "\"attendance\":{\"partial\":true,\"worshipOnly\":true,\"mode\":\"SLOTS\"},\"schedule\":"
         + SCHEDULE
         + ",\"transport\":{\"groupBus\":true,\"worshipShuttle\":"
         + shuttle

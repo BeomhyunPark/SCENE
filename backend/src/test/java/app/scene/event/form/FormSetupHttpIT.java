@@ -525,7 +525,7 @@ class FormSetupHttpIT {
         + partial
         + ",\"worshipOnly\":"
         + worshipOnly
-        + "},\"schedule\":"
+        + ",\"mode\":\"SLOTS\"},\"schedule\":"
         + schedule
         + ",\"transport\":{\"groupBus\":true,\"worshipShuttle\":true,\"car\":"
         + car

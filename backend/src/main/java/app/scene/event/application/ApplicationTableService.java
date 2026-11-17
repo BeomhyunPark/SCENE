@@ -12,6 +12,7 @@ import app.scene.event.application.param.EventApplicationKey;
 import app.scene.event.form.FormFieldRow;
 import app.scene.event.form.FormRepository;
 import app.scene.event.form.FormRow;
+import app.scene.event.form.MealSlots;
 import app.scene.event.lifecycle.EventAccessGate;
 import app.scene.event.lifecycle.EventLocation;
 import app.scene.space.EventUserPermissionRepository;
@@ -89,9 +90,11 @@ public class ApplicationTableService {
     boolean groupVisible = allows(opened, actorId, Permission.GROUP_WRITE) || spaceAdmin;
     UUID spaceId = opened.location().spaceId();
 
-    UUID formId = forms.findByEvent(spaceId, eventId).map(FormRow::id).orElse(null);
+    FormRow form = forms.findByEvent(spaceId, eventId).orElse(null);
+    UUID formId = form == null ? null : form.id();
     List<FormFieldRow> fields =
         formId == null ? List.of() : forms.findFields(spaceId, eventId, formId);
+    AttendedSlots attended = AttendedSlots.of(form == null ? null : form.setup(), fields, json);
     List<ApplicationTable.Column> columns = new ArrayList<>();
     Set<UUID> shown = new HashSet<>();
     boolean anyContact = false;
@@ -118,13 +121,17 @@ public class ApplicationTableService {
     }
 
     Map<UUID, Map<UUID, JsonNode>> answers = new HashMap<>();
+    Map<UUID, Map<UUID, JsonNode>> all = new HashMap<>();
     for (ExportAnswerRow answer : applications.listSubmittedAnswers(spaceId, eventId)) {
+      JsonNode value = json.readTree(answer.value());
+      all.computeIfAbsent(answer.applicationId(), id -> new HashMap<>())
+          .put(answer.fieldId(), value);
       if (!shown.contains(answer.fieldId())) {
         continue;
       }
       answers
           .computeIfAbsent(answer.applicationId(), id -> new LinkedHashMap<>())
-          .put(answer.fieldId(), json.readTree(answer.value()));
+          .put(answer.fieldId(), value);
     }
     Map<UUID, ApplicationTableState> states = new HashMap<>();
     for (ApplicationTableState state :
@@ -145,7 +152,8 @@ public class ApplicationTableService {
               row.submittedAt(),
               answers.getOrDefault(row.applicationId(), Map.of()),
               group,
-              state == null ? null : state.checkedInAt()));
+              state == null ? null : state.checkedInAt(),
+              attended.of(all.getOrDefault(row.applicationId(), Map.of()))));
     }
 
     if (anyContact && !rows.isEmpty()) {
@@ -157,7 +165,29 @@ public class ApplicationTableService {
           "{\"count\":" + rows.size() + "}",
           clock.instant());
     }
-    return new ApplicationTable(formId, anyContact, groupVisible, columns, rows);
+    return new ApplicationTable(
+        formId, anyContact, groupVisible, columns, rows, slots(attended.days()));
+  }
+
+  private static List<ApplicationTable.Slot> slots(List<MealSlots.Day> days) {
+    if (days.isEmpty()) {
+      return null;
+    }
+    List<ApplicationTable.Slot> out = new ArrayList<>();
+    for (MealSlots.Day day : days) {
+      for (MealSlots.Slot slot : day.slots()) {
+        out.add(
+            new ApplicationTable.Slot(
+                slot.optionId(),
+                day.day(),
+                day.date().toString(),
+                day.label(),
+                slot.meal(),
+                slot.label(),
+                out.size()));
+      }
+    }
+    return out;
   }
 
   static boolean isPhone(FormFieldRow field, JsonNode config) {
