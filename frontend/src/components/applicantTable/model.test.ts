@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { ApplicationTable, TableColumn, TableRow } from "../../api/applications";
 import {
   applyFilters,
+  bucketsOf,
+  slotSummary,
   buildColumns,
   copyText,
   countBy,
@@ -73,7 +75,7 @@ const COLUMNS: TableColumn[] = [
 ];
 
 function row(id: string, answers: Record<string, Record<string, unknown>>, extra: Partial<TableRow> = {}): TableRow {
-  return { applicationId: id, submittedAt: `2026-12-1${id}T03:00:00Z`, answers, group: null, checkedInAt: null, ...extra };
+  return { applicationId: id, submittedAt: `2026-12-1${id}T03:00:00Z`, answers, group: null, checkedInAt: null, slotIds: null, ...extra };
 }
 
 const ROWS: TableRow[] = [
@@ -112,7 +114,14 @@ const ROWS: TableRow[] = [
   }, { group: { groupId: "g1", name: "1조", leader: false } }),
 ];
 
-const TABLE: ApplicationTable = { formId: "form", contactVisible: true, groupVisible: true, columns: COLUMNS, rows: ROWS };
+const TABLE: ApplicationTable = {
+  formId: "form",
+  contactVisible: true,
+  groupVisible: true,
+  columns: COLUMNS,
+  rows: ROWS,
+  slots: null,
+};
 const COLS = buildColumns(TABLE);
 const col = (id: string): ColumnDef => COLS.find((item) => item.id === id)!;
 const names = (rows: TableRow[]) => rows.map((item) => item.answers.name.text);
@@ -384,5 +393,56 @@ describe("address", () => {
       groupBy: null,
     });
     expect(params.toString()).toBe("");
+  });
+});
+
+describe("참석 일정 (DEC-074)", () => {
+  const slot = (slotId: string, dayLabel: string, label: string, sortOrder: number) => ({
+    slotId,
+    day: Number(slotId[5]),
+    date: "",
+    dayLabel,
+    meal: "",
+    label,
+    sortOrder,
+  });
+  const SLOTS = [
+    slot("opt_d1_dinner", "1월 22일 (금)", "저녁", 0),
+    slot("opt_d1_worship", "1월 22일 (금)", "집회", 1),
+    slot("opt_d2_breakfast", "1월 23일 (토)", "아침", 2),
+    slot("opt_d2_lunch", "1월 23일 (토)", "점심", 3),
+    slot("opt_d2_worship", "1월 23일 (토)", "집회", 4),
+  ];
+
+  it("sums up runs of slots, and null as 모름", () => {
+    expect(slotSummary(SLOTS, ["opt_d1_dinner", "opt_d1_worship", "opt_d2_breakfast", "opt_d2_lunch"])).toBe("금 저녁 ~ 토 점심");
+    expect(slotSummary(SLOTS, ["opt_d1_worship", "opt_d2_worship"])).toBe("금 집회, 토 집회");
+    expect(slotSummary(SLOTS, ["opt_d2_lunch"])).toBe("토 점심");
+    expect(slotSummary(SLOTS, null)).toBe("모름");
+  });
+
+  it("is a column to filter and count by slot", () => {
+    const table: ApplicationTable = {
+      ...TABLE,
+      slots: SLOTS,
+      rows: [
+        row("1", { name: { text: "김하나" } }, { slotIds: SLOTS.map((item) => item.slotId) }),
+        row("2", { name: { text: "박둘" } }, { slotIds: ["opt_d2_lunch"] }),
+        row("3", { name: { text: "이셋" } }, { slotIds: null }),
+      ],
+    };
+    const column = buildColumns(table).find((item) => item.id === "slots")!;
+    expect(column.label).toBe("참석 일정");
+    expect(column.defaultVisible).toBe(true);
+    expect(table.rows.map(column.text)).toEqual(["금 저녁 ~ 토 집회", "토 점심", "모름"]);
+    expect(bucketsOf(column, table.rows).map((bucket) => bucket.label)).toEqual([
+      "1월 22일 (금) 저녁",
+      "1월 22일 (금) 집회",
+      "1월 23일 (토) 아침",
+      "1월 23일 (토) 점심",
+      "1월 23일 (토) 집회",
+      "모름",
+    ]);
+    expect(table.rows.map((item) => column.buckets(item).includes("opt_d2_lunch"))).toEqual([true, true, false]);
   });
 });

@@ -1,4 +1,4 @@
-import type { ApplicationAnswer, ApplicationTable, TableColumn, TableRow } from "../../api/applications";
+import type { ApplicationAnswer, ApplicationTable, TableColumn, TableRow, TableSlot } from "../../api/applications";
 import type { AnswerType, FieldOption } from "../../api/forms";
 import { formatAnswer, HIDDEN_MARK } from "../answerDisplay";
 import { participantLabel } from "../participantLabel";
@@ -155,6 +155,7 @@ export function buildColumns(table: ApplicationTable): ColumnDef[] {
     });
   }
   if (attendance) columns.push({ ...questionColumn(attendance), label: "참석 범위", defaultVisible: true });
+  if (table.slots) columns.push(slotColumn(table.slots));
 
   const used = new Set([name, phone, attendance].filter(Boolean).map((column) => column!.fieldId));
   for (const column of [...table.columns].sort((a, b) => a.position - b.position)) {
@@ -172,6 +173,60 @@ export function buildColumns(table: ApplicationTable): ColumnDef[] {
     sortValue: (row) => row.submittedAt,
   });
   return columns;
+}
+
+export const UNKNOWN_SLOTS = "모름";
+
+/** `1월 22일 (금)` → `금`; a label without a weekday stays as it is. */
+function shortDay(slot: TableSlot): string {
+  return /\(([^)]+)\)\s*$/.exec(slot.dayLabel)?.[1] ?? slot.dayLabel;
+}
+
+/**
+ * The slots a person attends as runs of neighbouring slots: `금 저녁 ~ 토 점심`, or
+ * `금 집회, 토 집회` when they skip. Null slot ids read "모름" (DEC-074, same rule as the board).
+ */
+export function slotSummary(slots: readonly TableSlot[], slotIds: readonly string[] | null): string {
+  if (slotIds === null) return UNKNOWN_SLOTS;
+  const attended = new Set(slotIds);
+  const name = (slot: TableSlot) => `${shortDay(slot)} ${slot.label}`;
+  const runs: string[] = [];
+  let start: TableSlot | null = null;
+  let previous: TableSlot | null = null;
+  for (const slot of [...slots, null]) {
+    if (slot && attended.has(slot.slotId)) {
+      start ??= slot;
+      previous = slot;
+      continue;
+    }
+    if (start && previous) runs.push(start === previous ? name(start) : `${name(start)} ~ ${name(previous)}`);
+    start = null;
+    previous = null;
+  }
+  return runs.length > 0 ? runs.join(", ") : "없음";
+}
+
+/** 참석 일정: filter and count by slot ("토 점심에 있는 사람"), sort by the first slot. */
+function slotColumn(slots: TableSlot[]): ColumnDef {
+  const order = new Map(slots.map((slot, index) => [slot.slotId, index]));
+  return {
+    id: "slots",
+    label: "참석 일정",
+    type: "multi",
+    defaultVisible: true,
+    countable: true,
+    options: [
+      ...slots.map((slot) => ({ key: slot.slotId, label: `${slot.dayLabel} ${slot.label}` })),
+      { key: NONE, label: UNKNOWN_SLOTS },
+    ],
+    text: (row) => slotSummary(slots, row.slotIds),
+    buckets: (row) => (row.slotIds ?? []).filter((id) => order.has(id)),
+    sortValue: (row) => {
+      if (row.slotIds === null) return null;
+      const first = row.slotIds.map((id) => order.get(id)).find((index) => index !== undefined);
+      return first ?? slots.length;
+    },
+  };
 }
 
 function questionColumn(column: TableColumn): ColumnDef {
