@@ -83,7 +83,8 @@ describe("applicant CSV download", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "내려받기" }));
 
     await waitFor(() => expect(saved).toHaveLength(1));
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    // The dialog closes in the same state update as the save; the larger table re-renders after it.
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     expect(exportRequests()).toHaveLength(1);
     expect(HTMLAnchorElement.prototype.click).toHaveBeenCalledTimes(1);
     const bytes = new Uint8Array(await saved[0].arrayBuffer());
