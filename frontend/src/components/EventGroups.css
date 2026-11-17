@@ -750,9 +750,12 @@ body.event-groups--dragging {
 .event-groups__headcount-cells {
   display: grid;
   grid-template-columns: repeat(var(--slot-count), minmax(0, 1fr));
+  /* Same columns and gap as the bars, so header, bars and 인원 line up slot by slot. */
+  column-gap: 2px;
 }
 
 .event-groups__slot-head {
+  container-type: inline-size;
   row-gap: 2px;
   margin: 0 0 4px;
   padding: 0 9px 0 calc(var(--member-lead, 0px) + 11px);
@@ -762,10 +765,26 @@ body.event-groups--dragging {
 }
 
 .event-groups__slot-day {
+  min-width: 0;
   border-bottom: 1px solid var(--color-border-default);
   color: var(--color-text-secondary);
   white-space: nowrap;
   overflow: hidden;
+}
+
+/* Narrow cards: "1/23" over days with 3+ slots, the day number over shorter ones; full label in title. */
+.event-groups__slot-day-wide {
+  display: none;
+}
+
+@container (min-width: 360px) {
+  .event-groups__slot-day-wide {
+    display: inline;
+  }
+
+  .event-groups__slot-day-tight {
+    display: none;
+  }
 }
 
 .event-groups__slot-day + .event-groups__slot-day {
@@ -829,6 +848,25 @@ body.event-groups--dragging {
   list-style: none;
   font: var(--scene-label-s);
   text-align: center;
+}
+
+/* One cell per slot, tinted like a bar cell; digits stack upright so 10+ still fits one column. */
+.event-groups__headcount-cells li {
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+  padding: 2px 0;
+  border-radius: 2px;
+  background: var(--color-bg-surface);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.event-groups__headcount-cells li > [aria-hidden] {
+  letter-spacing: -1px;
+  text-orientation: upright;
+  writing-mode: vertical-rl;
 }
 
 .event-groups__send {
