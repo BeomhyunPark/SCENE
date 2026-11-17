@@ -18,6 +18,7 @@ public record FormSetup(
     boolean gender,
     boolean middleGroup,
     boolean cell,
+    boolean newcomer,
     boolean partial,
     boolean worshipOnly,
     List<Day> schedule,
@@ -59,9 +60,9 @@ public record FormSetup(
   }
 
   /**
-   * Reads the request body. Every key is required and every switch is a boolean. {@code schedule}
-   * must list exactly {@code days} entries. {@code generatedFor} from an earlier response is
-   * accepted and ignored.
+   * Reads the request body. Every key is required and every switch is a boolean, except {@code
+   * newcomer}, which was added later and is off when missing. {@code schedule} must list exactly
+   * {@code days} entries. {@code generatedFor} from an earlier response is accepted and ignored.
    */
   public static FormSetup parse(JsonNode body, int days) {
     if (body == null || !body.isObject()) {
@@ -73,6 +74,7 @@ public record FormSetup(
         "gender",
         "middleGroup",
         "cell",
+        "newcomer",
         "attendance",
         "schedule",
         "transport",
@@ -100,6 +102,7 @@ public record FormSetup(
         flag(body, "gender", "gender"),
         flag(body, "middleGroup", "middleGroup"),
         flag(body, "cell", "cell"),
+        optionalFlag(body, "newcomer"),
         flag(attendance, "partial", "attendance"),
         flag(attendance, "worshipOnly", "attendance"),
         list,
@@ -116,6 +119,7 @@ public record FormSetup(
     out.put("gender", gender);
     out.put("middleGroup", middleGroup);
     out.put("cell", cell);
+    out.put("newcomer", newcomer);
     ObjectNode attendance = out.putObject("attendance");
     attendance.put("partial", partial);
     attendance.put("worshipOnly", worshipOnly);
@@ -152,6 +156,11 @@ public record FormSetup(
       throw FieldRules.invalid(name);
     }
     return node.booleanValue();
+  }
+
+  /** A switch that may be missing (then off). A present value must be a boolean. */
+  private static boolean optionalFlag(JsonNode parent, String key) {
+    return parent.has(key) && flag(parent, key, "setup");
   }
 
   private static void only(JsonNode node, String name, String... keys) {

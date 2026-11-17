@@ -589,6 +589,7 @@ public class GroupService {
         attendance,
         row.middleGroup(),
         row.cell(),
+        row.newcomer(),
         row.groupId(),
         row.leader(),
         published == null ? null : published.group().groupId(),

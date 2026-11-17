@@ -150,6 +150,56 @@ export function checkInCandidates(eventId: string): {
     });
 }
 
+/**
+ * Rows for the 참가 현황 table (#308): every submitted application with its participant and its
+ * answers by field id, oldest first.
+ */
+export function tableApplications(eventId: string): {
+  applicationId: string;
+  participantId: string;
+  formId: string;
+  submittedAt: string;
+  answers: Record<string, Record<string, unknown>>;
+}[] {
+  return issued
+    .filter((row) => row.eventId === eventId)
+    .map((row) => ({
+      applicationId: row.applicationId,
+      participantId: row.participantId,
+      formId: row.formId,
+      submittedAt: row.submittedAt,
+      answers: Object.fromEntries(row.answers.map((answer) => [answer.fieldId, answer.value])),
+    }));
+}
+
+/**
+ * Test and demo seam: stores an application with any stored answers, skipping submit validation,
+ * the way the backend tests seed through the repository.
+ */
+export function seedApplication(
+  eventId: string,
+  formId: string,
+  submittedAt: string,
+  answers: { fieldId: string; value: Record<string, unknown> }[],
+): { applicationId: string; participantId: string } {
+  const event = eventById(eventId);
+  const fields = formFields(eventId, formId);
+  const row: Issued = {
+    applicationId: crypto.randomUUID(),
+    participantId: crypto.randomUUID(),
+    accessKey: randomKey(),
+    eventId,
+    spaceId: event?.spaceId ?? "",
+    formId,
+    submittedAt,
+    name: "",
+    answers,
+  };
+  row.name = answerFor(fields, answers, "NAME") ?? "";
+  issued.push(row);
+  return { applicationId: row.applicationId, participantId: row.participantId };
+}
+
 /** Test seam for an application stored without a NAME answer. */
 export function seedApplicationWithoutName(eventId: string, formId: string, submittedAt: string): string {
   const event = eventById(eventId);

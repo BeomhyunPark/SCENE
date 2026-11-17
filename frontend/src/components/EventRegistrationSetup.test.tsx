@@ -324,6 +324,38 @@ describe("event registration setup", () => {
     expect(list.getByText("보기: 전체 참석 (2박 3일), 집회만 참석")).toBeInTheDocument();
   });
 
+  it("asks 새가족 from the setup card, shows it in the preview, and drops it when turned off", async () => {
+    await login({ userId: localUsers[0].userId });
+    const retreat = await createEvent(localSpace.spaceId, {
+      name: "새가족 수련회",
+      startDate: "2027-01-22",
+      endDate: "2027-01-24",
+    });
+    renderSetup(retreat.eventId);
+    fireEvent.click(await screen.findByRole("button", { name: "신청서 만들기" }, { timeout: 4000 }));
+
+    // A new setup card starts with 새가족 on.
+    const newcomer = await screen.findByRole("checkbox", { name: /새가족/ });
+    expect(newcomer).toBeChecked();
+    fireEvent.click(screen.getByRole("button", { name: "질문 만들기" }));
+
+    const list = await questionList();
+    expect(await list.findByText("새가족이신가요?")).toBeInTheDocument();
+    const sent = operatorRequests.filter((request) => request.method === "PUT" && request.url.endsWith("/setup"));
+    expect(sent.at(-1)?.body).toMatchObject({ newcomer: true });
+    const preview = within(screen.getByRole("region", { name: "참가자 화면 미리보기" }));
+    expect(preview.getByText("새가족이신가요?")).toBeInTheDocument();
+    expect(preview.getByText(/새가족 과정을 듣고 있다면/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("checkbox", { name: /새가족/ }));
+    fireEvent.click(screen.getByRole("button", { name: "설정 저장" }));
+    await waitFor(() => expect(list.queryByText("새가족이신가요?")).not.toBeInTheDocument());
+    expect(preview.queryByText("새가족이신가요?")).not.toBeInTheDocument();
+    expect(
+      operatorRequests.filter((request) => request.method === "PUT" && request.url.endsWith("/setup")).at(-1)?.body,
+    ).toMatchObject({ newcomer: false });
+  });
+
   it("rewords and moves base questions and turns 또래 off", async () => {
     await login({ userId: localUsers[0].userId });
     renderSetup();

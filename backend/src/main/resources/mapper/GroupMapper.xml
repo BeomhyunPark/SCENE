@@ -112,6 +112,7 @@
            att.value ->> 'optionId' AS attendance_option_id,
            nullif(btrim(mid.value ->> 'text'), '') AS middle_group,
            nullif(btrim(cel.value ->> 'text'), '') AS cell,
+           (nc.value ->> 'value')::boolean AS newcomer,
            ga.group_id,
            coalesce(ga.leader, false) AS leader,
            mea.value::text AS meals_answer
@@ -142,6 +143,11 @@
         <property name="column" value="preset_key"/>
         <property name="key" value="CELL"/>
       </include>) cel ON true
+    LEFT JOIN LATERAL (
+      <include refid="keyedAnswer">
+        <property name="column" value="preset_key"/>
+        <property name="key" value="NEWCOMER"/>
+      </include>) nc ON true
     LEFT JOIN LATERAL (
       <include refid="keyedAnswer">
         <property name="column" value="preset_key"/>

@@ -71,6 +71,8 @@ export type FormSetup = {
   gender: boolean;
   middleGroup: boolean;
   cell: boolean;
+  /** 새가족 question (NEWCOMER). Added later: a setup saved before it reads as false. */
+  newcomer: boolean;
   attendance: { partial: boolean; worshipOnly: boolean };
   /** One entry per event day, in date order. */
   schedule: SetupDay[];
@@ -193,6 +195,7 @@ export function putSetup(eventId: string, formId: string, setup: FormSetup): Pro
     gender: setup.gender,
     middleGroup: setup.middleGroup,
     cell: setup.cell,
+    newcomer: setup.newcomer,
     attendance: setup.attendance,
     schedule: setup.schedule,
     transport: setup.transport,

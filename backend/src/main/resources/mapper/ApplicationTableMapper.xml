@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="app.scene.event.application.mapper.ApplicationTableMapper">
+
+  <!--
+    Applicant table (#308). One row per SUBMITTED application with the working-copy group
+    (DEC-072) and the arrival check-in (DEC-071) of its participant. A cancelled check-in reads
+    as not arrived.
+  -->
+  <select id="findStates" resultType="app.scene.event.application.ApplicationTableState">
+    SELECT app.id AS application_id,
+           g.id AS group_id, g.name AS group_name, COALESCE(ga.leader, false) AS leader,
+           c.checked_in_at
+    FROM applications app
+    LEFT JOIN group_assignments ga
+      ON ga.space_id = app.space_id
+     AND ga.event_id = app.event_id
+     AND ga.participant_id = app.participant_id
+    LEFT JOIN groups g
+      ON g.space_id = ga.space_id
+     AND g.event_id = ga.event_id
+     AND g.id = ga.group_id
+    LEFT JOIN checkins c
+      ON c.space_id = app.space_id
+     AND c.event_id = app.event_id
+     AND c.participant_id = app.participant_id
+     AND c.status = 'CHECKED_IN'
+    WHERE app.space_id = #{spaceId} AND app.event_id = #{eventId} AND app.status = 'SUBMITTED'
+  </select>
+
+</mapper>
