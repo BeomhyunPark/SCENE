@@ -10,6 +10,7 @@ import { submittedApplication, submittedApplications, tableApplications } from "
 import { checkedInAtOf } from "../checkInStore";
 import { workingGroupOf } from "../groupStore";
 import { problem } from "../problem";
+import { applicationSummary } from "../applicationSummary";
 
 const DEFAULT_SIZE = 50;
 const MAX_SIZE = 100;
@@ -46,6 +47,19 @@ export const applicationHandlers = [
       items,
       page: { number: page, size, totalItems: rows.length, totalPages },
     });
+  }),
+
+  // Summary (#251, DEC-073), counted with ApplicationSummaryService's rules. Registered before the
+  // detail route so "summary" is not read as an application id. Same read gate as the list.
+  http.get("/api/v1/operator/events/:eventId/applications/summary", ({ request, params }) => {
+    const operator = currentOperator();
+    if (!operator) return problem(401, "AUTHENTICATION_REQUIRED");
+    operatorRequests.push({ method: "GET", url: new URL(request.url).pathname });
+    const eventId = String(params.eventId);
+    if (!eventById(eventId)) return problem(404, "RESOURCE_NOT_FOUND", { detail: "hidden" });
+    const gate = requireEventRead(eventId, operator.userId);
+    if (gate) return problem(gate.status, gate.code, { detail: "hidden" });
+    return HttpResponse.json(applicationSummary(eventId));
   }),
 
   // 참가 현황 table (#308), shaped like ApplicationTableController. EVENT_READ or a space

@@ -3,7 +3,10 @@ import type { ApplicationTable, TableColumn, TableRow } from "../../api/applicat
 import {
   applyFilters,
   buildColumns,
+  copyText,
   countBy,
+  groupRows,
+  moveColumn,
   crossCount,
   NONE,
   OTHER,
@@ -168,8 +171,15 @@ describe("columns", () => {
     expect(limited.map((item) => item.id)).not.toContain("group");
   });
 
-  it("hides and shows columns by id, keeping 참가자", () => {
+  it("hides and shows columns by id in the chosen order, keeping 참가자 first", () => {
     expect(visibleColumns(COLS, ["meals", "age"]).map((item) => item.id)).toEqual(["person", "meals", "age"]);
+    expect(visibleColumns(COLS, ["age", "person", "meals", "gone"]).map((item) => item.id)).toEqual(["person", "age", "meals"]);
+  });
+
+  it("moves a column within the order and keeps 참가자 out of it", () => {
+    expect(moveColumn(["person", "a", "b", "c"], "c", -1)).toEqual(["a", "c", "b"]);
+    expect(moveColumn(["a", "b"], "a", -1)).toEqual(["a", "b"]);
+    expect(moveColumn(["a", "b"], "a", 1)).toEqual(["b", "a"]);
   });
 });
 
@@ -299,10 +309,43 @@ describe("counting", () => {
   });
 
   it("summarizes numbers and answered counts for the filtered rows", () => {
-    expect(summarize(ROWS, col("age"))).toBe("합 61 · 평균 30.5");
-    expect(summarize(ROWS, col("meals"))).toBe("응답 2");
+    expect(summarize(ROWS, col("age"))).toBe("합 61 · 평균 30.5 · 최소 29 · 최대 32");
+    expect(summarize(ROWS, col("meals"))).toBe("응답 2 · 고유 3");
+    expect(summarize(ROWS, col("cohort"))).toBe("응답 3 · 고유 2");
     expect(summarize(ROWS, col("person"))).toBe("3명");
-    expect(summarize(ROWS, col("group"))).toBe("배정 2");
+    expect(summarize(ROWS, col("group"))).toBe("배정 2 · 2개 조");
+    expect(summarize(ROWS, col("status"))).toBe("도착 1 · 전 2");
+  });
+});
+
+describe("grouping and copying", () => {
+  it("groups rows in option order, a multiple choice under each option, 응답 없음 last", () => {
+    const groups = groupRows(ROWS, col("meals"));
+    expect(groups.map((group) => [group.label, group.rows.length])).toEqual([
+      ["1일차 저녁", 2],
+      ["2일차 아침", 1],
+      ["기타", 1],
+      ["응답 없음", 1],
+    ]);
+    expect(groupRows(ROWS, col("group")).map((group) => [group.label, names(group.rows)])).toEqual([
+      ["1조", ["이셋"]],
+      ["2조", ["김하나"]],
+      ["미배정", ["박둘"]],
+    ]);
+  });
+
+  it("copies a range as tab-separated text of what is on screen", () => {
+    expect(copyText(ROWS.slice(0, 2), [col("person"), col("phone"), col("meals")])).toBe(
+      "94 김하나\t010-1111-2222\t1일차 저녁, 2일차 아침\n95 박둘\t010-3333-4444\t1일차 저녁, 기타: 간식",
+    );
+    const withBreak = { ...ROWS[2], answers: { ...ROWS[2].answers, memo: { text: "줄\n바꿈\t탭" } } };
+    expect(copyText([withBreak], [col("memo")])).toBe("줄 바꿈 탭");
+  });
+
+  it("copies nothing of a phone column the reader was not sent", () => {
+    const limited = buildColumns({ ...TABLE, contactVisible: false, columns: COLUMNS.filter((item) => !item.contact) });
+    const shown = visibleColumns(limited, null);
+    expect(copyText(ROWS, shown)).not.toMatch(/010-/);
   });
 });
 
@@ -321,6 +364,9 @@ describe("address", () => {
       tab: "count" as const,
       countA: "gender",
       countB: "cohort",
+      widths: { person: 220, age: 96 },
+      density: "compact" as const,
+      groupBy: "gender",
     };
     expect(readView(new URLSearchParams(writeView(view).toString()))).toEqual(view);
   });
@@ -333,6 +379,9 @@ describe("address", () => {
       tab: "list",
       countA: null,
       countB: null,
+      widths: {},
+      density: "comfortable",
+      groupBy: null,
     });
     expect(params.toString()).toBe("");
   });

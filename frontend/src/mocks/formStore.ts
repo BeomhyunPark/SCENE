@@ -115,6 +115,12 @@ export function formFields(eventId: string, formId: string): FormDetail["fields"
   return found ? toDetail(found).fields : [];
 }
 
+/** The event's form with its stored setup, for the summary mock. Null when the event has no form. */
+export function eventFormDetail(eventId: string): FormDetail | null {
+  const found = forms.find((form) => form.eventId === eventId);
+  return found ? toDetail(found) : null;
+}
+
 /** The event's form id, accepting or not (#308 table without applications). */
 export function eventFormId(eventId: string): string | undefined {
   return forms.find((form) => form.eventId === eventId)?.formId;
