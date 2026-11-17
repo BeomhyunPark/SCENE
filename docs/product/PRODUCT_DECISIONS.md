@@ -2426,3 +2426,73 @@ SYSTEM 이름·전화는 제목만 고칠 수 있었고 늘 맨 앞에 고정이
 ### Evidence
 
 현 결정 2026-11-16. 사용자 결정: 기본항목 이름·전화·또래와 수정 범위, 또래 규칙, "설정 카드 → 자동 생성 → 미리보기 → 살짝 수정" 방향, 직접 질문 추가 유지([#244](https://github.com/BeomhyunPark/SCENE/issues/244)). 같은 날 확인 4건 모두 추천안: 또래를 기존 신청서에 켠 상태로 넣기, 성별은 자동 질문, 가는 길 자차면 오는 길 숨김, 차량 안내는 질문 설명란. 참고 앱 분석은 #244에 있다.
+
+## DEC-071 — 체크인은 참가자의 행사당 한 번 도착이고, QR은 서명한 고정 값이며, STAFF도 기본으로 체크인한다
+
+**Date:** 2026-11-17
+
+**Status:** CONFIRMED (사용자 위임 2026-11-17, 추천안 채택)
+
+### Context
+
+2027년 1월 수련회([#230](https://github.com/BeomhyunPark/SCENE/issues/230))는 현장 도착 체크인까지 SCENE으로 운영한다([#235](https://github.com/BeomhyunPark/SCENE/issues/235)). 지난 수련회에서는 접수가 한 사람에게 몰리고 예외 한 건이 줄 전체를 멈췄다(RES-006). 이미 권한 키 `CHECKIN_WRITE`(OWNER만 기본), 참가자 접근 링크와 참가자 세션, `participants.phone_last4`, API 초안 §14(`checkins` 현재 상태 + `checkin_logs` 이력, `Idempotency-Key`)가 있다. ENDED·ARCHIVED에서 새 체크인과 취소를 막는다는 기준은 [event-lifecycle-review](event-lifecycle-review.md)에 있다. QR 값의 구조, 대상, 기본 권한, 중복 처리, 수동 검색에 보일 정보는 정해지지 않았다.
+
+질문·선택지·추천안은 [#235 결정 대기 댓글](https://github.com/BeomhyunPark/SCENE/issues/235#issuecomment-6934891087)에 있다. 사용자가 이 결정을 맡겨서 추천안을 그대로 채택했다. 뒤집을 때는 아래 Alternatives와 Consequence를 본다.
+
+### Decision
+
+1. **QR에는 서버가 서명한 참가자별 고정 값만 담는다.** 형식은 `SCENE-CI1.` + base64url(참가자 id 16바이트 ‖ HMAC-SHA256(서버 비밀값, 행사 id·참가자 id·세대 0) 앞 16바이트)이다. 이름·전화 등 개인정보와 접근 키는 넣지 않는다. 값은 저장하지 않고 요청 때마다 같은 값을 다시 계산한다. URL이 아니라서 기본 카메라 앱이 링크로 열지 않는다.
+   - 유효 기간은 따로 없다. 체크인은 행사가 `ACTIVE`인 동안만 된다.
+   - 화면 캡처로 다른 사람이 대신 쓰는 경우는 막지 않는다. 스캔 결과에 이름·또래를 크게 보여 운영자가 눈으로 확인하고, 이미 체크인된 값이면 "이미 체크인됨"이 드러난다. 잘못된 체크인은 취소로 되돌린다.
+   - 재발급은 1차 범위 밖이다. 서명 입력의 세대 값(지금 0)으로 나중에 재발급을 더한다.
+2. **체크인 대상은 참가자(participant)이고 행사당 한 번(도착)이다.** 그 행사에 `SUBMITTED` 신청이 있는 참가자만 대상이다. 신청을 철회한 참가자는 막고 화면에 이유를 보여 준다. 일차별 출석(식사·집회)은 범위 밖이다.
+3. **권한.** 현황·명단 조회는 `EVENT_READ`(또는 활성 공간 `OWNER`·`ADMIN`, 신청 읽기와 같음), 체크인·취소·한 사람의 이력은 `CHECKIN_WRITE`다. 취소용 키는 따로 만들지 않는다. **OWNER·MANAGER·STAFF 모두 기본으로 `CHECKIN_WRITE`를 갖는다.** OWNER는 개별 설정으로 뺄 수 있다.
+4. **취소는 현재 상태만 바꾸고 이력은 쌓는다.** `checkins`는 참가자당 한 행으로 `CHECKED_IN` 또는 `CANCELLED`다. `checkin_logs`에 `CHECKED_IN`/`CANCELLED`, 처리자, 시각, 방식(`QR`/`MANUAL`), 취소 사유(선택, 200자)를 남기고 `audit_logs`도 같은 transaction에 남긴다. 취소한 뒤 다시 체크인할 수 있다.
+   - **같은 사람을 다시 스캔하면 오류가 아니다.** `200`, `result: ALREADY_CHECKED_IN`과 처음 체크인 시각·처리자 이름을 돌려준다. 이력·audit는 더하지 않는다. 이미 취소된 체크인을 다시 취소해도 `200 ALREADY_CANCELLED`다.
+   - 체크인·취소는 `Idempotency-Key`가 필수다. 같은 키 재전송은 같은 결과를 돌려준다.
+5. **수동 검색**은 이름 일부 또는 전화 끝 4자리로 찾는다. 명단에는 이름·또래·체크인 상태를 보여 주고, **전화 끝 4자리는 `CHECKIN_WRITE`가 있을 때만** 동명이인 구분용으로 보여 준다. 끝 4자리는 연락처 조회가 아니라서 `CONTACT_VIEW`를 남기지 않는다. 전체 전화번호는 체크인 화면에 없고 기존 연락처 경로(`PARTICIPANT_CONTACT_READ`)로만 본다.
+6. **행사 상태별 동작.**
+
+| 상태 | 현황·명단·이력 | 체크인·취소 | 참가자 QR 화면 |
+|---|---|---|---|
+| DRAFT | 조회 | `409 INVALID_STATE_TRANSITION` | "행사가 시작되면 열립니다" (값 없음) |
+| ACTIVE | 조회 | 가능 | QR 표시 |
+| ENDED | 조회 | `409 EVENT_ENDED` | "행사가 끝났습니다" (값 없음) |
+| ARCHIVED | 읽기 전용 조회 | `409 EVENT_ARCHIVED` | "행사가 끝났습니다" (값 없음) |
+
+- 리허설은 별도 리허설 행사를 활성화해서 하고, 신청을 열기 전에 지운다.
+- 새 ErrorCode는 만들지 않는다. 없는·틀린 QR은 `404 RESOURCE_NOT_FOUND`, 신청 철회는 `409 INVALID_STATE_TRANSITION`과 `reason`이다. `EVENT_ENDED`의 `detail` 문장은 신청 전용("이 신청을 받을 수 없습니다")이라 일반 문장으로 바꾼다.
+- ENDED에서의 기록 정정은 event-lifecycle-review대로 별도 정정 경계로 남긴다.
+
+### 범위 밖
+
+- 일차별 출석, 식사·집회 체크
+- QR 재발급, 참가자 사진 대조
+- 완전 오프라인 체크인 대기열. 1월에는 같은 `Idempotency-Key`로 짧게 재시도한다([#287](https://github.com/BeomhyunPark/SCENE/issues/287)).
+- ENDED 기록 정정
+
+### Alternatives
+
+- 접근 키를 QR에 그대로: 캡처한 사람이 참가자 세션까지 열 수 있다.
+- 30–60초마다 바뀌는 QR: 캡처 재사용은 막지만 현장에서 참가자 폰이 온라인이어야 하고 시계 오차가 생긴다. 수련회 규모에서 대리 체크인의 피해(도착 표시 1건)는 작고 취소로 되돌릴 수 있다.
+- 무작위 값을 만들어 해시로 저장: 다시 보여 주려면 원문을 따로 보관해야 한다. 서명 방식은 저장 없이 같은 값을 다시 만든다.
+- 신청(application) 기준: 다시 제출하면 `SUPERSEDED`가 되어 체크인이 옛 신청에 남는다. 도착하는 사람은 참가자다.
+- 일차별 출석: 1월 범위는 도착 확인이고, 부분 참석자도 한 번 도착한다. 표와 화면이 커진다.
+- STAFF 제외: 현장 접수는 보통 STAFF 봉사자가 맡는다. 한 사람에게 몰린 접수가 RES-006의 병목이었다.
+- 중복 스캔을 `409`로: 현장에서 빨간 오류로 보이지만 실제로는 정상 상황이다. 업무 체크의 `NO_CHANGE`와 같게 둔다.
+- 끝 4자리를 `PARTICIPANT_CONTACT_READ`에 묶기: 현장 봉사자에게 연락처 권한까지 줘야 동명이인을 구분할 수 있다.
+- DRAFT에서 체크인 허용: 준비 중 행사에 기록이 쌓이고, 활성화 전 데이터와 섞인다.
+
+### Reason
+
+현장에서는 빨리, 여러 사람이 동시에, 네트워크가 약해도 처리돼야 한다. 고정 서명 값은 한 번 받은 QR을 오프라인으로 보여 줄 수 있고 저장할 비밀이 없다. 중복·재시도를 오류가 아닌 결과로 돌려줘 예외 한 건이 줄을 멈추지 않게 한다. 개인정보는 동명이인 구분에 필요한 끝 4자리까지만 현장 권한자에게 보인다.
+
+### Consequence
+
+- 계약은 [backend/docs/api.md](../../backend/docs/api.md) "체크인"에 있다. 서버 구현은 [#282](https://github.com/BeomhyunPark/SCENE/issues/282)이고 `checkins`·`checkin_logs` Flyway, `RoleDefaults`의 MANAGER·STAFF `CHECKIN_WRITE`, `EVENT_ENDED` 문장 변경, 서명용 서버 비밀값 설정을 포함한다. MANAGER·STAFF 기본값 중 `CHECKIN_WRITE`가 `TASK_WRITE` 다음으로 승인된 항목이다. 기본값은 저장하지 않고 계산하므로 배포 즉시 기존 행사의 STAFF에게도 적용된다.
+- 서버 비밀값이 바뀌면 이미 보여 준 QR이 모두 무효가 된다. 행사 기간에 바꾸지 않는다.
+- 하위 이슈: [#283](https://github.com/BeomhyunPark/SCENE/issues/283) QR 값 발급, [#284](https://github.com/BeomhyunPark/SCENE/issues/284) 참가자 QR 화면, [#285](https://github.com/BeomhyunPark/SCENE/issues/285) 운영자 현황·수동 체크인, [#286](https://github.com/BeomhyunPark/SCENE/issues/286) 카메라 스캔, [#287](https://github.com/BeomhyunPark/SCENE/issues/287) 재시도, [#288](https://github.com/BeomhyunPark/SCENE/issues/288) 조별 보기(#234 뒤), [#289](https://github.com/BeomhyunPark/SCENE/issues/289) 실제 휴대폰 확인.
+
+### Evidence
+
+사용자 위임 2026-11-17: #235 질문에 답하는 일을 "알아서" 맡겼고, 6개 질문 모두 추천안을 채택했다. 근거 자료는 RES-006, event-lifecycle-review "종료 후 허용 행동", API Architecture §14, DEC-060(연락처 숨김), DEC-062(업무 체크 `NO_CHANGE`)다.

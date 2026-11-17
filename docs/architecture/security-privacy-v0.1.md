@@ -113,7 +113,7 @@ Event API는 `eventId`를 tenant anchor로 사용하고 서버가 `spaceId`를 r
 
 ## 8. OPEN
 
-Session store/TTL/복구, Access 재발급, OWNER cardinality/transfer, Role별 Permission mapping과 개별 권한 판정 상세(2026-10-02: 개별 권한 판정은 [아래 절](#2026-10-02-개인별-권한-현-결정-dec-029-정합)로 확정, MANAGER/STAFF 기본 mapping은 미확정, 백엔드 리드 초안 대기. 예외: `TASK_WRITE`는 2026-10-02 DEC-062로 확정), 일반 운영진의 민감 필드 접근, 보존기간·익명화 필드, Export infrastructure, QR credential 구조는 OPEN 또는 원문 대조 필요. 조직 관리자와 그룹 리더의 전체 조회 범위는 위 후속 결정으로 확정했다.
+Session store/TTL/복구, Access 재발급, OWNER cardinality/transfer, Role별 Permission mapping과 개별 권한 판정 상세(2026-10-02: 개별 권한 판정은 [아래 절](#2026-10-02-개인별-권한-현-결정-dec-029-정합)로 확정, MANAGER/STAFF 기본 mapping은 미확정, 백엔드 리드 초안 대기. 예외: `TASK_WRITE`는 2026-10-02 DEC-062로 확정), 일반 운영진의 민감 필드 접근, 보존기간·익명화 필드, Export infrastructure는 OPEN 또는 원문 대조 필요. (QR credential 구조와 `CHECKIN_WRITE` 기본값은 2026-11-17 [DEC-071](../product/PRODUCT_DECISIONS.md)로 확정.) 조직 관리자와 그룹 리더의 전체 조회 범위는 위 후속 결정으로 확정했다.
 
 전체 업무 OPEN 목록: [API Architecture](api-architecture-v0.1.md#open-items).
 
