@@ -44,7 +44,7 @@ SETUP = {
     "gender": True,
     "middleGroup": True,
     "cell": True,
-    "newcomer": True,
+    # middleGroups·cells(목록)는 사람을 만든 뒤 채운다. 새가족은 중그룹 보기 "새가족 (등반X)"로 받는다(#333).
     "attendance": {"partial": True, "worshipOnly": True, "mode": "RANGE"},
     "schedule": SCHEDULE,
     "transport": {
@@ -255,7 +255,7 @@ def expand(rng: random.Random):
 
 def assign_groups(rng: random.Random, people):
     """중그룹은 출생연도로, 셀은 중그룹 안에서 5–7명씩. 셀 이름은 셀 리더 이름이다.
-    새가족은 셀이 아직 없고, 일부는 중그룹도 비워 둔다."""
+    새가족은 중그룹에서 "새가족 (등반X)"를 고르고 셀 질문은 보이지 않는다."""
     for p in people:
         p["middle"] = next(name for lo, hi, name in MIDDLE_GROUPS if lo <= p["year"] <= hi)
     by_group = collections.defaultdict(list)
@@ -276,12 +276,7 @@ def assign_groups(rng: random.Random, people):
             i += len(cell)
     for p in people:
         if p["newcomer"]:
-            p["cell"] = None
-            if rng.random() < 0.5:
-                p["middle"] = None
-    # 기존 멤버 몇 명은 선택 질문을 비워 둔다(현실적인 빈칸).
-    for p in rng.sample([p for p in people if not p["newcomer"]], 4):
-        p["middle"] = p["cell"] = None
+            p["middle"] = p["cell"] = None
 
 
 # ---------------------------------------------------------------- answers
@@ -307,21 +302,27 @@ def build_answers(form, person, sc, rng: random.Random):
     by_key = {}
     for f in form["fields"]:
         by_key[f["systemKey"] or f["presetKey"] or f["fieldId"]] = f
+    def option_id(key, label):
+        for o in by_key[key]["config"]["options"]:
+            if o["label"] == label:
+                return o["optionId"]
+        sys.exit(f"{key}에 보기 {label}이 없다")
+
     att = {"full": "opt_full", "partial": "opt_partial", "worship": "opt_worship"}[sc["att"]]
     want = {
         "NAME": {"text": person["name"]},
         "PHONE": {"text": person["phone"]},
         "COHORT": {"text": f"{person['year'] % 100:02d}"},
         "GENDER": {"optionId": "opt_female" if person["gender"] == "F" else "opt_male"},
-        "NEWCOMER": {"value": person["newcomer"]},
         "ATTENDANCE": {"optionId": att},
         "TRANSPORT_IN": {"optionId": "opt_" + sc["in"]},
         "CONSENT": {"value": True},
     }
-    if person["middle"]:
-        want["MIDDLE_GROUP"] = {"text": person["middle"]}
-    if person["cell"]:
-        want["CELL"] = {"text": person["cell"]}
+    if person["newcomer"]:
+        want["MIDDLE_GROUP"] = {"optionId": "opt_newcomer"}
+    else:
+        want["MIDDLE_GROUP"] = {"optionId": option_id("MIDDLE_GROUP", person["middle"])}
+        want["CELL"] = {"optionId": option_id("CELL", person["cell"])}
     if sc["att"] == "partial":
         want["ARRIVAL_SLOT"] = {"optionId": sc["arr"]}
         want["DEPARTURE_SLOT"] = {"optionId": sc["dep"]}
@@ -406,7 +407,10 @@ def main():
     eid = event["eventId"]
     form = api.call("POST", f"/api/v1/operator/events/{eid}/forms", {})
     fid = form["formId"]
-    api.call("PUT", f"/api/v1/operator/events/{eid}/forms/{fid}/setup", SETUP)
+    setup = dict(SETUP)
+    setup["middleGroups"] = [name for _, _, name in MIDDLE_GROUPS]
+    setup["cells"] = sorted({p["cell"] for p in people if p["cell"]})
+    api.call("PUT", f"/api/v1/operator/events/{eid}/forms/{fid}/setup", setup)
     api.call("POST", f"/api/v1/operator/events/{eid}/activate",
              {"expectedLifecycleVersion": event["lifecycleVersion"]})
     api.call("PATCH", f"/api/v1/operator/events/{eid}/forms/{fid}", {"acceptingApplications": True})
