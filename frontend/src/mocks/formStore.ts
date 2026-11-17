@@ -115,6 +115,11 @@ export function formFields(eventId: string, formId: string): FormDetail["fields"
   return found ? toDetail(found).fields : [];
 }
 
+/** The event's form id, accepting or not (#308 table without applications). */
+export function eventFormId(eventId: string): string | undefined {
+  return forms.find((form) => form.eventId === eventId)?.formId;
+}
+
 /** Same read gate as the form read: EVENT_READ, or an active space OWNER or ADMIN. */
 export function requireEventRead(eventId: string, actorId: string): FormFailure | null {
   return requireRead(eventId, actorId);

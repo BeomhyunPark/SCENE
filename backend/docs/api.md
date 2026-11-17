@@ -998,7 +998,7 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
 
 ## 신청 읽기
 
-컨트롤러는 `event/application/OperatorApplicationController`다. 읽기는 신청서와 같다. `EVENT_READ` 또는 활성 공간 `OWNER`·`ADMIN`이다. [신청 집계](#get-apiv1operatoreventseventidapplicationssummary)도 같다. 신청자 CSV만 `DATA_EXPORT`다(아래). `APPLICATION_READ`는 보지 않는다. `sort` 허용 필드는 없다. 순서는 신청 id다.
+컨트롤러는 `event/application/OperatorApplicationController`다(참가 현황 표는 `ApplicationTableController`). 읽기는 신청서와 같다. `EVENT_READ` 또는 활성 공간 `OWNER`·`ADMIN`이다. [신청 집계](#get-apiv1operatoreventseventidapplicationssummary)도 같다. 신청자 CSV만 `DATA_EXPORT`다(아래). `APPLICATION_READ`는 보지 않는다. `sort` 허용 필드는 없다. 순서는 신청 id다.
 
 `status` 쿼리는 `SUBMITTED`, `SUPERSEDED`, `WITHDRAWN`만 받는다. 다른 값은 `400`이고 필드는 `status`다. 아는 값이어도 목록을 거르지 않는다. 순서는 `submittedAt`, 그다음 신청 id다.
 
@@ -1153,6 +1153,59 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
 - 카풀과 이동 지원은 나란히 보여 주기만 하고 서버가 짝을 맞추지 않는다.
 - `name`·`cohort`는 SYSTEM `NAME`·`COHORT` 답이다. 또래가 꺼졌으면 `cohort`는 `null`이다.
 - 숨김이거나 조건에 맞지 않아 보이지 않은 질문의 답은 저장되지 않으므로(DEC-068) 집계에도 없다.
+
+### `GET /api/v1/operator/events/{eventId}/applications/table`
+
+참가 현황 표(#308). 신청자 전원과 답을 한 번에 준다. 화면이 거르기·정렬·세기를 한다. 쪽 나누기·`sort`·검색 쿼리는 없다. 컨트롤러는 `ApplicationTableController`, 서비스는 `ApplicationTableService`다. CSRF와 `Idempotency-Key`는 필요 없다. `Cache-Control: no-store`.
+
+권한은 목록·상세와 같다. `EVENT_READ` 또는 활성 공간 `OWNER`·`ADMIN`이다. 아니면 `403 FORBIDDEN`이다. 다른 공간의 행사·없는 행사는 `404 RESOURCE_NOT_FOUND`다. 파일을 만들지 않으므로 `DATA_EXPORT`는 보지 않는다(CSV는 여전히 `DATA_EXPORT`, DEC-054). 열·값은 읽는 사람의 권한에 따라 서버가 뺀다.
+
+| 내용 | 보이는 조건 | 없을 때 |
+|---|---|---|
+| 전화 질문(SYSTEM `PHONE`, `format: PHONE`인 글 질문) | effective `PARTICIPANT_CONTACT_READ` | 열과 답을 보내지 않는다. `contactVisible: false` |
+| 조(작업본, DEC-072 §7) | `GROUP_WRITE` 또는 활성 공간 `OWNER`·`ADMIN` | 모든 행의 `group`이 `null`, `groupVisible: false` |
+| 체크인(DEC-071) | 표를 읽을 수 있으면 | — |
+
+전화 열을 보낸 응답은 audit `APPLICANT_CONTACTS_VIEWED` 한 줄을 남긴다. detail은 `{ "count" }`(행 수)뿐이다. `CONTACT_VIEW` privacy log가 아직 없어서 대신 남기는 기록이다(security-privacy §5). 전화 열이 없거나 행이 0건이면 남기지 않는다.
+
+`200`
+
+```json
+{
+  "formId": "…",
+  "contactVisible": true,
+  "groupVisible": true,
+  "columns": [
+    {
+      "fieldId": "…",
+      "kind": "SYSTEM",
+      "systemKey": "NAME",
+      "presetKey": null,
+      "label": "이름",
+      "position": 0,
+      "answerType": "SHORT_TEXT",
+      "hidden": false,
+      "config": { "maxLength": 200, "format": "NONE", "placeholder": null },
+      "contact": false
+    }
+  ],
+  "rows": [
+    {
+      "applicationId": "…",
+      "submittedAt": "2026-12-15T03:00:00Z",
+      "answers": { "<fieldId>": { "text": "김하나" } },
+      "group": { "groupId": "…", "name": "2조", "leader": false },
+      "checkedInAt": null
+    }
+  ]
+}
+```
+
+- `columns`는 신청서 질문을 position 순으로 준다. 모양은 상세의 답 항목에서 `value`를 뺀 것과 같다. `presetKey`는 자동 질문의 키(`ATTENDANCE`, `MIDDLE_GROUP`, `CELL` 등, DEC-070)이고 아니면 `null`이다. `contact`는 전화 질문이면 `true`다. 숨긴 질문도 열로 남는다(`hidden: true`, DEC-068 §6). 신청서가 없으면 `formId`는 `null`, `columns`는 빈 배열이다.
+- `rows`는 `SUBMITTED` 신청만, CSV와 같은 순서(`submittedAt`, 그다음 신청 id)다. `answers`는 field id를 키로 저장된 값을 그대로 준다(DEC-068 §1). 답이 없는 질문(조건에 맞지 않아 보이지 않은 질문 포함)은 키가 없다. 화면은 이것을 "응답 없음"으로 센다.
+- `group`은 작업본 배정이다. 미배정이면 `null`이다. 공개본이 아니다.
+- `checkedInAt`은 도착 체크인 시각이다. 체크인이 없거나 취소됐으면 `null`이다.
+- 0건이면 `rows`가 빈 배열이고 `columns`는 그대로다.
 
 ## 공개 신청서
 

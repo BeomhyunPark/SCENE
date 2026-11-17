@@ -8,17 +8,16 @@ import dateIcon from "../assets/event-home/date.svg";
 import { ApplicantsExport } from "./ApplicantsExport";
 import { Button } from "./Button";
 import { OperatorShell } from "./OperatorShell";
-import { listApplications } from "../api/applications";
+import { getApplicationTable } from "../api/applications";
+import { ApplicantTable } from "./applicantTable/ApplicantTable";
 import type { EventDetail } from "../api/events";
 import { listForms } from "../api/forms";
 import { reloadQuery } from "../api/queryClient";
 import { queryKeys } from "../api/queryKeys";
 import { EventScreen } from "./EventScreen";
-import { applicantName, eventContext, formatSubmittedAt, lifecycleLabel } from "./eventFormat";
+import { eventContext, lifecycleLabel } from "./eventFormat";
 import { markEventArea } from "./eventLocalState";
 import "./EventHome.css";
-
-const PAGE_SIZE = 50;
 
 const ways = [
   { title: "신청 링크 만들기", detail: "공유할 주소를 만들어요", badge: "시작", action: "준비" },
@@ -86,32 +85,31 @@ function ApplyAddress({ eventId }: { eventId: string }) {
 }
 
 function Applicants({ eventId, empty }: { eventId: string; empty: ReactNode }) {
-  const [page, setPage] = useState(0);
-  const applications = useQuery({
-    queryKey: queryKeys.applications(eventId, page),
-    queryFn: ({ signal }) => listApplications(eventId, { page, size: PAGE_SIZE }, signal),
+  const table = useQuery({
+    queryKey: queryKeys.applicationTable(eventId),
+    queryFn: ({ signal }) => getApplicationTable(eventId, signal),
     enabled: eventId.length > 0,
   });
 
-  if (applications.isPending) {
+  if (table.isPending) {
     return (
       <section className="event-home__applicants">
         <p>불러오는 중이에요.</p>
       </section>
     );
   }
-  if (applications.isError) {
+  if (table.isError) {
     return (
       <section className="event-home__applicants">
         <p>신청자를 불러오지 못했어요.</p>
-        <Button type="button" variant="secondary" size={40} onClick={() => reloadQuery(applications)}>
+        <Button type="button" variant="secondary" size={40} onClick={() => reloadQuery(table)}>
           다시 시도
         </Button>
       </section>
     );
   }
-  const { items, page: info } = applications.data;
-  if (info.totalItems === 0) {
+  const total = table.data.rows.length;
+  if (total === 0) {
     return (
       <>
         {empty}
@@ -119,47 +117,7 @@ function Applicants({ eventId, empty }: { eventId: string; empty: ReactNode }) {
       </>
     );
   }
-
-  return (
-    <section className="event-home__applicants" aria-labelledby="applicants-title">
-      <div className="event-home__applicants-head">
-        <h2 id="applicants-title">신청자</h2>
-        <span className="event-home__count">{info.totalItems}명</span>
-      </div>
-      <ApplicantsExport eventId={eventId} total={info.totalItems} />
-      <ul className="event-home__applicant-rows">
-        {items.map((item) => (
-          <li key={item.applicationId}>
-            <Link className="event-home__applicant" to={`/events/${eventId}/participants/${item.applicationId}`}>
-              <span className={item.name ? "event-home__applicant-name" : "event-home__applicant-name is-missing"}>
-                {applicantName(item.name)}
-              </span>
-              <span className="event-home__applicant-time">{formatSubmittedAt(item.submittedAt)}</span>
-            </Link>
-          </li>
-        ))}
-      </ul>
-      {info.totalPages > 1 ? (
-        <div className="event-home__pager">
-          <Button type="button" variant="secondary" size={40} disabled={page === 0} onClick={() => setPage(page - 1)}>
-            이전
-          </Button>
-          <span>
-            {info.number + 1} / {info.totalPages}
-          </span>
-          <Button
-            type="button"
-            variant="secondary"
-            size={40}
-            disabled={page + 1 >= info.totalPages}
-            onClick={() => setPage(page + 1)}
-          >
-            다음
-          </Button>
-        </div>
-      ) : null}
-    </section>
-  );
+  return <ApplicantTable eventId={eventId} table={table.data} actions={<ApplicantsExport eventId={eventId} total={total} />} />;
 }
 
 function ParticipationBody({ event, spaceName }: { event: EventDetail; spaceName?: string }) {
@@ -172,7 +130,7 @@ function ParticipationBody({ event, spaceName }: { event: EventDetail; spaceName
 
   return (
     <OperatorShell
-      title={title}
+      title="참가 현황"
       spaceName={spaceName}
       eventName={title}
       eventHref={eventId ? `/events/${eventId}` : undefined}
