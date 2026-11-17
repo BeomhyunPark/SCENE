@@ -11,13 +11,13 @@ import { Button } from "./Button";
 import { ParticipantFrame } from "./ParticipantFrame";
 import { AnswerInput } from "./apply/AnswerInput";
 import { RangeSummary } from "./apply/RangeSummary";
+import { optionView } from "./apply/optionView";
 import { ARRIVAL, DEPARTURE, REVERSED_COPY, departureFieldId, rangeProblem } from "./apply/attendanceRange";
 import {
   problemFor,
   prune,
   toAnswerItems,
   visibleFields,
-  visibleOptions,
   type RawAnswer,
   type RawAnswers,
 } from "./apply/answerModel";
@@ -128,12 +128,14 @@ function ApplyForm({
           {shown.map((field) => {
             const problem = problems.get(field.fieldId) ?? null;
             const answered = Object.keys(values[field.fieldId] ?? {}).length > 0;
-            const visibleError = showAll || (touched.has(field.fieldId) && answered) ? problem : null;
+            // An out-of-order range shows at once on 출발, wherever it was caused (도착 changed later).
+            const rangeNow = field.fieldId === departureId && rangeProblem(fields, values) !== null;
+            const visibleError = showAll || rangeNow || (touched.has(field.fieldId) && answered) ? problem : null;
             return (
               <AnswerInput
                 key={field.fieldId}
                 field={field}
-                options={visibleOptions(field, fields, values)}
+                {...optionView(field, fields, values)}
                 value={values[field.fieldId]}
                 error={visibleError}
                 onChange={(next) => change(field.fieldId, next)}

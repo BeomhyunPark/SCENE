@@ -25,9 +25,10 @@ describe("public form, arrival and departure (DEC-074)", () => {
     expect(within(arrival).getByText(/모두 참석하는 것으로 신청됩니다/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("radio", { name: "1월 23일 (토) 저녁부터" }));
-    fireEvent.click(screen.getByRole("radio", { name: "1월 23일 (토) 아침까지" }));
+    // 출발 drops the slots before the arrival (#328), so the list is short and cannot be reversed.
     const departure = screen.getByRole("group", { name: /수련회장에서 언제 출발하나요/ });
-    expect(within(departure).getByText(/출발은 도착보다 앞일 수 없어요/)).toBeInTheDocument();
+    expect(within(departure).queryByRole("radio", { name: "1월 23일 (토) 아침까지" })).not.toBeInTheDocument();
+    expect(within(departure).getByText("도착보다 앞선 칸은 빼고 보여 드려요.")).toBeInTheDocument();
 
     // Same slot is allowed: one slot.
     fireEvent.click(screen.getByRole("radio", { name: "1월 23일 (토) 저녁까지" }));
@@ -45,7 +46,7 @@ describe("public form, arrival and departure (DEC-074)", () => {
     const { formId } = seedRetreat({
       ...RANGE,
       gender: false,
-      transport: { groupBus: false, worshipShuttle: false, car: false, publicTransit: false, support: false },
+      transport: { groupBus: false, worshipShuttle: false, car: false, publicTransit: false, support: false, partialByTime: false },
     });
     open(formId);
     fireEvent.change(await screen.findByRole("textbox", { name: /이름/ }, { timeout: 4000 }), { target: { value: "김하나" } });

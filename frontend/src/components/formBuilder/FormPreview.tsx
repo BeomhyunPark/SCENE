@@ -4,7 +4,8 @@ import { Button } from "../Button";
 import { AnswerInput } from "../apply/AnswerInput";
 import { RangeSummary } from "../apply/RangeSummary";
 import { departureFieldId, rangeProblem } from "../apply/attendanceRange";
-import { prune, visibleFields, visibleOptions, type RawAnswer, type RawAnswers } from "../apply/answerModel";
+import { prune, visibleFields, type RawAnswer, type RawAnswers } from "../apply/answerModel";
+import { optionView } from "../apply/optionView";
 import "../ParticipantGate.css";
 
 /**
@@ -47,7 +48,7 @@ export function FormPreview({ fields }: { fields: FormField[] }) {
           <AnswerInput
             key={field.fieldId}
             field={field}
-            options={visibleOptions(field, shownFields, pruned)}
+            {...optionView(field, shownFields, pruned)}
             value={pruned[field.fieldId]}
             error={field.fieldId === departureId ? rangeProblem(shownFields, pruned) : null}
             onChange={(next) => change(field.fieldId, next)}

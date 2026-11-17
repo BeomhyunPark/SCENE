@@ -14,9 +14,12 @@ export function AnswerInput({
   error,
   onChange,
   extra,
+  notice = null,
 }: {
   field: FormField;
   options: FieldOption[];
+  /** Why some choices are not offered right now (#324, #328). */
+  notice?: string | null;
   value: RawAnswer | undefined;
   error: string | null;
   onChange: (next: RawAnswer) => void;
@@ -87,6 +90,9 @@ export function AnswerInput({
         ) : (
           <ChoiceList field={field} options={options} answer={answer} onChange={onChange} />
         )}
+        {notice ? (
+          <p className="participant-gate__notice">{notice}</p>
+        ) : null}
         {extra}
         {errorLine}
       </fieldset>

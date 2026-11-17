@@ -251,3 +251,10 @@
   min-width: 96px;
   color: var(--color-text-secondary);
 }
+
+/* Why some choices are gone right now (#328): a quiet line under the choices. */
+.participant-gate__notice {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font: var(--scene-body-s);
+}
