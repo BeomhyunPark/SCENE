@@ -8,7 +8,7 @@ import "./MenuPending.css";
 /**
  * "준비 중" page inside an event, for event sidebar menus without a screen yet.
  * - 다른 운영 시작 (#266): picking areas (A02) needs an API to store the choice.
- * - 현장 운영 (#268): the check-in screen comes with #235.
+ * - 현장 운영 (#268) now has its own screen (EventField, #285).
  */
 export function EventMenuPending({ title, message }: { title: string; message: string }) {
   const { eventId = "" } = useParams();
