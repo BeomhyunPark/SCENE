@@ -44,7 +44,10 @@ export function SlotHeader({ slots }: { slots: AttendanceSlot[] | null }) {
     <div className="event-groups__slot-head" aria-hidden="true" style={{ ["--slot-count" as string]: slots.length }}>
       {slotDays(slots).map((day) => (
         <span key={day.day} className="event-groups__slot-day" style={{ gridColumn: `span ${day.count}` }} title={day.label}>
-          {day.short}
+          <span className="event-groups__slot-day-wide">{day.short}</span>
+          <span className="event-groups__slot-day-tight" aria-hidden="true">
+            {day.tight}
+          </span>
         </span>
       ))}
       {slots.map((slot) => (
