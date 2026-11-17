@@ -41,6 +41,7 @@ public final class FormPreset {
           "ARRIVAL_SLOT",
           "DEPARTURE_SLOT",
           "LODGING",
+          "NO_LODGING",
           "MEALS",
           "PARTIAL_NOTE",
           "TRANSPORT_IN",
@@ -64,6 +65,9 @@ public final class FormPreset {
   static final String RIDE = "opt_ride";
   static final String PUBLIC = "opt_public";
   static final String SUPPORT = "opt_support";
+
+  /** The one option of {@code NO_LODGING}: the participant sleeps at home (DEC-074 Follow-up). */
+  public static final String NO_LODGING = "opt_no_lodging";
 
   /**
    * The option that marks a newcomer in the middle group or cell question (DEC-070 Follow-up
@@ -221,6 +225,21 @@ public final class FormPreset {
                 multi(nights),
                 whenPartial));
       }
+    }
+    if (setup.asksNoLodging(days)) {
+      // A commuter is inside the range or attends in full but sleeps at home, so every night drops
+      // them. Worship-only attendees sleep none already.
+      ArrayNode stay = NODES.arrayNode();
+      stay.add(option(NO_LODGING, "수련회장에서 숙박하지 않아요", null, false, null));
+      out.add(
+          new Question(
+              "NO_LODGING",
+              "숙박",
+              "집에서 오가며 참석한다면 체크해 주세요.",
+              AnswerType.MULTI_CHOICE,
+              false,
+              multi(stay),
+              attendance ? when(ids, "ATTENDANCE", FULL, PARTIAL) : null));
     }
     if (attendance && !setup.range()) {
       ArrayNode cells = NODES.arrayNode();
