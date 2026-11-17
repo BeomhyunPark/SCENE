@@ -48,4 +48,24 @@
     ORDER BY ${orderByClause}
   </select>
 
+  <!-- Export (#233): submitted applications only, in list order. -->
+  <select id="findSubmitted" resultType="app.scene.event.application.ApplicationRow">
+    SELECT app.id AS application_id, app.form_id, app.status, app.submitted_at,
+           CAST(NULL AS text) AS name
+    FROM applications app
+    WHERE app.space_id = #{spaceId} AND app.event_id = #{eventId} AND app.status = 'SUBMITTED'
+    ORDER BY app.submitted_at ASC, app.id ASC
+  </select>
+
+  <!-- Export (#233): every answer of the submitted applications in one read. -->
+  <select id="findSubmittedAnswers" resultType="app.scene.event.application.ExportAnswerRow">
+    SELECT a.application_id, a.field_id, a.value::text AS value
+    FROM answers a
+    JOIN applications app
+      ON app.space_id = a.space_id
+     AND app.event_id = a.event_id
+     AND app.id = a.application_id
+    WHERE a.space_id = #{spaceId} AND a.event_id = #{eventId} AND app.status = 'SUBMITTED'
+  </select>
+
 </mapper>
