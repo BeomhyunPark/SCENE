@@ -468,7 +468,9 @@ function Board({
   const rangeText =
     board.groups.length === 0
       ? "아직 조가 없어요"
-      : `전체 ${board.groups.length}조 중 ${current * pageSize + 1}–${current * pageSize + shown.length}조${
+      : `전체 ${board.groups.length}조 중 ${
+          shown.length === 1 ? current * pageSize + 1 : `${current * pageSize + 1}–${current * pageSize + shown.length}`
+        }조${
           hiddenGroups > 0 ? ` · 나머지 ${hiddenGroups}조에 ${hiddenAssigned}명 배정` : ""
         }`;
 
