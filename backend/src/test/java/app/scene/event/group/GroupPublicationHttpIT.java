@@ -349,6 +349,31 @@ class GroupPublicationHttpIT {
   }
 
   @Test
+  void newcomerAnswersStayOnTheBoardAndNeverReachParticipantReads() throws Exception {
+    World w = world();
+    UUID newcomer = w.preset("NEWCOMER", "YES_NO", "{\"style\":\"YES_NO\"}");
+    Person lead = w.participant("가조장", "010-4100-0001", "90");
+    Person mate = w.participant("나새가족", "010-4100-0002", "91");
+    w.answer(lead.id, newcomer, "{\"value\":false}");
+    w.answer(mate.id, newcomer, "{\"value\":true}");
+    String g1 = createGroup(w, "1조");
+    assign(w, change(lead.id, null, g1), change(mate.id, null, g1));
+    ok(leaders(w, g1, 0, lead.id));
+    publish(w, boardVersion(w), false);
+
+    assertThat(item(board(w).get("participants"), mate.id).get("newcomer").asBoolean()).isTrue();
+    String plainBody = myGroupBody(mate);
+    String leadBody = myGroupBody(lead);
+    assertThat(json.readTree(leadBody).get("members").size()).isEqualTo(2);
+    assertThat(plainBody).doesNotContain("newcomer").doesNotContain("NEWCOMER");
+    assertThat(leadBody).doesNotContain("newcomer").doesNotContain("NEWCOMER").contains("나새가족");
+    assertThat(json.readTree(leadBody).get("members").get(1).propertyNames())
+        .containsExactly("name", "cohort", "leader");
+    // The operator's published view (EVENT_READ) does not carry it either.
+    assertThat(published(w).toString()).doesNotContain("newcomer");
+  }
+
+  @Test
   void sessionsAndPermissionsGateEveryPath() throws Exception {
     World w = world();
     Person p = w.participant("가참가", "010-5000-0001", "94");
@@ -824,6 +849,30 @@ class GroupPublicationHttpIT {
           eventId,
           id,
           role);
+      return id;
+    }
+
+    /** A generated question of the form with {@code key}. */
+    UUID preset(String key, String type, String config) {
+      UUID id = UUID.randomUUID();
+      jdbc.update(
+          """
+          INSERT INTO fields (
+            id, space_id, event_id, form_id, kind, label, position, answer_type, required,
+            config, preset_key, preset_state)
+          VALUES (?, ?, ?, ?, 'CUSTOM', ?,
+            (SELECT coalesce(max(position), -1) + 1 FROM fields WHERE form_id = ?),
+            ?, false, ?::jsonb, ?, '{"active": true}'::jsonb)
+          """,
+          id,
+          spaceId,
+          eventId,
+          formId,
+          key,
+          formId,
+          type,
+          config,
+          key);
       return id;
     }
 
