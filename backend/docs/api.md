@@ -1131,7 +1131,7 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
 - `attendance`: `ATTENDANCE`가 없거나 꺼졌으면 `asked: false`이고 모두 `full`이다. 답이 없거나 모르는 보기를 골랐을 때도 `full`이다. 조 편성판의 `attendance`와 같은 규칙이다.
 - `gender`: `GENDER`의 보기 순서다. 모든 영역의 `options`는 꺼진 보기도 `hidden: true`로 포함한다. 화면은 `count`가 0인 꺼진 보기를 숨기고, 0이 아니면 "(꺼짐)"으로 보여 준다.
 - `cohorts`: SYSTEM `COHORT` 답의 앞뒤 공백을 자른 글자별 인원이다. 글자 오름차순이므로 `00`이 `94`보다 앞이다. 또래가 꺼졌으면 `null`이다.
-- `meals`: 일차와 칸은 저장된 설정(`setup.schedule`)의 순서다. 칸은 아침 → 점심 → 저녁 → 집회 순이고, 칸이 없는 날은 빠진다. `label`은 `MEALS` 보기의 지금 문구이고, 보기가 없으면 기본 문구를 쓴다. 칸이 하나도 없으면 `meals`는 `null`이다.
+- `meals`: 조 편성판의 `slots`·`slotIds`와 같은 칸·같은 규칙이다. 일차와 칸은 저장된 설정(`setup.schedule`)의 순서다. 칸은 아침 → 점심 → 저녁 → 집회 순이고, 칸이 없는 날은 빠진다. `label`은 `MEALS` 보기의 지금 문구이고, 보기가 없으면 기본 문구를 쓴다. 칸이 하나도 없으면 `meals`는 `null`이다.
   - 전체 참석자는 모든 칸에 센다.
   - 부분·집회만 참석자는 고른 칸에만 센다.
   - `MEALS` 답이 없는 부분·집회만 참석자(질문이 꺼졌거나 질문이 생기기 전에 낸 신청)는 칸에 넣지 않고 `unanswered`로 센다.
@@ -1437,7 +1437,8 @@ CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고
       "groupId": "…",
       "leader": false,
       "publishedGroupId": "…",
-      "publishedLeader": false
+      "publishedLeader": false,
+      "slotIds": ["opt_d1_dinner", "opt_d1_worship", "opt_d2_breakfast"]
     }
   ],
   "withdrawn": [
@@ -1453,7 +1454,12 @@ CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고
     "changedParticipantCount": 3,
     "groupChanges": 1,
     "hasUnpublishedChanges": true
-  }
+  },
+  "slots": [
+    { "slotId": "opt_d1_dinner", "day": 1, "date": "2027-01-22", "dayLabel": "1월 22일 (금)", "meal": "DINNER", "label": "저녁", "sortOrder": 0 },
+    { "slotId": "opt_d1_worship", "day": 1, "date": "2027-01-22", "dayLabel": "1월 22일 (금)", "meal": "WORSHIP", "label": "집회", "sortOrder": 1 },
+    { "slotId": "opt_d2_breakfast", "day": 2, "date": "2027-01-23", "dayLabel": "1월 23일 (토)", "meal": "BREAKFAST", "label": "아침", "sortOrder": 2 }
+  ]
 }
 ```
 
@@ -1463,6 +1469,15 @@ CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고
 - `groupId`가 `null`이면 미배정이다. `publishedGroupId`·`publishedLeader`는 가장 최근 공개본의 값이고, 공개한 적이 없거나 그 공개본에 없으면 `null`·`false`다.
 - `withdrawn`은 배정 행이 남아 있지만 활성 참가자가 아닌 사람이다. `groupId`는 참고값이다. 조별 인원·미배정 수에 넣지 않는다.
 - `publication`: 공개한 적이 없으면 `lastPublished…`가 `null`이다. `lastPublishedBoardVersion`은 그 공개 때의 `boardVersion`이다. `changedParticipantCount`는 활성 참가자 중 작업본과 최근 공개본의 조 또는 조장 표시가 다른 사람 수다(처음 공개 전에는 배정된 사람 수). `groupChanges`는 작업본과 최근 공개본 사이에 추가·삭제됐거나 이름 또는 `sortOrder` 값이 다른 조 수다(처음 공개 전에는 조 수). 비교는 내용으로 한다. 옮겼다가 되돌려 내용이 같으면 `boardVersion`이 올라도 변경이 없다. `hasUnpublishedChanges`는 둘 중 하나라도 0이 아니면 `true`다. 화면은 이 값으로 "미공개 변경 있음"을 보여 준다(DEC-040).
+- `slots`·`slotIds`([#315](https://github.com/BeomhyunPark/SCENE/issues/315))는 각 사람이 언제 있는지를 막대로 보여 주기 위한 **참석 칸**이다. 칸은 신청서 설정의 일차별 식사·집회 표(DEC-070, 자동 질문 `MEALS`)이고, [신청 집계](#get-apiv1operatoreventseventidapplicationssummary)의 `meals.days[].slots[]`와 같은 칸·같은 순서·같은 규칙이다(서버는 같은 코드 `MealSlots`로 읽는다).
+  - `slots`는 칸 정의를 일차 순, 하루 안에서는 아침 → 점심 → 저녁 → 집회 순으로 펼친 목록이다. `slotId`는 집계의 `optionId`(`MEALS` 보기 id, `opt_d<일차>_<칸>`)와 같다. `meal`은 `BREAKFAST`·`LUNCH`·`DINNER`·`WORSHIP`, `label`은 `MEALS` 보기의 지금 문구(질문이 꺼져도 그 문구, 보기가 없으면 기본 문구), `dayLabel`은 `1월 22일 (금)` 꼴, `sortOrder`는 목록 안 0부터의 위치다. 칸이 없는 날은 빠진다.
+  - **`slots`가 `null`인 경우:** 신청서가 없거나 설정 카드로 만들지 않은 신청서(`fromSetup: false`), 또는 설정의 일정표에 식사·집회 칸이 하나도 없을 때. 이때 모든 참가자의 `slotIds`도 `null`이다. 빈 배열은 내지 않는다.
+  - 하루짜리 행사도 그날의 칸이 있으면 `slots`가 있다(집계의 `meals`와 같다). 숙박(`lodging`)은 하루짜리 행사에서 없지만 칸과는 별개다.
+  - 참석 방식 질문이 없어 `MEALS`가 만들어지지 않은 설정(부분·집회만 참석을 끈 설정)도 `slots`가 있고, 모두 전체 참석이라 모든 칸이다.
+  - `slotIds`는 그 사람이 있는 칸의 `slotId`를 `slots` 순서로 담는다. **`attendance`가 `FULL`이면 모든 칸**이다. `PARTIAL`·`WORSHIP_ONLY`이면 `MEALS`에서 고른 칸만이고, 칸이 아닌 id는 버린다.
+  - **`slotIds: null`은 "모름"이다.** `PARTIAL`·`WORSHIP_ONLY`인데 `MEALS` 답이 없을 때(질문이 꺼졌거나 질문이 생기기 전에 낸 신청)다. 빈 배열 `[]`은 "어느 칸에도 없음"으로 구분된다. 집계의 `meals.unanswered`가 이 사람 수와 같다.
+  - **조별 칸 인원은 서버가 따로 주지 않는다.** 화면이 `groupId`와 `slotIds`로 센다. 활성 참가자 전원이 편성판에 있으므로 모든 조의 같은 칸을 더하면(미배정 포함) 집계의 그 칸 `count`와 같다. 200명 × 10칸에서도 사람마다 짧은 id 몇 개라 응답이 수십 KB 안이다.
+  - 참가자용 [`GET /api/v1/participant/group`](#get-apiv1participantgroup)에는 칸 값을 넣지 않는다.
 
 ### `POST /api/v1/operator/events/{eventId}/groups`
 
