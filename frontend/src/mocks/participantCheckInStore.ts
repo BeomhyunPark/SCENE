@@ -3,22 +3,18 @@ import { localUsers } from "./fixtures/seed";
 import { eventById } from "./operatorStore";
 
 /**
- * Shaped like ParticipantCheckInController (#283). The value comes from `checkInCodeFor` in checkInStore, the
- * same function the mock operator scan checks against (#287), so a participant QR shown under VITE_API_MOCK=1
- * checks that participant in. It keeps the server's shape (backend/docs/api.md "QR 값") but its tag is a plain
- * hash, not the server's HMAC. `secret` only stands in for "the server has a signing secret".
+ * Shaped like ParticipantCheckInController (#283). The value comes from the operator mock's
+ * `checkInCodeFor` (#286), so the operator mock scan reads exactly what this screen shows.
  */
-const MOCK_SECRET = "scene-mock-checkin-secret";
-
-let secret: string | null = MOCK_SECRET;
+let hasSecret = true;
 
 export function resetParticipantCheckInStore(): void {
-  secret = MOCK_SECRET;
+  hasSecret = true;
 }
 
 /** Test seam: an empty SCENE_CHECKIN_CODE_SECRET, which makes AVAILABLE a 404. */
 export function setParticipantCheckInSecret(next: string | null): void {
-  secret = next;
+  hasSecret = Boolean(next);
 }
 
 export type ParticipantCheckInResult =
@@ -35,7 +31,7 @@ export async function readParticipantCheckIn(eventId: string, participantId: str
   if (lifecycle === "DRAFT") return { status: "NOT_STARTED", code: null, ...arrival };
   if (lifecycle === "ENDED" || lifecycle === "ARCHIVED") return { status: "ENDED", code: null, ...arrival };
   if (!row) return { status: "NOT_ELIGIBLE", code: null, ...arrival };
-  if (!secret) return { failure: { status: 404, code: "RESOURCE_NOT_FOUND" } };
+  if (!hasSecret) return { failure: { status: 404, code: "RESOURCE_NOT_FOUND" } };
   return { status: "AVAILABLE", code: checkInCodeFor(eventId, participantId), ...arrival };
 }
 
