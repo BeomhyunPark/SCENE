@@ -22,8 +22,8 @@ import org.springframework.web.bind.annotation.RestController;
 import tools.jackson.databind.JsonNode;
 
 /**
- * Operator group board and working-copy writes (api.md "조 편성"). Publication and the participant
- * view are #300 and are not here.
+ * Operator group board, working-copy writes, publication, and the published view (api.md "조 편성").
+ * The participant view is {@link ParticipantGroupController}.
  */
 @RestController
 public class GroupController {
@@ -79,6 +79,16 @@ public class GroupController {
   @PostMapping(BASE + "/group-assignments")
   Assigned assign(@PathVariable UUID eventId, @RequestBody(required = false) JsonNode body) {
     return groups.assign(actor(), eventId, body);
+  }
+
+  @PostMapping(BASE + "/groups/publish")
+  PublishResult publish(@PathVariable UUID eventId, @RequestBody(required = false) JsonNode body) {
+    return groups.publish(actor(), eventId, body);
+  }
+
+  @GetMapping(BASE + "/groups/published")
+  PublishedGroups published(@PathVariable UUID eventId) {
+    return groups.published(actor(), eventId);
   }
 
   private static UUID actor() {

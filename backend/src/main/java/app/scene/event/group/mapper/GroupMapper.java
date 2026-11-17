@@ -1,8 +1,10 @@
 package app.scene.event.group.mapper;
 
+import app.scene.event.group.ActiveParticipant;
 import app.scene.event.group.Assignment;
 import app.scene.event.group.BoardRow;
 import app.scene.event.group.Group;
+import app.scene.event.group.PublicationRow;
 import app.scene.event.group.WithdrawnParticipant;
 import app.scene.event.group.param.GroupParam;
 import java.util.List;
@@ -46,4 +48,10 @@ public interface GroupMapper {
   int updateLeader(GroupParam param);
 
   int insertLog(GroupParam param);
+
+  List<ActiveParticipant> findActive(GroupParam param);
+
+  PublicationRow findLatestPublication(GroupParam param);
+
+  int insertPublication(GroupParam param);
 }
