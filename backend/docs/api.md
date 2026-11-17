@@ -1290,7 +1290,7 @@ CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고
 
 ## 조 편성
 
-> 계약만 있고 아직 구현 전이다. 서버는 [#234](https://github.com/BeomhyunPark/SCENE/issues/234)의 하위 이슈에서 연다. 정책은 [DEC-072](../../docs/product/PRODUCT_DECISIONS.md)와 DEC-040~048이다.
+> 작업본(편성판, 조, 배정, 조장)은 서버에 있다([#299](https://github.com/BeomhyunPark/SCENE/issues/299), 컨트롤러 `event/group/GroupController`, 스키마 `V13__groups.sql`). 공개(`POST …/groups/publish`), 공개본 조회, 참가자 내 조는 아직 계약만 있고 [#300](https://github.com/BeomhyunPark/SCENE/issues/300)에서 연다. 정책은 [DEC-072](../../docs/product/PRODUCT_DECISIONS.md)와 DEC-040~048이다.
 
 운영자가 조를 만들고 참가자를 넣는 **작업본**과, 공개할 때 한 번에 찍는 **공개본**(스냅샷)이 따로 있다. 작업본 저장은 참가자에게 보이지 않는다. 참가자와 조장은 가장 최근 공개본만 본다.
 
@@ -1364,10 +1364,10 @@ CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고
 
 - `participants`는 활성 참가자 전원이고 순서는 이름, 그다음 참가자 id다. 페이지는 없다. 전화·접근 키는 없다.
 - `cohort`·`middleGroup`·`cell`은 `SUBMITTED` 신청의 `COHORT`·`MIDDLE_GROUP`·`CELL` 답 `value.text`(앞뒤 공백 자름)다. `gender`는 `GENDER` 답의 보기 id와 지금 보기 문구다. 답이 없거나 질문이 없거나 꺼져 있으면 `null`이다.
-- `attendance`는 `ATTENDANCE` 답의 `opt_full`·`opt_partial`·`opt_worship`을 `FULL`·`PARTIAL`·`WORSHIP_ONLY`로 바꾼 값이다. 질문이 없거나 꺼져 있으면 `FULL`이다(DEC-070 §3). `null`이 아니다.
+- `attendance`는 `ATTENDANCE` 답의 `opt_full`·`opt_partial`·`opt_worship`을 `FULL`·`PARTIAL`·`WORSHIP_ONLY`로 바꾼 값이다. 질문이 없거나 꺼져 있으면 `FULL`이다(DEC-070 §3). 질문이 켜진 뒤 들어온 신청이 아니라서 답이 없을 때도 `FULL`이다. `null`이 아니다.
 - `groupId`가 `null`이면 미배정이다. `publishedGroupId`·`publishedLeader`는 가장 최근 공개본의 값이고, 공개한 적이 없거나 그 공개본에 없으면 `null`·`false`다.
 - `withdrawn`은 배정 행이 남아 있지만 활성 참가자가 아닌 사람이다. `groupId`는 참고값이다. 조별 인원·미배정 수에 넣지 않는다.
-- `publication`: 공개한 적이 없으면 `lastPublished…`가 `null`이다. `changedParticipantCount`는 활성 참가자 중 작업본과 최근 공개본의 조 또는 조장 표시가 다른 사람 수다(처음 공개 전에는 배정된 사람 수). `groupChanges`는 조 추가·삭제·이름·순서가 다른 조 수다. `hasUnpublishedChanges`는 둘 중 하나라도 0이 아니면 `true`다. 화면은 이 값으로 "미공개 변경 있음"을 보여 준다(DEC-040).
+- `publication`: 공개한 적이 없으면 `lastPublished…`가 `null`이다. #300 전까지는 늘 공개 전이다. `changedParticipantCount`는 활성 참가자 중 작업본과 최근 공개본의 조 또는 조장 표시가 다른 사람 수다(처음 공개 전에는 배정된 사람 수). `groupChanges`는 조 추가·삭제·이름·순서가 다른 조 수다. `hasUnpublishedChanges`는 둘 중 하나라도 0이 아니면 `true`다. 화면은 이 값으로 "미공개 변경 있음"을 보여 준다(DEC-040).
 
 ### `POST /api/v1/operator/events/{eventId}/groups`
 
@@ -1385,7 +1385,7 @@ CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고
 
 조원(철회자 포함)은 미배정이 되고 조장 표시가 풀린다. 사람마다 이력을 남긴다. 버전·없음 처리는 `PATCH`와 같다.
 
-`200` 본문은 `{ "unassignedCount": 9, "boardVersion": 44 }`다. 지난 공개본은 그대로라, 다시 공개하기 전까지 참가자는 이 조를 계속 본다.
+`200` 본문은 `{ "unassignedCount": 9, "boardVersion": 44 }`다. `unassignedCount`는 이 삭제로 미배정이 된 사람 수(철회자 포함)다. 편성판 전체의 미배정 수가 아니다. `expectedVersion`이 없거나 0 이상 정수가 아니면 `400`(필드 `expectedVersion`)이다. 지난 공개본은 그대로라, 다시 공개하기 전까지 참가자는 이 조를 계속 본다.
 
 ### `PUT /api/v1/operator/events/{eventId}/groups/order`
 
@@ -1405,7 +1405,7 @@ CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고
 ```
 
 - `changes`는 1–200개이고 같은 `participantId`가 두 번 나오면 `400 VALIDATION_FAILED`(필드 `changes`)다. `fromGroupId`는 화면이 본 지금 조, `null`은 미배정이다. 둘 다 키가 있어야 한다.
-- 그 행사의 참가자·조가 아니면 `404 RESOURCE_NOT_FOUND`다.
+- 그 행사의 참가자나 `toGroupId`의 조가 아니면 `404 RESOURCE_NOT_FOUND`다. `fromGroupId`는 지금 조와 비교만 하므로, 지워진 조나 모르는 id면 충돌이다.
 - 사람마다 지금 조를 본다.
   - 지금 = `toGroupId`: 이미 반영됐다. 바꾸지 않는다.
   - 지금 = `fromGroupId`: 옮긴다.
@@ -1587,7 +1587,7 @@ audit `GROUPS_PUBLISHED`: detail은 `publicationId`, `boardVersion`, `assignedCo
 - 체크 항목 추가
 - 참가자 조회(`GET /api/v1/participant/me`·`GET /api/v1/participant/check-in` 밖)
 - 회비, 방, 차량
-- 조 편성. [계약](#조-편성)만 있고 서버는 #234 하위 이슈에서 연다
+- 조 공개, 공개본 조회, 참가자 내 조. [계약](#조-편성)만 있고 서버는 #300에서 연다
 - 신청자 CSV([신청자 CSV](#post-apiv1operatoreventseventidapplicationsexport)) 밖의 Export, 공간 설정
 - 행사 기간·장소·유형을 바꾸는 `PATCH`. 이름만 바꾼다
 - 공간 소유권 이전의 전용 URL

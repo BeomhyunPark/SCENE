@@ -1,0 +1,88 @@
+package app.scene.event.group;
+
+import app.scene.event.group.GroupResults.Assigned;
+import app.scene.event.group.GroupResults.BoardVersion;
+import app.scene.event.group.GroupResults.GroupDeleted;
+import app.scene.event.group.GroupResults.GroupWritten;
+import app.scene.event.group.GroupResults.LeadersWritten;
+import app.scene.identity.OperatorPrincipal;
+import java.util.UUID;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import tools.jackson.databind.JsonNode;
+
+/**
+ * Operator group board and working-copy writes (api.md "조 편성"). Publication and the participant
+ * view are #300 and are not here.
+ */
+@RestController
+public class GroupController {
+
+  private static final String BASE = "/api/v1/operator/events/{eventId}";
+
+  private final GroupService groups;
+
+  public GroupController(GroupService groups) {
+    this.groups = groups;
+  }
+
+  @GetMapping(BASE + "/group-board")
+  GroupBoard board(@PathVariable UUID eventId) {
+    return groups.board(actor(), eventId);
+  }
+
+  @PostMapping(BASE + "/groups")
+  ResponseEntity<GroupWritten> create(
+      @PathVariable UUID eventId, @RequestBody(required = false) JsonNode body) {
+    return ResponseEntity.status(HttpStatus.CREATED).body(groups.create(actor(), eventId, body));
+  }
+
+  @PutMapping(BASE + "/groups/order")
+  BoardVersion reorder(@PathVariable UUID eventId, @RequestBody(required = false) JsonNode body) {
+    return groups.reorder(actor(), eventId, body);
+  }
+
+  @PatchMapping(BASE + "/groups/{groupId}")
+  GroupWritten rename(
+      @PathVariable UUID eventId,
+      @PathVariable UUID groupId,
+      @RequestBody(required = false) JsonNode body) {
+    return groups.rename(actor(), eventId, groupId, body);
+  }
+
+  @DeleteMapping(BASE + "/groups/{groupId}")
+  GroupDeleted delete(
+      @PathVariable UUID eventId,
+      @PathVariable UUID groupId,
+      @RequestParam(required = false) String expectedVersion) {
+    return groups.delete(actor(), eventId, groupId, expectedVersion);
+  }
+
+  @PutMapping(BASE + "/groups/{groupId}/leaders")
+  LeadersWritten leaders(
+      @PathVariable UUID eventId,
+      @PathVariable UUID groupId,
+      @RequestBody(required = false) JsonNode body) {
+    return groups.leaders(actor(), eventId, groupId, body);
+  }
+
+  @PostMapping(BASE + "/group-assignments")
+  Assigned assign(@PathVariable UUID eventId, @RequestBody(required = false) JsonNode body) {
+    return groups.assign(actor(), eventId, body);
+  }
+
+  private static UUID actor() {
+    return OperatorPrincipal.require(SecurityContextHolder.getContext().getAuthentication())
+        .userId();
+  }
+}
