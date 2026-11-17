@@ -129,6 +129,7 @@ class GroupHttpIT {
             "attendance",
             "middleGroup",
             "cell",
+            "newcomer",
             "groupId",
             "leader",
             "publishedGroupId",
@@ -151,6 +152,9 @@ class GroupHttpIT {
     assertThat(bare.get("attendance").asString()).isEqualTo("FULL");
     assertThat(bare.get("middleGroup").isNull()).isTrue();
     assertThat(bare.get("cell").isNull()).isTrue();
+    // No NEWCOMER question on this form: no answer for anyone.
+    assertThat(bare.get("newcomer").isNull()).isTrue();
+    assertThat(first.get("newcomer").isNull()).isTrue();
     assertThat(bare.get("groupId").isNull()).isTrue();
     JsonNode spaces = item(b.get("participants"), blank);
     assertThat(spaces.get("cell").isNull()).isTrue();
@@ -191,6 +195,33 @@ class GroupHttpIT {
     assertThat(hidden.get("attendance").asString()).isEqualTo("FULL");
     assertThat(hidden.get("cell").isNull()).isTrue();
     assertThat(hidden.get("middleGroup").asString()).isEqualTo("청년1부");
+  }
+
+  @Test
+  void boardGivesTheNewcomerAnswerAsTrueFalseOrNull() throws Exception {
+    World w = world();
+    UUID yes = w.participant("가새", "010-1100-0001", "94");
+    UUID no = w.participant("나기존", "010-1100-0002", "95");
+    UUID before = w.participant("다이전", "010-1100-0003", "96");
+
+    // The question does not exist yet.
+    assertThat(item(board(w).get("participants"), yes).get("newcomer").isNull()).isTrue();
+
+    UUID newcomer = w.preset("NEWCOMER", "YES_NO", "{\"style\":\"YES_NO\"}");
+    w.answer(yes, newcomer, "{\"value\":true}");
+    w.answer(no, newcomer, "{\"value\":false}");
+    JsonNode b = board(w);
+    assertThat(item(b.get("participants"), yes).get("newcomer").asBoolean()).isTrue();
+    assertThat(item(b.get("participants"), no).get("newcomer").isBoolean()).isTrue();
+    assertThat(item(b.get("participants"), no).get("newcomer").asBoolean()).isFalse();
+    // Applied before the switch went on: no answer.
+    assertThat(item(b.get("participants"), before).get("newcomer").isNull()).isTrue();
+
+    // Turned off: no answer for anyone, the stored answers stay.
+    jdbc.update("UPDATE fields SET hidden = true WHERE id = ?", newcomer);
+    JsonNode off = board(w);
+    assertThat(item(off.get("participants"), yes).get("newcomer").isNull()).isTrue();
+    assertThat(item(off.get("participants"), no).get("newcomer").isNull()).isTrue();
   }
 
   @Test

@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 
 /** Generated questions for a form setup (DEC-070). */
 class FormPresetTest {
@@ -22,7 +23,7 @@ class FormPresetTest {
   void withoutAnAttendanceQuestionEveryoneAttendsInFull() {
     FormSetup setup =
         new FormSetup(
-            false, true, true, false, false, days(2, true), true, true, true, false, false);
+            false, true, true, false, false, false, days(2, true), true, true, true, false, false);
 
     List<FormPreset.Question> questions = generate(setup, FRIDAY, FRIDAY.plusDays(1));
 
@@ -50,7 +51,18 @@ class FormPresetTest {
   void aOneDayEventHasNoLodgingAndOnlyDrivingAsksNoWayBack() {
     FormSetup setup =
         new FormSetup(
-            true, false, false, true, false, days(1, false), false, false, true, false, false);
+            true,
+            false,
+            false,
+            false,
+            true,
+            false,
+            days(1, false),
+            false,
+            false,
+            true,
+            false,
+            false);
 
     List<FormPreset.Question> questions = generate(setup, FRIDAY, FRIDAY);
 
@@ -66,7 +78,8 @@ class FormPresetTest {
   @Test
   void everyGeneratedQuestionIsAKnownKeyInOrderAndPassesTheConditionRules() {
     FormSetup setup =
-        new FormSetup(true, true, true, true, true, days(10, true), true, true, true, true, true);
+        new FormSetup(
+            true, true, true, true, true, true, days(10, true), true, true, true, true, true);
 
     List<FormPreset.Question> questions = generate(setup, FRIDAY, FRIDAY.plusDays(9));
 
@@ -91,6 +104,43 @@ class FormPresetTest {
           .isEqualTo(question.config());
     }
     FieldRules.checkConditions(fields);
+  }
+
+  @Test
+  void theNewcomerQuestionIsARequiredYesNoAfterTheCellAndBeforeAttendance() {
+    FormSetup setup =
+        new FormSetup(
+            true, false, true, true, true, false, days(2, true), false, false, false, false, false);
+
+    List<FormPreset.Question> questions = generate(setup, FRIDAY, FRIDAY.plusDays(1));
+
+    assertThat(keys(questions)).startsWith("GENDER", "CELL", "NEWCOMER", "ATTENDANCE");
+    FormPreset.Question newcomer = find(questions, "NEWCOMER");
+    assertThat(newcomer.type()).isEqualTo(AnswerType.YES_NO);
+    assertThat(newcomer.required()).isTrue();
+    assertThat(newcomer.showWhen()).isNull();
+    assertThat(newcomer.label()).isEqualTo("새가족이신가요?");
+    assertThat(newcomer.config().get("style").asString()).isEqualTo("YES_NO");
+  }
+
+  @Test
+  void aSetupWithoutTheNewcomerKeyLeavesTheQuestionOut() {
+    FormSetup setup =
+        FormSetup.parse(
+            JsonMapper.builder()
+                .build()
+                .readTree(
+                    "{\"gender\":false,\"middleGroup\":false,\"cell\":false,"
+                        + "\"attendance\":{\"partial\":false,\"worshipOnly\":false},"
+                        + "\"schedule\":[{\"breakfast\":false,\"lunch\":false,"
+                        + "\"dinner\":false,\"worship\":false}],"
+                        + "\"transport\":{\"groupBus\":false,\"worshipShuttle\":false,"
+                        + "\"car\":false,\"publicTransit\":false,\"support\":false}}"),
+            1);
+
+    assertThat(setup.newcomer()).isFalse();
+    assertThat(keys(generate(setup, FRIDAY, FRIDAY))).containsExactly("CONSENT");
+    assertThat(setup.toJson(FRIDAY, FRIDAY).get("newcomer").booleanValue()).isFalse();
   }
 
   private List<FormPreset.Question> generate(FormSetup setup, LocalDate start, LocalDate end) {

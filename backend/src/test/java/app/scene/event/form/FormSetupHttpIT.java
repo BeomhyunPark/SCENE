@@ -438,7 +438,86 @@ class FormSetupHttpIT {
     assertThat(preset(after, "ATTENDANCE").get("hidden").booleanValue()).isFalse();
   }
 
+  @Test
+  void newcomerSwitchAddsAYesNoQuestionAndWorksAfterApplications() throws Exception {
+    Held event = openEvent();
+    period(event, LocalDate.of(2027, 1, 22), LocalDate.of(2027, 1, 24));
+    JsonNode created = json.readTree(created(write(post(forms(event)), event, "{}")));
+    String formId = created.get("formId").asString();
+    String formPath = forms(event) + "/" + formId;
+    String setupPath = formPath + "/setup";
+
+    // A setup saved before the switch existed has no key: the question stays out.
+    JsonNode without = json.readTree(ok(write(put(setupPath), event, newcomerSetup(null))));
+    assertThat(without.get("setup").get("newcomer").booleanValue()).isFalse();
+    assertThat(keys(without)).containsExactly("NAME", "PHONE", "COHORT", "CONSENT");
+    problem(write(put(setupPath), event, newcomerSetup("\"yes\"")), 400, "setup");
+
+    JsonNode on = json.readTree(ok(write(put(setupPath), event, newcomerSetup("true"))));
+    assertThat(on.get("setup").get("newcomer").booleanValue()).isTrue();
+    assertThat(keys(on)).containsExactly("NAME", "PHONE", "COHORT", "NEWCOMER", "CONSENT");
+    JsonNode newcomer = preset(on, "NEWCOMER");
+    assertThat(newcomer.get("kind").asString()).isEqualTo("CUSTOM");
+    assertThat(newcomer.get("answerType").asString()).isEqualTo("YES_NO");
+    assertThat(newcomer.get("required").booleanValue()).isTrue();
+    assertThat(newcomer.get("label").asString()).isEqualTo("새가족이신가요?");
+    assertThat(newcomer.get("description").asString()).contains("새가족 과정");
+    assertThat(newcomer.get("config").get("style").asString()).isEqualTo("YES_NO");
+    assertThat(newcomer.get("showWhen").isNull()).isTrue();
+    assertThat(newcomer.get("presetActive").booleanValue()).isTrue();
+
+    // Before applications an untouched question is removed when the switch goes off.
+    JsonNode off = json.readTree(ok(write(put(setupPath), event, newcomerSetup("false"))));
+    assertThat(keys(off)).doesNotContain("NEWCOMER");
+
+    // One application arrives without the question, then the switch goes on: allowed.
+    open(event, formPath);
+    String submitPath =
+        "/api/v1/public/events/" + event.eventId + "/forms/" + formId + "/applications";
+    String base =
+        answer(id(off, "NAME"), "김")
+            + ","
+            + answer(id(off, "PHONE"), "010-1234-5678")
+            + ","
+            + answer(id(off, "COHORT"), "94")
+            + ","
+            + value(id(off, "CONSENT"), "{\"value\":true}");
+    submit(submitPath, base, 201);
+    JsonNode lateOn = json.readTree(ok(write(put(setupPath), event, newcomerSetup("true"))));
+    assertThat(lateOn.get("locked").booleanValue()).isTrue();
+    String newcomerId = id(lateOn, "NEWCOMER");
+    assertThat(preset(lateOn, "NEWCOMER").get("hidden").booleanValue()).isFalse();
+    submit(submitPath, base, 400);
+    submit(submitPath, base + "," + value(newcomerId, "{\"value\":true}"), 201);
+    assertThat(storedKeys(event)).contains("NEWCOMER");
+
+    // After applications the switch hides the question and keeps the answers.
+    JsonNode lateOff = json.readTree(ok(write(put(setupPath), event, newcomerSetup("false"))));
+    assertThat(preset(lateOff, "NEWCOMER").get("hidden").booleanValue()).isTrue();
+    assertThat(preset(lateOff, "NEWCOMER").get("presetActive").booleanValue()).isFalse();
+    assertThat(storedKeys(event)).contains("NEWCOMER");
+    JsonNode again = json.readTree(ok(write(put(setupPath), event, newcomerSetup("true"))));
+    assertThat(id(again, "NEWCOMER")).isEqualTo(newcomerId);
+    assertThat(preset(again, "NEWCOMER").get("hidden").booleanValue()).isFalse();
+  }
+
   // ---- helpers ----
+
+  /** Only the newcomer switch on a three-day event; {@code null} leaves the key out. */
+  private static String newcomerSetup(String newcomer) {
+    String day = "{\"breakfast\":false,\"lunch\":false,\"dinner\":false,\"worship\":false}";
+    return "{\"gender\":false,\"middleGroup\":false,\"cell\":false,"
+        + (newcomer == null ? "" : "\"newcomer\":" + newcomer + ",")
+        + "\"attendance\":{\"partial\":false,\"worshipOnly\":false},"
+        + "\"schedule\":["
+        + day
+        + ","
+        + day
+        + ","
+        + day
+        + "],\"transport\":{\"groupBus\":false,\"worshipShuttle\":false,\"car\":false,"
+        + "\"publicTransit\":false,\"support\":false}}";
+  }
 
   private static String setup(boolean partial, boolean worshipOnly, String schedule, boolean car) {
     return "{\"gender\":true,\"middleGroup\":false,\"cell\":false,"
