@@ -129,10 +129,12 @@ class FieldRulesTest {
     JsonNode either =
         FieldRules.showWhen(json.readTree("{\"anyOf\":[" + onA + "," + onYes + "]}"), "showWhen");
 
+    FieldDefinition holder = field(AnswerType.SHORT_TEXT, text(), 3, either);
+
     assertThat(FieldRules.clauses(either)).hasSize(2);
-    assertThat(FieldRules.isConditionTarget(List.of(target, yesNo), yesNo.fieldId())).isTrue();
-    FieldRules.checkConditions(
-        List.of(target, yesNo, field(AnswerType.SHORT_TEXT, text(), 3, either)));
+    assertThat(FieldRules.isConditionTarget(List.of(target, yesNo, holder), yesNo.fieldId()))
+        .isTrue();
+    FieldRules.checkConditions(List.of(target, yesNo, holder));
     // Every clause must point before the question that holds it.
     invalid(
         () ->
