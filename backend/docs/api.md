@@ -616,7 +616,7 @@ curl -sS \
 
 `EVENT_UPDATE`, `EVENT_USER_READ`, `PARTICIPANT_READ`, `PARTICIPANT_CONTACT_READ`, `PARTICIPANT_WRITE`, `FORM_WRITE`, `APPLICATION_READ`, `APPLICATION_MANAGE`, `TASK_WRITE`, `SCHEDULE_WRITE`, `NOTICE_WRITE`, `FINANCE_READ`, `FINANCE_WRITE`, `GROUP_WRITE`, `ROOM_WRITE`, `RIDE_WRITE`, `CLASS_WRITE`, `CHECKIN_WRITE`, `MISSION_WRITE`, `GUARDIAN_WRITE`, `GUARDIAN_CONTACT_READ`, `PRIVACY_LOG_READ`, `AUDIT_LOG_READ`, `DATA_EXPORT`, `EVENT_READ`, `EVENT_LIFECYCLE`, `EVENT_USER_MANAGE`.
 
-`OWNER`는 이 키를 모두 기본으로 가진다. `MANAGER`의 기본은 `EVENT_READ`, `TASK_WRITE`, `CHECKIN_WRITE`다. `STAFF`의 기본은 `EVENT_READ`, `CHECKIN_WRITE`다(DEC-071). 키가 있다고 그 업무의 API가 열려 있는 것은 아니다. 지금 HTTP가 `PermissionEvaluator`로 보는 키는 `EVENT_READ`, `EVENT_UPDATE`, `FORM_WRITE`, `TASK_WRITE`, `CHECKIN_WRITE`, `EVENT_USER_MANAGE`다. 행사 이름 변경은 `EVENT_UPDATE`다. 신청서 쓰기는 `FORM_WRITE`다. 신청 읽기는 `APPLICATION_READ`가 아니라 `EVENT_READ`다. 행사 상태 변경은 그 키 대신 행사 역할 `OWNER`와 공간 역할 `OWNER`를 본다. `EVENT_LIFECYCLE`은 소유자 전용이라 다른 역할에 `GRANT`되지 않는다.
+`OWNER`는 이 키를 모두 기본으로 가진다. `MANAGER`의 기본은 `EVENT_READ`, `TASK_WRITE`, `CHECKIN_WRITE`다. `STAFF`의 기본은 `EVENT_READ`, `CHECKIN_WRITE`다(DEC-071). 키가 있다고 그 업무의 API가 열려 있는 것은 아니다. 지금 HTTP가 `PermissionEvaluator`로 보는 키는 `EVENT_READ`, `EVENT_UPDATE`, `FORM_WRITE`, `TASK_WRITE`, `CHECKIN_WRITE`, `DATA_EXPORT`, `EVENT_USER_MANAGE`다. 신청자 CSV는 `DATA_EXPORT`다. 행사 이름 변경은 `EVENT_UPDATE`다. 신청서 쓰기는 `FORM_WRITE`다. 신청 읽기는 `APPLICATION_READ`가 아니라 `EVENT_READ`다. 행사 상태 변경은 그 키 대신 행사 역할 `OWNER`와 공간 역할 `OWNER`를 본다. `EVENT_LIFECYCLE`은 소유자 전용이라 다른 역할에 `GRANT`되지 않는다.
 
 ### `GET /api/v1/operator/events/{eventId}/operators`
 
@@ -996,7 +996,7 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
 
 ## 신청 읽기
 
-컨트롤러는 `event/application/OperatorApplicationController`다. 읽기는 신청서와 같다. `EVENT_READ` 또는 활성 공간 `OWNER`·`ADMIN`이다. `APPLICATION_READ`는 보지 않는다. `sort` 허용 필드는 없다. 순서는 신청 id다.
+컨트롤러는 `event/application/OperatorApplicationController`다. 읽기는 신청서와 같다. `EVENT_READ` 또는 활성 공간 `OWNER`·`ADMIN`이다. 신청자 CSV만 `DATA_EXPORT`다(아래). `APPLICATION_READ`는 보지 않는다. `sort` 허용 필드는 없다. 순서는 신청 id다.
 
 `status` 쿼리는 `SUBMITTED`, `SUPERSEDED`, `WITHDRAWN`만 받는다. 다른 값은 `400`이고 필드는 `status`다. 아는 값이어도 목록을 거르지 않는다. 순서는 `submittedAt`, 그다음 신청 id다.
 
@@ -1033,6 +1033,29 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
 ```
 
 `answers`는 필드 position 순이다. 받은 답만 있고, 답이 없는 질문은 빠진다. `answerType`·`hidden`·`config`는 그 질문의 **현재** 값이다(운영자 신청서 상세의 필드와 같은 모양). 화면은 이것으로 선택형 답의 `optionId`를 지금 보기 문구로 바꾸고, 숨긴 질문(`hidden: true`)과 숨긴 보기(`config.options[].hidden: true`)에 "(숨김)"을 붙인다(DEC-068 §6). `value` 모양은 DEC-068 §1을 따른다.
+
+### `POST /api/v1/operator/events/{eventId}/applications/export`
+
+신청자 명단 CSV를 내려받는다(#233). 본문은 없다. CSRF가 필요하다. `Idempotency-Key`는 읽지 않는다. 컨트롤러는 같은 `OperatorApplicationController`이고 서비스는 `ApplicationExportService`다.
+
+권한은 그 행사의 effective `DATA_EXPORT`다(DEC-054). 행사 `OWNER`는 기본으로 갖고, 다른 운영자는 개인별 `GRANT`로 받는다. `EVENT_READ`만 있는 운영자, 행사 역할 없는 공간 `OWNER`·`ADMIN`은 `403 FORBIDDEN`이다. 판정 순서는 행사 없음·멤버 아님(`404`·`403 NOT_A_MEMBER`) → 권한(`403 FORBIDDEN`)이다. 다른 공간의 행사는 `404 RESOURCE_NOT_FOUND`다. 행사 상태로 막지 않는다(`ARCHIVED` 포함, DEC-061). 실패는 다른 경로와 같은 problem JSON이다.
+
+`200`은 파일이다.
+
+- `Content-Type: text/csv;charset=UTF-8`, `Cache-Control: no-store`, `X-Export-Count`(명단 행 수).
+- `Content-Disposition: attachment`이고 파일 이름은 `filename*=UTF-8''…`로 온다. 이름은 `{행사 이름}_신청자_{yyyyMMdd-HHmm}.csv`(서울 시각)이고, 행사 이름의 `\ / : * ? " < > |`와 제어 문자는 뺀다.
+- 본문은 UTF-8 BOM(`EF BB BF`)으로 시작하고, 줄은 CRLF로 끝난다(RFC 4180). 쉼표·따옴표·CR·LF가 있는 칸은 큰따옴표로 감싸고 안의 따옴표는 두 번 쓴다.
+- `=`, `+`, `-`, `@`, 탭, CR로 시작하는 칸은 앞에 `'`를 붙여 스프레드시트가 수식으로 실행하지 않게 한다. 머리글(질문 제목)도 같다. 그래서 음수 `-2`는 `'-2`로 보인다.
+
+행은 `SUBMITTED` 신청만, 목록과 같은 순서(`submittedAt`, 그다음 신청 id)다. 첫 열은 `제출 시각`(`2026. 12. 15. 12:00`, 서울 시각)이고, 그 뒤로 신청서 질문마다 한 열이 position 순으로 온다. 질문 제목이 열 이름이다.
+
+- 칸 값은 [신청 원본 조회](#get-apiv1operatoreventseventidapplicationsapplicationid) 화면과 같은 규칙으로 쓴다(`frontend/src/components/answerDisplay.ts`, 서버는 `AnswerText`). 선택형은 지금 보기 문구, 묶음이 있는 보기는 `1일차 저녁`, 여러 개는 `, `로 잇고, `other`는 `기타: …`, 모르는 보기 id는 `알 수 없는 보기`다. 날짜는 `2027. 1. 22.`·`2027. 1. 22. 14:30`, 기간은 `… ~ …`, 숫자는 단위를 붙이고, 예/아니오는 질문의 문구(없으면 `예`·`아니오`, 동의형은 `동의함`·`동의 안 함`)다.
+- 숨긴 질문은 열로 남고 제목 뒤에 ` (숨김)`이 붙는다. 숨긴 보기를 고른 답도 보기 문구 뒤에 ` (숨김)`이 붙는다(DEC-068 §6).
+- 답이 없으면 빈칸이다. 조건에 맞지 않아 보이지 않은 질문은 답을 저장하지 않으므로(DEC-068) 빈칸이다. 원본 조회 화면의 "답변 없음"은 쓰지 않는다.
+
+신청이 0건이면 머리글 한 줄만 있는 파일이다. 신청서가 없으면 `제출 시각` 열만 있다.
+
+파일은 요청 안에서 만들어 바로 보낸다. 그래서 권한은 내려받을 때마다 다시 본다. #12의 목적 선택, 재인증, 생성 작업과 만료 다운로드 링크는 없다. 내려받을 때마다 audit `APPLICATIONS_EXPORTED` 한 줄을 남긴다. 행사·실행자·시각은 그 행의 열이고, detail은 `{ "count" }`(행 수)뿐이다. 답·이름·전화는 audit·로그·오류 응답에 넣지 않는다. 권한이 없어 막힌 요청은 남기지 않는다.
 
 ## 공개 신청서
 
@@ -1537,6 +1560,7 @@ audit `GROUPS_PUBLISHED`: detail은 `publicationId`, `boardVersion`, `assignedCo
 | `EVENT_USER_ROLE_CHANGED` | 운영자 역할을 다시 쓸 때 |
 | `EVENT_USER_PERMISSIONS_REPLACED` | 권한 override 내용이 바뀔 때 |
 | `CHECKIN_CREATED`, `CHECKIN_CANCELLED` | 체크인·취소가 기록을 만들 때. `ALREADY_…`와 같은 키 재전송은 남기지 않는다([체크인 감사 로그](#감사-로그)) |
+| `APPLICATIONS_EXPORTED` | 신청자 CSV를 내려받을 때마다. detail은 `count`뿐이다([신청자 CSV](#post-apiv1operatoreventseventidapplicationsexport)) |
 | `OWNER_TRANSFER_ACCEPTED` | 소유권 이전을 처음 수락할 때. 다시 수락하면 더 쓰지 않는다 |
 | `EVENT_ACCESS_REVOKED` | 운영자 제거 또는 공간 탈퇴로 그 행사 접근이 끊길 때. 탈퇴에서 유지한 행사는 끊지 않는다 |
 | `TASK_ASSIGNEE_CLEARED` | 그 제거 또는 탈퇴가 업무 담당을 비울 때. `DONE`과 `CANCELLED`를 포함해 담당인 업무마다 한 줄 |
@@ -1564,7 +1588,7 @@ audit `GROUPS_PUBLISHED`: detail은 `publicationId`, `boardVersion`, `assignedCo
 - 참가자 조회(`GET /api/v1/participant/me`·`GET /api/v1/participant/check-in` 밖)
 - 회비, 방, 차량
 - 조 공개, 공개본 조회, 참가자 내 조. [계약](#조-편성)만 있고 서버는 #300에서 연다
-- Export, 공간 설정
+- 신청자 CSV([신청자 CSV](#post-apiv1operatoreventseventidapplicationsexport)) 밖의 Export, 공간 설정
 - 행사 기간·장소·유형을 바꾸는 `PATCH`. 이름만 바꾼다
 - 공간 소유권 이전의 전용 URL
 

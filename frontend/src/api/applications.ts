@@ -1,4 +1,4 @@
-import { apiRequest } from "./client";
+import { apiDownload, apiRequest } from "./client";
 import { ApiError } from "./errors";
 import type { AnswerType, FieldConfig, FormField } from "./forms";
 import type { ItemPage } from "./types";
@@ -70,6 +70,17 @@ export function getApplication(
   return apiRequest<unknown>(`/api/v1/operator/events/${eventId}/applications/${applicationId}`, {
     signal,
   }).then(parseDetail);
+}
+
+/**
+ * Applicant CSV (#233). Needs effective `DATA_EXPORT`; `EVENT_READ` alone is `403 FORBIDDEN`. The
+ * server writes one audit row per download.
+ */
+export function downloadApplicationsCsv(eventId: string): Promise<{ blob: Blob; fileName: string }> {
+  return apiDownload(`/api/v1/operator/events/${eventId}/applications/export`, { method: "POST" }).then((file) => ({
+    blob: file.blob,
+    fileName: file.fileName ?? "신청자.csv",
+  }));
 }
 
 export function getPublicForm(eventId: string, formId: string, signal?: AbortSignal): Promise<PublicForm> {

@@ -173,6 +173,7 @@ class ApplicationReadHttpIT {
         .containsExactlyInAnyOrder(
             "GET /api/v1/operator/events/{eventId}/applications",
             "GET /api/v1/operator/events/{eventId}/applications/{applicationId}",
+            "POST /api/v1/operator/events/{eventId}/applications/export",
             "POST /api/v1/public/events/{eventId}/forms/{formId}/applications");
 
     String publicBody =
