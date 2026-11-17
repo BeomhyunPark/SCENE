@@ -218,3 +218,8 @@
     flex: 1;
   }
 }
+
+/* A leader moved to another group loses the mark (#343). */
+.operation-drawer__impact-warn {
+  font-weight: 700;
+}

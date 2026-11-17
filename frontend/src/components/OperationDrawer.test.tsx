@@ -149,6 +149,27 @@ describe("현재 운영 정보 수정 drawer (#337)", () => {
     expect(await within(drawer).findByText("저장했어요.", {}, WAIT)).toBeInTheDocument();
   });
 
+  it("warns that a leader moved to another group loses the mark and goes to the end (#343)", async () => {
+    const [first] = seed(["김하나"]);
+    const one = seedGroup(EVENT, "1조");
+    const two = seedGroup(EVENT, "2조");
+    moveAsOtherOperator(EVENT, first.participantId, one, true);
+    await login({ userId: OWNER });
+    openApp(`/events/${EVENT}/participants`);
+    const drawer = await openDrawer("김하나");
+
+    const select = within(drawer).getByLabelText("조 배정");
+    await waitFor(() => expect(within(select).getByRole("option", { name: "1조 · 조장" })).toBeInTheDocument(), WAIT);
+    fireEvent.change(select, { target: { value: two } });
+    fireEvent.click(within(drawer).getByRole("button", { name: "변경 저장" }));
+
+    const confirm = await screen.findByRole("dialog", { name: "현재 운영 정보를 변경할까요?" });
+    expect(within(confirm).getByText(/조 배정: 1조 → 2조.*새 조의 맨 뒤에 들어가요/)).toBeInTheDocument();
+    expect(within(confirm).getByText(/1조 조장 표시가 풀려요/)).toBeInTheDocument();
+    fireEvent.click(within(confirm).getByRole("button", { name: "저장" }));
+    await waitFor(() => expect(workingGroupOf(EVENT, first.participantId)).toMatchObject({ groupId: two, leader: false }), WAIT);
+  });
+
   it("says someone else moved the person first when the group changed meanwhile", async () => {
     const [first] = seed(["김하나"]);
     const one = seedGroup(EVENT, "1조");

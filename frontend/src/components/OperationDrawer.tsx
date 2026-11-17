@@ -373,6 +373,12 @@ export function OperationDrawer({
               {groupChanged ? (
                 <li>
                   조 배정: {groupName(currentGroup)} → {groupName(targetGroup)} (공개 전까지 참가자에게는 보이지 않아요)
+                  {targetGroup !== UNASSIGNED ? " · 새 조의 맨 뒤에 들어가요" : ""}
+                </li>
+              ) : null}
+              {groupChanged && row.group?.leader ? (
+                <li className="operation-drawer__impact-warn">
+                  {row.group.name} 조장 표시가 풀려요. 조장은 조마다 1명이라 필요하면 조 편성에서 다시 정해 주세요.
                 </li>
               ) : null}
               {memoChanged ? <li>운영 메모</li> : null}
