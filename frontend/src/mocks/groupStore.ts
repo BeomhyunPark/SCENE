@@ -718,7 +718,7 @@ function largePeople(count: number): Person[] {
     out.push({
       participantId: `00000000-0000-4000-8000-${String(500000 + index).padStart(12, "0")}`,
       name: `${family[index % family.length]}${given[(index + Math.floor(index / family.length) * 3) % given.length]}`,
-      cohort: cohortRoll === 12 ? null : String(90 + (index % 12)),
+      cohort: cohortRoll === 12 ? null : String((90 + (index % 12)) % 100).padStart(2, "0"),
       gender: index % 11 === 10 ? null : index % 2 === 0 ? FEMALE : MALE,
       attendance: index % 9 === 0 ? "PARTIAL" : index % 17 === 0 ? "WORSHIP_ONLY" : "FULL",
       middleGroup: index % 10 === 9 ? null : `청년${(index % 3) + 1}부`,

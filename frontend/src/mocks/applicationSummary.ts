@@ -210,8 +210,9 @@ export function applicationSummary(eventId: string): ApplicationSummary {
         continue;
       }
       bump(there, id);
-      if (id === "opt_car") {
-        bump(home, "opt_car");
+      if (id === "opt_car" || id === "opt_ride") {
+        // Drivers and riders come back the way they went (DEC-070 §3, #324).
+        bump(home, id);
         continue;
       }
       const backId = optionId(answer(person, back));
@@ -222,7 +223,7 @@ export function applicationSummary(eventId: string): ApplicationSummary {
     const listed = new Set<string>();
     for (const option of way.config.options ?? []) {
       listed.add(option.optionId);
-      const source = option.optionId === "opt_car" || !back ? undefined : findOption(back, option.optionId);
+      const source = option.optionId === "opt_car" || option.optionId === "opt_ride" || !back ? undefined : findOption(back, option.optionId);
       const label = source ?? option;
       rows.push({
         optionId: option.optionId,
