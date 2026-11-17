@@ -29,7 +29,7 @@ export const EMPTY_FILTERS: GroupFilters = {
 export const ATTENDANCE_LABEL: Record<Attendance, string> = {
   FULL: "전체 참석",
   PARTIAL: "부분 참석",
-  WORSHIP_ONLY: "예배만",
+  WORSHIP_ONLY: "집회만",
 };
 
 export const NO_ANSWER_LABEL = "응답 없음";
@@ -145,14 +145,15 @@ export function cohortSummary(members: BoardParticipant[]): string {
     .join(" · ");
 }
 
-export function attendanceSummary(members: BoardParticipant[]): string {
-  return (["PARTIAL", "WORSHIP_ONLY"] as const)
-    .map((value) => {
-      const count = members.filter((person) => person.attendance === value).length;
-      return count > 0 ? `${ATTENDANCE_LABEL[value]} ${count}` : null;
-    })
-    .filter(Boolean)
-    .join(" · ");
+/** Pills on a group card: "전체 참석 4", "부분 참석 1", "집회만 1" (non-zero only). */
+export function attendanceCounts(members: BoardParticipant[]): { value: Attendance; label: string; count: number }[] {
+  return (["FULL", "PARTIAL", "WORSHIP_ONLY"] as const)
+    .map((value) => ({
+      value,
+      label: ATTENDANCE_LABEL[value],
+      count: members.filter((person) => person.attendance === value).length,
+    }))
+    .filter((item) => item.count > 0);
 }
 
 /** Members of a group, leaders first, then the server's name order. */

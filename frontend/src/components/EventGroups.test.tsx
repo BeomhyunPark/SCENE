@@ -31,7 +31,7 @@ async function openAs(userIndex: number, status: "DRAFT" | "ACTIVE" | "ENDED" | 
       <App />
     </MemoryRouter>,
   );
-  await screen.findByRole("region", { name: "편성 현황" }, WAIT);
+  await screen.findByText(/^배정 \d/, {}, WAIT);
 }
 
 function card(name: string): HTMLElement {
@@ -46,6 +46,11 @@ function pool(): HTMLElement {
   return screen.getByRole("list", { name: /참가자$/ });
 }
 
+function menu(group: string) {
+  const button = screen.getByRole("button", { name: `${group} 조 메뉴` });
+  if (button.getAttribute("aria-expanded") !== "true") fireEvent.click(button);
+}
+
 function pick(label: string) {
   fireEvent.click(screen.getByRole("checkbox", { name: `${label} 고르기` }));
 }
@@ -54,12 +59,12 @@ function pick(label: string) {
 async function idle() {
   await waitFor(() => {
     for (const button of screen.queryAllByRole("button", { name: "+ 조 추가" })) expect(button).toBeEnabled();
-    expect(screen.queryByText("최신 상태를 확인하는 중…", { exact: false })).not.toBeInTheDocument();
-  }, WAIT);
+    expect(document.querySelector(".event-groups__fetching")).toBeNull();
+  }, { timeout: 10000 });
 }
 
 function summary(): string {
-  return within(screen.getByRole("region", { name: "편성 현황" })).getByText(/^전체/).textContent ?? "";
+  return within(screen.getByRole("region", { name: "편성 현황" })).getByText(/^배정 \d/).textContent ?? "";
 }
 
 describe("group board (#301)", () => {
@@ -70,9 +75,11 @@ describe("group board (#301)", () => {
     moveAsOtherOperator(EVENT, person("95 한지우").participantId, one);
     await openAs(0);
 
-    expect(summary()).toContain("전체 10 · 배정 3 · 미배정 7");
+    expect(summary()).toContain("배정 3 · 미배정 7");
     const group = await findCard("1조");
-    expect(within(group).getByText("3명 · 남 1 · 여 1 · 응답 없음 1")).toBeInTheDocument();
+    expect(within(group).getByText("3명")).toBeInTheDocument();
+    expect(within(group).getByText("남 1 · 여 1 · 응답 없음 1")).toBeInTheDocument();
+    expect(within(group).getByText("전체 참석 2")).toBeInTheDocument();
     expect(within(group).getByText("또래 94 1 · 95 2")).toBeInTheDocument();
     expect(within(group).getByText("부분 참석 1")).toBeInTheDocument();
     const members = within(within(group).getByRole("list", { name: "1조 조원" })).getAllByRole("listitem");
@@ -82,7 +89,9 @@ describe("group board (#301)", () => {
     expect(screen.getByRole("heading", { name: "미배정 참가자 7명" })).toBeInTheDocument();
     expect(within(pool()).getByText("96 박서준")).toBeInTheDocument();
     expect(within(pool()).getByText("정민호")).toBeInTheDocument();
-    expect(screen.getByText("참가자에게 아직 공개하지 않은 변경이 있어요")).toBeInTheDocument();
+    expect(screen.getByText(/참가자에게 아직 공개하지 않은 변경이 있어요/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "행사 홈" })).toHaveAttribute("href", `/events/${EVENT}`);
+    expect(screen.getByRole("heading", { name: "전체 1조 중 1–1조" })).toBeInTheDocument();
 
     const nav = screen.getByRole("navigation", { name: "운영 메뉴" });
     expect(within(nav).getByRole("link", { name: "조 편성" })).toHaveAttribute("aria-current", "page");
@@ -135,6 +144,7 @@ describe("group board (#301)", () => {
     expect(await screen.findByText("같은 이름의 조가 있어요. 다른 이름을 써 주세요.", {}, WAIT)).toBeInTheDocument();
     await idle();
 
+    menu("찬양조");
     fireEvent.click(screen.getByRole("button", { name: "찬양조 앞으로" }));
     await waitFor(() => {
       const titles = screen.getAllByRole("article").map((item) => item.querySelector("h3")?.textContent);
@@ -142,6 +152,7 @@ describe("group board (#301)", () => {
     }, WAIT);
     await idle();
 
+    menu("1조");
     fireEvent.click(screen.getByRole("button", { name: "1조 이름 바꾸기" }));
     fireEvent.change(screen.getByLabelText("1조 새 이름"), { target: { value: "새벽조" } });
     fireEvent.click(within(card("1조")).getByRole("button", { name: "저장" }));
@@ -153,6 +164,7 @@ describe("group board (#301)", () => {
     await waitFor(() => expect(within(card("새벽조")).getByText("94 김하늘")).toBeInTheDocument(), WAIT);
     await idle();
 
+    menu("새벽조");
     fireEvent.click(screen.getByRole("button", { name: "새벽조 지우기" }));
     const dialog = screen.getByRole("dialog", { name: "새벽조를 지울까요?" });
     expect(within(dialog).getByText(/조원 1명은 미배정이 되고/)).toBeInTheDocument();
@@ -170,7 +182,8 @@ describe("group board (#301)", () => {
 
     pick("94 김하늘");
     pick("96 박서준");
-    pick("정민호");
+    // "이름을 눌러 배정": pressing the name on the 미배정 card picks the person.
+    fireEvent.click(within(pool()).getByText("정민호"));
     const bar = screen.getByRole("region", { name: "고른 사람 옮기기" });
     expect(within(bar).getByText("3명 골랐어요")).toBeInTheDocument();
     fireEvent.change(within(bar).getByLabelText("보낼 조"), { target: { value: screen.getAllByRole("option", { name: "2조" })[0].getAttribute("value") } });
@@ -267,7 +280,7 @@ describe("group board (#301)", () => {
     await waitFor(() => expect(screen.getByRole("heading", { name: "철회됨 · 이전 조 1명" })).toBeInTheDocument(), WAIT);
     const withdrawn = screen.getByRole("list", { name: "철회됨" });
     expect(withdrawn).toHaveTextContent("최예린 · 이전 조 1조");
-    expect(summary()).toContain("전체 9");
+    expect(summary()).toContain("배정 0 · 미배정 9");
     expect(within(card("1조")).queryByText("98 최예린")).not.toBeInTheDocument();
 
     // 김하늘 stays chosen, so sending again works; the withdrawn person can still be taken out of 1조.
@@ -285,7 +298,7 @@ describe("group board (#301)", () => {
     expect(await findCard("1조")).toBeInTheDocument();
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "+ 조 추가" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "1조 지우기" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "1조 조 메뉴" })).not.toBeInTheDocument();
   });
 
   it("tells STAFF without GROUP_WRITE or a space role that they cannot see the board", async () => {
@@ -321,8 +334,18 @@ describe("group board (#301)", () => {
   it("handles a retreat-sized board: 150 people in 15 groups, choosing everyone visible at once", async () => {
     seedLargeGroupBoard(EVENT, 150, 15);
     await openAs(0);
-    await findCard("15조");
-    expect(summary()).toContain("전체 150 · 배정 0 · 미배정 150");
+    await findCard("4조");
+    expect(screen.getByRole("heading", { name: "전체 15조 중 1–4조 · 나머지 11조에 0명 배정" })).toBeInTheDocument();
+    expect(screen.queryByRole("article", { name: "5조" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "이전 조" })).toBeDisabled();
+    for (let index = 0; index < 3; index += 1) fireEvent.click(screen.getByRole("button", { name: "다음 조" }));
+    expect(await findCard("15조")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "전체 15조 중 13–15조 · 나머지 12조에 0명 배정" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "다음 조" })).toBeDisabled();
+    fireEvent.keyDown(screen.getByRole("region", { name: /^전체 15조/ }), { key: "ArrowLeft" });
+    expect(await findCard("9조")).toBeInTheDocument();
+    for (let index = 0; index < 2; index += 1) fireEvent.click(screen.getByRole("button", { name: "이전 조" }));
+    expect(summary()).toContain("배정 0 · 미배정 150");
 
     fireEvent.change(screen.getByLabelText("또래"), { target: { value: "94" } });
     const heading = screen.getByRole("heading", { name: /^미배정 참가자 \d+명$/ });

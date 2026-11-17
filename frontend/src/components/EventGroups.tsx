@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useState, useSyncExternalStore, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router";
 import arrowLeft from "../assets/event-create/arrow-left.svg";
@@ -29,12 +29,14 @@ import { getMe } from "../api/session";
 import { Button } from "./Button";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { EventScreen } from "./EventScreen";
+import { eventContext } from "./eventFormat";
 import { readEventAreas } from "./eventLocalState";
+import { AttendanceTimeline, SlotHeadcount } from "./GroupAttendance";
 import {
   ANY,
   ATTENDANCE_LABEL,
   EMPTY_FILTERS,
-  attendanceSummary,
+  attendanceCounts,
   cohortSummary,
   filterOptions,
   genderSummary,
@@ -61,11 +63,15 @@ type ConflictReport = {
 };
 
 /**
- * 조 편성 (#301, DEC-072). The board is the working copy: every change is saved at once and is not shown
- * to participants until it is published (#302, not here). Moving people is pick-then-send (checkboxes and
- * "이 조로 보내기" or the bar at the bottom), so keyboard and touch work without drag and drop. Each move
- * sends what this screen saw (`fromGroupId`); if anyone changed in between, nothing is saved, the board is
- * read again and the differences are listed. Copy is a draft.
+ * 조 편성 (#301, DEC-072). Layout follows Figma P16-26 (1325:5129): page head with the 배정·미배정 chip,
+ * 행사 홈 and one primary button (left for 공개, #302), group cards four at a time with 이전/다음, member
+ * row cards, and the 미배정 card strip below ("이름을 눌러 배정"). The board is the working copy: every
+ * change is saved at once and is not shown to participants until it is published. Moving people is
+ * pick-then-send (press names, then "이 조로 보내기" or the bar at the bottom), so keyboard and touch work
+ * without drag and drop. Each move sends what this screen saw (`fromGroupId`); if anyone changed in
+ * between, nothing is saved, the board is read again and the differences are listed. Attendance shows
+ * only the server's ATTENDANCE value as a tag; per-slot bars wait for slot data (see GroupAttendance).
+ * Copy is a draft.
  */
 export function EventGroups() {
   const { eventId = "" } = useParams();
@@ -90,10 +96,11 @@ function GroupsBody({ event, spaceName }: { event: EventDetail; spaceName?: stri
     retry: false,
   });
   const mayWrite = permissions.data?.effective.includes("GROUP_WRITE") ?? false;
+  const context = [eventContext(event), spaceName ?? ""].filter((part) => part.length > 0).join(" · ");
 
   return (
     <OperatorShell
-      title="조 편성"
+      title={event.name}
       spaceName={spaceName}
       eventName={event.name}
       eventHref={eventHref}
@@ -102,7 +109,7 @@ function GroupsBody({ event, spaceName }: { event: EventDetail; spaceName?: stri
       tasksHref={`${eventHref}/tasks`}
       framed
       leading={
-        <Link className="event-home__back" to={eventHref} aria-label="행사 홈">
+        <Link className="event-home__back" to={eventHref} aria-label="행사 홈으로">
           <img src={arrowLeft} alt="" />
         </Link>
       }
@@ -111,38 +118,90 @@ function GroupsBody({ event, spaceName }: { event: EventDetail; spaceName?: stri
         {board.data ? (
           <Board
             eventId={eventId}
+            eventHref={eventHref}
+            context={context}
             board={board.data}
             fetching={board.isFetching}
             mayWrite={mayWrite}
             permissionsPending={permissions.isPending && Boolean(me.data?.userId)}
           />
-        ) : isApiError(board.error) && board.error.status === 403 ? (
-          <p className="event-groups__blocked" role="note">
-            조 편성을 볼 권한이 없어요. 행사 OWNER에게 조 편성 권한을 요청해 주세요.
-          </p>
-        ) : board.isError ? (
-          <div className="event-groups__inline-error">
-            <p>편성판을 불러오지 못했어요.</p>
-            <Button type="button" variant="secondary" size={40} onClick={() => void reloadQuery(board)}>
-              다시 시도
-            </Button>
-          </div>
         ) : (
-          <p className="event-groups__muted">편성판을 불러오는 중이에요.</p>
+          <>
+            <PageHead context={context} eventHref={eventHref} chip={null} />
+            {isApiError(board.error) && board.error.status === 403 ? (
+              <p className="event-groups__blocked" role="note">
+                조 편성을 볼 권한이 없어요. 행사 OWNER에게 조 편성 권한을 요청해 주세요.
+              </p>
+            ) : board.isError ? (
+              <div className="event-groups__inline-error">
+                <p>편성판을 불러오지 못했어요.</p>
+                <Button type="button" variant="secondary" size={40} onClick={() => void reloadQuery(board)}>
+                  다시 시도
+                </Button>
+              </div>
+            ) : (
+              <p className="event-groups__muted">편성판을 불러오는 중이에요.</p>
+            )}
+          </>
         )}
       </div>
     </OperatorShell>
   );
 }
 
+function PageHead({ context, eventHref, chip }: { context: string; eventHref: string; chip: ReactNode }) {
+  return (
+    <section className="event-groups__head" aria-label="편성 현황">
+      <div className="event-groups__head-text">
+        <h2 className="event-groups__title">조 편성</h2>
+        {context ? <p className="event-groups__context">{context}</p> : null}
+      </div>
+      <div className="event-groups__head-actions">
+        {chip}
+        <Link className="scene-button scene-button--secondary scene-button--size-40 event-groups__home" to={eventHref}>
+          <span className="scene-button__label">행사 홈</span>
+        </Link>
+        {/* #302: 공개 버튼(주 버튼)이 이 자리에 들어온다. Figma의 "변경 영향 확인"은 서버 기능이 없어 두지 않았다. */}
+        <div className="event-groups__primary-slot" data-slot="publish" />
+      </div>
+    </section>
+  );
+}
+
+const PAGE_QUERIES = [
+  { query: "(min-width: 1200px)", size: 4 },
+  { query: "(min-width: 720px)", size: 2 },
+];
+
+function subscribeWidth(callback: () => void) {
+  if (typeof window.matchMedia !== "function") return () => {};
+  const lists = PAGE_QUERIES.map((item) => window.matchMedia(item.query));
+  for (const list of lists) list.addEventListener("change", callback);
+  return () => {
+    for (const list of lists) list.removeEventListener("change", callback);
+  };
+}
+
+/** Groups per carousel page: 4 on desktop as in the design, 2 on tablets, 1 on phones. jsdom has no matchMedia: 4. */
+function usePageSize(): number {
+  return useSyncExternalStore(subscribeWidth, () => {
+    if (typeof window.matchMedia !== "function") return 4;
+    return PAGE_QUERIES.find((item) => window.matchMedia(item.query).matches)?.size ?? 1;
+  });
+}
+
 function Board({
   eventId,
+  eventHref,
+  context,
   board,
   fetching,
   mayWrite,
   permissionsPending,
 }: {
   eventId: string;
+  eventHref: string;
+  context: string;
   board: GroupBoard;
   fetching: boolean;
   mayWrite: boolean;
@@ -158,6 +217,8 @@ function Board({
   const [newName, setNewName] = useState("");
   const [renaming, setRenaming] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<Group | null>(null);
+  const [page, setPage] = useState(0);
+  const pageSize = usePageSize();
 
   const blocked = blockedReason(board.eventStatus, mayWrite, permissionsPending);
   const editable = !blocked && mayWrite;
@@ -168,6 +229,20 @@ function Board({
   const pool = people.filter((person) => matchesFilters(person, filters));
   const dimming = hasAnswerFilter(filters);
   const assigned = people.filter((person) => person.groupId !== null).length;
+
+  const pages = Math.max(1, Math.ceil(board.groups.length / pageSize));
+  const current = Math.min(page, pages - 1);
+  const shown = board.groups.slice(current * pageSize, current * pageSize + pageSize);
+  const shownIds = new Set(shown.map((group) => group.groupId));
+  const hiddenGroups = board.groups.length - shown.length;
+  const hiddenAssigned = people.filter((person) => person.groupId !== null && !shownIds.has(person.groupId)).length;
+
+  // A new group is added at the end; show the page it landed on.
+  const [groupCount, setGroupCount] = useState(board.groups.length);
+  if (board.groups.length !== groupCount) {
+    if (board.groups.length > groupCount) setPage(Math.floor((board.groups.length - 1) / pageSize));
+    setGroupCount(board.groups.length);
+  }
 
   function reload() {
     return queryClient.invalidateQueries({ queryKey: queryKeys.groupBoard(eventId) });
@@ -193,13 +268,15 @@ function Board({
     });
   }
 
+  /** Runs a write, reads the board again, then shows the outcome, so the message never runs ahead of the board. */
   async function write(action: () => Promise<string | null>, failure: (error: unknown) => string) {
     setBusy(true);
     setNotice(null);
     setConflict(null);
+    let outcome: Notice | null = null;
     try {
       const done = await action();
-      if (done) setNotice({ tone: "success", text: done });
+      if (done) outcome = { tone: "success", text: done };
     } catch (error) {
       if (isApiError(error, "EVENT_ENDED", "EVENT_ARCHIVED")) {
         void queryClient.invalidateQueries({ queryKey: queryKeys.event(eventId) });
@@ -207,11 +284,11 @@ function Board({
       if (isApiError(error, "FORBIDDEN")) {
         void queryClient.invalidateQueries({ queryKey: ["events", eventId, "operators"] });
       }
-      setNotice({ tone: "error", text: commonFailure(error) ?? failure(error) });
-    } finally {
-      await reload();
-      setBusy(false);
+      outcome = { tone: "error", text: commonFailure(error) ?? failure(error) };
     }
+    await reload();
+    setNotice(outcome);
+    setBusy(false);
   }
 
   async function move(toGroupId: string | null, ids: string[]) {
@@ -230,13 +307,14 @@ function Board({
     setBusy(true);
     setNotice(null);
     setConflict(null);
+    let show: () => void;
     try {
       const result = await assignParticipants(
         eventId,
         movers.map((participantId) => ({ participantId, fromGroupId: seen.get(participantId) ?? null, toGroupId })),
       );
       setSelected(new Set());
-      setNotice({
+      show = () => setNotice({
         tone: "success",
         text:
           toGroupId === null
@@ -246,7 +324,7 @@ function Board({
     } catch (error) {
       const conflicts = assignmentConflicts(error);
       if (conflicts.length > 0) {
-        setConflict({
+        const report: ConflictReport = {
           toGroupId,
           toName,
           items: conflicts.map((item) => {
@@ -259,14 +337,15 @@ function Board({
               currentGroupId: item.currentGroupId,
             };
           }),
-        });
+        };
+        show = () => setConflict(report);
       } else if (isApiError(error, "INVALID_STATE_TRANSITION") && problemReason(error) === "APPLICATION_NOT_SUBMITTED") {
         const names = problemParticipantIds(error)
           .map((id) => byId.get(id))
           .filter((person): person is BoardParticipant => Boolean(person))
           .map(participantLabel);
         setSelected((current) => new Set([...current].filter((id) => !problemParticipantIds(error).includes(id))));
-        setNotice({
+        show = () => setNotice({
           tone: "error",
           text: `신청을 철회한 사람이 있어 아무것도 저장하지 않았어요.${names.length > 0 ? ` (${names.join(", ")})` : ""} 그 사람을 빼고 다시 보내 주세요.`,
         });
@@ -274,12 +353,12 @@ function Board({
         if (isApiError(error, "EVENT_ENDED", "EVENT_ARCHIVED")) {
           void queryClient.invalidateQueries({ queryKey: queryKeys.event(eventId) });
         }
-        setNotice({ tone: "error", text: commonFailure(error) ?? "옮기지 못했어요. 편성판을 다시 불러왔어요." });
+        show = () => setNotice({ tone: "error", text: commonFailure(error) ?? "옮기지 못했어요. 편성판을 다시 불러왔어요." });
       }
-    } finally {
-      await reload();
-      setBusy(false);
     }
+    await reload();
+    show();
+    setBusy(false);
   }
 
   function create(submit: FormEvent) {
@@ -384,24 +463,37 @@ function Board({
     );
   }
 
+
   const targetId = target && board.groups.some((group) => group.groupId === target) ? target : "";
+  const rangeText =
+    board.groups.length === 0
+      ? "아직 조가 없어요"
+      : `전체 ${board.groups.length}조 중 ${current * pageSize + 1}–${current * pageSize + shown.length}조${
+          hiddenGroups > 0 ? ` · 나머지 ${hiddenGroups}조에 ${hiddenAssigned}명 배정` : ""
+        }`;
+
+  function onCarouselKey(key: KeyboardEvent<HTMLElement>) {
+    if (key.target !== key.currentTarget) return;
+    if (key.key === "ArrowRight" && current < pages - 1) setPage(current + 1);
+    if (key.key === "ArrowLeft" && current > 0) setPage(current - 1);
+  }
 
   return (
     <>
-      <section className="event-groups__top" aria-label="편성 현황">
-        <p className="event-groups__summary">
-          전체 {people.length.toLocaleString("ko-KR")} · 배정 {assigned.toLocaleString("ko-KR")} · 미배정{" "}
-          {(people.length - assigned).toLocaleString("ko-KR")}
-          <span className="event-groups__summary-groups"> · 조 {board.groups.length}개</span>
-        </p>
-        {board.publication.hasUnpublishedChanges ? (
-          <span className="event-groups__chip">참가자에게 아직 공개하지 않은 변경이 있어요</span>
-        ) : null}
-        {/* #302: 공개 버튼과 확인 창은 이 자리에 들어온다. */}
-        <div className="event-groups__publish-slot" data-slot="publish" />
-      </section>
+      <PageHead
+        context={context}
+        eventHref={eventHref}
+        chip={
+          <p className="event-groups__chip" aria-live="polite">
+            배정 {assigned.toLocaleString("ko-KR")} · 미배정 {(people.length - assigned).toLocaleString("ko-KR")}
+          </p>
+        }
+      />
       <p className="event-groups__hint">
         바꾼 내용은 바로 저장되지만, 참가자에게는 공개해야 보여요.
+        {board.publication.hasUnpublishedChanges ? (
+          <span className="event-groups__unpublished"> 참가자에게 아직 공개하지 않은 변경이 있어요.</span>
+        ) : null}
         {fetching ? <span className="event-groups__fetching"> 최신 상태를 확인하는 중…</span> : null}
       </p>
 
@@ -429,121 +521,74 @@ function Board({
         ) : null}
       </div>
 
-      <Toolbar
-        filters={filters}
-        options={options}
-        onChange={(next) => setFilters(next)}
-        create={
-          editable ? (
-            <form className="event-groups__create" onSubmit={create}>
-              <label className="event-groups__visually-hidden" htmlFor="groups-new-name">
-                새 조 이름
-              </label>
-              <input
-                id="groups-new-name"
-                className="event-groups__input"
-                value={newName}
-                maxLength={GROUP_NAME_MAX}
-                placeholder={nextGroupName(board.groups)}
-                onChange={(change) => setNewName(change.target.value)}
-              />
-              <Button type="submit" variant="secondary" size={40} disabled={busy}>
-                + 조 추가
-              </Button>
-            </form>
-          ) : null
-        }
-      />
-
-      <div className="event-groups__layout">
-        <section className="event-groups__pool" aria-labelledby="groups-pool-title">
-          <div className="event-groups__pool-head">
-            <h2 id="groups-pool-title" className="event-groups__section-title">
-              {poolTitle(filters.assignment)} {pool.length.toLocaleString("ko-KR")}명
-            </h2>
-            {editable && pool.length > 0 ? (
-              <label className="event-groups__check-all">
+      <section
+        className="event-groups__board"
+        aria-labelledby="groups-board-title"
+        aria-roledescription="carousel"
+        tabIndex={-1}
+        onKeyDown={onCarouselKey}
+      >
+        <div className="event-groups__board-head">
+          <h2 id="groups-board-title" className="event-groups__range">
+            {rangeText}
+          </h2>
+          <div className="event-groups__board-tools">
+            {board.groups.length > pageSize ? (
+              <div className="event-groups__pager" role="group" aria-label="조 넘겨 보기">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size={32}
+                  disabled={current === 0}
+                  aria-label="이전 조"
+                  onClick={() => setPage(current - 1)}
+                >
+                  ‹
+                </Button>
+                <span className="event-groups__pager-page" aria-live="polite">
+                  {current + 1} / {pages}
+                </span>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size={32}
+                  disabled={current >= pages - 1}
+                  aria-label="다음 조"
+                  onClick={() => setPage(current + 1)}
+                >
+                  ›
+                </Button>
+              </div>
+            ) : null}
+            {editable ? (
+              <form className="event-groups__create" onSubmit={create}>
+                <label className="event-groups__visually-hidden" htmlFor="groups-new-name">
+                  새 조 이름
+                </label>
                 <input
-                  type="checkbox"
-                  checked={pool.every((person) => selected.has(person.participantId))}
-                  onChange={(change) => selectAll(pool.map((person) => person.participantId), change.target.checked)}
+                  id="groups-new-name"
+                  className="event-groups__input"
+                  value={newName}
+                  maxLength={GROUP_NAME_MAX}
+                  placeholder={nextGroupName(board.groups)}
+                  onChange={(change) => setNewName(change.target.value)}
                 />
-                보이는 사람 모두 고르기
-              </label>
+                <Button type="submit" variant="secondary" size={32} disabled={busy}>
+                  + 조 추가
+                </Button>
+              </form>
             ) : null}
           </div>
-          {pool.length === 0 ? (
-            <p className="event-groups__muted">{poolEmpty(filters, people.length)}</p>
-          ) : (
-            <ul className="event-groups__people" aria-label={poolTitle(filters.assignment)}>
-              {pool.map((person) => (
-                <li key={person.participantId}>
-                  <PersonRow
-                    person={person}
-                    groups={board.groups}
-                    showGroup={filters.assignment !== "unassigned"}
-                    selectable={editable}
-                    checked={selected.has(person.participantId)}
-                    onToggle={() => toggle(person.participantId)}
-                  />
-                </li>
-              ))}
-            </ul>
-          )}
-          {board.withdrawn.length > 0 ? (
-            <div className="event-groups__withdrawn">
-              <h3 className="event-groups__subtitle">철회됨 · 이전 조 {board.withdrawn.length}명</h3>
-              <p className="event-groups__muted">신청을 철회해 조별 인원에서 빠진 사람이에요. 다른 조로는 옮길 수 없어요.</p>
-              <ul className="event-groups__people" aria-label="철회됨">
-                {board.withdrawn.map((person) => (
-                  <li key={person.participantId} className="event-groups__withdrawn-row">
-                    <span>
-                      {person.name}
-                      <span className="event-groups__meta"> · 이전 조 {groupName(board.groups, person.groupId)}</span>
-                    </span>
-                    {editable && person.groupId !== null ? (
-                      <Button
-                        type="button"
-                        variant="tertiary"
-                        size={32}
-                        disabled={busy}
-                        aria-label={`${person.name} 미배정으로 빼기`}
-                        onClick={() =>
-                          void write(
-                            async () => {
-                              await assignParticipants(eventId, [
-                                { participantId: person.participantId, fromGroupId: person.groupId, toGroupId: null },
-                              ]);
-                              return `${person.name}을 이전 조에서 뺐어요.`;
-                            },
-                            (error) =>
-                              assignmentConflicts(error).length > 0
-                                ? "다른 운영자가 먼저 바꿔서 저장하지 않았어요. 최신 상태를 불러왔어요."
-                                : "빼지 못했어요.",
-                          )
-                        }
-                      >
-                        미배정으로 빼기
-                      </Button>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-        </section>
-
-        <section className="event-groups__board" aria-labelledby="groups-board-title">
-          <h2 id="groups-board-title" className="event-groups__visually-hidden">
-            조 목록
-          </h2>
-          {board.groups.length === 0 ? (
-            <p className="event-groups__empty">
-              {editable ? "아직 조가 없어요. 위에서 조를 추가해 주세요." : "아직 만든 조가 없어요."}
-            </p>
-          ) : (
-            <ol className="event-groups__grid">
-              {board.groups.map((group, index) => (
+        </div>
+        {board.groups.length === 0 ? (
+          <p className="event-groups__empty">
+            {editable ? "아직 조가 없어요. 오른쪽 위에서 조를 추가해 주세요." : "아직 만든 조가 없어요."}
+          </p>
+        ) : (
+          <ol className="event-groups__grid" style={{ ["--groups-per-page" as string]: pageSize }}>
+            {shown.map((group) => {
+              const index = board.groups.indexOf(group);
+              return (
                 <li key={group.groupId}>
                   <GroupCard
                     group={group}
@@ -562,16 +607,99 @@ function Board({
                     onRenameStart={() => setRenaming(group.groupId)}
                     onRenameCancel={() => setRenaming(null)}
                     onRename={(name) => rename(group, name)}
-                    onShift={(by) => shift(group, by)}
+                    onShift={(by) => {
+                      shift(group, by);
+                      const moved = index + by;
+                      if (Math.floor(moved / pageSize) !== current) setPage(Math.floor(moved / pageSize));
+                    }}
                     onDelete={() => setDeleting(group)}
                     onLeader={(person) => toggleLeader(group, person)}
                   />
                 </li>
+              );
+            })}
+          </ol>
+        )}
+      </section>
+
+      <section className="event-groups__pool" aria-labelledby="groups-pool-title">
+        <div className="event-groups__pool-head">
+          <h2 id="groups-pool-title" className="event-groups__pool-title">
+            {poolTitle(filters.assignment)} <span className="event-groups__pool-count">{pool.length.toLocaleString("ko-KR")}명</span>
+          </h2>
+          {editable ? <span className="event-groups__pool-hint">이름을 눌러 고른 뒤 조로 보내요</span> : null}
+          {editable && pool.length > 0 ? (
+            <label className="event-groups__check-all">
+              <input
+                type="checkbox"
+                checked={pool.every((person) => selected.has(person.participantId))}
+                onChange={(change) => selectAll(pool.map((person) => person.participantId), change.target.checked)}
+              />
+              보이는 사람 모두 고르기
+            </label>
+          ) : null}
+        </div>
+        <Filters filters={filters} options={options} onChange={setFilters} />
+        {pool.length === 0 ? (
+          <p className="event-groups__muted">{poolEmpty(filters, people.length)}</p>
+        ) : (
+          <ul className="event-groups__people" aria-label={poolTitle(filters.assignment)}>
+            {pool.map((person) => (
+              <li key={person.participantId}>
+                <PoolCard
+                  person={person}
+                  groups={board.groups}
+                  showGroup={filters.assignment !== "unassigned"}
+                  selectable={editable}
+                  checked={selected.has(person.participantId)}
+                  onToggle={() => toggle(person.participantId)}
+                />
+              </li>
+            ))}
+          </ul>
+        )}
+        {board.withdrawn.length > 0 ? (
+          <div className="event-groups__withdrawn">
+            <h3 className="event-groups__subtitle">철회됨 · 이전 조 {board.withdrawn.length}명</h3>
+            <p className="event-groups__muted">신청을 철회해 조별 인원에서 빠진 사람이에요. 다른 조로는 옮길 수 없어요.</p>
+            <ul className="event-groups__withdrawn-list" aria-label="철회됨">
+              {board.withdrawn.map((person) => (
+                <li key={person.participantId} className="event-groups__withdrawn-row">
+                  <span>
+                    {person.name}
+                    <span className="event-groups__meta"> · 이전 조 {groupName(board.groups, person.groupId)}</span>
+                  </span>
+                  {editable && person.groupId !== null ? (
+                    <Button
+                      type="button"
+                      variant="tertiary"
+                      size={32}
+                      disabled={busy}
+                      aria-label={`${person.name} 미배정으로 빼기`}
+                      onClick={() =>
+                        void write(
+                          async () => {
+                            await assignParticipants(eventId, [
+                              { participantId: person.participantId, fromGroupId: person.groupId, toGroupId: null },
+                            ]);
+                            return `${person.name}을 이전 조에서 뺐어요.`;
+                          },
+                          (error) =>
+                            assignmentConflicts(error).length > 0
+                              ? "다른 운영자가 먼저 바꿔서 저장하지 않았어요. 최신 상태를 불러왔어요."
+                              : "빼지 못했어요.",
+                        )
+                      }
+                    >
+                      미배정으로 빼기
+                    </Button>
+                  ) : null}
+                </li>
               ))}
-            </ol>
-          )}
-        </section>
-      </div>
+            </ul>
+          </div>
+        ) : null}
+      </section>
 
       {editable && chosen.length > 0 ? (
         <div className="event-groups__bar" role="region" aria-label="고른 사람 옮기기">
@@ -638,16 +766,14 @@ function Board({
   );
 }
 
-function Toolbar({
+function Filters({
   filters,
   options,
   onChange,
-  create,
 }: {
   filters: GroupFilters;
   options: ReturnType<typeof filterOptions>;
   onChange: (filters: GroupFilters) => void;
-  create: ReactNode;
 }) {
   const set = (patch: Partial<GroupFilters>) => onChange({ ...filters, ...patch });
   const active =
@@ -655,46 +781,43 @@ function Toolbar({
     [filters.gender, filters.cohort, filters.attendance, filters.middleGroup, filters.cell].some((value) => value !== ANY) ||
     filters.assignment !== "unassigned";
   return (
-    <div className="event-groups__toolbar">
-      <div className="event-groups__filters" role="group" aria-label="참가자 거르기">
-        <label className="event-groups__field event-groups__field--search">
-          <span className="event-groups__field-label">이름 검색</span>
-          <input
-            className="event-groups__input"
-            type="search"
-            value={filters.q}
-            placeholder="예: 김하늘, 94"
-            autoComplete="off"
-            onChange={(change) => set({ q: change.target.value })}
-          />
-        </label>
-        <FilterSelect label="배정 상태" value={filters.assignment} onChange={(value) => set({ assignment: value as AssignmentFilter })}>
-          <option value="unassigned">미배정</option>
-          <option value="assigned">배정됨</option>
-          <option value="all">전체</option>
-        </FilterSelect>
-        <AnswerSelect label="성별" value={filters.gender} options={options.gender} onChange={(gender) => set({ gender })} />
-        <AnswerSelect label="또래" value={filters.cohort} options={options.cohort} onChange={(cohort) => set({ cohort })} />
-        <AnswerSelect
-          label="참석 방식"
-          value={filters.attendance}
-          options={options.attendance}
-          onChange={(attendance) => set({ attendance })}
+    <div className="event-groups__filters" role="group" aria-label="참가자 거르기">
+      <label className="event-groups__field event-groups__field--search">
+        <span className="event-groups__field-label">이름 검색</span>
+        <input
+          className="event-groups__input"
+          type="search"
+          value={filters.q}
+          placeholder="예: 김하늘, 94"
+          autoComplete="off"
+          onChange={(change) => set({ q: change.target.value })}
         />
-        <AnswerSelect
-          label="중그룹"
-          value={filters.middleGroup}
-          options={options.middleGroup}
-          onChange={(middleGroup) => set({ middleGroup })}
-        />
-        <AnswerSelect label="셀" value={filters.cell} options={options.cell} onChange={(cell) => set({ cell })} />
-        {active ? (
-          <Button type="button" variant="tertiary" size={40} onClick={() => onChange(EMPTY_FILTERS)}>
-            초기화
-          </Button>
-        ) : null}
-      </div>
-      {create}
+      </label>
+      <FilterSelect label="배정 상태" value={filters.assignment} onChange={(value) => set({ assignment: value as AssignmentFilter })}>
+        <option value="unassigned">미배정</option>
+        <option value="assigned">배정됨</option>
+        <option value="all">전체</option>
+      </FilterSelect>
+      <AnswerSelect label="성별" value={filters.gender} options={options.gender} onChange={(gender) => set({ gender })} />
+      <AnswerSelect label="또래" value={filters.cohort} options={options.cohort} onChange={(cohort) => set({ cohort })} />
+      <AnswerSelect
+        label="참석 방식"
+        value={filters.attendance}
+        options={options.attendance}
+        onChange={(attendance) => set({ attendance })}
+      />
+      <AnswerSelect
+        label="중그룹"
+        value={filters.middleGroup}
+        options={options.middleGroup}
+        onChange={(middleGroup) => set({ middleGroup })}
+      />
+      <AnswerSelect label="셀" value={filters.cell} options={options.cell} onChange={(cell) => set({ cell })} />
+      {active ? (
+        <Button type="button" variant="tertiary" size={40} onClick={() => onChange(EMPTY_FILTERS)}>
+          초기화
+        </Button>
+      ) : null}
     </div>
   );
 }
@@ -743,7 +866,16 @@ function AnswerSelect({
   );
 }
 
-function PersonRow({
+function AttendanceTag({ person }: { person: BoardParticipant }) {
+  return (
+    <span className={`event-groups__tag event-groups__tag--${person.attendance.toLowerCase()}`}>
+      {ATTENDANCE_LABEL[person.attendance]}
+    </span>
+  );
+}
+
+/** One card in the 미배정 strip (Figma "Unassigned card"). Pressing the name picks the person. */
+function PoolCard({
   person,
   groups,
   showGroup,
@@ -759,27 +891,27 @@ function PersonRow({
   onToggle: () => void;
 }) {
   const label = participantLabel(person);
-  const meta = [
-    person.gender?.label,
-    person.middleGroup,
-    person.cell,
-    showGroup ? groupName(groups, person.groupId) : null,
-  ].filter(Boolean);
+  const meta = [person.gender?.label, person.middleGroup, person.cell, showGroup ? groupName(groups, person.groupId) : null].filter(
+    Boolean,
+  );
   const body = (
     <>
-      <span className="event-groups__name">{label}</span>
-      {person.attendance !== "FULL" ? (
-        <span className={`event-groups__badge event-groups__badge--${person.attendance.toLowerCase()}`}>
-          {ATTENDANCE_LABEL[person.attendance]}
-        </span>
-      ) : null}
-      <span className="event-groups__meta">{meta.join(" · ")}</span>
+      <span className="event-groups__card-name">
+        {selectable ? (
+          <input type="checkbox" checked={checked} onChange={onToggle} aria-label={`${label} 고르기`} />
+        ) : null}
+        <span className="event-groups__name">{label}</span>
+      </span>
+      <AttendanceTimeline slots={null} attendedSlotIds={null} attendance={person.attendance} />
+      <span className="event-groups__pool-meta">
+        <AttendanceTag person={person} />
+        {meta.length > 0 ? <span className="event-groups__meta">{meta.join(" · ")}</span> : null}
+      </span>
     </>
   );
-  if (!selectable) return <div className="event-groups__person">{body}</div>;
+  if (!selectable) return <div className="event-groups__pool-card">{body}</div>;
   return (
-    <label className={`event-groups__person event-groups__person--selectable${checked ? " event-groups__person--checked" : ""}`}>
-      <input type="checkbox" checked={checked} onChange={onToggle} aria-label={`${label} 고르기`} />
+    <label className={`event-groups__pool-card event-groups__pool-card--selectable${checked ? " event-groups__pool-card--checked" : ""}`}>
       {body}
     </label>
   );
@@ -827,17 +959,43 @@ function GroupCard({
   onLeader: (person: BoardParticipant) => void;
 }) {
   const [draft, setDraft] = useState(group.name);
+  const [menuOpen, setMenuOpen] = useState(false);
   const leaders = members.filter((person) => person.leader).length;
   const gender = genderSummary(members, genderOrder);
   const cohort = cohortSummary(members);
-  const attendance = attendanceSummary(members);
+  const attendance = attendanceCounts(members);
   const headingId = `group-${group.groupId}`;
   return (
     <article className="event-groups__card" aria-labelledby={headingId}>
       <header className="event-groups__card-head">
-        <h3 id={headingId} className="event-groups__card-title">
-          {group.name}
-        </h3>
+        <div className="event-groups__card-title-row">
+          <h3 id={headingId} className="event-groups__card-title">
+            {group.name}
+          </h3>
+          <span className="event-groups__card-size">{members.length}명</span>
+          {editable && !renaming ? (
+            <button
+              type="button"
+              className="event-groups__menu-button"
+              aria-label={`${group.name} 조 메뉴`}
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen((open) => !open)}
+            >
+              •••
+            </button>
+          ) : null}
+        </div>
+        {gender ? <p className="event-groups__card-gender">{gender}</p> : null}
+        {attendance.length > 0 || cohort ? (
+          <div className="event-groups__card-pills">
+            {attendance.map((item) => (
+              <span key={item.value} className={`event-groups__pill event-groups__pill--${item.value.toLowerCase()}`}>
+                {item.label} {item.count}
+              </span>
+            ))}
+          </div>
+        ) : null}
+        {cohort ? <p className="event-groups__card-dist">또래 {cohort}</p> : null}
         {renaming ? (
           <form
             className="event-groups__rename"
@@ -868,13 +1026,8 @@ function GroupCard({
             </Button>
           </form>
         ) : null}
-        <p className="event-groups__card-count">
-          {members.length}명{gender ? ` · ${gender}` : ""}
-        </p>
-        {cohort ? <p className="event-groups__card-dist">또래 {cohort}</p> : null}
-        {attendance ? <p className="event-groups__card-dist">{attendance}</p> : null}
-        {editable && !renaming ? (
-          <div className="event-groups__card-actions">
+        {editable && menuOpen && !renaming ? (
+          <div className="event-groups__card-actions" role="group" aria-label={`${group.name} 조 관리`}>
             <Button
               type="button"
               variant="tertiary"
@@ -882,6 +1035,7 @@ function GroupCard({
               disabled={busy}
               onClick={() => {
                 setDraft(group.name);
+                setMenuOpen(false);
                 onRenameStart();
               }}
               aria-label={`${group.name} 이름 바꾸기`}
@@ -889,12 +1043,22 @@ function GroupCard({
               이름
             </Button>
             <Button type="button" variant="tertiary" size={32} disabled={busy || first} onClick={() => onShift(-1)} aria-label={`${group.name} 앞으로`}>
-              ↑
+              앞으로
             </Button>
             <Button type="button" variant="tertiary" size={32} disabled={busy || last} onClick={() => onShift(1)} aria-label={`${group.name} 뒤로`}>
-              ↓
+              뒤로
             </Button>
-            <Button type="button" variant="tertiary" size={32} disabled={busy} onClick={onDelete} aria-label={`${group.name} 지우기`}>
+            <Button
+              type="button"
+              variant="tertiary"
+              size={32}
+              disabled={busy}
+              onClick={() => {
+                setMenuOpen(false);
+                onDelete();
+              }}
+              aria-label={`${group.name} 지우기`}
+            >
               삭제
             </Button>
           </div>
@@ -912,39 +1076,39 @@ function GroupCard({
                 key={person.participantId}
                 className={`event-groups__member${dim(person) ? " event-groups__member--dim" : ""}${checked ? " event-groups__member--checked" : ""}`}
               >
-                {editable ? (
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => onToggle(person.participantId)}
-                    aria-label={`${label} 고르기`}
-                  />
-                ) : null}
-                <span className="event-groups__name">{label}</span>
-                {person.leader ? <span className="event-groups__leader">조장</span> : null}
-                {person.attendance !== "FULL" ? (
-                  <span className={`event-groups__badge event-groups__badge--${person.attendance.toLowerCase()}`}>
-                    {ATTENDANCE_LABEL[person.attendance]}
-                  </span>
-                ) : null}
-                {editable ? (
-                  <button
-                    type="button"
-                    className="event-groups__leader-toggle"
-                    aria-pressed={person.leader}
-                    disabled={busy || (!person.leader && leaders >= GROUP_LEADERS_MAX)}
-                    title={!person.leader && leaders >= GROUP_LEADERS_MAX ? `조장은 ${GROUP_LEADERS_MAX}명까지예요` : undefined}
-                    aria-label={person.leader ? `${label} 조장 해제` : `${label} 조장으로 정하기`}
-                    onClick={() => onLeader(person)}
-                  >
-                    {person.leader ? "조장 해제" : "조장"}
-                  </button>
-                ) : null}
+                <span className="event-groups__member-main">
+                  {editable ? (
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => onToggle(person.participantId)}
+                      aria-label={`${label} 고르기`}
+                    />
+                  ) : null}
+                  <span className="event-groups__name">{label}</span>
+                  {person.leader ? <span className="event-groups__leader">조장</span> : null}
+                  <AttendanceTag person={person} />
+                  {editable ? (
+                    <button
+                      type="button"
+                      className="event-groups__leader-toggle"
+                      aria-pressed={person.leader}
+                      disabled={busy || (!person.leader && leaders >= GROUP_LEADERS_MAX)}
+                      title={!person.leader && leaders >= GROUP_LEADERS_MAX ? `조장은 ${GROUP_LEADERS_MAX}명까지예요` : undefined}
+                      aria-label={person.leader ? `${label} 조장 해제` : `${label} 조장으로 정하기`}
+                      onClick={() => onLeader(person)}
+                    >
+                      {person.leader ? "조장 해제" : "조장"}
+                    </button>
+                  ) : null}
+                </span>
+                <AttendanceTimeline slots={null} attendedSlotIds={null} attendance={person.attendance} />
               </li>
             );
           })}
         </ul>
       )}
+      <SlotHeadcount slots={null} members={members.map((person) => ({ attendance: person.attendance, attendedSlotIds: null }))} />
       {editable && chosenCount > 0 ? (
         <Button type="button" variant="secondary" size={40} className="event-groups__send" disabled={busy} onClick={onSend}>
           고른 {chosenCount}명 이 조로 보내기
