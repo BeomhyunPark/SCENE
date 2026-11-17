@@ -26,6 +26,8 @@ export type BoardParticipant = {
   /** null is 미배정. */
   groupId: string | null;
   leader: boolean;
+  /** Order within the group (#343): smaller first, ties by participantId. Not consecutive. null when unassigned. */
+  position: number | null;
   publishedGroupId: string | null;
   publishedLeader: boolean;
   /**
@@ -83,18 +85,28 @@ export type PublishResult = {
   changedParticipantCount: number;
 };
 
-export type AssignmentChange = { participantId: string; fromGroupId: string | null; toGroupId: string | null };
+/**
+ * `beforeParticipantId` (#343): put the person in front of that member of the target group. Absent, null, or
+ * not in the target group puts them at the end; several arrivals go in request order.
+ */
+export type AssignmentChange = {
+  participantId: string;
+  fromGroupId: string | null;
+  toGroupId: string | null;
+  beforeParticipantId?: string | null;
+};
 export type AssignmentResult = { changed: number; alreadyApplied: number; boardVersion: number };
 export type AssignmentConflict = { participantId: string; currentGroupId: string | null };
 
 export const GROUP_NAME_MAX = 50;
-export const GROUP_LEADERS_MAX = 3;
+/** One leader per group (사용자 결정 2026-11-17, #343). Naming another member replaces the leader. */
+export const GROUP_LEADERS_MAX = 1;
 export const ASSIGNMENT_CHANGES_MAX = 200;
 
 /**
  * GET …/groups/published (#288): the latest publication for operators with EVENT_READ. Before the first
  * publish `publishedAt` is null and both lists are empty (not 404). Withdrawn people are left out; people
- * who applied after the publish are in `unassigned`. Members list leaders first, then by name.
+ * who applied after the publish are in `unassigned`. Members come in the operator order of the publication (#343).
  */
 export type PublishedMember = { participantId: string; name: string; cohort: string | null; leader: boolean };
 export type PublishedGroup = {
@@ -171,7 +183,25 @@ export function assignParticipants(eventId: string, changes: AssignmentChange[])
   );
 }
 
-/** Replaces the group's whole leader list (0–3, members of that group only). */
+/**
+ * Member order within one group (#343). Must list every active member of the group exactly once; otherwise
+ * someone moved meanwhile and nothing is saved (409 CONCURRENT_MODIFICATION + conflicts, as for assignments).
+ */
+export function reorderGroupMembers(
+  eventId: string,
+  groupId: string,
+  participantIds: string[],
+): Promise<{ boardVersion: number }> {
+  return apiRequest<unknown>(`${base(eventId)}/groups/${groupId}/members/order`, {
+    method: "PUT",
+    body: { participantIds },
+  }).then((value) => {
+    if (!isRecord(value) || !isCount(value.boardVersion)) unexpected();
+    return { boardVersion: value.boardVersion };
+  });
+}
+
+/** Replaces the group's leader (0–1, a member of that group). One id replaces the current leader in one request. */
 export function setGroupLeaders(
   eventId: string,
   groupId: string,
@@ -345,6 +375,7 @@ function parseParticipant(value: unknown): BoardParticipant {
     newcomer: typeof value.newcomer === "boolean" ? value.newcomer : null,
     groupId: (value.groupId as string | null | undefined) ?? null,
     leader: value.leader === true,
+    position: isCount(value.position) ? value.position : null,
     publishedGroupId: typeof value.publishedGroupId === "string" ? value.publishedGroupId : null,
     publishedLeader: value.publishedLeader === true,
     slotIds: Array.isArray(value.slotIds) ? value.slotIds.filter((id): id is string => typeof id === "string") : null,

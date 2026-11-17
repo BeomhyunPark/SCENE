@@ -33,7 +33,8 @@ type Person = {
 type Slot = { slotId: string; day: number; date: string; dayLabel: string; meal: string; label: string; sortOrder: number };
 
 type GroupRow = { groupId: string; name: string; sortOrder: number; version: number };
-type Assignment = { groupId: string | null; leader: boolean };
+/** `position` orders members within a group (#343): smaller first, not consecutive. */
+type Assignment = { groupId: string | null; leader: boolean; position?: number };
 type Log = { participantId: string; from: string | null; to: string | null; cause: "MOVE" | "LEADER" | "GROUP_DELETED"; actorId: string };
 
 type PublishedGroup = { groupId: string; name: string; sortOrder: number; members: { participantId: string; leader: boolean }[] };
@@ -71,7 +72,8 @@ export type GroupFailure = {
 const NAME_MAX = 50;
 const GROUPS_MAX = 100;
 const CHANGES_MAX = 200;
-const LEADERS_MAX = 3;
+const LEADERS_MAX = 1;
+let nextPosition = 1_000_000;
 
 const FEMALE = { optionId: "opt_female", label: "여" };
 const MALE = { optionId: "opt_male", label: "남" };
@@ -115,6 +117,9 @@ export function seedGroup(eventId: string, name: string): string {
 /** Test seam: another operator moves someone (or marks a leader) without this screen knowing. */
 export function moveAsOtherOperator(eventId: string, participantId: string, groupId: string | null, leader = false): void {
   const board = boardOf(eventId);
+  if (leader && groupId) {
+    for (const assignment of board.assignments.values()) if (assignment.groupId === groupId) assignment.leader = false;
+  }
   board.assignments.set(participantId, { groupId, leader: groupId !== null && leader });
   if (leader && groupId) {
     const group = board.groups.find((row) => row.groupId === groupId);
@@ -177,6 +182,7 @@ export function readBoard(eventId: string, actorId: string) {
         newcomer: person.newcomer,
         groupId: assignment.groupId,
         leader: assignment.leader,
+        position: assignment.groupId === null ? null : positionOf(board, person.participantId),
         publishedGroupId: place?.groupId ?? null,
         publishedLeader: place?.leader ?? false,
         slotIds: slotIdsOf(board, person),
@@ -254,9 +260,9 @@ export function publish(eventId: string, actorId: string, body: unknown, now = n
         groupId: group.groupId,
         name: group.name,
         sortOrder: group.sortOrder,
-        members: [...board.assignments]
-          .filter(([participantId, assignment]) => assignment.groupId === group.groupId && activeIds.has(participantId))
-          .map(([participantId, assignment]) => ({ participantId, leader: assignment.leader })),
+        members: memberIds(board, group.groupId)
+          .filter((participantId) => activeIds.has(participantId))
+          .map((participantId) => ({ participantId, leader: assignmentOf(board, participantId).leader })),
       })),
   };
   board.publications.push(publication);
@@ -295,7 +301,7 @@ export function readParticipantGroup(eventId: string, participantId: string): Pa
     const person = active.get(member.participantId);
     return person ? [{ name: person.name, cohort: person.cohort, leader: member.leader }] : [];
   });
-  const ordered = [...members.filter((member) => member.leader), ...members.filter((member) => !member.leader)];
+  const ordered = members;
   const leader = group.members.some((member) => member.participantId === participantId && member.leader);
   return {
     status: "ASSIGNED",
@@ -327,7 +333,7 @@ export function readPublishedGroups(eventId: string, actorId: string) {
           placed.add(person.participantId);
           return [{ participantId: person.participantId, name: person.name, cohort: person.cohort, leader: member.leader }];
         })
-        .sort((a, b) => Number(b.leader) - Number(a.leader) || a.name.localeCompare(b.name, "ko"));
+        ;
       return {
         groupId: group.groupId,
         name: group.name,
@@ -429,7 +435,14 @@ function differences(board: Board, active: Person[], latest: Publication | null)
   const groups = [...ids].filter((id) => {
     const now = board.groups.find((group) => group.groupId === id);
     const then = latest.groups.find((group) => group.groupId === id);
-    return !now || !then || now.name !== then.name || now.sortOrder !== then.sortOrder;
+    if (!now || !then || now.name !== then.name || now.sortOrder !== then.sortOrder) return true;
+    // Member order counts too (#343): the people on both sides, compared in order.
+    const activeIds = new Set(active.map((person) => person.participantId));
+    const working = memberIds(board, id).filter((pid) => activeIds.has(pid));
+    const published = then.members.map((member) => member.participantId);
+    const left = working.filter((pid) => published.includes(pid));
+    const right = published.filter((pid) => working.includes(pid));
+    return left.join() !== right.join();
   }).length;
   return { people, groups };
 }
@@ -563,11 +576,55 @@ export function assign(eventId: string, actorId: string, body: unknown) {
     };
   }
   for (const change of movers) {
-    board.assignments.set(change.participantId, { groupId: change.toGroupId, leader: false });
+    board.assignments.set(change.participantId, { groupId: change.toGroupId, leader: false, position: nextPosition++ });
+  }
+  const targets = new Set(movers.flatMap((change) => (change.toGroupId === null ? [] : [change.toGroupId])));
+  for (const groupId of targets) {
+    const arriving = movers.filter((change) => change.toGroupId === groupId);
+    const arrivingIds = new Set(arriving.map((change) => change.participantId));
+    const order = memberIds(board, groupId).filter((id) => !arrivingIds.has(id));
+    for (const change of arriving) {
+      const anchor = change.beforeParticipantId ? order.indexOf(change.beforeParticipantId) : -1;
+      if (anchor < 0) order.push(change.participantId);
+      else order.splice(anchor, 0, change.participantId);
+    }
+    order.forEach((id, index) => (board.assignments.get(id)!.position = index));
+  }
+  for (const change of movers) {
     board.logs.push({ participantId: change.participantId, from: change.fromGroupId, to: change.toGroupId, cause: "MOVE", actorId });
   }
   if (movers.length > 0) board.version += 1;
   return { changed: movers.length, alreadyApplied, boardVersion: board.version };
+}
+
+/** PUT …/groups/{groupId}/members/order (#343): every active member once, or 409 with conflicts and nothing saved. */
+export function reorderMembers(eventId: string, groupId: string, actorId: string, body: unknown) {
+  const gate = writeGate(eventId, actorId);
+  if (gate) return gate;
+  const ids = isRecord(body) ? body.participantIds : undefined;
+  if (!Array.isArray(ids) || !ids.every((id) => typeof id === "string") || new Set(ids).size !== ids.length) {
+    return field("participantIds");
+  }
+  const state = stateGate(eventId);
+  if (state) return state;
+  const board = boardOf(eventId);
+  if (!board.groups.some((group) => group.groupId === groupId)) return { status: 404, code: "RESOURCE_NOT_FOUND" };
+  const people = peopleOf(eventId);
+  const submitted = (id: string) => people.find((person) => person.participantId === id)?.submitted ?? false;
+  const all = memberIds(board, groupId);
+  const active = all.filter(submitted);
+  const conflicts = [
+    ...(ids as string[])
+      .filter((id) => !active.includes(id))
+      .map((id) => ({ participantId: id, currentGroupId: assignmentOf(board, id).groupId })),
+    ...active.filter((id) => !ids.includes(id)).map((id) => ({ participantId: id, currentGroupId: groupId })),
+  ];
+  if (conflicts.length > 0) return { status: 409, code: "CONCURRENT_MODIFICATION", conflicts, boardVersion: board.version };
+  const next = [...(ids as string[]), ...all.filter((id) => !submitted(id))];
+  if (next.join() === all.join()) return { boardVersion: board.version };
+  next.forEach((id, index) => (board.assignments.get(id)!.position = index));
+  board.version += 1;
+  return { boardVersion: board.version };
 }
 
 export function setLeaders(eventId: string, groupId: string, actorId: string, body: unknown) {
@@ -604,6 +661,8 @@ export function setLeaders(eventId: string, groupId: string, actorId: string, bo
   const members = [...board.assignments].filter(([, assignment]) => assignment.groupId === groupId);
   const changed = members.filter(([participantId, assignment]) => assignment.leader !== wanted.has(participantId));
   if (changed.length > 0) {
+    // Clear the old leader first (one leader per group, #343).
+    changed.sort(([, a], [, b]) => Number(b.leader) - Number(a.leader));
     for (const [participantId, assignment] of changed) {
       assignment.leader = wanted.has(participantId);
       board.logs.push({ participantId, from: groupId, to: groupId, cause: "LEADER", actorId });
@@ -648,15 +707,19 @@ function readName(body: unknown): string | null {
   return name.length >= 1 && [...name].length <= NAME_MAX ? name : null;
 }
 
-function readChanges(body: unknown): { participantId: string; fromGroupId: string | null; toGroupId: string | null }[] | null {
+type Change = { participantId: string; fromGroupId: string | null; toGroupId: string | null; beforeParticipantId: string | null };
+
+function readChanges(body: unknown): Change[] | null {
   const raw = isRecord(body) ? body.changes : undefined;
   if (!Array.isArray(raw) || raw.length < 1 || raw.length > CHANGES_MAX) return null;
-  const out: { participantId: string; fromGroupId: string | null; toGroupId: string | null }[] = [];
+  const out: Change[] = [];
   for (const item of raw) {
     if (!isRecord(item) || typeof item.participantId !== "string") return null;
     if (!("fromGroupId" in item) || !("toGroupId" in item)) return null;
     if (!isNullableString(item.fromGroupId) || !isNullableString(item.toGroupId)) return null;
-    out.push({ participantId: item.participantId, fromGroupId: item.fromGroupId, toGroupId: item.toGroupId });
+    const before = item.beforeParticipantId ?? null;
+    if (!isNullableString(before)) return null;
+    out.push({ participantId: item.participantId, fromGroupId: item.fromGroupId, toGroupId: item.toGroupId, beforeParticipantId: before });
   }
   if (new Set(out.map((item) => item.participantId)).size !== out.length) return null;
   return out;
@@ -691,6 +754,23 @@ function peopleOf(eventId: string): Person[] {
     });
   }
   return board.people;
+}
+
+/** Member ids of a group in order: position, then participantId (rows without a position keep insertion order). */
+function memberIds(board: Board, groupId: string): string[] {
+  return [...board.assignments]
+    .filter(([, assignment]) => assignment.groupId === groupId)
+    .map(([participantId]) => ({ participantId, position: positionOf(board, participantId) }))
+    .sort((a, b) => a.position - b.position || a.participantId.localeCompare(b.participantId))
+    .map((item) => item.participantId);
+}
+
+/** Rows set without a position (seeds, test seams) go to the end in the order they are first read. */
+function positionOf(board: Board, participantId: string): number {
+  const assignment = board.assignments.get(participantId);
+  if (!assignment) return 0;
+  if (assignment.position === undefined) assignment.position = nextPosition++;
+  return assignment.position;
 }
 
 function assignmentOf(board: Board, participantId: string): Assignment {

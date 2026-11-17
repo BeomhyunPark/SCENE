@@ -9,6 +9,7 @@ import {
   readPublishedGroups,
   renameGroup,
   reorderGroups,
+  reorderMembers,
   setLeaders,
   type GroupFailure,
 } from "../groupStore";
@@ -59,6 +60,12 @@ export const groupHandlers = [
     const operator = currentOperator();
     if (!operator) return problem(401, "AUTHENTICATION_REQUIRED");
     return reply(deleteGroup(String(params.eventId), String(params.groupId), operator.userId, new URL(request.url)));
+  }),
+  http.put(`${base}/groups/:groupId/members/order`, async ({ params, request, cookies }) => {
+    if (!csrfMatches(request, cookies)) return problem(403, "FORBIDDEN");
+    const operator = currentOperator();
+    if (!operator) return problem(401, "AUTHENTICATION_REQUIRED");
+    return reply(reorderMembers(String(params.eventId), String(params.groupId), operator.userId, await readJson(request)));
   }),
   http.put(`${base}/groups/:groupId/leaders`, async ({ params, request, cookies }) => {
     if (!csrfMatches(request, cookies)) return problem(403, "FORBIDDEN");
