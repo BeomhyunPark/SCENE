@@ -28,7 +28,7 @@ const orgMenus = [
   ["안내", "/guides"],
   ["일정", "/schedule"],
   ["현장 운영", "/field"],
-  ["참가자", "/participants"],
+  ["참가 현황", "/participants"],
   ["운영 멤버", "/operators"],
   ["연동", "/integrations"],
   ["설정", "/settings"],
@@ -62,13 +62,13 @@ function renderAt(path: string) {
 describe("operator shell", () => {
   it("highlights the participants item on the participants page", () => {
     renderAt("/events/e1/participants");
-    expect(screen.getByRole("link", { name: "참가자" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "참가 현황" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("link", { name: "Local event" })).not.toHaveAttribute("aria-current");
   });
 
   it("keeps the participants item current on the setup page", () => {
     renderAt("/events/e1/participants/setup");
-    expect(screen.getByRole("link", { name: "참가자" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "참가 현황" })).toHaveAttribute("aria-current", "page");
   });
 
   it("highlights the event on its home and tasks on the task list", () => {

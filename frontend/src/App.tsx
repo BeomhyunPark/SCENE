@@ -78,7 +78,7 @@ export function App() {
           <Route path="/field" element={<MenuEventPicker title="현장 운영" area="field" />} />
           <Route path="/integrations" element={<MenuPending title="연동" />} />
           <Route path="/tasks" element={<MenuEventPicker title="준비 업무" area="tasks" />} />
-          <Route path="/participants" element={<MenuEventPicker title="참가자" area="participants" />} />
+          <Route path="/participants" element={<MenuEventPicker title="참가 현황" area="participants" />} />
           <Route path="/operators" element={<MenuEventPicker title="운영 멤버" area="operators" />} />
           <Route path="/spaces/:spaceId/leave" element={<SpaceLeave />} />
           <Route path="/events/new" element={<EventCreate />} />

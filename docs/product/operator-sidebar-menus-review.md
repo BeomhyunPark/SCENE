@@ -18,6 +18,7 @@
 - 2026-11-17 [#270](https://github.com/BeomhyunPark/SCENE/issues/270): 안내는 참가자 행사 안내 페이지 편집과 공지 발송 둘 다를 방향으로 하되, 하위 메뉴는 정해질 때까지 만들지 않는다. 펼침 화살표를 떼고 `/guides`는 "준비 중"을 유지한다.
 - 2026-11-17 [#271](https://github.com/BeomhyunPark/SCENE/issues/271): 알림은 운영자가 직접 확인할 요청(Owner 넘기기, 초대 수락)만 먼저([#279](https://github.com/BeomhyunPark/SCENE/issues/279)), 기록은 행사 안 변경 내역([#280](https://github.com/BeomhyunPark/SCENE/issues/280)), 연동은 1차 범위 밖으로 두고 CSV 내려받기([#233](https://github.com/BeomhyunPark/SCENE/issues/233)) 사용 뒤 다시 본다. 세 메뉴 모두 그때까지 "준비 중"을 유지한다.
 - 2026-11-17 [#301](https://github.com/BeomhyunPark/SCENE/issues/301): 조 편성은 행사 안 사이드바 "행사 운영"(현장 운영 아래)에 두고 `/events/:eventId/groups`로 간다. Figma `O3.01 · 조 편성`(134:8836)도 행사 안 사이드바에 둔다. 조직 사이드바에는 메뉴를 더하지 않는다(Figma 조직 사이드바에 없고, #267의 행사 고르기 메뉴는 이미 있는 세 개만이다). 조직 사이드바에서 들어갈 길이 필요하면 `/groups`를 행사 고르기로 더한다.
+- 2026-11-17 [#302](https://github.com/BeomhyunPark/SCENE/issues/302): 사이드바 메뉴 이름 "참가자"를 Figma 행사 안 사이드바(1325:5059)대로 "참가 현황"으로 바꾼다. 조직 사이드바와 행사 고르기 화면 제목도 같다. 주소(`/participants`)는 그대로다.
 
 ## 확인 방법
 
@@ -37,7 +38,7 @@
 | 안내 (펼침 화살표) | 버튼, 하위 메뉴 없음 | `/guides` → 준비 중 | 운영자 화면 없음. 하위 메뉴 시안 없음. 연결 1곳은 `P06-01 · 일정 — Monthly`(267:18607)로 잘못 이어진 것으로 보임. 참가자 쪽 `P18 · 행사 안내` (667:75437) 있음 | 없음 | 없음 | 안내 페이지 편집인가, 공지 발송인가. 하위 메뉴 구성과 화살표 유지 여부 | [#264](https://github.com/BeomhyunPark/SCENE/issues/264), [#270](https://github.com/BeomhyunPark/SCENE/issues/270) |
 | 일정 | 버튼 | `/schedule` → 준비 중 | `P06-01 · 일정 — Monthly` (267:18607), `P06-02 Today Agenda` (267:18675), `P06-S01 Multi-day` (267:19239), 상세·수정 P06-D01·D02, 참가자 P06-PMOB01~04 | 없음 | 없음 | 조직 달력인가, 행사 일정표인가. #230 1차 범위에 넣을지 | [#264](https://github.com/BeomhyunPark/SCENE/issues/264), [#269](https://github.com/BeomhyunPark/SCENE/issues/269) |
 | 현장 운영 | 버튼 | `/field` → 준비 중, 이후 행사 안 `/events/:eventId/field` | `TL01 · Queue + Selected Detail` (620:7), `OM01 · Field Home` (622:7), P13 섹션 (617:36424) | 없음 | 없음 ([#235](https://github.com/BeomhyunPark/SCENE/issues/235)에서 만든다) | 행사 안 메뉴로 옮길지, 주소 이름 | [#264](https://github.com/BeomhyunPark/SCENE/issues/264), [#268](https://github.com/BeomhyunPark/SCENE/issues/268) |
-| 참가자 | 버튼 | 행사 고르기 → `/events/:eventId/participants` | `P03-01 · 참가 현황 — All` (265:10253) | 있음 (행사 안) | 있음 (행사 단위) | 준비 업무와 같음 | [#267](https://github.com/BeomhyunPark/SCENE/issues/267) |
+| 참가 현황 | 버튼 | 행사 고르기 → `/events/:eventId/participants` | `P03-01 · 참가 현황 — All` (265:10253) | 있음 (행사 안) | 있음 (행사 단위) | 준비 업무와 같음 | [#267](https://github.com/BeomhyunPark/SCENE/issues/267) |
 | 운영 멤버 | 버튼 | 행사 고르기 → `/events/:eventId/operators` | 없음 (라벨 43곳, 연결 0) | 있음 (행사 안) | 있음 (행사 단위) | 준비 업무와 같음 | [#267](https://github.com/BeomhyunPark/SCENE/issues/267) |
 | 연동 | 버튼 | `/integrations` → 준비 중 | 없음 (라벨 42곳, 연결 0) | 없음 | 없음 | 무엇과 연동할지 | [#264](https://github.com/BeomhyunPark/SCENE/issues/264), [#271](https://github.com/BeomhyunPark/SCENE/issues/271) |
 | 설정 | 링크 `/settings` | `/settings` | `P14 · 조직 설정` (638:35588) | 있음 `SpaceSettings` | 있음 | 없음 | — |

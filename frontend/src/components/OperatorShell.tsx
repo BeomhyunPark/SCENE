@@ -54,7 +54,7 @@ const primary = [
 
 const operation = [
   { label: "현장 운영", icon: chartLine, to: "/field" },
-  { label: "참가자", icon: address, to: "/participants" },
+  { label: "참가 현황", icon: address, to: "/participants" },
   { label: "운영 멤버", icon: briefcase, to: "/operators" },
 ];
 
@@ -150,7 +150,7 @@ export function OperatorShell({
                       <li>
                         <NavItem
                           item={{
-                            label: "참가자",
+                            label: "참가 현황",
                             icon: address,
                             current: onParticipants,
                             to: participantsHref,
