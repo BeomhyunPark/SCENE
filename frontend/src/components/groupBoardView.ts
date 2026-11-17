@@ -160,7 +160,6 @@ export function attendanceCounts(members: BoardParticipant[]): { value: Attendan
     .filter((item) => item.count > 0);
 }
 
-/** Members of a group, leaders first, then the server's name order. */
 /** Members in the operator order (#343): position, then participantId. The leader is not moved to the top. */
 export function membersOf(participants: BoardParticipant[], groupId: string): BoardParticipant[] {
   return participants
