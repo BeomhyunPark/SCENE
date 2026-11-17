@@ -441,7 +441,8 @@ class FormSetupHttpIT {
   }
 
   @Test
-  void newcomerSwitchAddsAYesNoQuestionAndWorksAfterApplications() throws Exception {
+  void middleGroupListBecomesADropdownWithTheNewcomerOptionAndMayGrowAfterApplications()
+      throws Exception {
     Held event = openEvent();
     period(event, LocalDate.of(2027, 1, 22), LocalDate.of(2027, 1, 24));
     JsonNode created = json.readTree(created(write(post(forms(event)), event, "{}")));
@@ -449,68 +450,80 @@ class FormSetupHttpIT {
     String formPath = forms(event) + "/" + formId;
     String setupPath = formPath + "/setup";
 
-    // A setup saved before the switch existed has no key: the question stays out.
-    JsonNode without = json.readTree(ok(write(put(setupPath), event, newcomerSetup(null))));
-    assertThat(without.get("setup").get("newcomer").booleanValue()).isFalse();
-    assertThat(keys(without)).containsExactly("NAME", "PHONE", "COHORT", "CONSENT");
-    problem(write(put(setupPath), event, newcomerSetup("\"yes\"")), 400, "setup");
+    // A setup saved with the former newcomer switch is read; the switch is dropped.
+    JsonNode on =
+        json.readTree(
+            ok(
+                write(
+                    put(setupPath),
+                    event,
+                    affiliationSetup("\"1중그룹\",\"2중그룹\"", "", "\"newcomer\":true,"))));
+    assertThat(on.get("setup").has("newcomer")).isFalse();
+    assertThat(on.get("setup").get("middleGroups").toString()).isEqualTo("[\"1중그룹\",\"2중그룹\"]");
+    assertThat(keys(on))
+        .containsExactly("NAME", "PHONE", "COHORT", "MIDDLE_GROUP", "CELL", "CONSENT");
+    JsonNode middle = preset(on, "MIDDLE_GROUP");
+    assertThat(middle.get("answerType").asString()).isEqualTo("DROPDOWN");
+    assertThat(middle.get("required").booleanValue()).isTrue();
+    JsonNode options = middle.get("config").get("options");
+    assertThat(options).hasSize(3);
+    assertThat(options.get(2).get("optionId").asString()).isEqualTo("opt_newcomer");
+    assertThat(options.get(2).get("label").asString()).isEqualTo("새가족 (등반X)");
+    JsonNode cell = preset(on, "CELL");
+    assertThat(cell.get("answerType").asString()).isEqualTo("SHORT_TEXT");
+    assertThat(cell.get("showWhen").get("fieldId").asString()).isEqualTo(id(on, "MIDDLE_GROUP"));
+    assertThat(cell.get("showWhen").get("optionIds")).hasSize(2);
 
-    JsonNode on = json.readTree(ok(write(put(setupPath), event, newcomerSetup("true"))));
-    assertThat(on.get("setup").get("newcomer").booleanValue()).isTrue();
-    assertThat(keys(on)).containsExactly("NAME", "PHONE", "COHORT", "NEWCOMER", "CONSENT");
-    JsonNode newcomer = preset(on, "NEWCOMER");
-    assertThat(newcomer.get("kind").asString()).isEqualTo("CUSTOM");
-    assertThat(newcomer.get("answerType").asString()).isEqualTo("YES_NO");
-    assertThat(newcomer.get("required").booleanValue()).isTrue();
-    assertThat(newcomer.get("label").asString()).isEqualTo("새가족이신가요?");
-    assertThat(newcomer.get("description").asString()).contains("새가족 과정");
-    assertThat(newcomer.get("config").get("style").asString()).isEqualTo("YES_NO");
-    assertThat(newcomer.get("showWhen").isNull()).isTrue();
-    assertThat(newcomer.get("presetActive").booleanValue()).isTrue();
-
-    // Before applications an untouched question is removed when the switch goes off.
-    JsonNode off = json.readTree(ok(write(put(setupPath), event, newcomerSetup("false"))));
-    assertThat(keys(off)).doesNotContain("NEWCOMER");
-
-    // One application arrives without the question, then the switch goes on: allowed.
     open(event, formPath);
     String submitPath =
         "/api/v1/public/events/" + event.eventId + "/forms/" + formId + "/applications";
     String base =
-        answer(id(off, "NAME"), "김")
+        answer(id(on, "NAME"), "김")
             + ","
-            + answer(id(off, "PHONE"), "010-1234-5678")
+            + answer(id(on, "PHONE"), "010-1234-5678")
             + ","
-            + answer(id(off, "COHORT"), "94")
+            + answer(id(on, "COHORT"), "94")
             + ","
-            + value(id(off, "CONSENT"), "{\"value\":true}");
-    submit(submitPath, base, 201);
-    JsonNode lateOn = json.readTree(ok(write(put(setupPath), event, newcomerSetup("true"))));
-    assertThat(lateOn.get("locked").booleanValue()).isTrue();
-    String newcomerId = id(lateOn, "NEWCOMER");
-    assertThat(preset(lateOn, "NEWCOMER").get("hidden").booleanValue()).isFalse();
+            + value(id(on, "CONSENT"), "{\"value\":true}");
     submit(submitPath, base, 400);
-    submit(submitPath, base + "," + value(newcomerId, "{\"value\":true}"), 201);
-    assertThat(storedKeys(event)).contains("NEWCOMER");
+    // A newcomer answers without a cell; the cell question is hidden for them.
+    submit(
+        submitPath,
+        base + "," + value(id(on, "MIDDLE_GROUP"), "{\"optionId\":\"opt_newcomer\"}"),
+        201);
 
-    // After applications the switch hides the question and keeps the answers.
-    JsonNode lateOff = json.readTree(ok(write(put(setupPath), event, newcomerSetup("false"))));
-    assertThat(preset(lateOff, "NEWCOMER").get("hidden").booleanValue()).isTrue();
-    assertThat(preset(lateOff, "NEWCOMER").get("presetActive").booleanValue()).isFalse();
-    assertThat(storedKeys(event)).contains("NEWCOMER");
-    JsonNode again = json.readTree(ok(write(put(setupPath), event, newcomerSetup("true"))));
-    assertThat(id(again, "NEWCOMER")).isEqualTo(newcomerId);
-    assertThat(preset(again, "NEWCOMER").get("hidden").booleanValue()).isFalse();
+    // After applications the list may grow, and the cell condition keeps every listed id.
+    JsonNode grown =
+        json.readTree(
+            ok(write(put(setupPath), event, affiliationSetup("\"2중그룹\",\"3중그룹\"", "", ""))));
+    assertThat(grown.get("locked").booleanValue()).isTrue();
+    JsonNode grownOptions = preset(grown, "MIDDLE_GROUP").get("config").get("options");
+    assertThat(grownOptions).hasSize(4);
+    assertThat(grownOptions.get(0).get("label").asString()).isEqualTo("2중그룹");
+    assertThat(grownOptions.get(1).get("label").asString()).isEqualTo("3중그룹");
+    assertThat(grownOptions.get(3).get("label").asString()).isEqualTo("1중그룹");
+    assertThat(grownOptions.get(3).get("hidden").booleanValue()).isTrue();
+    assertThat(preset(grown, "CELL").get("showWhen").get("optionIds")).hasSize(3);
+
+    // A free cell answer cannot become a dropdown once applications arrived.
+    problem(
+        write(put(setupPath), event, affiliationSetup("\"2중그룹\"", "\"믿음셀\"", "")),
+        409,
+        "FIELD_LOCKED");
   }
 
   // ---- helpers ----
 
-  /** Only the newcomer switch on a three-day event; {@code null} leaves the key out. */
-  private static String newcomerSetup(String newcomer) {
+  /** Middle group and cell on a three-day event with the given lists and extra keys. */
+  private static String affiliationSetup(String middleGroups, String cells, String extra) {
     String day = "{\"breakfast\":false,\"lunch\":false,\"dinner\":false,\"worship\":false}";
-    return "{\"gender\":false,\"middleGroup\":false,\"cell\":false,"
-        + (newcomer == null ? "" : "\"newcomer\":" + newcomer + ",")
-        + "\"attendance\":{\"partial\":false,\"worshipOnly\":false},"
+    return "{\"gender\":false,\"middleGroup\":true,\"cell\":true,"
+        + extra
+        + "\"middleGroups\":["
+        + middleGroups
+        + "],\"cells\":["
+        + cells
+        + "],\"attendance\":{\"partial\":false,\"worshipOnly\":false},"
         + "\"schedule\":["
         + day
         + ","

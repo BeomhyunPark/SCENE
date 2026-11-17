@@ -110,9 +110,22 @@
             LIMIT 1) AS gender_label,
            (att.config IS NOT NULL) AS attendance_asked,
            att.value ->> 'optionId' AS attendance_option_id,
-           nullif(btrim(mid.value ->> 'text'), '') AS middle_group,
-           nullif(btrim(cel.value ->> 'text'), '') AS cell,
-           (nc.value ->> 'value')::boolean AS newcomer,
+           coalesce(
+             nullif(btrim(mid.value ->> 'text'), ''),
+             (SELECT o ->> 'label'
+              FROM jsonb_array_elements(mid.config -> 'options') o
+              WHERE o ->> 'optionId' = mid.value ->> 'optionId'
+              LIMIT 1)) AS middle_group,
+           coalesce(
+             nullif(btrim(cel.value ->> 'text'), ''),
+             (SELECT o ->> 'label'
+              FROM jsonb_array_elements(cel.config -> 'options') o
+              WHERE o ->> 'optionId' = cel.value ->> 'optionId'
+              LIMIT 1)) AS cell,
+           mid.config::text AS middle_group_config,
+           mid.value::text AS middle_group_answer,
+           cel.config::text AS cell_config,
+           cel.value::text AS cell_answer,
            ga.group_id,
            coalesce(ga.leader, false) AS leader,
            mea.value::text AS meals_answer,
@@ -145,11 +158,6 @@
         <property name="column" value="preset_key"/>
         <property name="key" value="CELL"/>
       </include>) cel ON true
-    LEFT JOIN LATERAL (
-      <include refid="keyedAnswer">
-        <property name="column" value="preset_key"/>
-        <property name="key" value="NEWCOMER"/>
-      </include>) nc ON true
     LEFT JOIN LATERAL (
       <include refid="keyedAnswer">
         <property name="column" value="preset_key"/>
