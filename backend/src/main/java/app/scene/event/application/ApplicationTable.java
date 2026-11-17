@@ -20,7 +20,8 @@ public record ApplicationTable(
     boolean contactVisible,
     boolean groupVisible,
     List<Column> columns,
-    List<Row> rows) {
+    List<Row> rows,
+    List<Slot> slots) {
 
   /**
    * One question in position order, with its current type, hidden flag and config (the same fields
@@ -42,14 +43,30 @@ public record ApplicationTable(
 
   /**
    * One applicant. {@code answers} maps a field id to the stored value (DEC-068 §1); a question
-   * with no answer has no key. {@code checkedInAt} is the arrival time, or null.
+   * with no answer has no key. {@code checkedInAt} is the arrival time, or null. {@code slotIds}
+   * are the {@code slots} the applicant attends, in slot order, by the summary's and the board's
+   * rule (DEC-074); null when unknown or when there are no slots.
    */
   public record Row(
       UUID applicationId,
       Instant submittedAt,
       Map<UUID, JsonNode> answers,
       Group group,
-      Instant checkedInAt) {}
+      Instant checkedInAt,
+      List<String> slotIds) {}
+
+  /**
+   * One meal or worship slot of the form setup, the same as the group board's {@code slots[]} item
+   * (DEC-072). {@code slots} is null when the form has no setup or no slot.
+   */
+  public record Slot(
+      String slotId,
+      int day,
+      String date,
+      String dayLabel,
+      String meal,
+      String label,
+      int sortOrder) {}
 
   /** Working-copy group (DEC-072). */
   public record Group(UUID groupId, String name, boolean leader) {}

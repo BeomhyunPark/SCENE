@@ -410,7 +410,19 @@ public class OperatorFormService {
     if (start == null || end == null || FormSetup.days(start, end) > FormSetup.DAYS_MAX) {
       throw FieldRules.invalid("eventPeriod");
     }
-    FormSetup setup = FormSetup.parse(body, FormSetup.days(start, end));
+    String storedSetup = forms.find(spaceId, eventId, formId).map(FormRow::setup).orElse(null);
+    FormSetup.Mode storedMode =
+        storedSetup == null ? null : MealSlots.mode(json.readTree(storedSetup));
+    FormSetup setup =
+        FormSetup.parse(
+            body,
+            FormSetup.days(start, end),
+            storedMode == null ? FormSetup.Mode.RANGE : storedMode);
+    boolean locked = forms.countSubmitted(spaceId, eventId, formId) > 0;
+    if (locked && storedMode != null && storedMode != setup.mode()) {
+      // DEC-074: stored answers were given under one mode, so the mode stays once one arrives.
+      throw new SceneException(ErrorCode.FIELD_LOCKED);
+    }
     List<FieldDefinition> current = definitions(spaceId, eventId, formId);
     Map<String, UUID> ids = new HashMap<>();
     for (FieldDefinition field : current) {
@@ -419,7 +431,6 @@ public class OperatorFormService {
       }
     }
     Function<String, UUID> idOf = key -> ids.computeIfAbsent(key, missing -> UUID.randomUUID());
-    boolean locked = forms.countSubmitted(spaceId, eventId, formId) > 0;
     FormSetupPlan plan =
         FormSetupPlan.of(current, FormPreset.generate(setup, start, end, idOf), locked, idOf);
     if (plan.fields().size() > FieldRules.FIELDS_MAX) {
