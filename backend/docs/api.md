@@ -101,9 +101,9 @@ operator 경로는 운영자 세션이 필요하다. public 경로는 세션을 
 | `INVITATION_REVOKED` | 410 | 초대가 취소되었다 |
 | `INVITATION_EXPIRED` | 410 | 초대 시각이 지났다 |
 | `INVITATION_SUPERSEDED` | 410 | 다시 보낸 초대로 이전 토큰은 쓸 수 없다 |
-| `CONCURRENT_MODIFICATION` | 409 | `expectedLifecycleVersion`이 현재와 다르다 |
+| `CONCURRENT_MODIFICATION` | 409 | `expectedLifecycleVersion`·`expectedVersion`이 현재와 다르거나, 조 배정의 `fromGroupId`가 지금 조와 다르다 |
 | `INVALID_STATE_TRANSITION` | 409 | 현재 행사 상태에서 그 전이를 할 수 없다 |
-| `CONFIRMATION_REQUIRED` | 409 | 종료나 보관 전에 경고 확인이 필요하다 |
+| `CONFIRMATION_REQUIRED` | 409 | 종료나 보관 전, 미배정자가 있는 조 공개 전에 경고 확인이 필요하다 |
 | `EVENT_ARCHIVED` | 409 | 보관된 행사에서는 그 변경을 할 수 없다 |
 | `INVITATION_ALREADY_ACCEPTED` | 409 | 다른 사용자가 이미 초대를 수락했다 |
 | `TASK_VERSION_CONFLICT` | 409 | 완료·다시 열기에서 `version`이 현재와 다르다 |
@@ -1265,6 +1265,234 @@ CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고
 
 `CHECKIN_CREATED`, `CHECKIN_CANCELLED`. detail은 `checkInId`, `participantId`, `method`(취소는 `null`), `reason`(체크인은 `null`)이다. actor는 처리한 운영자다. `ALREADY_…` 결과는 남기지 않는다.
 
+## 조 편성
+
+> 계약만 있고 아직 구현 전이다. 서버는 [#234](https://github.com/BeomhyunPark/SCENE/issues/234)의 하위 이슈에서 연다. 정책은 [DEC-072](../../docs/product/PRODUCT_DECISIONS.md)와 DEC-040~048이다.
+
+운영자가 조를 만들고 참가자를 넣는 **작업본**과, 공개할 때 한 번에 찍는 **공개본**(스냅샷)이 따로 있다. 작업본 저장은 참가자에게 보이지 않는다. 참가자와 조장은 가장 최근 공개본만 본다.
+
+대상 참가자("활성 참가자")는 그 행사에 `SUBMITTED` 신청이 있는 참가자다. 신청이 없는 참가자는 작업본 활성 명단·미배정 수·공개본 조회·조장 명단에서 읽을 때마다 빠진다(DEC-044). 배정 행은 지우지 않는다. 신청 철회 경로가 생기면 그 경로가 배정을 지우고 이력에 남긴다.
+
+| 동작 | 권한 |
+|---|---|
+| 편성판(작업본) 조회 | 유효한 `GROUP_WRITE`, 또는 활성 공간 `OWNER`·`ADMIN` |
+| 조 만들기·고치기·지우기·순서, 배정, 조장, 공개 | 유효한 `GROUP_WRITE` |
+| 공개본 조회(운영자) | 유효한 `EVENT_READ`, 또는 활성 공간 `OWNER`·`ADMIN` |
+
+기본 역할 중 `GROUP_WRITE`는 `OWNER`만 갖는다. 편성 담당에게는 [권한 개별 설정](#put-apiv1operatoreventseventidoperatorsuseridpermissions)으로 GRANT한다. 공간 역할만으로는 쓰지 못한다.
+
+쓰기의 판정 순서는 행사 없음·멤버 아님(`404`·`403 NOT_A_MEMBER`) → 권한(`403 FORBIDDEN`) → 본문(`400`) → 행사 상태(`409`) → 대상 찾기(`404`) → 버전·충돌(`409`) → 참가 자격·규칙(`409`) → 결과(`200`)다. 읽기는 행사 상태로 막지 않는다. 쓰기는 행사 행을 잠그고 처리해 같은 행사의 쓰기가 차례로 커밋된다.
+
+| 행사 상태 | 편집·공개 |
+|---|---|
+| `DRAFT`, `ACTIVE` | 가능 |
+| `ENDED` | `409 EVENT_ENDED` |
+| `ARCHIVED` | `409 EVENT_ARCHIVED` |
+
+`Idempotency-Key`는 읽지 않는다. 배정은 [이미 목적지면 성공](#post-apiv1operatoreventseventidgroup-assignments), 공개는 [같으면 `ALREADY_PUBLISHED`](#post-apiv1operatoreventseventidgroupspublish)라서 같은 요청을 다시 보내도 두 번 반영되지 않는다. 결과를 모르면 편성판을 다시 읽어 확인한다(DEC-047).
+
+### 버전
+
+- `boardVersion`: 행사당 하나. 작업본이 실제로 바뀔 때마다(조 추가·이름·삭제·순서, 배정, 조장) 1 오른다. 공개는 올리지 않는다. 처음은 0이다.
+- 조 `version`: 조마다. 이름 변경과 조장 변경에 1 오른다. 배정은 조 `version`을 올리지 않는다.
+
+### `GET /api/v1/operator/events/{eventId}/group-board`
+
+`200`
+
+```json
+{
+  "eventStatus": "ACTIVE",
+  "boardVersion": 42,
+  "groups": [
+    { "groupId": "…", "name": "1조", "sortOrder": 0, "version": 3 }
+  ],
+  "participants": [
+    {
+      "participantId": "…",
+      "name": "김",
+      "cohort": "94",
+      "gender": { "optionId": "opt_female", "label": "여" },
+      "attendance": "FULL",
+      "middleGroup": "청년1부",
+      "cell": "다윗셀",
+      "groupId": "…",
+      "leader": false,
+      "publishedGroupId": "…",
+      "publishedLeader": false
+    }
+  ],
+  "withdrawn": [
+    { "participantId": "…", "name": "이", "groupId": "…" }
+  ],
+  "publication": {
+    "lastPublishedAt": "2026-12-20T09:00:00Z",
+    "lastPublishedByDisplayName": "김OO",
+    "lastPublishedBoardVersion": 40,
+    "activeCount": 120,
+    "assignedCount": 116,
+    "unassignedCount": 4,
+    "changedParticipantCount": 3,
+    "groupChanges": 1,
+    "hasUnpublishedChanges": true
+  }
+}
+```
+
+- `participants`는 활성 참가자 전원이고 순서는 이름, 그다음 참가자 id다. 페이지는 없다. 전화·접근 키는 없다.
+- `cohort`·`middleGroup`·`cell`은 `SUBMITTED` 신청의 `COHORT`·`MIDDLE_GROUP`·`CELL` 답 `value.text`(앞뒤 공백 자름)다. `gender`는 `GENDER` 답의 보기 id와 지금 보기 문구다. 답이 없거나 질문이 없거나 꺼져 있으면 `null`이다.
+- `attendance`는 `ATTENDANCE` 답의 `opt_full`·`opt_partial`·`opt_worship`을 `FULL`·`PARTIAL`·`WORSHIP_ONLY`로 바꾼 값이다. 질문이 없거나 꺼져 있으면 `FULL`이다(DEC-070 §3). `null`이 아니다.
+- `groupId`가 `null`이면 미배정이다. `publishedGroupId`·`publishedLeader`는 가장 최근 공개본의 값이고, 공개한 적이 없거나 그 공개본에 없으면 `null`·`false`다.
+- `withdrawn`은 배정 행이 남아 있지만 활성 참가자가 아닌 사람이다. `groupId`는 참고값이다. 조별 인원·미배정 수에 넣지 않는다.
+- `publication`: 공개한 적이 없으면 `lastPublished…`가 `null`이다. `changedParticipantCount`는 활성 참가자 중 작업본과 최근 공개본의 조 또는 조장 표시가 다른 사람 수다(처음 공개 전에는 배정된 사람 수). `groupChanges`는 조 추가·삭제·이름·순서가 다른 조 수다. `hasUnpublishedChanges`는 둘 중 하나라도 0이 아니면 `true`다. 화면은 이 값으로 "미공개 변경 있음"을 보여 준다(DEC-040).
+
+### `POST /api/v1/operator/events/{eventId}/groups`
+
+본문은 `{ "name": "1조" }`다. `name`은 앞뒤 공백을 자르고 1–50자다. 아니면 `400 VALIDATION_FAILED`(필드 `name`). 같은 행사에 같은 이름의 조가 있으면 `409 CONFLICT`다. 조는 맨 뒤에 붙는다. 행사당 조는 100개까지(잠정)이고 넘으면 `409 CONFLICT`다.
+
+`201` 본문은 `{ "group": { 조 객체 }, "boardVersion" }`다.
+
+### `PATCH /api/v1/operator/events/{eventId}/groups/{groupId}`
+
+본문은 `{ "name": "…", "expectedVersion": 3 }`다. `expectedVersion`이 없으면 `400`(필드 `expectedVersion`). 그 행사의 조가 아니면 `404 RESOURCE_NOT_FOUND`. 조 `version`이 다르면 `409 CONCURRENT_MODIFICATION`이고 확장 필드 `version`이 지금 값이다. 같은 이름이 다른 조에 있으면 `409 CONFLICT`. 이름이 그대로면 아무것도 바꾸지 않고 `200`이다.
+
+`200` 본문은 `{ "group", "boardVersion" }`다.
+
+### `DELETE /api/v1/operator/events/{eventId}/groups/{groupId}?expectedVersion=3`
+
+조원(철회자 포함)은 미배정이 되고 조장 표시가 풀린다. 사람마다 이력을 남긴다. 버전·없음 처리는 `PATCH`와 같다.
+
+`200` 본문은 `{ "unassignedCount": 9, "boardVersion": 44 }`다. 지난 공개본은 그대로라, 다시 공개하기 전까지 참가자는 이 조를 계속 본다.
+
+### `PUT /api/v1/operator/events/{eventId}/groups/order`
+
+본문은 `{ "groupIds": ["…", "…"] }`다. 그 행사의 조 전체를 정확히 한 번씩 담아야 한다. 빠지거나 더하거나 겹치면 `409 CONFLICT`이고, 화면은 편성판을 다시 읽는다. 순서가 그대로면 `boardVersion`을 올리지 않는다. `200` 본문은 `{ "boardVersion" }`다.
+
+### `POST /api/v1/operator/events/{eventId}/group-assignments`
+
+여러 사람을 한 번에 옮긴다. 미배정으로 빼는 것도 같은 경로다.
+
+```json
+{
+  "changes": [
+    { "participantId": "…", "fromGroupId": null, "toGroupId": "…" },
+    { "participantId": "…", "fromGroupId": "…", "toGroupId": null }
+  ]
+}
+```
+
+- `changes`는 1–200개이고 같은 `participantId`가 두 번 나오면 `400 VALIDATION_FAILED`(필드 `changes`)다. `fromGroupId`는 화면이 본 지금 조, `null`은 미배정이다. 둘 다 키가 있어야 한다.
+- 그 행사의 참가자·조가 아니면 `404 RESOURCE_NOT_FOUND`다.
+- 사람마다 지금 조를 본다.
+  - 지금 = `toGroupId`: 이미 반영됐다. 바꾸지 않는다.
+  - 지금 = `fromGroupId`: 옮긴다.
+  - 그 밖: 충돌이다.
+- 충돌이 하나라도 있으면 **아무것도 저장하지 않고** `409 CONCURRENT_MODIFICATION`이다. 확장 필드는 `conflicts: [{ "participantId", "currentGroupId" }]`와 `boardVersion`이다. 화면은 최신 상태와 내 변경을 비교해 보여 준다(DEC-046).
+- 옮기는(이미 반영 아닌) 사람이 활성 참가자가 아니면 `409 INVALID_STATE_TRANSITION`이고 확장 필드 `reason`은 `APPLICATION_NOT_SUBMITTED`, `participantIds`가 그 사람들이다. 철회자를 미배정으로 빼는 것(`toGroupId: null`)은 된다.
+- 옮긴 사람은 조장 표시가 풀린다.
+
+`200`
+
+```json
+{ "changed": 2, "alreadyApplied": 0, "boardVersion": 45 }
+```
+
+바뀐 사람이 없으면 `boardVersion`을 올리지 않는다. 바뀐 사람마다 `group_assignment_logs`에 한 줄 남긴다.
+
+### `PUT /api/v1/operator/events/{eventId}/groups/{groupId}/leaders`
+
+본문은 `{ "participantIds": ["…"], "expectedVersion": 3 }`다. 그 조의 조장 전체를 이 목록으로 바꾼다. 0–3명(잠정)이고 겹치거나 넘으면 `400 VALIDATION_FAILED`(필드 `participantIds`)다. 버전 처리는 조 `PATCH`와 같다. 지금 그 조의 활성 조원이 아닌 사람이 있으면 `409 CONFLICT`이고 확장 필드 `reason`은 `LEADER_NOT_MEMBER`, `participantIds`가 그 사람들이다. 목록이 그대로면 아무것도 바꾸지 않는다.
+
+`200` 본문은 `{ "group", "leaderIds": ["…"], "boardVersion" }`다. 조장 표시가 바뀐 사람마다 이력을 남긴다.
+
+### `POST /api/v1/operator/events/{eventId}/groups/publish`
+
+```json
+{ "expectedBoardVersion": 45, "confirmUnassigned": true }
+```
+
+`expectedBoardVersion`이 없으면 `400`(필드 `expectedBoardVersion`). `confirmUnassigned`는 생략하면 `false`다. 판정은 행사 상태 다음에 이 순서다.
+
+1. `boardVersion`이 다르면 `409 CONCURRENT_MODIFICATION`, 확장 필드 `boardVersion`. 화면은 최신 편성판을 보여 주고 다시 확인받는다(DEC-046).
+2. 작업본이 가장 최근 공개본과 같으면(`hasUnpublishedChanges: false`) `200`, `result: ALREADY_PUBLISHED`. 아무것도 남기지 않는다. 같은 공개 요청을 다시 보낸 경우가 여기다.
+3. 미배정 활성 참가자가 있고 `confirmUnassigned`가 `false`면 `409 CONFIRMATION_REQUIRED`, 확장 필드 `unassignedCount`(DEC-041).
+4. 공개한다.
+
+`200`
+
+```json
+{
+  "result": "PUBLISHED",
+  "publicationId": "…",
+  "publishedAt": "2026-12-20T09:00:00Z",
+  "boardVersion": 45,
+  "assignedCount": 116,
+  "unassignedCount": 4,
+  "changedParticipantCount": 3
+}
+```
+
+`ALREADY_PUBLISHED`면 `publicationId`·`publishedAt`이 가장 최근 공개 값이다. 공개는 `group_publications`에 한 행을 더한다. 내용은 조 id·이름·순서와 조마다 조원·조장의 참가자 id다(활성 참가자만). 이름·전화는 넣지 않는다. 같은 transaction에 audit `GROUPS_PUBLISHED`를 남긴다. 알림은 보내지 않는다(DEC-072 범위 밖). 조가 하나도 없어도 공개할 수 있고, 그러면 모두 미배정으로 보인다.
+
+### `GET /api/v1/operator/events/{eventId}/groups/published`
+
+가장 최근 공개본이다. [#288](https://github.com/BeomhyunPark/SCENE/issues/288) 조별 체크인 현황이 쓴다.
+
+`200`
+
+```json
+{
+  "publishedAt": "2026-12-20T09:00:00Z",
+  "groups": [
+    {
+      "groupId": "…",
+      "name": "1조",
+      "leaders": [{ "participantId": "…", "name": "박" }],
+      "members": [{ "participantId": "…", "name": "김", "cohort": "94", "leader": false }]
+    }
+  ],
+  "unassigned": [{ "participantId": "…", "name": "최", "cohort": "01" }]
+}
+```
+
+공개한 적이 없으면 `{ "publishedAt": null, "groups": [], "unassigned": [] }`다. `404`가 아니다. 철회자는 빠진다. 공개 뒤 새로 신청한 활성 참가자는 `unassigned`에 들어간다. 조 안의 순서는 조장 먼저, 그다음 이름이다.
+
+### `GET /api/v1/participant/group`
+
+참가자 세션 쿠키가 필요하다. CSRF는 필요 없다. 쿠키가 없거나 저장된 세션이 아니면 `401 AUTHENTICATION_REQUIRED`다. 대상은 세션의 행사·참가자뿐이고 가장 최근 공개본만 읽는다. 행사 상태와 상관없이 같다.
+
+`200`
+
+```json
+{
+  "status": "ASSIGNED",
+  "publishedAt": "2026-12-20T09:00:00Z",
+  "group": { "name": "1조", "leaders": [{ "name": "박" }] },
+  "leader": true,
+  "members": [{ "name": "김", "cohort": "94", "leader": false }]
+}
+```
+
+| `status` | 경우 | `group` |
+|---|---|---|
+| `NOT_PUBLISHED` | 공개한 적이 없다 | `null` |
+| `UNASSIGNED` | 공개됐지만 공개본에 내 조가 없다 | `null` |
+| `ASSIGNED` | 공개본에 내 조가 있다 | 값 |
+| `NOT_ELIGIBLE` | `SUBMITTED` 신청이 없다 | `null` |
+
+- 신청을 먼저 본다. 신청이 없으면 공개 여부와 상관없이 `NOT_ELIGIBLE`이다.
+- `publishedAt`은 가장 최근 공개 시각이다(`NOT_PUBLISHED`·`NOT_ELIGIBLE`은 `null`). 화면은 "마지막 갱신"으로 보여 준다(DEC-043).
+- `group.leaders`는 이름만이다. 철회한 조장은 빠진다.
+- `leader`는 공개본에서 내가 그 조의 조장인지다. `members`는 `leader`가 `true`일 때만 있고, 그 조의 활성 조원(나 포함)의 이름·또래·조장 표시다. 그 밖에는 `null`이다. 전화·연락처는 없다.
+- 일반 참가자는 다른 조원의 이름을 받지 않는다.
+- 조회는 audit을 남기지 않는다.
+
+### 이력과 감사 로그
+
+`group_assignment_logs`: 참가자, 이전 조, 새 조, 조장 전후, 처리자 `users.id`, 시각, 원인(`MOVE`·`LEADER`·`GROUP_DELETED`). 1차에 읽는 URL은 없다.
+
+audit `GROUPS_PUBLISHED`: detail은 `publicationId`, `boardVersion`, `assignedCount`, `unassignedCount`, `changedParticipantCount`다. `ALREADY_PUBLISHED`는 남기지 않는다. 조·배정 편집은 audit 대신 위 이력에 남긴다.
+
 ## 회고
 
 컨트롤러는 `event/retrospective/RetrospectiveController`다. 행사당 글 하나다(DEC-067 Follow-up 2026-11-16). `Idempotency-Key`는 읽지 않는다.
@@ -1334,7 +1562,8 @@ CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고
 - SMTP. 초대 링크는 생성·다시 보내기 응답에 한 번 나오고, 메일 포트는 프로세스 메모리에만 담는다
 - 체크 항목 추가
 - 참가자 조회(`GET /api/v1/participant/me`·`GET /api/v1/participant/check-in` 밖)
-- 회비, 조, 방, 차량
+- 회비, 방, 차량
+- 조 편성. [계약](#조-편성)만 있고 서버는 #234 하위 이슈에서 연다
 - Export, 공간 설정
 - 행사 기간·장소·유형을 바꾸는 `PATCH`. 이름만 바꾼다
 - 공간 소유권 이전의 전용 URL
