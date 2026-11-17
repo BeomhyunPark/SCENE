@@ -83,16 +83,6 @@ export type PublishResult = {
   changedParticipantCount: number;
 };
 
-export type PublishResult = {
-  result: "PUBLISHED" | "ALREADY_PUBLISHED";
-  publicationId: string;
-  publishedAt: string;
-  boardVersion: number;
-  assignedCount: number;
-  unassignedCount: number;
-  changedParticipantCount: number;
-};
-
 export type AssignmentChange = { participantId: string; fromGroupId: string | null; toGroupId: string | null };
 export type AssignmentResult = { changed: number; alreadyApplied: number; boardVersion: number };
 export type AssignmentConflict = { participantId: string; currentGroupId: string | null };
