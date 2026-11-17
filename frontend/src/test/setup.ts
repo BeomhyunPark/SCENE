@@ -7,6 +7,7 @@ import { resetFormStore } from "../mocks/formStore";
 import { resetInvitationStore } from "../mocks/invitationStore";
 import { resetOperatorStore } from "../mocks/operatorStore";
 import { resetParticipantStore } from "../mocks/participantStore";
+import { resetParticipantCheckInStore } from "../mocks/participantCheckInStore";
 import { resetRetrospectiveStore } from "../mocks/retrospectiveStore";
 import { resetAccessKeyCapture } from "../accessKey";
 import { resetCheckInStore } from "../mocks/checkInStore";
@@ -25,6 +26,7 @@ afterEach(() => {
   resetRetrospectiveStore();
   resetCheckInStore();
   resetParticipantStore();
+  resetParticipantCheckInStore();
   resetAccessKeyCapture();
   resetFormStore();
   resetInvitationStore();

@@ -7,6 +7,7 @@ import { getParticipantMe, logoutParticipant, openParticipantSession } from "../
 import { reloadQuery } from "../api/queryClient";
 import { queryKeys } from "../api/queryKeys";
 import { Button } from "./Button";
+import { ParticipantCheckIn } from "./ParticipantCheckIn";
 import { ParticipantFrame } from "./ParticipantFrame";
 
 export function ParticipantEnter() {
@@ -80,6 +81,7 @@ export function ParticipantEnter() {
   const name = me.data.name.trim();
   return (
     <ParticipantFrame title={name.length > 0 ? `${name}님, 참가 신청이 됐어요.` : "참가 신청이 됐어요."}>
+      <ParticipantCheckIn eventId={eventId} />
       {logoutError ? <p className="participant-gate__error">나가지 못했어요. 잠시 후 다시 시도해 주세요.</p> : null}
       <Button
         type="button"
@@ -90,6 +92,7 @@ export function ParticipantEnter() {
           void logoutParticipant()
             .then(() => {
               queryClient.removeQueries({ queryKey: queryKeys.participantMe(eventId) });
+              queryClient.removeQueries({ queryKey: queryKeys.participantCheckIn(eventId) });
               setLeft(true);
             })
             .catch(() => setLogoutError(true));
