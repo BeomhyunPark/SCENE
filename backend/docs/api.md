@@ -1029,6 +1029,13 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
 
 그 행사에 신청이 없으면, 권한보다 먼저 `404 RESOURCE_NOT_FOUND`다.
 
+권한은 목록·표와 같다(`EVENT_READ` 또는 활성 공간 `OWNER`·`ADMIN`). **전화 답은 참가 현황 표와 같은 기준**이다(#332, DEC-054 Follow-up).
+
+- 전화 질문(SYSTEM `PHONE`, `format: PHONE`인 글 질문)의 답에는 `contact: true`가 붙는다.
+- effective `PARTICIPANT_CONTACT_READ`가 없으면 그 답의 `value`는 `null`이고 최상위 `contactVisible`은 `false`다. 답 항목은 남기므로 화면은 그 자리에 "연락처 권한이 있는 운영자만 볼 수 있어요"를 보인다. 행사 역할 없는 공간 `OWNER`·`ADMIN`도 마찬가지다.
+- 권한이 있고 전화 답이 하나라도 값과 함께 나가면 audit `APPLICANT_CONTACTS_VIEWED` 한 줄을 남긴다. detail은 `{ "count": 1, "applicationId" }`다. 번호·이름은 없다. 표와 같은 action이고, `CONTACT_VIEW` privacy log가 생기면 함께 옮긴다.
+- 체크인 명단의 끝 4자리(DEC-071)와 CSV(`DATA_EXPORT`)는 이 규칙과 상관없다.
+
 `200`
 
 ```json
@@ -1037,6 +1044,7 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
   "formId": "…",
   "status": "SUBMITTED",
   "submittedAt": "2026-10-15T00:00:00Z",
+  "contactVisible": true,
   "answers": [
     {
       "fieldId": "…",
@@ -1047,7 +1055,8 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
       "answerType": "SHORT_TEXT",
       "hidden": false,
       "config": { "maxLength": 200, "format": "NONE", "placeholder": null },
-      "value": { "text": "김" }
+      "value": { "text": "김" },
+      "contact": false
     }
   ]
 }

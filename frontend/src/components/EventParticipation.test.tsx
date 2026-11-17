@@ -106,6 +106,18 @@ describe("event participation applicants", () => {
     expect(await screen.findByRole("heading", { name: "신청자" })).toBeInTheDocument();
   });
 
+  it("shows why the phone is missing on the detail for an operator without contact access", async () => {
+    const form = openForm();
+    const submitted = submit(form, { 이름: "김하나", 전화: "010-1111-2222" });
+    await login({ userId: localUsers[2].userId });
+    openApp(`/events/${EVENT}/participants/${submitted.applicationId}`);
+
+    expect(await screen.findByRole("heading", { name: "신청 내용" })).toBeInTheDocument();
+    const answers = await screen.findAllByRole("definition");
+    expect(answers.map((item) => item.textContent)).toEqual(["김하나", "연락처 권한이 있는 운영자만 볼 수 있어요"]);
+    expect(document.body.textContent ?? "").not.toContain("010-1111-2222");
+  });
+
   it("shows a fallback when the name answer is missing", async () => {
     const form = openForm();
     const applicationId = seedApplicationWithoutName(EVENT, form.formId, "2026-10-08T03:00:00Z");

@@ -1616,7 +1616,15 @@ Export·보존·삭제·복구를 검토했다.
 - `CONTACT_VIEW` privacy log는 아직 없다. 그동안 전화 열을 보낸 응답마다 audit `APPLICANT_CONTACTS_VIEWED`(`{count}`만)를 남긴다. privacy log가 생기면 그쪽으로 옮긴다.
 - 조 열은 작업본이라 DEC-072 §7대로 `GROUP_WRITE` 또는 공간 `OWNER`·`ADMIN`에게만 보낸다. 체크인 여부는 명단 조회와 같은 권한이다(DEC-071).
 - 버린 안: 표를 `DATA_EXPORT`에만(MANAGER·STAFF가 명단을 거를 수 없어 시트를 대신하지 못한다), 끝 4자리만 모두에게(사용자 디자인 P03-01이 연락처 열을 둔다), 전체 번호를 기록 없이 `EVENT_READ`에(연락처 경계가 빈 껍데기가 된다).
-- 남은 차이: 신청 상세(`GET …/applications/{id}`)는 지금도 `EVENT_READ`로 전체 전화번호를 보인다. 표와 맞출지는 따로 정한다.
+- ~~남은 차이: 신청 상세(`GET …/applications/{id}`)는 지금도 `EVENT_READ`로 전체 전화번호를 보인다. 표와 맞출지는 따로 정한다.~~ → 아래 Follow-up으로 맞췄다.
+
+### Follow-up (2026-11-17): 신청 상세의 전화도 연락처 권한에만 (#332)
+
+사용자 결정(2026-11-17): 표와 맞춘다.
+
+- 신청 상세는 전화 질문(SYSTEM `PHONE`, `format: PHONE`)의 답을 effective `PARTICIPANT_CONTACT_READ`가 있을 때만 값과 함께 보낸다. 없으면 답 항목은 남기되 `value: null`·`contact: true`로 보내고, 화면은 "연락처 권한이 있는 운영자만 볼 수 있어요"를 보인다. 표와 같이 공간 `OWNER`·`ADMIN`이라는 것만으로는 보이지 않는다.
+- 값을 보낸 응답마다 표와 같은 audit `APPLICANT_CONTACTS_VIEWED`를 남긴다. detail은 `{count: 1, applicationId}`다. 한 건 조회라 대상 신청을 남기고, 번호·이름은 남기지 않는다(security-privacy §6). privacy log `CONTACT_VIEW`가 생기면 표와 함께 옮긴다.
+- 다른 읽기 경로를 훑었다. 신청 목록(이름만), 집계의 카풀·이동 지원 목록(이름·또래·동네), 조 편성판·공개 스냅샷·참가자 조 조회(전화 없음)에는 전화가 없다. 체크인 명단의 끝 4자리(DEC-071, `CHECKIN_WRITE`)와 CSV(`DATA_EXPORT`)는 바꾸지 않는다.
 
 ---
 
