@@ -2601,6 +2601,16 @@ SYSTEM 이름·전화는 제목만 고칠 수 있었고 늘 맨 앞에 고정이
 
 사용자 위임 2026-11-17: #234 질문에 답하는 일을 "알아서" 맡겼고, 9개 질문 모두 추천안을 채택했다. 근거 자료는 DEC-030·040~048, DEC-070 §3, DEC-071, [group-publication-review](group-publication-review.md), [group-change-recovery-review](group-change-recovery-review.md), event-lifecycle-review "종료 후 허용 행동", API Architecture §11.
 
+### Follow-up (2026-11-17): 편성판 참석 칸 (#315)
+
+사용자는 2026-11-17 Figma 조 편성 디자인의 오전/오후/저녁 막대를 보고 "부분 참석 저 부분은 틀렸다"고 했고, 예전에 준 retreat 소스(church-retreat-ops `AdminRetreatGroupsPage.tsx`, [retreat-v0.9-product-audit](../research/retreat-v0.9-product-audit.md) §3.5·FINDING-03)를 기준으로 짚었다. 그 소스는 행사에 설정된 참여 칸(날짜별 프로그램·식사)과 사람마다 고른 칸으로 연속 구간 막대를 그리고 조마다 칸별 인원을 센다. 코드는 옮기지 않고 기준만 따른다.
+
+- 칸은 시간대(오전/오후/저녁)가 아니라 **신청서 설정의 일차별 식사·집회 칸**(DEC-070, 자동 질문 `MEALS`)이다. 신청 집계(DEC-073)의 식수 칸과 같은 칸·id·규칙이고, 서버는 같은 코드로 읽는다.
+- 편성판(`GET …/group-board`)에 칸 정의 `slots`와 참가자별 `slotIds`를 더한다. 전체 참석은 모든 칸, 부분·집회만 참석은 고른 칸, 답이 없으면 `null`("모름")이다. 설정이 없거나 칸이 하나도 없으면 `slots`가 `null`이다.
+- 조별 칸 인원은 화면이 `groupId`와 `slotIds`로 센다. 서버가 따로 주지 않는다.
+- 참가자용 내 조 응답(§6)에는 넣지 않는다. 운영자 편성판 권한(`GROUP_WRITE`) 안에서만 보이고, 같은 답은 신청 원본 조회에서 이미 보이므로 새로 열리는 정보가 없다.
+- 응답 모양은 [api.md "조 편성"](../../backend/docs/api.md)에 있다. 기존 필드는 그대로이고 더하기만 했다.
+
 ## DEC-073 — 신청 집계는 신청 읽기 권한으로 보고, 지금 신청서 설정을 기준으로 읽을 때마다 센다
 
 **Date:** 2026-11-17
