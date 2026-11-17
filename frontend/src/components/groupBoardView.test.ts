@@ -1,6 +1,17 @@
 import { describe, expect, it } from "vitest";
-import type { BoardParticipant } from "../api/groups";
-import { EMPTY_FILTERS, NO_ANSWER, cohortSummary, filterOptions, matchesFilters, nextGroupName } from "./groupBoardView";
+import type { AttendanceSlot, BoardParticipant } from "../api/groups";
+import {
+  EMPTY_FILTERS,
+  NO_ANSWER,
+  cohortSummary,
+  filterOptions,
+  matchesFilters,
+  nextGroupName,
+  slotDays,
+  slotHeadcount,
+  slotRuns,
+  slotRunsText,
+} from "./groupBoardView";
 
 function person(patch: Partial<BoardParticipant>): BoardParticipant {
   return {
@@ -16,6 +27,7 @@ function person(patch: Partial<BoardParticipant>): BoardParticipant {
     leader: false,
     publishedGroupId: null,
     publishedLeader: false,
+    slotIds: null,
     ...patch,
   };
 }
@@ -47,5 +59,51 @@ describe("group board view", () => {
     expect(nextGroupName([])).toBe("1조");
     expect(nextGroupName([group("1조"), group("3조")])).toBe("4조");
     expect(nextGroupName([group("찬양조")])).toBe("2조");
+  });
+});
+
+describe("attendance slots (#318)", () => {
+  const meals = [
+    [1, "DINNER", "저녁"],
+    [1, "WORSHIP", "집회"],
+    [2, "BREAKFAST", "아침"],
+    [2, "LUNCH", "점심"],
+    [2, "DINNER", "저녁"],
+    [2, "WORSHIP", "집회"],
+  ] as const;
+  const slots: AttendanceSlot[] = meals.map(([day, meal, label], sortOrder) => ({
+    slotId: `opt_d${day}_${meal.toLowerCase()}`,
+    day,
+    date: `2027-01-${21 + day}`,
+    dayLabel: day === 1 ? "1월 22일 (금)" : "1월 23일 (토)",
+    meal,
+    label,
+    sortOrder,
+  }));
+  const ids = (...indexes: number[]) => indexes.map((index) => slots[index].slotId);
+
+  it("draws continuous runs of attended slots and says them in words", () => {
+    expect(slotRuns(slots, ids(0, 1, 2, 3, 4, 5))).toEqual([{ start: 0, end: 5 }]);
+    expect(slotRuns(slots, ids(1, 2, 5))).toEqual([{ start: 1, end: 2 }, { start: 5, end: 5 }]);
+    expect(slotRuns(slots, [])).toEqual([]);
+    expect(slotRunsText(slots, ids(0, 1, 2, 3, 4, 5))).toBe("모든 칸 참석");
+    expect(slotRunsText(slots, ids(1, 2, 5))).toBe("참석 1월 22일 (금) 집회–1월 23일 (토) 아침, 1월 23일 (토) 집회");
+    expect(slotRunsText(slots, [])).toBe("참석 칸 없음");
+  });
+
+  it("groups the header by day with a short date", () => {
+    expect(slotDays(slots).map((day) => `${day.short}×${day.count}`)).toEqual(["1/22×2", "1/23×4"]);
+  });
+
+  it("counts people per slot, keeps 모름 (null) apart from no slot ([]), and adds up to the summary", () => {
+    const groupA = [person({ slotIds: ids(0, 1, 2, 3, 4, 5) }), person({ attendance: "PARTIAL", slotIds: ids(1, 2) })];
+    const groupB = [person({ attendance: "WORSHIP_ONLY", slotIds: ids(1, 5) }), person({ attendance: "PARTIAL", slotIds: null })];
+    const unassigned = [person({ attendance: "PARTIAL", slotIds: [] })];
+    expect(slotHeadcount(slots, groupA)).toEqual({ counts: [1, 2, 2, 1, 1, 1], unknown: 0 });
+    expect(slotHeadcount(slots, groupB)).toEqual({ counts: [0, 1, 0, 0, 0, 1], unknown: 1 });
+    expect(slotHeadcount(slots, unassigned)).toEqual({ counts: [0, 0, 0, 0, 0, 0], unknown: 0 });
+    const everyone = slotHeadcount(slots, [...groupA, ...groupB, ...unassigned]);
+    const parts = [groupA, groupB, unassigned].map((members) => slotHeadcount(slots, members).counts);
+    expect(everyone.counts).toEqual(slots.map((_, index) => parts.reduce((sum, counts) => sum + counts[index], 0)));
   });
 });
