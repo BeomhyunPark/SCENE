@@ -83,6 +83,48 @@ export function downloadApplicationsCsv(eventId: string): Promise<{ blob: Blob; 
   }));
 }
 
+/** One question of the 참가 현황 table (#308): the detail's answer fields without `value`. */
+export type TableColumn = {
+  fieldId: string;
+  kind: "SYSTEM" | "CUSTOM";
+  systemKey: string | null;
+  presetKey: string | null;
+  label: string;
+  position: number;
+  answerType: AnswerType;
+  hidden: boolean;
+  config: FieldConfig;
+  /** A phone question. Sent only to an operator with `PARTICIPANT_CONTACT_READ`. */
+  contact: boolean;
+};
+
+export type TableRow = {
+  applicationId: string;
+  submittedAt: string;
+  /** Field id to stored value (DEC-068 §1). No key means no answer. */
+  answers: Record<string, Record<string, unknown>>;
+  /** Working-copy group (DEC-072). Null when unassigned or when `groupVisible` is false. */
+  group: { groupId: string; name: string; leader: boolean } | null;
+  checkedInAt: string | null;
+};
+
+export type ApplicationTable = {
+  formId: string | null;
+  contactVisible: boolean;
+  groupVisible: boolean;
+  columns: TableColumn[];
+  rows: TableRow[];
+};
+
+/**
+ * 참가 현황 table (#308): every SUBMITTED applicant with every answer the reader may see, in one
+ * response. The screen filters, sorts and counts. Phone columns come only with
+ * `PARTICIPANT_CONTACT_READ`; groups only with `GROUP_WRITE` or a space OWNER/ADMIN.
+ */
+export function getApplicationTable(eventId: string, signal?: AbortSignal): Promise<ApplicationTable> {
+  return apiRequest<unknown>(`/api/v1/operator/events/${eventId}/applications/table`, { signal }).then(parseTable);
+}
+
 export function getPublicForm(eventId: string, formId: string, signal?: AbortSignal): Promise<PublicForm> {
   return apiRequest<unknown>(`/api/v1/public/events/${eventId}/forms/${formId}`, { signal }).then(parseForm);
 }
@@ -188,6 +230,66 @@ function parseDetail(value: unknown): ApplicationDetail {
     status: value.status,
     submittedAt: value.submittedAt,
     answers,
+  };
+}
+
+function parseTable(value: unknown): ApplicationTable {
+  if (
+    !isRecord(value) ||
+    !(value.formId === null || typeof value.formId === "string") ||
+    !Array.isArray(value.columns) ||
+    !Array.isArray(value.rows)
+  ) {
+    throw new ApiError({ status: 200, code: "UNEXPECTED" });
+  }
+  const columns: TableColumn[] = [];
+  for (const column of value.columns) {
+    if (!isField(column) || typeof column.answerType !== "string") throw new ApiError({ status: 200, code: "UNEXPECTED" });
+    columns.push({
+      fieldId: column.fieldId,
+      kind: column.kind,
+      systemKey: column.systemKey,
+      presetKey: typeof column.presetKey === "string" ? column.presetKey : null,
+      label: column.label,
+      position: column.position,
+      answerType: column.answerType as AnswerType,
+      hidden: column.hidden === true,
+      config: isRecord(column.config) ? (column.config as FieldConfig) : {},
+      contact: column.contact === true,
+    });
+  }
+  const rows: TableRow[] = [];
+  for (const row of value.rows) {
+    if (
+      !isRecord(row) ||
+      typeof row.applicationId !== "string" ||
+      typeof row.submittedAt !== "string" ||
+      !isRecord(row.answers)
+    ) {
+      throw new ApiError({ status: 200, code: "UNEXPECTED" });
+    }
+    const answers: Record<string, Record<string, unknown>> = {};
+    for (const [fieldId, answer] of Object.entries(row.answers)) {
+      if (isRecord(answer)) answers[fieldId] = answer;
+    }
+    const group = row.group;
+    rows.push({
+      applicationId: row.applicationId,
+      submittedAt: row.submittedAt,
+      answers,
+      group:
+        isRecord(group) && typeof group.groupId === "string" && typeof group.name === "string"
+          ? { groupId: group.groupId, name: group.name, leader: group.leader === true }
+          : null,
+      checkedInAt: typeof row.checkedInAt === "string" ? row.checkedInAt : null,
+    });
+  }
+  return {
+    formId: value.formId,
+    contactVisible: value.contactVisible === true,
+    groupVisible: value.groupVisible === true,
+    columns,
+    rows,
   };
 }
 
