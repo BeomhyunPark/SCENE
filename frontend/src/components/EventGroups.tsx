@@ -13,6 +13,8 @@ import {
   createGroup,
   deleteGroup,
   getGroupBoard,
+  publishGroups,
+  problemCount,
   problemParticipantIds,
   problemReason,
   renameGroup,
@@ -29,7 +31,7 @@ import { getMe } from "../api/session";
 import { Button } from "./Button";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { EventScreen } from "./EventScreen";
-import { eventContext } from "./eventFormat";
+import { eventContext, formatPublishedAt } from "./eventFormat";
 import { readEventAreas } from "./eventLocalState";
 import { AttendanceTimeline, SlotHeadcount } from "./GroupAttendance";
 import {
@@ -55,6 +57,9 @@ import "./EventGroups.css";
 
 type Notice = { tone: "success" | "info" | "error"; text: string };
 
+/** The publish confirmation (#302). `unassigned` is set after 409 CONFIRMATION_REQUIRED; `stale` after a version conflict. */
+type Publishing = { unassigned: number | null; stale: boolean };
+
 /** One row of the "아무것도 저장하지 않았어요" report after a 409 CONCURRENT_MODIFICATION. */
 type ConflictReport = {
   toGroupId: string | null;
@@ -71,7 +76,8 @@ type ConflictReport = {
  * without drag and drop. Each move sends what this screen saw (`fromGroupId`); if anyone changed in
  * between, nothing is saved, the board is read again and the differences are listed. Attendance shows
  * only the server's ATTENDANCE value as a tag; per-slot bars wait for slot data (see GroupAttendance).
- * Copy is a draft.
+ * 공개 (#302) is the primary button: a confirmation shows what goes out (people whose group changes, groups
+ * changed, 미배정) and what participants see, then sends the board version this screen shows. Copy is a draft.
  */
 export function EventGroups() {
   const { eventId = "" } = useParams();
@@ -127,7 +133,7 @@ function GroupsBody({ event, spaceName }: { event: EventDetail; spaceName?: stri
           />
         ) : (
           <>
-            <PageHead context={context} eventHref={eventHref} chip={null} />
+            <PageHead context={context} eventHref={eventHref} chip={null} primary={null} />
             {isApiError(board.error) && board.error.status === 403 ? (
               <p className="event-groups__blocked" role="note">
                 조 편성을 볼 권한이 없어요. 행사 OWNER에게 조 편성 권한을 요청해 주세요.
@@ -149,7 +155,17 @@ function GroupsBody({ event, spaceName }: { event: EventDetail; spaceName?: stri
   );
 }
 
-function PageHead({ context, eventHref, chip }: { context: string; eventHref: string; chip: ReactNode }) {
+function PageHead({
+  context,
+  eventHref,
+  chip,
+  primary,
+}: {
+  context: string;
+  eventHref: string;
+  chip: ReactNode;
+  primary: ReactNode;
+}) {
   return (
     <section className="event-groups__head" aria-label="편성 현황">
       <div className="event-groups__head-text">
@@ -161,8 +177,10 @@ function PageHead({ context, eventHref, chip }: { context: string; eventHref: st
         <Link className="scene-button scene-button--secondary scene-button--size-40 event-groups__home" to={eventHref}>
           <span className="scene-button__label">행사 홈</span>
         </Link>
-        {/* #302: 공개 버튼(주 버튼)이 이 자리에 들어온다. Figma의 "변경 영향 확인"은 서버 기능이 없어 두지 않았다. */}
-        <div className="event-groups__primary-slot" data-slot="publish" />
+        {/* Figma의 주 버튼 자리("변경 영향 확인")에 공개를 둔다. 영향은 공개 확인 창에서 보여 준다. */}
+        <div className="event-groups__primary-slot" data-slot="publish">
+          {primary}
+        </div>
       </div>
     </section>
   );
@@ -217,6 +235,7 @@ function Board({
   const [newName, setNewName] = useState("");
   const [renaming, setRenaming] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<Group | null>(null);
+  const [publishing, setPublishing] = useState<Publishing | null>(null);
   const [page, setPage] = useState(0);
   const pageSize = usePageSize();
 
@@ -269,14 +288,14 @@ function Board({
   }
 
   /** Runs a write, reads the board again, then shows the outcome, so the message never runs ahead of the board. */
-  async function write(action: () => Promise<string | null>, failure: (error: unknown) => string) {
+  async function write(action: () => Promise<string | Notice | null>, failure: (error: unknown) => string) {
     setBusy(true);
     setNotice(null);
     setConflict(null);
     let outcome: Notice | null = null;
     try {
       const done = await action();
-      if (done) outcome = { tone: "success", text: done };
+      if (done) outcome = typeof done === "string" ? { tone: "success", text: done } : done;
     } catch (error) {
       if (isApiError(error, "EVENT_ENDED", "EVENT_ARCHIVED")) {
         void queryClient.invalidateQueries({ queryKey: queryKeys.event(eventId) });
@@ -463,6 +482,39 @@ function Board({
     );
   }
 
+  /**
+   * Sends the version this screen shows. CONFIRMATION_REQUIRED and a version conflict keep the dialog open
+   * (the board is read again first); anything else closes it and reports through write().
+   */
+  function publish(confirmUnassigned: boolean) {
+    const expected = board.boardVersion;
+    void write(
+      async () => {
+        try {
+          const result = await publishGroups(eventId, expected, confirmUnassigned);
+          setPublishing(null);
+          if (result.result === "ALREADY_PUBLISHED") {
+            return { tone: "info", text: "참가자에게 보이는 조 편성과 같아서 새로 공개하지 않았어요." };
+          }
+          return `참가자에게 공개했어요. 조가 바뀐 사람 ${result.changedParticipantCount.toLocaleString("ko-KR")}명${
+            result.unassignedCount > 0 ? ` · 미배정 ${result.unassignedCount.toLocaleString("ko-KR")}명` : ""
+          }`;
+        } catch (error) {
+          if (isApiError(error, "CONFIRMATION_REQUIRED")) {
+            setPublishing({ unassigned: problemCount(error, "unassignedCount") ?? board.publication.unassignedCount, stale: false });
+            return null;
+          }
+          if (isApiError(error, "CONCURRENT_MODIFICATION")) {
+            setPublishing({ unassigned: null, stale: true });
+            return null;
+          }
+          setPublishing(null);
+          throw error;
+        }
+      },
+      () => "공개하지 못했어요. 편성판을 다시 불러왔어요.",
+    );
+  }
 
   const targetId = target && board.groups.some((group) => group.groupId === target) ? target : "";
   const rangeText =
@@ -490,9 +542,25 @@ function Board({
             배정 {assigned.toLocaleString("ko-KR")} · 미배정 {(people.length - assigned).toLocaleString("ko-KR")}
           </p>
         }
+        primary={
+          <Button
+            type="button"
+            variant="primary"
+            size={40}
+            disabled={!editable || busy}
+            aria-describedby={blocked ? "groups-blocked" : undefined}
+            onClick={() => {
+              setNotice(null);
+              setPublishing({ unassigned: null, stale: false });
+            }}
+          >
+            참가자에게 공개
+          </Button>
+        }
       />
       <p className="event-groups__hint">
-        바꾼 내용은 바로 저장되지만, 참가자에게는 공개해야 보여요.
+        바꾼 내용은 바로 저장되지만, 참가자에게는 공개해야 보여요.{" "}
+        <span className="event-groups__published">{publishedText(board)}</span>
         {board.publication.hasUnpublishedChanges ? (
           <span className="event-groups__unpublished"> 참가자에게 아직 공개하지 않은 변경이 있어요.</span>
         ) : null}
@@ -738,6 +806,16 @@ function Board({
             선택 해제
           </Button>
         </div>
+      ) : null}
+
+      {publishing ? (
+        <PublishDialog
+          board={board}
+          state={publishing}
+          busy={busy}
+          onCancel={() => setPublishing(null)}
+          onConfirm={() => publish(publishing.unassigned !== null)}
+        />
       ) : null}
 
       {deleting ? (
@@ -1124,6 +1202,75 @@ function GroupCard({
       ) : null}
     </article>
   );
+}
+
+/** Figma 1325:5581 shape: title, one line of context, a tinted box of what changes, 취소 · primary. */
+function PublishDialog({
+  board,
+  state,
+  busy,
+  onCancel,
+  onConfirm,
+}: {
+  board: GroupBoard;
+  state: Publishing;
+  busy: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const publication = board.publication;
+  const first = publication.lastPublishedAt === null;
+  const unchanged = !first && !publication.hasUnpublishedChanges;
+  const count = (value: number) => value.toLocaleString("ko-KR");
+  const unassigned = state.unassigned ?? publication.unassignedCount;
+  return (
+    <ConfirmDialog
+      title={state.unassigned !== null ? `미배정 ${count(unassigned)}명을 두고 공개할까요?` : "참가자에게 조 편성을 공개할까요?"}
+      onClose={onCancel}
+      footer={
+        <>
+          <Button type="button" variant="secondary" size={40} onClick={onCancel}>
+            취소
+          </Button>
+          <Button type="button" variant="primary" size={40} loading={busy} onClick={onConfirm}>
+            {state.unassigned !== null ? "미배정 두고 공개" : "공개"}
+          </Button>
+        </>
+      }
+    >
+      {state.stale ? (
+        <p className="event-groups__publish-stale" role="alert">
+          그사이 편성판이 바뀌어 공개하지 않았어요. 최신 편성판을 불러왔으니 아래 내용을 다시 확인해 주세요.
+        </p>
+      ) : null}
+      {state.unassigned !== null ? (
+        <p>
+          아직 조가 없는 참가자 {count(unassigned)}명은 내 조 화면에서 &ldquo;아직 조가 정해지지 않았어요&rdquo;로 보여요. 나중에
+          배정하고 다시 공개할 수 있어요.
+        </p>
+      ) : (
+        <p>
+          참가자는 자기 링크에서 조 이름과 조장 이름을 봐요. 조장은 자기 조원의 이름과 또래를 더 봐요. 연락처는 보이지 않아요.
+        </p>
+      )}
+      <div className="event-groups__publish-box">
+        <p className="event-groups__publish-box-title">{first ? "처음 공개" : unchanged ? "바뀐 내용 없음" : "이번에 바뀌는 내용"}</p>
+        <ul className="event-groups__publish-list" aria-label="공개되는 내용">
+          <li>조가 바뀌는 사람 {count(publication.changedParticipantCount)}명</li>
+          <li>바뀐 조 {count(publication.groupChanges)}개</li>
+          <li>미배정 {count(unassigned)}명</li>
+        </ul>
+        {unchanged ? <p className="event-groups__publish-box-note">지금 참가자에게 보이는 조 편성과 같아요.</p> : null}
+      </div>
+    </ConfirmDialog>
+  );
+}
+
+function publishedText(board: GroupBoard): string {
+  const { lastPublishedAt, lastPublishedByDisplayName } = board.publication;
+  if (!lastPublishedAt) return "아직 공개하지 않았어요.";
+  const at = formatPublishedAt(lastPublishedAt);
+  return `마지막 공개 ${at}${lastPublishedByDisplayName ? ` · ${lastPublishedByDisplayName}` : ""}.`;
 }
 
 function ConflictPanel({

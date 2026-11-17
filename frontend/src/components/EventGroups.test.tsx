@@ -8,6 +8,7 @@ import {
   groupAssignmentLogs,
   groupPeople,
   moveAsOtherOperator,
+  readParticipantGroup,
   renameAsOtherOperator,
   seedGroup,
   seedLargeGroupBoard,
@@ -363,5 +364,98 @@ describe("group board (#301)", () => {
     fireEvent.click(within(card("3조")).getByRole("button", { name: `고른 ${count}명 이 조로 보내기` }));
     expect(await screen.findByText(`${count}명을 3조로 보냈어요.`, {}, WAIT)).toBeInTheDocument();
     await waitFor(() => expect(summary()).toContain(`배정 ${count}`), WAIT);
+  });
+});
+
+describe("group publish (#302)", () => {
+  function publishButton() {
+    return screen.getByRole("button", { name: "참가자에게 공개" });
+  }
+
+  function dialog() {
+    return screen.getByRole("dialog");
+  }
+
+  it("publishes after confirming the unassigned, then the participant sees the group; a resend is ALREADY_PUBLISHED", async () => {
+    const one = seedGroup(EVENT, "1조");
+    const leader = person("94 김하늘").participantId;
+    moveAsOtherOperator(EVENT, leader, one, true);
+    moveAsOtherOperator(EVENT, person("95 김하람").participantId, one);
+    await openAs(0);
+    expect(screen.getByText("아직 공개하지 않았어요.")).toBeInTheDocument();
+    expect(readParticipantGroup(EVENT, leader)).toMatchObject({ status: "NOT_PUBLISHED" });
+
+    fireEvent.click(publishButton());
+    expect(within(dialog()).getByText("참가자에게 조 편성을 공개할까요?")).toBeInTheDocument();
+    expect(within(dialog()).getByText("처음 공개")).toBeInTheDocument();
+    const items = within(within(dialog()).getByRole("list", { name: "공개되는 내용" })).getAllByRole("listitem");
+    expect(items.map((item) => item.textContent)).toEqual(["조가 바뀌는 사람 2명", "바뀐 조 1개", "미배정 8명"]);
+    expect(within(dialog()).getByText(/조 이름과 조장 이름을 봐요. 조장은 자기 조원의 이름과 또래를 더 봐요/)).toBeInTheDocument();
+
+    fireEvent.click(within(dialog()).getByRole("button", { name: "공개" }));
+    expect(await screen.findByText("미배정 8명을 두고 공개할까요?", {}, WAIT)).toBeInTheDocument();
+    expect(readParticipantGroup(EVENT, leader)).toMatchObject({ status: "NOT_PUBLISHED" });
+    fireEvent.click(within(dialog()).getByRole("button", { name: "미배정 두고 공개" }));
+
+    expect(await screen.findByText("참가자에게 공개했어요. 조가 바뀐 사람 2명 · 미배정 8명", {}, WAIT)).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByText(/^마지막 공개 .+ · Local owner\.$/)).toBeInTheDocument();
+    expect(screen.queryByText(/참가자에게 아직 공개하지 않은 변경이 있어요/)).not.toBeInTheDocument();
+    const seen = readParticipantGroup(EVENT, leader);
+    expect(seen).toMatchObject({ status: "ASSIGNED", leader: true, group: { name: "1조", leaders: [{ name: "김하늘" }] } });
+    expect(seen.members?.map((member) => member.name)).toEqual(["김하늘", "김하람"]);
+    expect(readParticipantGroup(EVENT, person("96 박서준").participantId)).toMatchObject({ status: "UNASSIGNED" });
+
+    await idle();
+    fireEvent.click(publishButton());
+    expect(within(dialog()).getByText("바뀐 내용 없음")).toBeInTheDocument();
+    fireEvent.click(within(dialog()).getByRole("button", { name: "공개" }));
+    expect(await screen.findByText("참가자에게 보이는 조 편성과 같아서 새로 공개하지 않았어요.", {}, WAIT)).toHaveAttribute("role", "status");
+  });
+
+  it("publishes at once when everyone is assigned", async () => {
+    const one = seedGroup(EVENT, "1조");
+    for (const item of groupPeople(EVENT)) moveAsOtherOperator(EVENT, item.participantId, one);
+    await openAs(0);
+    fireEvent.click(publishButton());
+    fireEvent.click(within(dialog()).getByRole("button", { name: "공개" }));
+    expect(await screen.findByText("참가자에게 공개했어요. 조가 바뀐 사람 10명", {}, WAIT)).toBeInTheDocument();
+    expect(readParticipantGroup(EVENT, person("정민호").participantId)).toMatchObject({ status: "ASSIGNED", group: { name: "1조" } });
+  });
+
+  it("on a version conflict reads the board again and asks again with the latest numbers", async () => {
+    const one = seedGroup(EVENT, "1조");
+    for (const item of groupPeople(EVENT)) moveAsOtherOperator(EVENT, item.participantId, one);
+    await openAs(0);
+    fireEvent.click(publishButton());
+    moveAsOtherOperator(EVENT, person("정민호").participantId, null);
+    fireEvent.click(within(dialog()).getByRole("button", { name: "공개" }));
+    expect(await within(dialog()).findByText(/그사이 편성판이 바뀌어 공개하지 않았어요/, {}, WAIT)).toBeInTheDocument();
+    await waitFor(() => expect(within(dialog()).getByText("미배정 1명")).toBeInTheDocument(), WAIT);
+    expect(readParticipantGroup(EVENT, person("정민호").participantId)).toMatchObject({ status: "NOT_PUBLISHED" });
+
+    fireEvent.click(within(dialog()).getByRole("button", { name: "공개" }));
+    fireEvent.click(await within(dialog()).findByRole("button", { name: "미배정 두고 공개" }, WAIT));
+    expect(await screen.findByText("참가자에게 공개했어요. 조가 바뀐 사람 9명 · 미배정 1명", {}, WAIT)).toBeInTheDocument();
+    expect(readParticipantGroup(EVENT, person("정민호").participantId)).toMatchObject({ status: "UNASSIGNED" });
+  });
+
+  it("keeps the button closed without GROUP_WRITE and says why", async () => {
+    await openAs(1);
+    await screen.findByText(/조 편성 권한이 없어 편성판만 볼 수 있어요/, {}, WAIT);
+    expect(publishButton()).toBeDisabled();
+    expect(publishButton()).toHaveAccessibleDescription(/조 편성 권한이 없어/);
+  });
+
+  it("closes publishing for an ended event and reports EVENT_ENDED if it ended while the dialog was open", async () => {
+    seedGroup(EVENT, "1조");
+    await openAs(0);
+    fireEvent.click(publishButton());
+    setLifecycle(EVENT, "ENDED", 3);
+    fireEvent.click(within(dialog()).getByRole("button", { name: "공개" }));
+    expect(await screen.findByText("종료된 행사라 저장하지 않았어요.", {}, WAIT)).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    await waitFor(() => expect(publishButton()).toBeDisabled(), WAIT);
+    expect(publishButton()).toHaveAccessibleDescription("종료된 행사라 조 편성을 바꿀 수 없어요. 편성판은 볼 수 있어요.");
   });
 });
