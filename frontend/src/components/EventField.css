@@ -224,6 +224,12 @@
   color: var(--color-success-fg);
 }
 
+/* #287: a request whose result is not known is never shown as done. */
+.event-field__badge--unknown {
+  background: var(--color-warning-bg);
+  color: var(--color-warning-fg);
+}
+
 .event-field__row-action {
   grid-area: action;
   display: flex;
@@ -431,4 +437,61 @@
 
 .event-field__scan-actions .scene-button {
   flex: 1 1 140px;
+}
+
+/* #287 offline notice and requests not confirmed yet. Memory only; the note says they go with the screen. */
+.event-field__offline {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--color-info-bg);
+  color: var(--color-info-fg);
+  font: var(--scene-body-m);
+}
+
+.event-field__pending {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--color-warning-fg);
+  border-radius: 12px;
+  background: var(--color-warning-bg);
+}
+
+.event-field__pending-title {
+  margin: 0;
+  color: var(--color-warning-fg);
+  font: var(--scene-label-m);
+}
+
+.event-field__pending-note {
+  margin: 0;
+  color: var(--color-text-primary);
+  font: var(--scene-body-s);
+}
+
+.event-field__pending-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.event-field__pending-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--color-bg-surface);
+}
+
+.event-field__pending-name {
+  margin: 0;
+  color: var(--color-text-primary);
+  font: var(--scene-body-m);
 }
