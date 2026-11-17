@@ -21,24 +21,25 @@ function matchesPath(pathname: string, href?: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+/** Organization sidebar. Menus without a screen yet open the shared "준비 중" page at their own address. */
 const primary = [
-  { label: "행사", icon: events },
-  { label: "알림", icon: bell },
-  { label: "기록", icon: note },
-  { label: "준비 업무", icon: clipboard },
-  { label: "안내", icon: envelope, caret: true },
-  { label: "일정", icon: calendar },
+  { label: "행사", icon: events, to: "/events" },
+  { label: "알림", icon: bell, to: "/notifications" },
+  { label: "기록", icon: note, to: "/history" },
+  { label: "준비 업무", icon: clipboard, to: "/tasks" },
+  { label: "안내", icon: envelope, caret: true, to: "/guides" },
+  { label: "일정", icon: calendar, to: "/schedule" },
 ];
 
 const operation = [
-  { label: "현장 운영", icon: chartLine },
-  { label: "참가자", icon: address },
-  { label: "운영 멤버", icon: briefcase },
+  { label: "현장 운영", icon: chartLine, to: "/field" },
+  { label: "참가자", icon: address, to: "/participants" },
+  { label: "운영 멤버", icon: briefcase, to: "/operators" },
 ];
 
 const system = [
-  { label: "연동", icon: squares },
-  { label: "설정", icon: gear },
+  { label: "연동", icon: squares, to: "/integrations" },
+  { label: "설정", icon: gear, to: "/settings" },
 ];
 
 export function OperatorShell({
@@ -141,13 +142,7 @@ export function OperatorShell({
               <ul className="operator-shell__group">
                 {primary.map((item) => (
                   <li key={item.label}>
-                    <NavItem
-                      item={
-                        item.label === "행사"
-                          ? { ...item, current: pathname !== "/settings" }
-                          : item
-                      }
-                    />
+                    <NavItem item={{ ...item, current: matchesPath(pathname, item.to) }} />
                   </li>
                 ))}
               </ul>
@@ -156,7 +151,7 @@ export function OperatorShell({
                 <ul className="operator-shell__group">
                   {operation.map((item) => (
                     <li key={item.label}>
-                      <NavItem item={item} />
+                      <NavItem item={{ ...item, current: matchesPath(pathname, item.to) }} />
                     </li>
                   ))}
                 </ul>
@@ -164,13 +159,7 @@ export function OperatorShell({
               <ul className="operator-shell__group">
                 {system.map((item) => (
                   <li key={item.label}>
-                    <NavItem
-                      item={
-                        item.label === "설정"
-                          ? { ...item, to: "/settings", current: pathname === "/settings" }
-                          : item
-                      }
-                    />
+                    <NavItem item={{ ...item, current: matchesPath(pathname, item.to) }} />
                   </li>
                 ))}
               </ul>
@@ -206,7 +195,7 @@ function NavItem({
 }: {
   item: { label: string; icon: string; caret?: boolean; current?: boolean; to?: string };
 }) {
-  const current = item.current ?? item.label === "행사";
+  const current = item.current ?? false;
   const className = `operator-shell__item${current ? " operator-shell__item--current" : ""}`;
   const content = (
     <>

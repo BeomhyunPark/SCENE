@@ -9,6 +9,7 @@
 
 - 메뉴는 숨기지 않고 모두 남긴다.
 - 화면이 아직 없는 메뉴는 "준비 중" 안내 화면으로 보내고, 여유가 될 때 하나씩 실제 기능으로 바꾼다.
+- 2026-11-17 [#264](https://github.com/BeomhyunPark/SCENE/issues/264): "준비 중" 화면은 메뉴별 실제 주소에 둔다. 조직 사이드바는 아래 "목적지 주소"대로 연결했다. 준비 업무·참가자·운영 멤버(`/tasks`, `/participants`, `/operators`)는 행사 고르기([#267](https://github.com/BeomhyunPark/SCENE/issues/267))가 정해질 때까지 "행사를 고른 뒤 쓸 수 있어요" 안내를 보여 준다.
 
 ## 확인 방법
 
