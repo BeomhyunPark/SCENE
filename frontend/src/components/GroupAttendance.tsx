@@ -1,60 +1,102 @@
-import type { Attendance } from "../api/groups";
+import type { AttendanceSlot, BoardParticipant } from "../api/groups";
+import {
+  slotDays,
+  slotFullLabel,
+  slotHeadcount,
+  slotRuns,
+  slotRunsText,
+  slotShortLabel,
+} from "./groupBoardView";
 
 /**
- * Where per-slot attendance will go on the 조 편성 board (follow-up to #301). The retreat source drew, for
- * every member, the continuous runs of slots (날짜별 집회·식사) they attend, and each group card ended with
- * a 시간대별 인원 row. group-board does not send slot definitions or per-person slots yet, so both render
- * nothing today and the screen shows only the ATTENDANCE tag. Nothing here invents slots.
+ * 참석 막대 (#318) on the 조 편성 board. Columns are the form setup's day-by-day meal·worship slots (#315),
+ * not morning/afternoon/evening. Each person's row draws the continuous runs of slots they attend, as the
+ * retreat app did; the cell shape follows the Figma legend (1325:5669): attended is filled, absent is an
+ * outline. There is no half cell: a slot is attended or not. Filled cells are green for 전체 참석 and amber
+ * otherwise, and the attendance tag and the bar's label carry the same meaning without colour. With no
+ * `slots` nothing renders and the screen keeps only the tag; with `slotIds: null` the row says "참석 칸 모름".
  */
-export type AttendanceSlot = {
-  slotId: string;
-  /** ISO date the slot belongs to; the header groups slots by it (MM/DD). */
-  date: string;
-  /** Slot name as the form shows it, such as "저녁 집회" or "아침". */
-  label: string;
-  kind: "PROGRAM" | "MEAL";
-};
-
-export function AttendanceTimeline({
-  slots,
-  attendedSlotIds,
-  attendance,
-}: {
-  /** Ordered slots of the event, or null while the server does not send them. */
-  slots: AttendanceSlot[] | null;
-  /** Slots this person attends, or null when unknown. FULL attendance means every slot. */
-  attendedSlotIds: string[] | null;
-  attendance: Attendance;
-}) {
+export function SlotLegend({ slots }: { slots: AttendanceSlot[] | null }) {
   if (!slots || slots.length === 0) return null;
-  const attended = attendance === "FULL" ? new Set(slots.map((slot) => slot.slotId)) : new Set(attendedSlotIds ?? []);
   return (
-    <span className="event-groups__timeline" aria-hidden="true">
-      {slots.map((slot) => (
-        <span
-          key={slot.slotId}
-          className={`event-groups__timeline-cell${attended.has(slot.slotId) ? ` event-groups__timeline-cell--${attendance.toLowerCase()}` : ""}`}
-        />
+    <p className="event-groups__slot-legend">
+      <span className="event-groups__legend-item">
+        <span className="event-groups__slot-cell event-groups__slot-cell--on event-groups__slot-cell--full" aria-hidden="true" />
+        전체 참석
+      </span>
+      <span className="event-groups__legend-item">
+        <span className="event-groups__slot-cell event-groups__slot-cell--on event-groups__slot-cell--partial" aria-hidden="true" />
+        부분 참석
+      </span>
+      <span className="event-groups__legend-item">
+        <span className="event-groups__slot-cell" aria-hidden="true" />
+        미참석
+      </span>
+      <span className="event-groups__legend-note">칸: 아침·점심·저녁·집회</span>
+    </p>
+  );
+}
+
+/** Two header rows over a card's bars: dates, then one letter per slot (full name in title). */
+export function SlotHeader({ slots }: { slots: AttendanceSlot[] | null }) {
+  if (!slots || slots.length === 0) return null;
+  return (
+    <div className="event-groups__slot-head" aria-hidden="true" style={{ ["--slot-count" as string]: slots.length }}>
+      {slotDays(slots).map((day) => (
+        <span key={day.day} className="event-groups__slot-day" style={{ gridColumn: `span ${day.count}` }} title={day.label}>
+          {day.short}
+        </span>
       ))}
+      {slots.map((slot) => (
+        <span key={slot.slotId} className="event-groups__slot-name" title={slotFullLabel(slot)}>
+          {slotShortLabel(slot)}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+export function AttendanceBar({ slots, person }: { slots: AttendanceSlot[] | null; person: Pick<BoardParticipant, "attendance" | "slotIds"> }) {
+  if (!slots || slots.length === 0) return null;
+  if (person.slotIds === null) return <span className="event-groups__slot-unknown">참석 칸 모름</span>;
+  const runs = slotRuns(slots, person.slotIds);
+  const tone = person.attendance === "FULL" ? "full" : "partial";
+  const label = slotRunsText(slots, person.slotIds);
+  return (
+    <span className="event-groups__slot-bar" role="img" aria-label={label} title={label} style={{ ["--slot-count" as string]: slots.length }}>
+      {slots.map((slot, index) => {
+        const run = runs.find((item) => index >= item.start && index <= item.end);
+        const classes = ["event-groups__slot-cell"];
+        if (run) {
+          classes.push("event-groups__slot-cell--on", `event-groups__slot-cell--${tone}`);
+          if (index > run.start) classes.push("event-groups__slot-cell--joined");
+        }
+        return <span key={slot.slotId} className={classes.join(" ")} />;
+      })}
     </span>
   );
 }
 
-export function SlotHeadcount({
-  slots,
-  members,
-}: {
-  slots: AttendanceSlot[] | null;
-  /** Per member, the same values AttendanceTimeline takes. FULL counts in every slot; unknown counts in none. */
-  members: { attendance: Attendance; attendedSlotIds: string[] | null }[];
-}) {
+/** 시간대별 인원 at the bottom of a card: per slot, the members attending it; "모름" people apart. */
+export function SlotHeadcount({ slots, members }: { slots: AttendanceSlot[] | null; members: Pick<BoardParticipant, "slotIds">[] }) {
   if (!slots || slots.length === 0) return null;
+  const { counts, unknown } = slotHeadcount(slots, members);
   return (
-    <p className="event-groups__headcount">
-      시간대별 인원{" "}
-      {slots
-        .map((slot) => `${slot.label} ${members.filter((member) => member.attendance === "FULL" || (member.attendedSlotIds ?? []).includes(slot.slotId)).length}`)
-        .join(" · ")}
-    </p>
+    <div className="event-groups__headcount">
+      <p className="event-groups__headcount-title">
+        시간대별 인원
+        {unknown > 0 ? <span className="event-groups__headcount-unknown"> · 모름 {unknown}</span> : null}
+      </p>
+      <ol className="event-groups__headcount-cells" aria-label="시간대별 인원" style={{ ["--slot-count" as string]: slots.length }}>
+        {slots.map((slot, index) => (
+          <li key={slot.slotId} title={`${slotFullLabel(slot)} ${counts[index]}명`}>
+            <span aria-hidden="true">{counts[index]}</span>
+            <span className="event-groups__visually-hidden">
+              {slotFullLabel(slot)} {counts[index]}명
+            </span>
+          </li>
+        ))}
+      </ol>
+    </div>
   );
 }

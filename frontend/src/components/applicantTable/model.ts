@@ -1,4 +1,5 @@
 import type { ApplicationAnswer, ApplicationTable, TableColumn, TableRow, TableSlot } from "../../api/applications";
+import { cohortSortKey, compareCohort } from "../cohort";
 import type { AnswerType, FieldOption } from "../../api/forms";
 import { formatAnswer, HIDDEN_MARK } from "../answerDisplay";
 import { participantLabel } from "../participantLabel";
@@ -33,6 +34,8 @@ export type ColumnDef = {
   sortValue: (row: TableRow) => string | number | null;
   /** Numeric value for the summary line. */
   number?: (row: TableRow) => number | null;
+  /** Order of bucket labels found in the rows, when plain text order is wrong (또래). */
+  compareBuckets?: (a: string, b: string) => number;
 };
 
 export type Filter =
@@ -108,7 +111,12 @@ export function buildColumns(table: ApplicationTable): ColumnDef[] {
       countable: false,
       text: personText,
       buckets: (row) => [personText(row)],
-      sortValue: personText,
+      // 또래 first by birth year (88 … 99, 00), then name; people without 또래 after them.
+      sortValue: (row) => {
+        const cohortText = cohort && !cohort.hidden ? textOf(row.answers[cohort.fieldId]).trim() : "";
+        const nameText = name ? textOf(row.answers[name.fieldId]).trim() : "";
+        return `${cohortText ? cohortSortKey(cohortText) : "c"} ${nameText || "이름 없음"}`;
+      },
     },
   ];
 
@@ -160,7 +168,19 @@ export function buildColumns(table: ApplicationTable): ColumnDef[] {
   const used = new Set([name, phone, attendance].filter(Boolean).map((column) => column!.fieldId));
   for (const column of [...table.columns].sort((a, b) => a.position - b.position)) {
     if (used.has(column.fieldId)) continue;
-    columns.push(questionColumn(column));
+    const def = questionColumn(column);
+    if (column.systemKey === "COHORT" && def.type === "text") {
+      columns.push({
+        ...def,
+        sortValue: (row) => {
+          const value = textOf(row.answers[column.fieldId]).trim();
+          return value ? cohortSortKey(value) : null;
+        },
+        compareBuckets: compareCohort,
+      });
+    } else {
+      columns.push(def);
+    }
   }
   columns.push({
     id: "submitted",
@@ -378,7 +398,7 @@ export function bucketsOf(column: ColumnDef, rows: readonly TableRow[]): Bucket[
     }
   }
   if (column.type === "number") extra.sort((a, b) => Number(a.key) - Number(b.key));
-  else extra.sort((a, b) => collate(a.label, b.label));
+  else extra.sort((a, b) => (column.compareBuckets ?? collate)(a.label, b.label));
   const none = known.find((bucket) => bucket.key === NONE);
   const listed = known.filter((bucket) => bucket.key !== NONE);
   return [...listed, ...extra, none ?? { key: NONE, label: NONE_LABEL }];

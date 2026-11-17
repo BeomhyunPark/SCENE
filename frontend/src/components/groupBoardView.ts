@@ -1,4 +1,5 @@
-import type { Attendance, BoardParticipant, Group } from "../api/groups";
+import type { Attendance, AttendanceSlot, BoardParticipant, Group, SlotMeal } from "../api/groups";
+import { compareCohort } from "./cohort";
 
 /** Screen-side filters for 조 편성 (DEC-072 §3). The server sends everyone; the screen narrows. */
 export const NO_ANSWER = "__none__";
@@ -79,7 +80,7 @@ function matchValue(value: string | null, wanted: string): boolean {
   return value === wanted;
 }
 
-/** Options present in the data, with "응답 없음" last when someone has no answer. 또래 sorts by number. */
+/** Options present in the data, with "응답 없음" last when someone has no answer. 또래 sorts by birth year (cohort.ts). */
 export function filterOptions(participants: BoardParticipant[]) {
   return {
     gender: optionsOf(participants, (person) =>
@@ -123,16 +124,9 @@ function optionsOf(
     else found.set(option.value, { ...option, count: 1 });
   }
   const sorted = [...found.values()].sort((a, b) =>
-    numeric ? cohortOrder(a.value, b.value) : a.label.localeCompare(b.label, "ko"),
+    numeric ? compareCohort(a.value, b.value) : a.label.localeCompare(b.label, "ko"),
   );
   return none > 0 ? [...sorted, { value: NO_ANSWER, label: NO_ANSWER_LABEL, count: none }] : sorted;
-}
-
-function cohortOrder(a: string, b: string): number {
-  const na = Number(a);
-  const nb = Number(b);
-  if (Number.isFinite(na) && Number.isFinite(nb)) return na - nb;
-  return a.localeCompare(b, "ko");
 }
 
 /** "남 2 · 여 3 · 응답 없음 1": gender labels in the filter order (label order, 응답 없음 last). */
@@ -183,4 +177,80 @@ export function nextGroupName(groups: Group[]): string {
   for (let index = groups.length + 1; ; index += 1) {
     if (!taken.has(`${index}조`)) return `${index}조`;
   }
+}
+
+/* ── 참석 칸 (#318, DEC-072 Follow-up #315) ─────────────────────────────────────────────────── */
+
+const MEAL_SHORT: Record<SlotMeal, string> = { BREAKFAST: "아", LUNCH: "점", DINNER: "저", WORSHIP: "집" };
+
+/** One-letter column label (아·점·저·집); the full name goes in title and screen-reader text. */
+export function slotShortLabel(slot: AttendanceSlot): string {
+  return MEAL_SHORT[slot.meal];
+}
+
+/** "1월 22일 (금) 저녁" */
+export function slotFullLabel(slot: AttendanceSlot): string {
+  return `${slot.dayLabel} ${slot.label}`;
+}
+
+/** Consecutive slots of one day, for the first header row. `short` is "1/22" from the date, else "n일차". */
+export function slotDays(slots: AttendanceSlot[]): { day: number; label: string; short: string; count: number }[] {
+  const days: { day: number; label: string; short: string; count: number }[] = [];
+  for (const slot of slots) {
+    const last = days.at(-1);
+    if (last && last.day === slot.day) last.count += 1;
+    else days.push({ day: slot.day, label: slot.dayLabel, short: shortDate(slot), count: 1 });
+  }
+  return days;
+}
+
+function shortDate(slot: AttendanceSlot): string {
+  const match = slot.date ? /^\d{4}-(\d{2})-(\d{2})$/.exec(slot.date) : null;
+  return match ? `${Number(match[1])}/${Number(match[2])}` : `${slot.day}일차`;
+}
+
+/** Continuous runs of attended slots as [start, end] indexes into `slots` (the retreat app's segments). */
+export function slotRuns(slots: AttendanceSlot[], slotIds: string[]): { start: number; end: number }[] {
+  const attended = new Set(slotIds);
+  const runs: { start: number; end: number }[] = [];
+  slots.forEach((slot, index) => {
+    if (!attended.has(slot.slotId)) return;
+    const last = runs.at(-1);
+    if (last && last.end === index - 1) last.end = index;
+    else runs.push({ start: index, end: index });
+  });
+  return runs;
+}
+
+/** Screen-reader text of a bar: "참석 1월 22일 (금) 저녁–1월 23일 (토) 점심, …" or "참석 칸 없음". */
+export function slotRunsText(slots: AttendanceSlot[], slotIds: string[]): string {
+  const runs = slotRuns(slots, slotIds);
+  if (runs.length === 0) return "참석 칸 없음";
+  if (runs.length === 1 && runs[0].start === 0 && runs[0].end === slots.length - 1) return "모든 칸 참석";
+  return `참석 ${runs
+    .map((run) =>
+      run.start === run.end ? slotFullLabel(slots[run.start]) : `${slotFullLabel(slots[run.start])}–${slotFullLabel(slots[run.end])}`,
+    )
+    .join(", ")}`;
+}
+
+/**
+ * People per slot among `members`, from their slotIds. "모름" (null) is not counted in any slot but in
+ * `unknown`. Summed over every group and 미배정, each slot equals the summary's count for that slot.
+ */
+export function slotHeadcount(slots: AttendanceSlot[], members: Pick<BoardParticipant, "slotIds">[]): { counts: number[]; unknown: number } {
+  const index = new Map(slots.map((slot, position) => [slot.slotId, position]));
+  const counts = slots.map(() => 0);
+  let unknown = 0;
+  for (const member of members) {
+    if (member.slotIds === null) {
+      unknown += 1;
+      continue;
+    }
+    for (const id of new Set(member.slotIds)) {
+      const position = index.get(id);
+      if (position !== undefined) counts[position] += 1;
+    }
+  }
+  return { counts, unknown };
 }
