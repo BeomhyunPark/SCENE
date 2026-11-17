@@ -1083,6 +1083,7 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
       "fieldId": "…",
       "kind": "SYSTEM",
       "systemKey": "NAME",
+      "presetKey": null,
       "label": "이름",
       "position": 0,
       "answerType": "SHORT_TEXT",
@@ -1103,7 +1104,7 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
 }
 ```
 
-- `columns`는 신청서 질문을 position 순으로 준다. 모양은 상세의 답 항목에서 `value`를 뺀 것과 같고, `contact`는 전화 질문이면 `true`다. 숨긴 질문도 열로 남는다(`hidden: true`, DEC-068 §6). 신청서가 없으면 `formId`는 `null`, `columns`는 빈 배열이다.
+- `columns`는 신청서 질문을 position 순으로 준다. 모양은 상세의 답 항목에서 `value`를 뺀 것과 같다. `presetKey`는 자동 질문의 키(`ATTENDANCE`, `MIDDLE_GROUP`, `CELL` 등, DEC-070)이고 아니면 `null`이다. `contact`는 전화 질문이면 `true`다. 숨긴 질문도 열로 남는다(`hidden: true`, DEC-068 §6). 신청서가 없으면 `formId`는 `null`, `columns`는 빈 배열이다.
 - `rows`는 `SUBMITTED` 신청만, CSV와 같은 순서(`submittedAt`, 그다음 신청 id)다. `answers`는 field id를 키로 저장된 값을 그대로 준다(DEC-068 §1). 답이 없는 질문(조건에 맞지 않아 보이지 않은 질문 포함)은 키가 없다. 화면은 이것을 "응답 없음"으로 센다.
 - `group`은 작업본 배정이다. 미배정이면 `null`이다. 공개본이 아니다.
 - `checkedInAt`은 도착 체크인 시각이다. 체크인이 없거나 취소됐으면 `null`이다.

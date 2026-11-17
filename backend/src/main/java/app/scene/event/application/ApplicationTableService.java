@@ -108,6 +108,7 @@ public class ApplicationTableService {
               field.fieldId(),
               field.kind(),
               field.systemKey(),
+              field.presetKey(),
               field.label(),
               field.position(),
               field.answerType(),

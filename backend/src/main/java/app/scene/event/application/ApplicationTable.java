@@ -24,12 +24,15 @@ public record ApplicationTable(
 
   /**
    * One question in position order, with its current type, hidden flag and config (the same fields
-   * as an answer on the detail). {@code contact} is true for a phone question.
+   * as an answer on the detail). {@code presetKey} is the generated question's key (DEC-070), such
+   * as {@code ATTENDANCE}, {@code MIDDLE_GROUP} or {@code CELL}, or null. {@code contact} is true
+   * for a phone question.
    */
   public record Column(
       UUID fieldId,
       String kind,
       String systemKey,
+      String presetKey,
       String label,
       int position,
       String answerType,

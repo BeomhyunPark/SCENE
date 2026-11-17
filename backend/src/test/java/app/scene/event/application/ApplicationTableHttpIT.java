@@ -129,6 +129,7 @@ class ApplicationTableHttpIT {
         .containsExactly(
             "이름", "전화", "참석 방식", "식사", "이동", "도착", "기간", "인원", "동의", "메모", "보호자 연락처", "옛 질문");
     assertThat(columns.get(0).get("systemKey").asString()).isEqualTo("NAME");
+    assertThat(columns.get(0).get("presetKey").isNull()).isTrue();
     assertThat(columns.get(0).get("contact").asBoolean()).isFalse();
     assertThat(columns.get(1).get("contact").asBoolean()).isTrue();
     assertThat(columns.get(10).get("contact").asBoolean()).isTrue();
