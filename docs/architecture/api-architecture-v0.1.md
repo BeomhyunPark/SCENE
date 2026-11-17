@@ -663,6 +663,8 @@ Roster 검색/필터 후보: `q`, `checkedIn`, `page`, `size`. DB table 1:1 조�
 
 Check-in lookup은 MANUAL participantId 또는 QR credential 경로. QR token 구조는 Security 상세 OPEN.
 
+2026-11-17 [DEC-071](../product/PRODUCT_DECISIONS.md): 대상(참가자, 행사당 한 번), QR 값(서버 서명 고정 값), 기본 `CHECKIN_WRITE`(OWNER·MANAGER·STAFF), 중복 `200 ALREADY_CHECKED_IN`, 상태별 동작을 정했다. 경로·요청·응답·오류의 정본은 [backend/docs/api.md](../../backend/docs/api.md) "체크인"이다. 이 절의 표는 초안으로 남긴다.
+
 ```json
 {
   "mode": "MANUAL",
