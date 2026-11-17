@@ -411,13 +411,14 @@ public class OperatorFormService {
       throw FieldRules.invalid("eventPeriod");
     }
     String storedSetup = forms.find(spaceId, eventId, formId).map(FormRow::setup).orElse(null);
-    FormSetup.Mode storedMode =
-        storedSetup == null ? null : MealSlots.mode(json.readTree(storedSetup));
+    JsonNode stored = storedSetup == null ? null : json.readTree(storedSetup);
+    FormSetup.Mode storedMode = stored == null ? null : MealSlots.mode(stored);
     FormSetup setup =
         FormSetup.parse(
             body,
             FormSetup.days(start, end),
-            storedMode == null ? FormSetup.Mode.RANGE : storedMode);
+            storedMode == null ? FormSetup.Mode.RANGE : storedMode,
+            FormSetup.partialByTime(stored));
     boolean locked = forms.countSubmitted(spaceId, eventId, formId) > 0;
     if (locked && storedMode != null && storedMode != setup.mode()) {
       // DEC-074: stored answers were given under one mode, so the mode stays once one arrives.

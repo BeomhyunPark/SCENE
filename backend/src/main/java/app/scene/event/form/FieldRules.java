@@ -7,6 +7,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.HexFormat;
@@ -240,12 +241,53 @@ public final class FieldRules {
     return copy;
   }
 
-  /** Shape of a question or option condition. Null means always shown. */
+  /** Most clauses in one {@code anyOf} condition. */
+  public static final int ANY_OF_MAX = 5;
+
+  /**
+   * Shape of a question or option condition. Null means always shown. Either one clause ({@code
+   * fieldId} with {@code optionIds} or {@code equals}) or {@code {"anyOf": [clause, ...]}}, true
+   * when any clause holds. {@code anyOf} has 2–{@link #ANY_OF_MAX} clauses and does not nest.
+   */
   public static JsonNode showWhen(JsonNode raw, String name) {
     if (raw == null || raw.isNull()) {
       return null;
     }
     if (!raw.isObject()) {
+      throw invalid(name);
+    }
+    if (raw.has("anyOf")) {
+      JsonNode list = raw.get("anyOf");
+      if (raw.size() != 1 || !list.isArray() || list.size() < 2 || list.size() > ANY_OF_MAX) {
+        throw invalid(name);
+      }
+      ObjectNode out = NODES.objectNode();
+      ArrayNode clauses = out.putArray("anyOf");
+      for (JsonNode item : list) {
+        clauses.add(clause(item, name));
+      }
+      return out;
+    }
+    return clause(raw, name);
+  }
+
+  /** The clauses of a condition: itself, or the {@code anyOf} entries. Empty for null. */
+  public static List<JsonNode> clauses(JsonNode condition) {
+    List<JsonNode> out = new ArrayList<>();
+    if (condition == null || condition.isNull()) {
+      return out;
+    }
+    JsonNode list = condition.get("anyOf");
+    if (list == null) {
+      out.add(condition);
+    } else {
+      list.forEach(out::add);
+    }
+    return out;
+  }
+
+  private static ObjectNode clause(JsonNode raw, String name) {
+    if (raw == null || !raw.isObject()) {
       throw invalid(name);
     }
     JsonNode fieldId = raw.get("fieldId");
@@ -376,9 +418,13 @@ public final class FieldRules {
 
   private static void checkCondition(
       FieldDefinition holder, JsonNode condition, Map<UUID, FieldDefinition> byId, String name) {
-    if (condition == null) {
-      return;
+    for (JsonNode clause : clauses(condition)) {
+      checkClause(holder, clause, byId, name);
     }
+  }
+
+  private static void checkClause(
+      FieldDefinition holder, JsonNode condition, Map<UUID, FieldDefinition> byId, String name) {
     FieldDefinition target = byId.get(UUID.fromString(condition.get("fieldId").asString()));
     if (target == null
         || target.isSystem()
@@ -404,7 +450,12 @@ public final class FieldRules {
   }
 
   private static boolean pointsAt(JsonNode condition, String id) {
-    return condition != null && id.equals(condition.get("fieldId").asString());
+    for (JsonNode clause : clauses(condition)) {
+      if (id.equals(clause.get("fieldId").asString())) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private static ArrayNode options(JsonNode raw, FieldDefinition previous) {

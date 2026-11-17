@@ -359,6 +359,15 @@ public final class AnswerEvaluator {
     if (condition == null) {
       return true;
     }
+    for (JsonNode clause : FieldRules.clauses(condition)) {
+      if (clauseHolds(clause, kept)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static boolean clauseHolds(JsonNode condition, Map<UUID, ObjectNode> kept) {
     ObjectNode answer = kept.get(UUID.fromString(condition.get("fieldId").asString()));
     if (answer == null) {
       return false;

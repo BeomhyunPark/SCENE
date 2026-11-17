@@ -27,7 +27,8 @@ public record FormSetup(
     boolean worshipShuttle,
     boolean car,
     boolean publicTransit,
-    boolean support) {
+    boolean support,
+    boolean partialByTime) {
 
   /** Events longer than this cannot use the setup. Meals fit in one question's 50 options. */
   public static final int DAYS_MAX = 10;
@@ -80,9 +81,10 @@ public record FormSetup(
    * newcomer}, which was added later and is off when missing. {@code schedule} must list exactly
    * {@code days} entries. {@code generatedFor} from an earlier response is accepted and ignored.
    * {@code attendance.mode} may be missing; then {@code fallback} is used (the stored mode, or
-   * RANGE for a form without a setup).
+   * RANGE for a form without a setup). {@code transport.partialByTime} may be missing too; then
+   * {@code fallbackByTime} is used (the stored value, or false).
    */
-  public static FormSetup parse(JsonNode body, int days, Mode fallback) {
+  public static FormSetup parse(JsonNode body, int days, Mode fallback, boolean fallbackByTime) {
     if (body == null || !body.isObject()) {
       throw FieldRules.invalid("setup");
     }
@@ -112,7 +114,15 @@ public record FormSetup(
       }
     }
     JsonNode transport = object(body.get("transport"), "transport");
-    only(transport, "transport", "groupBus", "worshipShuttle", "car", "publicTransit", "support");
+    only(
+        transport,
+        "transport",
+        "groupBus",
+        "worshipShuttle",
+        "car",
+        "publicTransit",
+        "support",
+        "partialByTime");
     JsonNode schedule = body.get("schedule");
     if (schedule == null || !schedule.isArray() || schedule.size() != days) {
       throw FieldRules.invalid("schedule");
@@ -141,7 +151,19 @@ public record FormSetup(
         flag(transport, "worshipShuttle", "transport"),
         flag(transport, "car", "transport"),
         flag(transport, "publicTransit", "transport"),
-        flag(transport, "support", "transport"));
+        flag(transport, "support", "transport"),
+        transport.has("partialByTime")
+            ? flag(transport, "partialByTime", "transport")
+            : fallbackByTime);
+  }
+
+  /**
+   * {@code transport.partialByTime} of a stored setup. A setup saved before the key existed is
+   * false, so its vehicle options keep the conditions they were made with.
+   */
+  public static boolean partialByTime(JsonNode setup) {
+    JsonNode node = setup == null ? null : setup.path("transport").path("partialByTime");
+    return node != null && node.isBoolean() && node.booleanValue();
   }
 
   /** The stored and returned JSON. {@code generatedFor} is the event period the questions used. */
@@ -169,6 +191,7 @@ public record FormSetup(
     transport.put("car", car);
     transport.put("publicTransit", publicTransit);
     transport.put("support", support);
+    transport.put("partialByTime", partialByTime);
     ObjectNode generatedFor = out.putObject("generatedFor");
     generatedFor.put("startDate", start.toString());
     generatedFor.put("endDate", end.toString());
