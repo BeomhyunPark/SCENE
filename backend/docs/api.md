@@ -862,7 +862,7 @@ curl -sS \
 | `YES_NO` | `style` `YES_NO`·`CONSENT` (`YES_NO`), `yesLabel`·`noLabel` ≤20 |
 
 - `options` 항목은 `{ "optionId", "label", "group", "hidden", "showWhen" }`이고 1–50개다. 새 보기는 `optionId`를 빼고 보내면 서버가 `opt_` 접두 id를 준다. 있는 보기는 받은 `optionId`를 그대로 보낸다. 모르는 `optionId`는 `400`이다. `label` 1–100자, `group` ≤50자(예: 날짜 묶음).
-- `showWhen`: `null`이면 늘 보인다. `{ "fieldId", "optionIds": [...] }`(선택형 대상, 보기 중 하나면 참) 또는 `{ "fieldId", "equals": true|false }`(`YES_NO` 대상). 대상은 같은 신청서에서 position이 더 앞인 CUSTOM 선택형·`YES_NO` 질문이다(자동 질문 포함). 보기의 `showWhen`도 같은 규칙이고, 보기를 가진 질문보다 앞을 가리킨다. 어기면 `400`이고 필드는 `showWhen`(보기면 `config`)이다.
+- `showWhen`: `null`이면 늘 보인다. `{ "fieldId", "optionIds": [...] }`(선택형 대상, 보기 중 하나면 참) 또는 `{ "fieldId", "equals": true|false }`(`YES_NO` 대상), 또는 그런 조건 2–5개를 묶은 `{ "anyOf": [조건, …] }`(하나라도 참이면 참, 중첩 불가, `anyOf` 외 키 불가)이다. `anyOf`는 서로 다른 질문을 OR로 묶을 때 쓴다(자동 질문의 차량 보기, #324). AND는 없다. 대상은 같은 신청서에서 position이 더 앞인 CUSTOM 선택형·`YES_NO` 질문이다(자동 질문 포함). 보기의 `showWhen`도 같은 규칙이고, 보기를 가진 질문보다 앞을 가리킨다. `anyOf`면 모든 항목이 이 규칙을 지킨다. 어기면 `400`이고 필드는 `showWhen`(보기면 `config`)이다.
 - `hidden`: 숨긴 질문은 공개 신청서에 나오지 않고 답을 받지 않는다. 숨긴 보기도 같다.
 - 신청서당 필드는 최대 100개다. 넘으면 `400`이고 필드는 `fields`다.
 - **잠금:** 신청서에 `SUBMITTED` 신청이 하나라도 있으면 질문 유형 변경, 있던 보기 제거, 질문·보기의 `showWhen` 변경, CUSTOM 필드 삭제는 `409 FIELD_LOCKED`다. 라벨·설명·필수·숨김, 보기 추가·문구 수정·숨김, 순서 변경은 된다.
@@ -981,17 +981,24 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
     { "breakfast": true, "lunch": true, "dinner": false, "worship": false }
   ],
   "transport": {
-    "groupBus": true, "worshipShuttle": false, "car": true, "publicTransit": true, "support": false
+    "groupBus": true, "worshipShuttle": false, "car": true, "publicTransit": true, "support": false,
+    "partialByTime": true
   }
 }
 ```
 
-- 모든 키가 필수이고 값은 boolean이다. 다만 `newcomer`(새가족 질문, 나중에 더한 키)는 없어도 되고 없으면 `false`다. 응답의 `setup`에는 늘 있다. 모르는 키나 다른 타입은 `400`이고 필드는 `setup`, `attendance`, `schedule`, `transport` 중 해당 묶음이다. 응답의 `generatedFor`는 다시 보내도 무시한다.
+- 모든 키가 필수이고 값은 boolean이다. 다만 `newcomer`(새가족 질문, 나중에 더한 키)는 없어도 되고 없으면 `false`다. `attendance.mode`와 `transport.partialByTime`도 없어도 된다(아래). 응답의 `setup`에는 늘 있다. 모르는 키나 다른 타입은 `400`이고 필드는 `setup`, `attendance`, `schedule`, `transport` 중 해당 묶음이다. 응답의 `generatedFor`는 다시 보내도 무시한다.
 - `newcomer`가 `true`면 `NEWCOMER` 질문(`YES_NO`, style `YES_NO`, 필수, 조건 없음, 제목 "새가족이신가요?")이 셀 다음·참석 방식 앞 자리에 생긴다. 답은 `{ "value": true|false }`다. 신청이 들어온 뒤에도 켜고 끌 수 있다: 켜면 질문이 추가되고 그 전 신청자는 답이 없다. 끄면 질문을 숨기고 답은 남긴다.
 - `attendance.mode`는 부분 참석자가 참석 칸을 알리는 방식이다(DEC-074). `RANGE`(도착~출발만 받기)와 `SLOTS`(칸마다 고르기) 중 하나이고 다른 값은 `400`이고 필드는 `attendance`다. **없어도 된다**: 저장된 설정이 있으면 그 방식을 그대로 쓰고(DEC-074 전에 저장돼 키가 없는 설정은 `SLOTS`), 설정이 처음이면 `RANGE`다. 응답의 `setup.attendance.mode`에는 늘 있다.
   - `RANGE`: 부분 참석이 켜져 있고 일정표에 칸이 있으면 `ARRIVAL_SLOT`("수련회장에 언제 도착하나요?")·`DEPARTURE_SLOT`("수련회장에서 언제 출발하나요?")이 생긴다. 둘 다 `SINGLE_CHOICE`·`LIST`·필수이고 `ATTENDANCE = opt_partial`일 때만 보인다. 보기는 일정표의 칸을 칸 순서(일차, 아침 → 점심 → 저녁 → 집회)로 펼친 것이고, 보기 id는 칸 id(`opt_d<일차>_<칸>`, `MEALS` 보기 id와 같다), 문구는 `1월 22일 (금) 저녁부터` / `1월 22일 (금) 저녁까지` 꼴이다. 도착 칸부터 출발 칸까지(둘 다 포함) 모든 칸에 참석한 것으로 센다. `ARRIVAL_AT`·`DEPARTURE_AT`(날짜·시각)과 `LODGING`은 만들지 않는다. 숙박은 구간에서 계산한다. `MEALS`는 집회만 참석이 켜져 있고 집회 칸이 있을 때만 생기고, 제목 "참석할 집회를 선택해주세요", `ATTENDANCE = opt_worship`일 때만 보이며, 식사 보기는 숨긴(`hidden: true`) 채 집회 보기만 보인다. `PARTIAL_NOTE` 설명은 "중간에 나갔다가 다시 오거나 수련회장에서 자지 않는다면 적어 주세요."다.
   - `SLOTS`: 지금까지와 같다(`ARRIVAL_AT`·`DEPARTURE_AT`·`LODGING`·`MEALS`). `MEALS` 설명 기본 문구는 "참석하는 일정에 포함되는 식사와 프로그램을 모두 선택해 주세요. ※ 식사는 실제 식사 여부와 관계없이 참석 일정에 포함된 경우 신청 인원에 반영됩니다."다.
   - 신청이 들어온 신청서(`locked`)에서 저장된 방식과 다른 `mode`를 보내면 `409 FIELD_LOCKED`이고 아무것도 저장하지 않는다. 같은 방식이거나 키를 빼면 저장된다.
+- `transport`의 이동 보기(#324, DEC-070 Follow-up 2026-11-17 이동 수단 분기). `TRANSPORT_IN` 보기는 `opt_group`(단체 이동 차량), `opt_shuttle`(집회 차량), `opt_car`(자차 (직접 운전)), `opt_ride`(자차 합승 (다른 사람 차를 타요)), `opt_public`, `opt_support` 순서다. `opt_car`·`opt_ride`는 `car`로 같이 켜고 끈다. 동승 질문(`CARPOOL_*`)은 `opt_car`일 때만 묻는다. `TRANSPORT_OUT`은 가는 길이 `opt_car`·`opt_ride`면 묻지 않는다(조건은 전과 같은 `opt_group`·`opt_shuttle`·`opt_public`·`opt_support`).
+  - `partialByTime`(부분 참석자 차량을 도착·출발 시점에 맞춤)은 **없어도 된다**: 저장된 값을 쓰고, 저장된 값이 없으면(처음 저장, 또는 키가 생기기 전 설정) `false`다. 응답의 `setup.transport.partialByTime`에는 늘 있다.
+  - `false`이거나 부분 참석이 꺼져 있거나 일정표에 칸이 없으면 지금까지와 같다: `opt_group`은 `ATTENDANCE ∈ {opt_full, opt_partial}`, `opt_shuttle`은 `ATTENDANCE ∈ {opt_partial, opt_worship}`(가는 길·오는 길 같음).
+  - `true`이고 `RANGE`면: 가는 길 `opt_group` = `anyOf[ATTENDANCE ∈ {opt_full}, ARRIVAL_SLOT ∈ {첫 칸}]`, `opt_shuttle` = `anyOf[ATTENDANCE ∈ {opt_worship}, ARRIVAL_SLOT ∈ {집회 칸 전부}]`. 오는 길은 `DEPARTURE_SLOT`과 마지막 칸·집회 칸으로 같다. 그래서 중간에 오는 부분 참석자에게는 자차·합승·대중교통·이동 지원만 보인다.
+  - `true`이고 `SLOTS`면: `opt_group`만 바뀐다. 가는 길 `anyOf[ATTENDANCE ∈ {opt_full}, MEALS ∈ {첫 칸}]`, 오는 길 `anyOf[ATTENDANCE ∈ {opt_full}, MEALS ∈ {마지막 칸}]`. `opt_shuttle`은 위의 기본 조건 그대로다.
+  - 이 조건은 일정표의 첫·마지막·집회 칸에 따라 정해진다. 신청이 들어온 신청서에서 `partialByTime`을 바꾸거나, 켜진 상태에서 부분 참석을 켜고 끄거나, 첫·마지막·집회 칸이 바뀌는 일정 변경은 조건이 바뀌므로 `409 FIELD_LOCKED`다. 보기 켜고 끄기(`publicTransit` 등)는 보기를 숨길 뿐이라 된다.
 - `schedule`은 행사 기간의 하루마다 한 항목이고 날짜순이다. 항목 수가 행사 일수와 다르면 `400`이고 필드는 `schedule`이다.
 - 행사에 `startDate`·`endDate`가 없거나 기간이 10일을 넘으면 `400`이고 필드는 `eventPeriod`다.
 - 서버는 이 설정과 행사 기간으로 질문을 만들어 저장된 질문과 맞춘다: 없는 질문은 추가하고, 더는 필요 없는 질문은 삭제하거나(신청이 없고, 운영자가 손대지 않았고, 다른 질문이 가리키지 않을 때) 숨기고 `presetActive: false`로 둔다. 운영자가 고친 문구와 순서는 유지한다.
@@ -1112,7 +1119,7 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
   },
   "transport": {
     "in":  { "options": [{ "optionId": "opt_group", "label": "단체 이동 차량", "hidden": false, "count": 1 }], "noAnswer": 0 },
-    "out": { "options": [{ "optionId": "opt_car", "label": "자차", "hidden": false, "count": 2 }], "noAnswer": 0 }
+    "out": { "options": [{ "optionId": "opt_car", "label": "자차 (직접 운전)", "hidden": false, "count": 2 }], "noAnswer": 0 }
   },
   "shuttle": {
     "in":  { "options": [{ "optionId": "opt_d1", "label": "1월 22일 (금) 집회 전", "hidden": false, "count": 1 }], "noAnswer": 0 },
@@ -1149,8 +1156,8 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
   - `RANGE` 설정에서는 `LODGING`을 보지 않는다. 부분 참석자는 도착 칸의 일차가 N 이하이고 출발 칸의 일차가 N+1 이상이면 N번째 밤(N일 저녁)에 센다. 같은 날 도착·출발이면 숙박이 없다. 도착·출발 답이 없으면 `unanswered`로 센다.
 - `transport`: `TRANSPORT_IN`이 없거나 꺼졌으면 `null`이다.
   - `in`은 가는 길 보기 순서다.
-  - `out`도 같은 순서다. **가는 길이 자차면 오는 길도 `opt_car`로 센다**(DEC-070 §3). 자차 행의 문구는 가는 길 질문의 것이고, 다른 행은 `TRANSPORT_OUT`의 것이다.
-  - `noAnswer`는 답이 없는 신청 수다. 오는 길에서는 가는 길 답이 없는 사람과, 자차가 아니면서 오는 길 답이 없는 사람을 센다.
+  - `out`도 같은 순서다. **가는 길이 자차(`opt_car`)·합승(`opt_ride`)이면 오는 길도 같은 보기로 센다**(DEC-070 §3). 이 두 행의 문구는 가는 길 질문의 것이고, 다른 행은 `TRANSPORT_OUT`의 것이다.
+  - `noAnswer`는 답이 없는 신청 수다. 오는 길에서는 가는 길 답이 없는 사람과, 자차·합승이 아니면서 오는 길 답이 없는 사람을 센다.
 - `shuttle`: `in`·`out`은 각각 `SHUTTLE_IN`·`SHUTTLE_OUT` 회차별 인원이다. 질문이 없거나 꺼졌으면 그쪽만 `null`이고, 둘 다 `null`이면 `shuttle`이 `null`이다. 한 사람이 여러 회차를 고를 수 있어 합이 인원보다 클 수 있다. `noAnswer`는 집회 차량을 골랐는데 회차 답이 없는 사람이다.
 - `carpool`: `CARPOOL_OFFER`가 보일 때만 있다.
   - `offers`는 동승을 "예"라고 답한 사람을 이름순(같으면 `applicationId`순)으로 나열한다.
