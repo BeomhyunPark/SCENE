@@ -347,7 +347,8 @@ function seedParticipants(): Participant[] {
     ["한지우", "95", "3141"],
   ];
   return rows.map(([name, cohort, phoneLast4], index) => ({
-    participantId: `00000000-0000-4000-8000-0000000003${String(index).padStart(2, "0")}`,
+    // Same ids as the 조 편성 seed (groupStore), so the 조별 view joins them (#288).
+    participantId: `00000000-0000-4000-8000-0000000004${String(index).padStart(2, "0")}`,
     name,
     cohort,
     phoneLast4,

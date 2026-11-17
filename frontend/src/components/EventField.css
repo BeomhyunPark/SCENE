@@ -491,3 +491,89 @@
   color: var(--color-text-primary);
   font: var(--scene-body-m);
 }
+
+/* QR result: the published group, so the operator can say where to go (#288). */
+.event-field__scan-group {
+  margin: 4px 0 0;
+  color: var(--color-text-primary);
+  font: var(--scene-heading-m);
+}
+
+.event-field__scan-group-label {
+  color: var(--color-text-secondary);
+  font: var(--scene-label-m);
+}
+
+/* 전체 / 조별 (#288) */
+.event-field__views {
+  margin-top: 4px;
+}
+
+.field-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.field-groups__group {
+  border: 1px solid var(--color-border-default);
+  border-radius: 12px;
+  background: var(--color-bg-surface);
+  overflow: hidden;
+}
+
+.field-groups__head {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  width: 100%;
+  min-height: 48px;
+  padding: 14px 16px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.field-groups__head:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: -2px;
+}
+
+.field-groups__title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.field-groups__name {
+  color: var(--color-text-primary);
+  font: var(--scene-heading-s);
+  overflow-wrap: anywhere;
+}
+
+.field-groups__line {
+  color: var(--color-text-secondary);
+  font: var(--scene-body-s);
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.field-groups__missing {
+  color: var(--color-warning-fg);
+}
+
+.field-groups__toggle {
+  color: var(--color-text-brand);
+  font: var(--scene-label-m);
+}
+
+.field-groups__members {
+  padding: 0 8px 8px;
+}

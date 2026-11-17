@@ -25,12 +25,15 @@ type CameraState = "starting" | "live" | CameraFailure;
  */
 export function FieldScan({
   submit,
+  groupOf,
   onClose,
   onSearchInstead,
   onEventBlocked,
 }: {
   /** The page's useCheckInQueue; it also reloads the summary and roster after an answer. */
   submit: (action: CheckInAction) => Promise<ActionDelivery>;
+  /** Published group name (#288): a name, null for "조 없음"; absent before the first publish. */
+  groupOf?: (participantId: string) => string | null;
   onClose: () => void;
   onSearchInstead: () => void;
   /** The event left ACTIVE: the page shows why and closes the scanner. */
@@ -155,7 +158,7 @@ export function FieldScan({
               확인하는 중이에요.
             </p>
           ) : outcome ? (
-            <ScanOutcome outcome={outcome} onNext={next} />
+            <ScanOutcome outcome={outcome} groupOf={groupOf} onNext={next} />
           ) : camera === "live" ? (
             <p className="event-field__scan-status">참가자의 체크인 QR을 네모 안에 맞춰 주세요.</p>
           ) : null}
@@ -165,13 +168,22 @@ export function FieldScan({
   );
 }
 
-function ScanOutcome({ outcome, onNext }: { outcome: Outcome; onNext: () => void }) {
+function ScanOutcome({
+  outcome,
+  groupOf,
+  onNext,
+}: {
+  outcome: Outcome;
+  groupOf?: (participantId: string) => string | null;
+  onNext: () => void;
+}) {
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
     box.current?.querySelector<HTMLButtonElement>(".event-field__scan-next")?.focus();
   }, []);
   const person = outcome.kind === "checked-in" || outcome.kind === "already" ? outcome.result : null;
   const copy = outcomeCopy(outcome);
+  const group = person && groupOf ? groupOf(person.participant.participantId) : undefined;
   return (
     <div
       ref={box}
@@ -182,6 +194,11 @@ function ScanOutcome({ outcome, onNext }: { outcome: Outcome; onNext: () => void
       {person ? (
         <>
           <p className="event-field__scan-name">{participantLabel(person.participant)}</p>
+          {group !== undefined ? (
+            <p className="event-field__scan-group">
+              <span className="event-field__scan-group-label">조</span> {group ?? "조 없음"}
+            </p>
+          ) : null}
         </>
       ) : null}
       {copy.detail ? <p className="event-field__scan-detail">{copy.detail}</p> : null}
