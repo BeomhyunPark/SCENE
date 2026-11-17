@@ -25,6 +25,7 @@ function person(patch: Partial<BoardParticipant>): BoardParticipant {
     newcomer: null,
     groupId: null,
     leader: false,
+    position: null,
     publishedGroupId: null,
     publishedLeader: false,
     slotIds: null,

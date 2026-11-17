@@ -86,6 +86,10 @@ const colorTokens = [
   "sticky-unsaved-border",
   "sticky-unsaved-icon",
   "leader-icon",
+  "leader-heart",
+  "leader-name",
+  "gender-male-bg",
+  "gender-female-bg",
   "drop-hover-bg",
   "drop-hover-border",
   "drop-rest-border",
@@ -139,7 +143,7 @@ describe("tokens", () => {
 
     expect(declarations(light).sort()).toEqual([...colorTokens].sort());
     expect(declarations(dark).sort()).toEqual([...colorTokens].sort());
-    expect(colorTokens).toHaveLength(91);
+    expect(colorTokens).toHaveLength(95);
 
     for (const style of sceneStyles) {
       expect(light).toContain(`--scene-${style}:`);
