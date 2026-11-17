@@ -34,7 +34,21 @@ type Panel = "sort" | "filter" | "columns" | null;
  * sort by headers, count one column or two crossed. The view (except text searches) is in the
  * address so a refresh or a shared link keeps it. Copy is a draft.
  */
-export function ApplicantTable({ eventId, table, actions }: { eventId: string; table: ApplicationTable; actions?: ReactNode }) {
+export function ApplicantTable({
+  eventId,
+  table,
+  actions,
+  onEdit,
+  editNote,
+}: {
+  eventId: string;
+  table: ApplicationTable;
+  actions?: ReactNode;
+  /** Opens the 현재 운영 정보 수정 drawer (#337). Without it the row has no 수정 button. */
+  onEdit?: (row: TableRow) => void;
+  /** Why there is no 수정 button, shown above the table. */
+  editNote?: string;
+}) {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const view = useMemo(() => readView(params), [params]);
@@ -110,8 +124,8 @@ export function ApplicantTable({ eventId, table, actions }: { eventId: string; t
           <input
             className="roster__search"
             type="search"
-            aria-label="이름, 연락처, 소속 검색"
-            placeholder={table.contactVisible ? "이름, 연락처, 소속 검색" : "이름, 소속 검색"}
+            aria-label="이름, 연락처, 소속, 메모 검색"
+            placeholder={table.contactVisible ? "이름, 연락처, 소속, 메모 검색" : "이름, 소속, 메모 검색"}
             value={search}
             onChange={(event) => setSearch(event.target.value)}
           />
@@ -224,8 +238,10 @@ export function ApplicantTable({ eventId, table, actions }: { eventId: string; t
               ))}
             </div>
           </div>
+          {editNote ? <p className="roster__hint">{editNote}</p> : null}
           <SheetGrid
             eventId={eventId}
+            onEdit={onEdit}
             columns={shown}
             rows={sorted}
             summaryRows={filtered}
@@ -479,7 +495,7 @@ function FilterEditor({
           지우기
         </button>
       </legend>
-      {column.type === "text" ? (
+      {column.type === "text" || column.type === "memo" ? (
         <input
           type="search"
           aria-label={`${column.label} 포함 검색`}

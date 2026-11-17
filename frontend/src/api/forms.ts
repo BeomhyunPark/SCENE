@@ -111,7 +111,11 @@ export type FormSetup = {
   middleGroups: string[];
   cells: string[];
   /** `mode` is always in a response. A setup saved before DEC-074 reads as `SLOTS`. */
-  attendance: { partial: boolean; worshipOnly: boolean; mode: AttendanceMode };
+  /**
+   * `noLodging` (DEC-074 Follow-up 2026-11-17) asks commuters to check 수련회장에서 숙박하지 않아요.
+   * A setup saved before it reads as false; leaving it out keeps the stored value.
+   */
+  attendance: { partial: boolean; worshipOnly: boolean; mode: AttendanceMode; noLodging?: boolean };
   /** One entry per event day, in date order. */
   schedule: SetupDay[];
   transport: {

@@ -268,6 +268,56 @@ class AttendanceRangeHttpIT {
   }
 
   @Test
+  void aCommuterDropsOutOfEveryNightAndTheSwitchTurnsOffAfterApplications() throws Exception {
+    Held event = openEvent("Commute owner");
+    Form form = setupForm(event, setup("RANGE", true));
+    form.submit("가람", 1, values("ATTENDANCE", opt("opt_full")));
+    form.submit(
+        "나래", 2, values("ATTENDANCE", opt("opt_full"), "NO_LODGING", opts("opt_no_lodging")));
+    form.submit(
+        "보라",
+        3,
+        values(
+            "ATTENDANCE",
+            opt("opt_partial"),
+            "ARRIVAL_SLOT",
+            opt("opt_d1_dinner"),
+            "DEPARTURE_SLOT",
+            opt("opt_d3_breakfast")));
+    form.submit(
+        "마루",
+        4,
+        values(
+            "ATTENDANCE",
+            opt("opt_partial"),
+            "ARRIVAL_SLOT",
+            opt("opt_d1_dinner"),
+            "DEPARTURE_SLOT",
+            opt("opt_d3_breakfast"),
+            "NO_LODGING",
+            opts("opt_no_lodging")));
+
+    // 나래 (full) and 마루 (partial over both nights) sleep at home: no night counts them.
+    JsonNode lodging = summary(event).get("lodging");
+    assertThat(lodging.get("nights").get(0).get("count").asLong()).isEqualTo(2);
+    assertThat(lodging.get("nights").get(1).get("count").asLong()).isEqualTo(2);
+    assertThat(lodging.get("unanswered").asLong()).isZero();
+    // Meals and services still follow the range: 마루 attends every slot.
+    assertThat(attended(board(event), "마루")).isEqualTo(ALL);
+
+    // Turned off after applications: the question hides, its answers stay, everyone counts again.
+    JsonNode off = putSetup(event, form.formId, setup("RANGE", false));
+    assertThat(field(off, "NO_LODGING").get("hidden").booleanValue()).isTrue();
+    assertThat(off.get("setup").get("attendance").get("noLodging").booleanValue()).isFalse();
+    JsonNode again = summary(event).get("lodging");
+    assertThat(again.get("nights").get(0).get("count").asLong()).isEqualTo(4);
+    assertThat(again.get("nights").get(1).get("count").asLong()).isEqualTo(4);
+    // Leaving the key out keeps the stored value.
+    JsonNode kept = putSetup(event, form.formId, setup("RANGE"));
+    assertThat(kept.get("setup").get("attendance").get("noLodging").booleanValue()).isFalse();
+  }
+
+  @Test
   void aDepartureBeforeTheArrivalIsRejected() throws Exception {
     Held event = openEvent("Backwards owner");
     Form form = setupForm(event, setup(null));
@@ -541,9 +591,15 @@ class AttendanceRangeHttpIT {
    * leave the key out.
    */
   private static String setup(String mode) {
+    return setup(mode, null);
+  }
+
+  /** As {@link #setup(String)} with {@code attendance.noLodging}; null leaves the key out. */
+  private static String setup(String mode, Boolean noLodging) {
     return "{\"gender\":true,\"middleGroup\":false,\"cell\":false,"
         + "\"attendance\":{\"partial\":true,\"worshipOnly\":true"
         + (mode == null ? "" : ",\"mode\":\"" + mode + "\"")
+        + (noLodging == null ? "" : ",\"noLodging\":" + noLodging)
         + "},\"schedule\":"
         + SCHEDULE
         + ",\"transport\":{\"groupBus\":false,\"worshipShuttle\":false,\"car\":false,"

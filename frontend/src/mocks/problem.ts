@@ -17,6 +17,7 @@ export function problem(
     boardVersion?: number;
     participantIds?: string[];
     unassignedCount?: number;
+    applicationStatus?: string;
   },
 ): Response {
   return HttpResponse.json(

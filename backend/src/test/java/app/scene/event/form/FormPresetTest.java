@@ -37,6 +37,7 @@ class FormPresetTest {
             true,
             false,
             false,
+            false,
             false);
 
     List<FormPreset.Question> questions = generate(setup, FRIDAY, FRIDAY.plusDays(1));
@@ -81,6 +82,7 @@ class FormPresetTest {
             true,
             false,
             false,
+            false,
             false);
 
     List<FormPreset.Question> questions = generate(setup, FRIDAY, FRIDAY);
@@ -112,6 +114,7 @@ class FormPresetTest {
             true,
             true,
             true,
+            false,
             false);
 
     List<FormPreset.Question> questions = generate(setup, FRIDAY, FRIDAY.plusDays(9));
@@ -123,7 +126,9 @@ class FormPresetTest {
                     key ->
                         !key.equals("ARRIVAL_SLOT")
                             && !key.equals("DEPARTURE_SLOT")
-                            && !key.equals("NEWCOMER"))
+                            && !key.equals("NEWCOMER")
+                            // SLOTS partial attendees choose nights in LODGING instead.
+                            && !key.equals("NO_LODGING"))
                 .toList());
     assertThat(find(questions, "LODGING").config().get("options")).hasSize(9);
     assertThat(find(questions, "MEALS").config().get("options")).hasSize(40);
@@ -238,6 +243,7 @@ class FormPresetTest {
                         + "\"car\":false,\"publicTransit\":false,\"support\":false}}"),
             1,
             FormSetup.Mode.SLOTS,
+            false,
             false);
 
     assertThat(setup.middleGroups()).isEmpty();
@@ -263,10 +269,43 @@ class FormPresetTest {
                         + "\"car\":false,\"publicTransit\":false,\"support\":false}}"),
             1,
             FormSetup.Mode.SLOTS,
+            false,
             false);
 
     assertThat(setup.middleGroups()).containsExactly("1중그룹", "2중그룹");
     assertThat(setup.cells()).isEmpty();
+  }
+
+  @Test
+  void noLodgingIsOneOptionalCheckboxForFullAndPartialAttendeesInRangeMode() {
+    List<FormPreset.Question> range =
+        generate(stay(true, true, FormSetup.Mode.RANGE), FRIDAY, FRIDAY.plusDays(2));
+    FormPreset.Question stay = find(range, "NO_LODGING");
+    assertThat(stay.type()).isEqualTo(AnswerType.MULTI_CHOICE);
+    assertThat(stay.required()).isFalse();
+    assertThat(stay.config().get("options")).hasSize(1);
+    assertThat(stay.config().get("options").get(0).get("optionId").asString())
+        .isEqualTo("opt_no_lodging");
+    assertThat(stay.showWhen().get("optionIds").toString())
+        .isEqualTo("[\"opt_full\",\"opt_partial\"]");
+    assertThat(keys(range).indexOf("NO_LODGING"))
+        .isGreaterThan(keys(range).indexOf("DEPARTURE_SLOT"));
+
+    // Everyone attends in full without an attendance question: no condition.
+    assertThat(
+            find(
+                    generate(stay(false, true, FormSetup.Mode.SLOTS), FRIDAY, FRIDAY.plusDays(1)),
+                    "NO_LODGING")
+                .showWhen())
+        .isNull();
+    // SLOTS partial attendees choose nights in LODGING, so SLOTS with attendance stays as it was.
+    assertThat(keys(generate(stay(true, true, FormSetup.Mode.SLOTS), FRIDAY, FRIDAY.plusDays(2))))
+        .doesNotContain("NO_LODGING");
+    // Off, or a one-day event without a night: no question.
+    assertThat(keys(generate(stay(true, false, FormSetup.Mode.RANGE), FRIDAY, FRIDAY.plusDays(2))))
+        .doesNotContain("NO_LODGING");
+    assertThat(keys(generate(stay(true, true, FormSetup.Mode.RANGE), FRIDAY, FRIDAY)))
+        .doesNotContain("NO_LODGING");
   }
 
   @Test
@@ -282,6 +321,7 @@ class FormPresetTest {
             true,
             FormSetup.Mode.RANGE,
             days(2, true),
+            false,
             false,
             false,
             false,
@@ -405,7 +445,8 @@ class FormPresetTest {
         true,
         true,
         true,
-        partialByTime);
+        partialByTime,
+        false);
   }
 
   /** The generated settings are in FieldRules' normalized shape and pass the condition rules. */
@@ -457,6 +498,27 @@ class FormPresetTest {
         .isNull();
   }
 
+  /** Partial attendance on or off, every slot of each day, and the no-lodging switch. */
+  private static FormSetup stay(boolean partial, boolean noLodging, FormSetup.Mode mode) {
+    return new FormSetup(
+        false,
+        false,
+        false,
+        List.of(),
+        List.of(),
+        partial,
+        false,
+        mode,
+        days(3, true),
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        noLodging);
+  }
+
   /** Only the middle group and cell switches and lists, on a one-day event. */
   private static FormSetup affiliation(
       boolean middleGroup, List<String> middleGroups, boolean cell, List<String> cells) {
@@ -470,6 +532,7 @@ class FormPresetTest {
         false,
         FormSetup.Mode.RANGE,
         days(1, false),
+        false,
         false,
         false,
         false,

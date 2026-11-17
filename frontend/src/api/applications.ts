@@ -47,6 +47,22 @@ export type ApplicationAnswer = {
   withheld: boolean;
 };
 
+/**
+ * Operator-only information kept beside the original answers (#335, DEC-075). The first round holds
+ * one memo. Nothing saved yet is memo "" and version 0. Never sent to participants or the CSV.
+ */
+export type ApplicationOperation = {
+  memo: string;
+  version: number;
+  updatedAt: string | null;
+  updatedByDisplayName: string | null;
+};
+
+/** Provisional server limit (DEC-075). */
+export const OPERATION_MEMO_MAX = 2_000;
+
+export const EMPTY_OPERATION: ApplicationOperation = { memo: "", version: 0, updatedAt: null, updatedByDisplayName: null };
+
 export type ApplicationDetail = {
   applicationId: string;
   formId: string;
@@ -55,6 +71,7 @@ export type ApplicationDetail = {
   /** False when phone answers were left out for lack of `PARTICIPANT_CONTACT_READ`. */
   contactVisible: boolean;
   answers: ApplicationAnswer[];
+  operation: ApplicationOperation;
 };
 
 export function listApplications(
@@ -106,6 +123,8 @@ export type TableColumn = {
 
 export type TableRow = {
   applicationId: string;
+  /** The board's participant id, for `group-assignments` (#335). Empty from an older server. */
+  participantId: string;
   submittedAt: string;
   /** Field id to stored value (DEC-068 §1). No key means no answer. */
   answers: Record<string, Record<string, unknown>>;
@@ -114,6 +133,7 @@ export type TableRow = {
   checkedInAt: string | null;
   /** Slot ids the person attends, in `slots` order (DEC-074). Null is "모름", and always null without `slots`. */
   slotIds: string[] | null;
+  operation: ApplicationOperation;
 };
 
 /** One meal or service slot, the same shape as the group board's `slots`. */
@@ -145,6 +165,45 @@ export type ApplicationTable = {
  */
 export function getApplicationTable(eventId: string, signal?: AbortSignal): Promise<ApplicationTable> {
   return apiRequest<unknown>(`/api/v1/operator/events/${eventId}/applications/table`, { signal }).then(parseTable);
+}
+
+/**
+ * Saves the operation memo (#335, DEC-075). Needs effective PARTICIPANT_WRITE; a stale
+ * `expectedVersion` is `409 CONCURRENT_MODIFICATION` with the current `version`. The original
+ * answers never change.
+ */
+export function saveApplicationOperation(
+  eventId: string,
+  applicationId: string,
+  input: { memo: string; expectedVersion: number },
+): Promise<ApplicationOperation> {
+  return apiRequest<unknown>(`/api/v1/operator/events/${eventId}/applications/${applicationId}/operation`, {
+    method: "PUT",
+    body: input,
+  }).then((value) => {
+    const operation = parseOperation(value);
+    if (!operation) throw new ApiError({ status: 200, code: "UNEXPECTED" });
+    return operation;
+  });
+}
+
+/** Null when the value is not an operation; an older server without it reads as nothing saved. */
+function parseOperation(value: unknown): ApplicationOperation | null {
+  if (
+    !isRecord(value) ||
+    typeof value.memo !== "string" ||
+    typeof value.version !== "number" ||
+    !Number.isInteger(value.version) ||
+    value.version < 0
+  ) {
+    return null;
+  }
+  return {
+    memo: value.memo,
+    version: value.version,
+    updatedAt: typeof value.updatedAt === "string" ? value.updatedAt : null,
+    updatedByDisplayName: typeof value.updatedByDisplayName === "string" ? value.updatedByDisplayName : null,
+  };
 }
 
 export function getPublicForm(eventId: string, formId: string, signal?: AbortSignal): Promise<PublicForm> {
@@ -259,6 +318,7 @@ function parseDetail(value: unknown): ApplicationDetail {
     // An older server sends every phone answer.
     contactVisible: value.contactVisible !== false,
     answers,
+    operation: parseOperation(value.operation) ?? EMPTY_OPERATION,
   };
 }
 
@@ -304,6 +364,7 @@ function parseTable(value: unknown): ApplicationTable {
     const group = row.group;
     rows.push({
       applicationId: row.applicationId,
+      participantId: typeof row.participantId === "string" ? row.participantId : "",
       submittedAt: row.submittedAt,
       answers,
       group:
@@ -312,6 +373,7 @@ function parseTable(value: unknown): ApplicationTable {
           : null,
       checkedInAt: typeof row.checkedInAt === "string" ? row.checkedInAt : null,
       slotIds: Array.isArray(row.slotIds) ? row.slotIds.filter((id): id is string => typeof id === "string") : null,
+      operation: parseOperation(row.operation) ?? EMPTY_OPERATION,
     });
   }
   return {

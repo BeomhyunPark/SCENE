@@ -1,0 +1,220 @@
+/* 현재 운영 정보 수정 (#337, Figma 1325:5552): a 520px drawer from the right; full screen on phones (P03-MOB03). */
+.operation-drawer {
+  position: fixed;
+  inset: 0;
+  z-index: 15;
+  display: flex;
+  justify-content: flex-end;
+  background: color-mix(in srgb, var(--color-text-primary) 32%, transparent);
+}
+
+.operation-drawer__panel {
+  display: flex;
+  flex-direction: column;
+  width: min(520px, 100%);
+  height: 100%;
+  border-left: 1px solid var(--color-border-default);
+  background: var(--color-bg-surface);
+}
+
+.operation-drawer__panel:focus {
+  outline: none;
+}
+
+.operation-drawer__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 24px 24px 0;
+}
+
+.operation-drawer__back {
+  display: none;
+  width: 40px;
+  height: 40px;
+  margin: -6px 0 0 -10px;
+  border: 0;
+  background: none;
+  color: var(--color-text-primary);
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.operation-drawer__title {
+  margin: 0;
+  font: var(--scene-heading-s);
+}
+
+.operation-drawer__name {
+  margin: 4px 0 0;
+  color: var(--color-text-secondary);
+  font: var(--scene-body-m);
+}
+
+.operation-drawer__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+  padding: 12px 24px 24px;
+}
+
+.operation-drawer__lead,
+.operation-drawer__note,
+.operation-drawer__hint,
+.operation-drawer__meta {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font: var(--scene-body-s, var(--scene-body-m));
+}
+
+.operation-drawer__note {
+  margin-top: -8px;
+}
+
+.operation-drawer__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.operation-drawer__label {
+  color: var(--color-text-primary);
+  font: var(--scene-label-s);
+}
+
+.operation-drawer__value,
+.operation-drawer__control {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 40px;
+  margin: 0;
+  padding: 9px 12px;
+  border: 1px solid var(--color-border-control);
+  border-radius: 8px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font: var(--scene-body-m);
+}
+
+.operation-drawer__value {
+  border-color: var(--color-border-default);
+  background: var(--color-bg-canvas);
+}
+
+.operation-drawer__sub {
+  display: block;
+  margin-top: 2px;
+  color: var(--color-text-secondary);
+}
+
+.operation-drawer__control:disabled,
+.operation-drawer__control:read-only {
+  background: var(--color-bg-canvas);
+}
+
+.operation-drawer__memo {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.operation-drawer__meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.operation-drawer__origin {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--color-info-bg);
+  color: var(--color-info-fg);
+  font: var(--scene-label-s);
+}
+
+.operation-drawer__alert {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--color-warning-bg);
+  color: var(--color-warning-fg);
+  font: var(--scene-body-m);
+}
+
+.operation-drawer__alert p {
+  margin: 0;
+}
+
+.operation-drawer__latest-meta {
+  font: var(--scene-label-s);
+}
+
+.operation-drawer__latest {
+  align-self: stretch;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  white-space: pre-wrap;
+}
+
+.operation-drawer__saved {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.operation-drawer__foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--color-border-default);
+}
+
+.operation-drawer__impact {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--color-warning-bg);
+  color: var(--color-warning-fg);
+}
+
+.operation-drawer__impact ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+
+@media (max-width: 640px) {
+  .operation-drawer__panel {
+    width: 100%;
+    border-left: 0;
+  }
+
+  .operation-drawer__head {
+    padding: 16px 16px 0;
+  }
+
+  .operation-drawer__back {
+    display: inline-grid;
+    place-items: center;
+  }
+
+  .operation-drawer__body {
+    padding: 12px 16px 16px;
+  }
+
+  .operation-drawer__foot {
+    padding: 12px 16px;
+  }
+
+  .operation-drawer__foot > * {
+    flex: 1;
+  }
+}

@@ -11,6 +11,8 @@ import { submittedApplication, submittedApplications, tableApplications } from "
 import { checkedInAtOf } from "../checkInStore";
 import { workingGroupOf } from "../groupStore";
 import { problem } from "../problem";
+import { csrfMatches } from "../csrf";
+import { operationOf, writeOperation } from "../operationStore";
 import { applicationSummary } from "../applicationSummary";
 
 const DEFAULT_SIZE = 50;
@@ -106,11 +108,13 @@ export const applicationHandlers = [
         columns,
         rows: rows.map((row) => ({
           applicationId: row.applicationId,
+          participantId: row.participantId,
           submittedAt: row.submittedAt,
           answers: Object.fromEntries(Object.entries(row.answers).filter(([fieldId]) => shown.has(fieldId))),
           group: groupVisible ? workingGroupOf(eventId, row.participantId) : null,
           checkedInAt: checkedInAtOf(eventId, row.participantId),
           slotIds: form && slots ? attendedSlotIds(form, slots, new Map(Object.entries(row.answers))) : null,
+          operation: operationOf(row.applicationId),
         })),
         slots,
       },
@@ -134,11 +138,38 @@ export const applicationHandlers = [
     return HttpResponse.json({
       ...detail,
       contactVisible,
+      operation: operationOf(detail.applicationId),
       answers: detail.answers.map((answer) => {
         const contact = answer.systemKey === "PHONE" || (isText(answer.answerType) && (answer.config as { format?: unknown } | null)?.format === "PHONE");
         return { ...answer, contact, value: contact && !contactVisible ? null : answer.value };
       }),
     });
+  }),
+
+  // 운영 정보 저장 (#335, DEC-075), shaped like ApplicationOperationController. The memo body never
+  // goes into an error response.
+  http.put("/api/v1/operator/events/:eventId/applications/:applicationId/operation", async ({ request, params, cookies }) => {
+    if (!csrfMatches(request, cookies)) return problem(403, "FORBIDDEN");
+    const operator = currentOperator();
+    if (!operator) return problem(401, "AUTHENTICATION_REQUIRED");
+    operatorRequests.push({ method: "PUT", url: new URL(request.url).pathname });
+    const text = await request.text();
+    let body: unknown;
+    try {
+      body = text.length === 0 ? {} : (JSON.parse(text) as unknown);
+    } catch {
+      body = null;
+    }
+    const result = writeOperation(String(params.eventId), String(params.applicationId), operator.userId, body);
+    if ("code" in result) {
+      return problem(result.status, result.code, {
+        errors: result.errors,
+        version: result.version,
+        applicationStatus: result.applicationStatus,
+        detail: "hidden",
+      });
+    }
+    return HttpResponse.json(result);
   }),
 
   // Applicant CSV, shaped like OperatorApplicationController#export (#233). Effective DATA_EXPORT

@@ -51,8 +51,11 @@ export function SheetGrid({
   onSort,
   onResize,
   onOpen,
+  onEdit,
 }: {
   eventId: string;
+  /** Opens the 운영 정보 drawer (#337); without it the row has only 상세. */
+  onEdit?: (row: TableRow) => void;
   columns: ColumnDef[];
   rows: TableRow[];
   /** Rows the summary line counts: the filtered rows, before grouping. */
@@ -251,6 +254,12 @@ export function SheetGrid({
       onOpen(flat[cur.r]);
       return;
     }
+    // E opens the 운영 정보 drawer for the active row (#337), since 수정 is not in the tab order.
+    if (onEdit && !ctrl && event.key.toLowerCase() === "e" && !(event.target as HTMLElement).closest("a,button")) {
+      event.preventDefault();
+      onEdit(flat[cur.r]);
+      return;
+    }
     if (event.key === "Escape") setAnchor(null);
   }
 
@@ -285,9 +294,11 @@ export function SheetGrid({
   // Stable handlers so a memoized row re-renders only when its own cells change.
   const curRef = useRef(cur);
   const onOpenRef = useRef(onOpen);
+  const onEditRef = useRef(onEdit);
   useLayoutEffect(() => {
     curRef.current = cur;
     onOpenRef.current = onOpen;
+    onEditRef.current = onEdit;
   });
   const pick = useCallback((r: number, c: number, extend: boolean) => {
     if (extend) setAnchor((before) => before ?? curRef.current);
@@ -295,8 +306,10 @@ export function SheetGrid({
     setActive({ r, c });
   }, []);
   const open = useCallback((row: TableRow) => onOpenRef.current(row), []);
+  const edit = useCallback((row: TableRow) => onEditRef.current?.(row), []);
+  const editable = Boolean(onEdit);
 
-  const total = columns.reduce((sum, column) => sum + width(column), 0) + 72;
+  const total = columns.reduce((sum, column) => sum + width(column), 0) + (onEdit ? 128 : 72);
   const multi = range.top !== range.bottom || range.left !== range.right;
 
   return (
@@ -315,7 +328,7 @@ export function SheetGrid({
             {columns.map((column) => (
               <col key={column.id} style={{ width: width(column) }} />
             ))}
-            <col style={{ width: 72 }} />
+            <col style={{ width: editable ? 128 : 72 }} />
           </colgroup>
           <thead>
             <tr aria-rowindex={1}>
@@ -375,6 +388,7 @@ export function SheetGrid({
                   selRight={multi && line.index >= range.top && line.index <= range.bottom ? range.right : -1}
                   onPick={pick}
                   onOpen={open}
+                  onEdit={editable ? edit : undefined}
                 />
               ),
             )}
@@ -399,7 +413,7 @@ export function SheetGrid({
       </div>
       <p className="roster__hint roster__keys" aria-live="polite">
         {notice ||
-          "칸을 누르고 화살표로 움직여요. Shift로 범위를 넓히고 Ctrl(⌘)+C로 복사, Enter나 두 번 누르기로 상세를 열어요."}
+          `칸을 누르고 화살표로 움직여요. Shift로 범위를 넓히고 Ctrl(⌘)+C로 복사, Enter나 두 번 누르기로 상세를 열어요.${onEdit ? " E로 운영 정보를 고쳐요." : ""}`}
       </p>
     </>
   );
@@ -415,6 +429,7 @@ const SheetRow = memo(function SheetRow({
   selRight,
   onPick,
   onOpen,
+  onEdit,
 }: {
   row: TableRow;
   index: number;
@@ -425,6 +440,7 @@ const SheetRow = memo(function SheetRow({
   selRight: number;
   onPick: (r: number, c: number, extend: boolean) => void;
   onOpen: (row: TableRow) => void;
+  onEdit?: (row: TableRow) => void;
 }) {
   return (
     <tr data-line aria-rowindex={index + 2} aria-selected={selLeft >= 0 ? true : undefined}>
@@ -451,6 +467,17 @@ const SheetRow = memo(function SheetRow({
         >
           상세
         </Link>
+        {onEdit ? (
+          <button
+            type="button"
+            className="roster__detail roster__edit"
+            tabIndex={-1}
+            aria-label={`${columns[0].text(row)} 운영 정보 수정`}
+            onClick={() => onEdit(row)}
+          >
+            수정
+          </button>
+        ) : null}
       </td>
     </tr>
   );

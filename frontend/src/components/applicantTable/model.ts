@@ -14,7 +14,11 @@ export const NONE = "__none";
 export const OTHER = "__other";
 export const NONE_LABEL = "응답 없음";
 
-export type ColumnType = "person" | "choice" | "multi" | "text" | "number" | "date" | "group" | "status";
+export type ColumnType = "person" | "choice" | "multi" | "text" | "number" | "date" | "group" | "status" | "memo";
+
+/** Id of the 운영 메모 column (#337). Not a field id, so it never collides with a question. */
+export const MEMO = "operationMemo";
+export const HAS_MEMO = "has";
 
 export type Bucket = { key: string; label: string };
 
@@ -182,6 +186,21 @@ export function buildColumns(table: ApplicationTable): ColumnDef[] {
       columns.push(def);
     }
   }
+  // 운영 메모 (#337, DEC-075): the operator's text, not an answer. Filter 있음/없음 or by words.
+  columns.push({
+    id: MEMO,
+    label: "운영 메모",
+    type: "memo",
+    defaultVisible: false,
+    countable: true,
+    options: [
+      { key: HAS_MEMO, label: "메모 있음" },
+      { key: NONE, label: "메모 없음" },
+    ],
+    text: (row) => row.operation.memo,
+    buckets: (row) => (row.operation.memo.trim() ? [HAS_MEMO] : []),
+    sortValue: (row) => row.operation.memo.trim() || null,
+  });
   columns.push({
     id: "submitted",
     label: "제출 시각",
@@ -449,13 +468,13 @@ export function isActive(filter: Filter | undefined): boolean {
 }
 
 /**
- * Name, 또래, 소속 or phone digits. A query of digits also matches the end of a phone number,
+ * Name, 또래, 소속, 운영 메모 (#337) or phone digits. A query of digits also matches the end of a phone number,
  * but only when the reader has the phone column.
  */
 export function searchMatches(row: TableRow, columns: readonly ColumnDef[], query: string, phoneId: string | null): boolean {
   const needle = query.trim().toLowerCase();
   if (!needle) return true;
-  for (const id of ["person", "affiliation"]) {
+  for (const id of ["person", "affiliation", MEMO]) {
     const column = columns.find((item) => item.id === id);
     if (column && column.text(row).toLowerCase().includes(needle)) return true;
   }
@@ -573,6 +592,7 @@ export function crossCount(rows: readonly TableRow[], a: ColumnDef, b: ColumnDef
 export function summarize(rows: readonly TableRow[], column: ColumnDef): string {
   if (column.type === "person") return `${rows.length}명`;
   if (column.type === "status") return `도착 ${rows.filter((row) => row.checkedInAt).length} · 전 ${rows.filter((row) => !row.checkedInAt).length}`;
+  if (column.type === "memo") return `메모 ${rows.filter((row) => row.operation.memo.trim()).length}`;
   if (column.type === "group") {
     const groups = new Set(rows.flatMap((row) => (row.group ? [row.group.groupId] : [])));
     return `배정 ${rows.filter((row) => row.group).length} · ${groups.size}개 조`;
@@ -649,6 +669,7 @@ export function defaultWidth(column: ColumnDef): number {
   if (column.type === "person") return 180;
   if (column.type === "status" || column.type === "number") return 120;
   if (column.type === "group") return 120;
+  if (column.type === "memo") return 220;
   if (column.type === "date") return 150;
   if (column.type === "multi") return 220;
   return 170;

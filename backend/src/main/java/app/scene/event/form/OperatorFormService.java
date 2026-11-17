@@ -418,7 +418,8 @@ public class OperatorFormService {
             body,
             FormSetup.days(start, end),
             storedMode == null ? FormSetup.Mode.RANGE : storedMode,
-            FormSetup.partialByTime(stored));
+            FormSetup.partialByTime(stored),
+            FormSetup.noLodging(stored));
     boolean locked = forms.countSubmitted(spaceId, eventId, formId) > 0;
     if (locked && storedMode != null && storedMode != setup.mode()) {
       // DEC-074: stored answers were given under one mode, so the mode stays once one arrives.
