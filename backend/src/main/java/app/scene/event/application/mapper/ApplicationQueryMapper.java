@@ -2,6 +2,7 @@ package app.scene.event.application.mapper;
 
 import app.scene.event.application.ApplicationAnswerRow;
 import app.scene.event.application.ApplicationRow;
+import app.scene.event.application.ExportAnswerRow;
 import app.scene.event.application.param.AnswerListQuery;
 import app.scene.event.application.param.ApplicationKey;
 import app.scene.event.application.param.ApplicationListQuery;
@@ -19,4 +20,8 @@ public interface ApplicationQueryMapper {
   ApplicationRow find(ApplicationKey key);
 
   List<ApplicationAnswerRow> findAnswers(AnswerListQuery query);
+
+  List<ApplicationRow> findSubmitted(EventApplicationKey key);
+
+  List<ExportAnswerRow> findSubmittedAnswers(EventApplicationKey key);
 }

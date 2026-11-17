@@ -63,6 +63,16 @@ public class ApplicationRepository {
     return queries.findAnswers(AnswerListQuery.of(spaceId, eventId, applicationId, ANSWER_ORDER));
   }
 
+  /** Submitted applications of the event in list order, for the CSV export (#233). */
+  public List<ApplicationRow> listSubmitted(UUID spaceId, UUID eventId) {
+    return queries.findSubmitted(EventApplicationKey.of(spaceId, eventId));
+  }
+
+  /** Every answer of the submitted applications of the event, for the CSV export (#233). */
+  public List<ExportAnswerRow> listSubmittedAnswers(UUID spaceId, UUID eventId) {
+    return queries.findSubmittedAnswers(EventApplicationKey.of(spaceId, eventId));
+  }
+
   /**
    * Stores one application and its answers in one transaction. There is no HTTP create. Status is
    * one of the three stored values.

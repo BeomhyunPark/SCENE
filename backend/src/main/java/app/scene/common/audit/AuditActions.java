@@ -24,5 +24,11 @@ public final class AuditActions {
 
   public static final String CHECKIN_CANCELLED = "CHECKIN_CANCELLED";
 
+  /**
+   * Applicant CSV download (#233). Detail is {@code count}, the number of applicant rows. The event
+   * and actor are the row's own columns. No answer, name or phone (DEC-055).
+   */
+  public static final String APPLICATIONS_EXPORTED = "APPLICATIONS_EXPORTED";
+
   private AuditActions() {}
 }
