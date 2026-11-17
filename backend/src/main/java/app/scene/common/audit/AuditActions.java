@@ -17,6 +17,13 @@ public final class AuditActions {
   public static final String EVENT_RETROSPECTIVE_UPDATED = "EVENT_RETROSPECTIVE_UPDATED";
 
   /**
+   * Operator values of one application were saved (#335, DEC-075). Details are {@code
+   * applicationId}, the new {@code version} and the changed {@code fields}. The memo text is never
+   * audited.
+   */
+  public static final String APPLICATION_OPERATION_UPDATED = "APPLICATION_OPERATION_UPDATED";
+
+  /**
    * Check-in and cancel (#282). Details are {@code checkInId}, {@code participantId}, {@code
    * method} (null on cancel), and {@code reason} (null on check-in). No name or phone.
    */

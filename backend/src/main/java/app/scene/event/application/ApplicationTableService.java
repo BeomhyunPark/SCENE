@@ -44,6 +44,7 @@ import tools.jackson.databind.json.JsonMapper;
  *   <li>Group is the working copy (DEC-072 §7): {@code GROUP_WRITE}, or an active space OWNER or
  *       ADMIN. Others get no group.
  *   <li>Check-in is the arrival time, readable with the same access as the roster (DEC-071).
+ *   <li>The operator memo (#335, DEC-075) is readable by every table reader.
  * </ul>
  *
  * Rows are the submitted applications in list order, the same rows as the CSV.
@@ -55,6 +56,7 @@ public class ApplicationTableService {
   private final FormRepository forms;
   private final ApplicationRepository applications;
   private final ApplicationTableMapper tables;
+  private final ApplicationOperationRepository operations;
   private final EventUserPermissionRepository permissions;
   private final AuditLogRepository auditLogs;
   private final JsonMapper json;
@@ -65,6 +67,7 @@ public class ApplicationTableService {
       FormRepository forms,
       ApplicationRepository applications,
       ApplicationTableMapper tables,
+      ApplicationOperationRepository operations,
       EventUserPermissionRepository permissions,
       AuditLogRepository auditLogs,
       JsonMapper json,
@@ -73,6 +76,7 @@ public class ApplicationTableService {
     this.forms = forms;
     this.applications = applications;
     this.tables = tables;
+    this.operations = operations;
     this.permissions = permissions;
     this.auditLogs = auditLogs;
     this.json = json;
@@ -139,6 +143,7 @@ public class ApplicationTableService {
       states.put(state.applicationId(), state);
     }
 
+    Map<UUID, ApplicationOperation> stored = operations.byApplication(spaceId, eventId);
     List<ApplicationTable.Row> rows = new ArrayList<>();
     for (ApplicationRow row : applications.listSubmitted(spaceId, eventId)) {
       ApplicationTableState state = states.get(row.applicationId());
@@ -149,11 +154,13 @@ public class ApplicationTableService {
       rows.add(
           new ApplicationTable.Row(
               row.applicationId(),
+              state == null ? null : state.participantId(),
               row.submittedAt(),
               answers.getOrDefault(row.applicationId(), Map.of()),
               group,
               state == null ? null : state.checkedInAt(),
-              attended.of(all.getOrDefault(row.applicationId(), Map.of()))));
+              attended.of(all.getOrDefault(row.applicationId(), Map.of())),
+              stored.getOrDefault(row.applicationId(), ApplicationOperation.empty())));
     }
 
     if (anyContact && !rows.isEmpty()) {

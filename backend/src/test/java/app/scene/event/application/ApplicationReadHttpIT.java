@@ -3,6 +3,7 @@ package app.scene.event.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -15,6 +16,7 @@ import app.scene.event.form.AnswerType;
 import app.scene.event.form.FieldRules;
 import app.scene.event.form.FormRepository;
 import app.scene.event.form.param.FieldValues;
+import app.scene.event.participant.Digests;
 import app.scene.support.PostgresTestcontainer;
 import jakarta.servlet.http.Cookie;
 import java.sql.Timestamp;
@@ -127,7 +129,13 @@ class ApplicationReadHttpIT {
     JsonNode body = json.readTree(detail);
     assertThat(body.propertyNames())
         .containsExactly(
-            "applicationId", "formId", "status", "submittedAt", "contactVisible", "answers");
+            "applicationId",
+            "formId",
+            "status",
+            "submittedAt",
+            "contactVisible",
+            "answers",
+            "operation");
     assertThat(body.get("contactVisible").asBoolean()).isTrue();
     assertThat(body.get("answers")).hasSize(5);
     assertAnswer(body.get("answers").get(0), "SYSTEM", "NAME", "이름", 0, "이름답");
@@ -186,6 +194,7 @@ class ApplicationReadHttpIT {
             "POST /api/v1/operator/events/{eventId}/applications/export",
             "GET /api/v1/operator/events/{eventId}/applications/summary",
             "GET /api/v1/operator/events/{eventId}/applications/table",
+            "PUT /api/v1/operator/events/{eventId}/applications/{applicationId}/operation",
             "POST /api/v1/public/events/{eventId}/forms/{formId}/applications");
 
     String publicBody =
@@ -256,6 +265,192 @@ class ApplicationReadHttpIT {
     assertThat(granted.get("answers").get(1).get("value").get("text").asString()).isEqualTo("전화답");
     assertThat(auditCount(event.eventId)).isEqualTo(audits + 1);
     assertThat(contactAudit(event.eventId)).contains(seeded.applicationId.toString());
+  }
+
+  @Test
+  void ownerSavesTheOperatorMemoWithAVersionAndTheAnswersStay() throws Exception {
+    Held event = openEvent("Memo owner");
+    Seeded seeded = seed(event);
+    String path = applicationPath(event.eventId, seeded.applicationId);
+    String answersBefore = storedAnswers(seeded.applicationId);
+    int audits = auditCount(event.eventId);
+
+    JsonNode empty = json.readTree(ok(read(event.owner, path, "req-memo-empty")));
+    assertThat(empty.get("operation").get("memo").asString()).isEmpty();
+    assertThat(empty.get("operation").get("version").asInt()).isZero();
+    assertThat(empty.get("operation").get("updatedAt").isNull()).isTrue();
+
+    JsonNode saved =
+        json.readTree(ok(writeMemo(event.owner, path, "토요일 저녁 잠시 외출 후 복귀", 0, "req-m1")));
+    assertThat(saved.propertyNames())
+        .containsExactly("memo", "version", "updatedAt", "updatedByDisplayName");
+    assertThat(saved.get("memo").asString()).isEqualTo("토요일 저녁 잠시 외출 후 복귀");
+    assertThat(saved.get("version").asInt()).isEqualTo(1);
+    assertThat(saved.get("updatedByDisplayName").asString()).isEqualTo("Memo owner");
+
+    JsonNode again = json.readTree(ok(writeMemo(event.owner, path, "통근", 1, "req-m2")));
+    assertThat(again.get("version").asInt()).isEqualTo(2);
+    problem(
+        writeMemo(event.owner, path, "늦은 쓰기", 1, "req-stale"),
+        409,
+        "CONCURRENT_MODIFICATION",
+        "req-stale");
+    JsonNode conflict =
+        json.readTree(
+            mvc.perform(writeMemo(event.owner, path, "늦은 쓰기", 1, "req-stale-2"))
+                .andReturn()
+                .getResponse()
+                .getContentAsString());
+    assertThat(conflict.get("version").asInt()).isEqualTo(2);
+    assertThat(conflict.toString()).doesNotContain("늦은 쓰기", "통근");
+
+    problem(
+        writeMemo(event.owner, path, "가".repeat(2001), 2, "req-long"),
+        400,
+        "VALIDATION_FAILED",
+        "req-long");
+    problem(
+        put(path + "/operation")
+            .cookie(event.owner, csrf())
+            .header(CSRF_HEADER, CSRF)
+            .header("X-Request-Id", "req-no-version")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("{\"memo\":\"x\"}"),
+        400,
+        "VALIDATION_FAILED",
+        "req-no-version");
+    problem(
+        writeMemo(
+            event.owner, applicationPath(event.eventId, UUID.randomUUID()), "x", 0, "req-404"),
+        404,
+        "RESOURCE_NOT_FOUND",
+        "req-404");
+
+    JsonNode detail = json.readTree(ok(read(event.owner, path, "req-memo-read")));
+    assertThat(detail.get("operation").get("memo").asString()).isEqualTo("통근");
+    assertThat(detail.get("operation").get("version").asInt()).isEqualTo(2);
+    JsonNode table =
+        json.readTree(ok(read(event.owner, applications(event.eventId) + "/table", "req-t")));
+    JsonNode row = table.get("rows").get(0);
+    assertThat(row.get("operation").get("memo").asString()).isEqualTo("통근");
+    assertThat(row.get("participantId").asString())
+        .isEqualTo(participantOf(seeded.applicationId).toString());
+
+    assertThat(storedAnswers(seeded.applicationId)).isEqualTo(answersBefore);
+    List<String> details = auditDetails(event.eventId, "APPLICATION_OPERATION_UPDATED");
+    assertThat(details).hasSize(2);
+    JsonNode last = json.readTree(details.get(details.size() - 1));
+    assertThat(last.propertyNames())
+        .containsExactlyInAnyOrder("applicationId", "version", "fields");
+    assertThat(last.get("version").asInt()).isEqualTo(2);
+    assertThat(last.get("applicationId").asString()).isEqualTo(seeded.applicationId.toString());
+    assertThat(String.join(" ", details)).doesNotContain("통근", "외출");
+    assertThat(auditCount(event.eventId)).isGreaterThanOrEqualTo(audits + 2);
+  }
+
+  @Test
+  void memoWriteNeedsParticipantWriteAndAnOpenEvent() throws Exception {
+    Held event = openEvent("Memo perms");
+    Seeded seeded = seed(event);
+    String path = applicationPath(event.eventId, seeded.applicationId);
+    UUID staffId = user("Memo staff");
+    member(event.spaceId, staffId, "MEMBER");
+    operator(event.spaceId, event.eventId, staffId, "MANAGER");
+    UUID adminId = user("Memo admin");
+    member(event.spaceId, adminId, "ADMIN");
+    Cookie staff = login(staffId);
+
+    problem(writeMemo(staff, path, "x", 0, "req-staff"), 403, "FORBIDDEN", "req-staff");
+    problem(writeMemo(login(adminId), path, "x", 0, "req-admin"), 403, "FORBIDDEN", "req-admin");
+    jdbc.update(
+        """
+        INSERT INTO event_user_permissions (
+          space_id, event_id, user_id, permission, effect, granted_by, granted_at)
+        VALUES (?, ?, ?, 'PARTICIPANT_WRITE', 'GRANT', ?, now())
+        """,
+        event.spaceId,
+        event.eventId,
+        staffId,
+        staffId);
+    assertThat(
+            json.readTree(ok(writeMemo(staff, path, "매니저 메모", 0, "req-grant")))
+                .get("version")
+                .asInt())
+        .isEqualTo(1);
+
+    UUID readerId = user("Memo reader");
+    member(event.spaceId, readerId, "MEMBER");
+    operator(event.spaceId, event.eventId, readerId, "STAFF");
+    JsonNode read = json.readTree(ok(read(login(readerId), path, "req-reader")));
+    assertThat(read.get("operation").get("memo").asString()).isEqualTo("매니저 메모");
+
+    lifecycle(event.eventId, "ENDED");
+    assertThat(
+            json.readTree(ok(writeMemo(event.owner, path, "행사 후 정정", 1, "req-ended")))
+                .get("version")
+                .asInt())
+        .isEqualTo(2);
+    lifecycle(event.eventId, "ARCHIVED");
+    problem(
+        writeMemo(event.owner, path, "x", 2, "req-archived"),
+        409,
+        "EVENT_ARCHIVED",
+        "req-archived");
+    lifecycle(event.eventId, "ACTIVE");
+    jdbc.update("UPDATE applications SET status = 'WITHDRAWN' WHERE id = ?", seeded.applicationId);
+    problem(
+        writeMemo(event.owner, path, "x", 2, "req-withdrawn"),
+        409,
+        "INVALID_STATE_TRANSITION",
+        "req-withdrawn");
+    assertThat(
+            json.readTree(ok(read(event.owner, path, "req-after")))
+                .get("operation")
+                .get("memo")
+                .asString())
+        .isEqualTo("행사 후 정정");
+  }
+
+  @Test
+  void participantRoutesNeverCarryTheOperatorMemo() throws Exception {
+    Held event = openEvent("Memo privacy");
+    Seeded seeded = seed(event);
+    String path = applicationPath(event.eventId, seeded.applicationId);
+    ok(writeMemo(event.owner, path, "운영자만 보는 메모", 0, "req-private"));
+    String accessKey = "participant-key-for-memo-test";
+    jdbc.update(
+        """
+        INSERT INTO participant_access (id, space_id, event_id, participant_id, key_hash, created_at)
+        VALUES (?, ?, ?, ?, ?, now())
+        """,
+        UUID.randomUUID(),
+        event.spaceId,
+        event.eventId,
+        participantOf(seeded.applicationId),
+        Digests.sha256Hex(accessKey));
+    String setCookie =
+        mvc.perform(
+                post("/api/v1/public/events/" + event.eventId + "/participant-sessions")
+                    .cookie(csrf())
+                    .header(CSRF_HEADER, CSRF)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"accessKey\":\"" + accessKey + "\"}"))
+            .andExpect(status().isNoContent())
+            .andReturn()
+            .getResponse()
+            .getHeader("Set-Cookie");
+    assertThat(setCookie).startsWith("SCENE_PSESSION=");
+    Cookie session = new Cookie("SCENE_PSESSION", setCookie.substring(15, setCookie.indexOf(';')));
+    for (String route :
+        List.of(
+            "/api/v1/participant/me",
+            "/api/v1/participant/events",
+            "/api/v1/participant/group",
+            "/api/v1/participant/check-in")) {
+      String body =
+          mvc.perform(get(route).cookie(session)).andReturn().getResponse().getContentAsString();
+      assertThat(body).doesNotContain("운영자만 보는 메모", "operation");
+    }
   }
 
   @Test
@@ -660,6 +855,46 @@ class ApplicationReadHttpIT {
         jdbc.queryForObject(
             "SELECT count(*) FROM audit_logs WHERE event_id = ?", Integer.class, eventId);
     return count == null ? 0 : count;
+  }
+
+  private MockHttpServletRequestBuilder writeMemo(
+      Cookie session, String path, String memo, int expectedVersion, String requestId) {
+    return put(path + "/operation")
+        .cookie(session, csrf())
+        .header(CSRF_HEADER, CSRF)
+        .header("X-Request-Id", requestId)
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(
+            json.writeValueAsString(
+                java.util.Map.of("memo", memo, "expectedVersion", expectedVersion)));
+  }
+
+  private String storedAnswers(UUID applicationId) {
+    return String.join(
+        "|",
+        jdbc.queryForList(
+            "SELECT field_id::text || '=' || value::text FROM answers"
+                + " WHERE application_id = ? ORDER BY field_id",
+            String.class,
+            applicationId));
+  }
+
+  private UUID participantOf(UUID applicationId) {
+    return jdbc.queryForObject(
+        "SELECT participant_id FROM applications WHERE id = ?", UUID.class, applicationId);
+  }
+
+  private List<String> auditDetails(UUID eventId, String action) {
+    return jdbc.queryForList(
+        "SELECT detail::text FROM audit_logs WHERE event_id = ? AND action = ?"
+            + " ORDER BY (detail->>'version')::int",
+        String.class,
+        eventId,
+        action);
+  }
+
+  private void lifecycle(UUID eventId, String status) {
+    jdbc.update("UPDATE events SET lifecycle_status = ? WHERE id = ?", status, eventId);
   }
 
   private String contactAudit(UUID eventId) {
