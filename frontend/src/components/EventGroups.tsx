@@ -20,6 +20,7 @@ import {
   renameGroup,
   reorderGroups,
   setGroupLeaders,
+  type AttendanceSlot,
   type BoardParticipant,
   type Group,
   type GroupBoard,
@@ -33,7 +34,7 @@ import { ConfirmDialog } from "./ConfirmDialog";
 import { EventScreen } from "./EventScreen";
 import { eventContext, formatPublishedAt } from "./eventFormat";
 import { readEventAreas } from "./eventLocalState";
-import { AttendanceTimeline, SlotHeadcount } from "./GroupAttendance";
+import { AttendanceBar, SlotHeadcount, SlotHeader, SlotLegend } from "./GroupAttendance";
 import {
   ANY,
   ATTENDANCE_LABEL,
@@ -75,7 +76,7 @@ type ConflictReport = {
  * pick-then-send (press names, then "이 조로 보내기" or the bar at the bottom), so keyboard and touch work
  * without drag and drop. Each move sends what this screen saw (`fromGroupId`); if anyone changed in
  * between, nothing is saved, the board is read again and the differences are listed. Attendance shows
- * only the server's ATTENDANCE value as a tag; per-slot bars wait for slot data (see GroupAttendance).
+ * the ATTENDANCE tag and, when the board has 참석 칸 (#315), a bar per person and 시간대별 인원 (GroupAttendance, #318).
  * 공개 (#302) is the primary button: a confirmation shows what goes out (people whose group changes, groups
  * changed, 미배정) and what participants see, then sends the board version this screen shows. Copy is a draft.
  */
@@ -650,6 +651,7 @@ function Board({
             ) : null}
           </div>
         </div>
+        {board.groups.length > 0 ? <SlotLegend slots={board.slots} /> : null}
         {board.groups.length === 0 ? (
           <p className="event-groups__empty">
             {editable ? "아직 조가 없어요. 오른쪽 위에서 조를 추가해 주세요." : "아직 만든 조가 없어요."}
@@ -662,6 +664,7 @@ function Board({
                 <li key={group.groupId}>
                   <GroupCard
                     group={group}
+                    slots={board.slots}
                     members={membersOf(people, group.groupId)}
                     genderOrder={options.gender}
                     first={index === 0}
@@ -718,6 +721,7 @@ function Board({
               <li key={person.participantId}>
                 <PoolCard
                   person={person}
+                  slots={board.slots}
                   groups={board.groups}
                   showGroup={filters.assignment !== "unassigned"}
                   selectable={editable}
@@ -963,6 +967,7 @@ function AttendanceTag({ person }: { person: BoardParticipant }) {
 /** One card in the 미배정 strip (Figma "Unassigned card"). Pressing the name picks the person. */
 function PoolCard({
   person,
+  slots,
   groups,
   showGroup,
   selectable,
@@ -970,6 +975,7 @@ function PoolCard({
   onToggle,
 }: {
   person: BoardParticipant;
+  slots: AttendanceSlot[] | null;
   groups: Group[];
   showGroup: boolean;
   selectable: boolean;
@@ -988,7 +994,7 @@ function PoolCard({
         ) : null}
         <span className="event-groups__name">{label}</span>
       </span>
-      <AttendanceTimeline slots={null} attendedSlotIds={null} attendance={person.attendance} />
+      <AttendanceBar slots={slots} person={person} />
       <span className="event-groups__pool-meta">
         <AttendanceTag person={person} />
         {meta.length > 0 ? <span className="event-groups__meta">{meta.join(" · ")}</span> : null}
@@ -1005,6 +1011,7 @@ function PoolCard({
 
 function GroupCard({
   group,
+  slots,
   members,
   genderOrder,
   first,
@@ -1025,6 +1032,7 @@ function GroupCard({
   onLeader,
 }: {
   group: Group;
+  slots: AttendanceSlot[] | null;
   members: BoardParticipant[];
   genderOrder: { value: string; label: string; count: number }[];
   first: boolean;
@@ -1153,6 +1161,8 @@ function GroupCard({
       {members.length === 0 ? (
         <p className="event-groups__card-empty">아직 조원이 없어요.</p>
       ) : (
+        <>
+        <SlotHeader slots={slots} />
         <ul className="event-groups__members" aria-label={`${group.name} 조원`}>
           {members.map((person) => {
             const label = participantLabel(person);
@@ -1188,13 +1198,14 @@ function GroupCard({
                     </button>
                   ) : null}
                 </span>
-                <AttendanceTimeline slots={null} attendedSlotIds={null} attendance={person.attendance} />
+                <AttendanceBar slots={slots} person={person} />
               </li>
             );
           })}
         </ul>
+        </>
       )}
-      <SlotHeadcount slots={null} members={members.map((person) => ({ attendance: person.attendance, attendedSlotIds: null }))} />
+      <SlotHeadcount slots={slots} members={members} />
       {editable && chosenCount > 0 ? (
         <Button type="button" variant="secondary" size={40} className="event-groups__send" disabled={busy} onClick={onSend}>
           고른 {chosenCount}명 이 조로 보내기

@@ -7,8 +7,10 @@ import { localEvent, localUsers } from "../mocks/fixtures/seed";
 import {
   groupAssignmentLogs,
   groupPeople,
+  clearBoardSlots,
   moveAsOtherOperator,
   readParticipantGroup,
+  setChosenSlots,
   renameAsOtherOperator,
   seedGroup,
   seedLargeGroupBoard,
@@ -457,5 +459,44 @@ describe("group publish (#302)", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     await waitFor(() => expect(publishButton()).toBeDisabled(), WAIT);
     expect(publishButton()).toHaveAccessibleDescription("종료된 행사라 조 편성을 바꿀 수 없어요. 편성판은 볼 수 있어요.");
+  });
+});
+
+describe("attendance bars (#318)", () => {
+  it("draws each member's attended runs, says 모름 for no answer, and counts people per slot", async () => {
+    const one = seedGroup(EVENT, "1조");
+    moveAsOtherOperator(EVENT, person("94 김하늘").participantId, one);
+    moveAsOtherOperator(EVENT, person("96 박서준").participantId, one);
+    moveAsOtherOperator(EVENT, person("97 이수아").participantId, one);
+    moveAsOtherOperator(EVENT, person("95 한지우").participantId, one);
+    setChosenSlots(EVENT, person("97 이수아").participantId, []);
+    await openAs(0);
+    const group = await findCard("1조");
+
+    expect(screen.getByText("칸: 아침·점심·저녁·집회")).toBeInTheDocument();
+    expect(within(group).getByRole("img", { name: "모든 칸 참석" })).toBeInTheDocument();
+    expect(within(group).getByRole("img", { name: "참석 1월 23일 (토) 저녁–1월 24일 (일) 점심, 1월 24일 (일) 집회" })).toBeInTheDocument();
+    expect(within(group).getByRole("img", { name: "참석 칸 없음" })).toBeInTheDocument();
+    expect(within(group).getByText("참석 칸 모름")).toBeInTheDocument();
+
+    expect(within(group).getByText(/시간대별 인원/)).toHaveTextContent("시간대별 인원 · 모름 1");
+    const cells = within(within(group).getByRole("list", { name: "시간대별 인원" })).getAllByRole("listitem");
+    expect(cells.map((cell) => cell.querySelector("[aria-hidden]")?.textContent)).toEqual(["1", "1", "1", "1", "2", "2", "2", "2", "1", "2"]);
+    expect(cells[4]).toHaveTextContent("1월 23일 (토) 저녁 2명");
+
+    // 미배정 cards carry the same bar; everyone else here attends all slots.
+    expect(within(pool()).getAllByRole("img", { name: "모든 칸 참석" }).length).toBeGreaterThan(0);
+  });
+
+  it("shows only the attendance tag when the board has no slots", async () => {
+    const one = seedGroup(EVENT, "1조");
+    moveAsOtherOperator(EVENT, person("96 박서준").participantId, one);
+    clearBoardSlots(EVENT);
+    await openAs(0);
+    const group = await findCard("1조");
+    expect(within(group).getByText("부분 참석")).toBeInTheDocument();
+    expect(within(group).queryByRole("img")).not.toBeInTheDocument();
+    expect(within(group).queryByText(/시간대별 인원/)).not.toBeInTheDocument();
+    expect(screen.queryByText("칸: 아침·점심·저녁·집회")).not.toBeInTheDocument();
   });
 });
