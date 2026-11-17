@@ -55,7 +55,7 @@ describe("event participation applicants", () => {
     await login({ userId: OWNER });
     openApp(`/events/${EVENT}/participants`);
 
-    const table = await screen.findByRole("table", { name: "신청자 명단" });
+    const table = await screen.findByRole("grid", { name: "신청자 명단" });
     const rows = within(table).getAllByRole("row").slice(1, -1);
     expect(rows).toHaveLength(2);
     expect(rows[0]).toHaveTextContent("94 김하나");
@@ -76,7 +76,7 @@ describe("event participation applicants", () => {
     await login({ userId: localUsers[2].userId });
     openApp(`/events/${EVENT}/participants`);
 
-    const table = await screen.findByRole("table", { name: "신청자 명단" });
+    const table = await screen.findByRole("grid", { name: "신청자 명단" });
     expect(within(table).getByText("김하나")).toBeInTheDocument();
     expect(within(table).queryByRole("columnheader", { name: /연락처/ })).not.toBeInTheDocument();
     expect(document.body.textContent ?? "").not.toContain("010-1111-2222");
