@@ -98,7 +98,7 @@ class ParticipantSessionHttpIT {
     assertThat(token).hasSize(64).matches("[0-9a-f]+").isNotEqualTo(first.accessKey);
     assertThat(storedTokenHash(first.participantId)).isEqualTo(Digests.sha256Hex(token));
     assertThat(countToken(token)).isZero();
-    assertThat(sessionCount()).isEqualTo(1);
+    assertThat(sessionCount(form.eventId)).isEqualTo(1);
     assertThat(springSessionCount()).isEqualTo(operatorSessions);
     assertThat(auditCount(form.eventId)).isEqualTo(audits);
 
@@ -133,7 +133,7 @@ class ParticipantSessionHttpIT {
                 .header(CSRF_HEADER, CSRF))
         .andExpect(status().isNoContent())
         .andExpect(content().string(""));
-    assertThat(sessionCount()).isEqualTo(1);
+    assertThat(sessionCount(form.eventId)).isEqualTo(1);
     assertThat(countTokenHash(Digests.sha256Hex(token))).isZero();
     assertThat(countTokenHash(Digests.sha256Hex(other))).isEqualTo(1);
     mvc.perform(get("/api/v1/participant/me").cookie(session))
@@ -479,6 +479,12 @@ class ParticipantSessionHttpIT {
 
   private int sessionCount() {
     return jdbc.queryForObject("SELECT count(*) FROM participant_sessions", Integer.class);
+  }
+
+  /** Sessions of one event. Other test classes share the database and leave their own rows. */
+  private int sessionCount(UUID eventId) {
+    return jdbc.queryForObject(
+        "SELECT count(*) FROM participant_sessions WHERE event_id = ?", Integer.class, eventId);
   }
 
   private int sessionsFor(UUID eventId) {
