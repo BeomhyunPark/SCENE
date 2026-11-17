@@ -383,6 +383,8 @@ function defaultsFor(role: Role): string[] {
       "DATA_EXPORT",
       "PARTICIPANT_CONTACT_READ",
       "GROUP_WRITE",
+      // DEC-075: operation memo writes; only OWNER by default, others by GRANT.
+      "PARTICIPANT_WRITE",
     ];
   }
   if (role === "MANAGER") return ["EVENT_READ", "TASK_WRITE", "CHECKIN_WRITE"];

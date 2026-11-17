@@ -26,6 +26,8 @@ void Promise.all([
   import("./operatorStore"),
   import("./participantStore"),
   import("./groupStore"),
-]).then(([forms, operator, participants, groups]) => {
-  Object.assign(window, { sceneMock: { forms, operator, participants, groups } });
+  import("./operationStore"),
+  import("./taskStore"),
+]).then(([forms, operator, participants, groups, operations, tasks]) => {
+  Object.assign(window, { sceneMock: { forms, operator, participants, groups, operations, tasks } });
 });
