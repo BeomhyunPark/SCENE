@@ -86,8 +86,14 @@ describe("group board (#301)", () => {
     expect(within(group).getByText("또래 94 1 · 95 2")).toBeInTheDocument();
     expect(within(group).getByText("부분 참석 1")).toBeInTheDocument();
     const members = within(within(group).getByRole("list", { name: "1조 조원" })).getAllByRole("listitem");
-    expect(members[0]).toHaveTextContent("95 김하람");
-    expect(members[0]).toHaveTextContent("조장");
+    // Operator order (#343): the leader is not moved to the top.
+    expect(members.map((item) => item.textContent)).toEqual([
+      expect.stringContaining("94 김하늘"),
+      expect.stringContaining("95 김하람"),
+      expect.stringContaining("95 한지우"),
+    ]);
+    expect(within(members[1]).getByRole("button", { name: "95 김하람 조장 해제" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText("♥ = 조장 · 이름 칸 색: 남 파랑, 여 분홍")).toBeInTheDocument();
 
     expect(screen.getByRole("heading", { name: "미배정 참가자 7명" })).toBeInTheDocument();
     expect(within(pool()).getByText("96 박서준")).toBeInTheDocument();
@@ -241,31 +247,32 @@ describe("group board (#301)", () => {
     expect(groupAssignmentLogs(EVENT).map((log) => log.to)).toEqual([two, two]);
   });
 
-  it("marks up to three leaders among the group's members and clears the mark when a leader moves", async () => {
+  it("keeps one leader per group: ♥ on another member replaces the leader, and moving the leader clears the mark", async () => {
     const one = seedGroup(EVENT, "1조");
     seedGroup(EVENT, "2조");
-    for (const label of ["94 김하늘", "95 김하람", "96 박서준", "94 이수아"]) {
+    for (const label of ["94 김하늘", "95 김하람", "96 박서준"]) {
       moveAsOtherOperator(EVENT, person(label).participantId, one);
     }
     await openAs(0);
-    const group = await findCard("1조");
+    await findCard("1조");
 
-    for (const label of ["94 김하늘", "95 김하람", "96 박서준"]) {
-      fireEvent.click(within(card("1조")).getByRole("button", { name: `${label} 조장으로 정하기` }));
-      await waitFor(() => expect(within(card("1조")).getByRole("button", { name: `${label} 조장 해제` })).toBeEnabled(), WAIT);
-      await idle();
-    }
-    expect(within(group).getByRole("button", { name: "94 이수아 조장으로 정하기" })).toBeDisabled();
+    fireEvent.click(within(card("1조")).getByRole("button", { name: "94 김하늘 조장으로 지정" }));
+    await waitFor(() => expect(within(card("1조")).getByRole("button", { name: "94 김하늘 조장 해제" })).toBeEnabled(), WAIT);
+    await idle();
 
-    fireEvent.click(within(card("1조")).getByRole("button", { name: "95 김하람 조장 해제" }));
-    await waitFor(() => expect(within(card("1조")).getByRole("button", { name: "94 이수아 조장으로 정하기" })).toBeEnabled(), WAIT);
+    // Another person's ♥ replaces the leader in one request.
+    fireEvent.click(within(card("1조")).getByRole("button", { name: "95 김하람 조장으로 지정" }));
+    await waitFor(() => expect(within(card("1조")).getByRole("button", { name: "95 김하람 조장 해제" })).toBeEnabled(), WAIT);
+    await idle();
+    expect(within(card("1조")).getByRole("button", { name: "94 김하늘 조장으로 지정" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByText("1조 조장을 94 김하늘에서 95 김하람으로 바꿨어요.")).toBeInTheDocument();
+    expect(within(card("1조")).getAllByRole("button", { pressed: true })).toHaveLength(1);
 
     // A leader moved to 2조 is no longer a leader.
-    fireEvent.click(within(card("1조")).getByRole("checkbox", { name: "94 김하늘 고르기" }));
+    fireEvent.click(within(card("1조")).getByRole("checkbox", { name: "95 김하람 고르기" }));
     fireEvent.click(within(card("2조")).getByRole("button", { name: "고른 1명 이 조로 보내기" }));
-    await waitFor(() => expect(within(card("2조")).getByText("94 김하늘")).toBeInTheDocument(), WAIT);
-    expect(within(card("2조")).queryByText("조장", { selector: ".event-groups__leader" })).not.toBeInTheDocument();
-    expect(within(card("2조")).getByRole("button", { name: "94 김하늘 조장으로 정하기" })).toBeInTheDocument();
+    await waitFor(() => expect(within(card("2조")).getByText("95 김하람")).toBeInTheDocument(), WAIT);
+    expect(within(card("2조")).getByRole("button", { name: "95 김하람 조장으로 지정" })).toHaveAttribute("aria-pressed", "false");
   });
 
   it("refuses a leader change when the group changed in between", async () => {
@@ -274,7 +281,7 @@ describe("group board (#301)", () => {
     await openAs(0);
     await findCard("1조");
     renameAsOtherOperator(EVENT, one, "1조");
-    fireEvent.click(within(card("1조")).getByRole("button", { name: "94 김하늘 조장으로 정하기" }));
+    fireEvent.click(within(card("1조")).getByRole("button", { name: "94 김하늘 조장으로 지정" }));
     expect(await screen.findByText(/다른 운영자가 이 조를 먼저 바꿔서 저장하지 않았어요/, {}, WAIT)).toBeInTheDocument();
   });
 
@@ -502,5 +509,78 @@ describe("attendance bars (#318)", () => {
     expect(within(group).queryByRole("img")).not.toBeInTheDocument();
     expect(within(group).queryByText(/시간대별 인원/)).not.toBeInTheDocument();
     expect(screen.queryByText("칸: 아침·점심·저녁·집회")).not.toBeInTheDocument();
+  });
+  it("moves a member up and down within the group with the arrow keys on the grip (#343)", async () => {
+    const one = seedGroup(EVENT, "1조");
+    for (const label of ["94 김하늘", "95 김하람", "96 박서준"]) moveAsOtherOperator(EVENT, person(label).participantId, one);
+    await openAs(0);
+    await findCard("1조");
+    const names = () =>
+      within(within(card("1조")).getByRole("list", { name: "1조 조원" }))
+        .getAllByRole("listitem")
+        .map((item) => item.querySelector(".event-groups__name")?.textContent);
+
+    fireEvent.keyDown(within(card("1조")).getByRole("button", { name: "96 박서준 순서 옮기기" }), { key: "ArrowUp" });
+    await waitFor(() => expect(names()).toEqual(["94 김하늘", "96 박서준", "95 김하람"]), WAIT);
+    expect(await screen.findByText("96 박서준을 1조 2번째로 옮겼어요.", {}, WAIT)).toBeInTheDocument();
+    await idle();
+    fireEvent.keyDown(within(card("1조")).getByRole("button", { name: "94 김하늘 순서 옮기기" }), { key: "ArrowDown" });
+    await waitFor(() => expect(names()).toEqual(["96 박서준", "94 김하늘", "95 김하람"]), WAIT);
+    await idle();
+    // The order comes back from the server on the next read.
+    expect(names()).toEqual(["96 박서준", "94 김하늘", "95 김하람"]);
+  });
+
+  it("drags with the pointer (touch on the grip): onto a member row places them there, onto the pool unassigns (#343)", async () => {
+    const one = seedGroup(EVENT, "1조");
+    for (const label of ["94 김하늘", "95 김하람"]) moveAsOtherOperator(EVENT, person(label).participantId, one);
+    await openAs(0);
+    await findCard("1조");
+    const rows = () => within(within(card("1조")).getByRole("list", { name: "1조 조원" })).getAllByRole("listitem");
+    const original = document.elementFromPoint;
+    let under: Element | null = null;
+    document.elementFromPoint = () => under;
+    try {
+      // Upper half of 95 김하람's row: in front of 김하람.
+      const target = rows()[1];
+      target.getBoundingClientRect = () => ({ top: 100, height: 40, left: 0, width: 200, bottom: 140, right: 200, x: 0, y: 100, toJSON: () => ({}) });
+      under = target;
+      fireEvent.pointerDown(within(pool()).getByRole("button", { name: "96 박서준 끌어서 옮기기" }), {
+        pointerId: 7,
+        button: 0,
+        pointerType: "touch",
+        clientX: 10,
+        clientY: 10,
+      });
+      fireEvent.pointerMove(window, { pointerId: 7, clientX: 40, clientY: 105 });
+      expect(target).toHaveClass("event-groups__member--drop-before");
+      expect(screen.getByText(/96 박서준을 옮기는 중. 1조 95 김하람 앞에 놓여요./)).toBeInTheDocument();
+      fireEvent.pointerUp(window, { pointerId: 7, clientX: 40, clientY: 105 });
+      await waitFor(
+        () => expect(rows().map((item) => item.querySelector(".event-groups__name")?.textContent)).toEqual(["94 김하늘", "96 박서준", "95 김하람"]),
+        WAIT,
+      );
+      expect(await screen.findByText("1명을 1조로 보냈어요.", {}, WAIT)).toBeInTheDocument();
+      await idle();
+
+      // Mouse from the row itself onto the pool: unassigned.
+      under = screen.getByRole("region", { name: /미배정 참가자/ });
+      fireEvent.pointerDown(rows()[0], { pointerId: 8, button: 0, pointerType: "mouse", clientX: 10, clientY: 10 });
+      fireEvent.pointerMove(window, { pointerId: 8, clientX: 60, clientY: 60 });
+      fireEvent.pointerUp(window, { pointerId: 8, clientX: 60, clientY: 60 });
+      expect(await screen.findByText("1명을 미배정으로 뺐어요.", {}, WAIT)).toBeInTheDocument();
+      expect(rows()).toHaveLength(2);
+
+      // Escape cancels a drag: nothing is sent.
+      const logs = groupAssignmentLogs(EVENT).length;
+      fireEvent.pointerDown(rows()[0], { pointerId: 9, button: 0, pointerType: "mouse", clientX: 10, clientY: 10 });
+      fireEvent.pointerMove(window, { pointerId: 9, clientX: 60, clientY: 60 });
+      fireEvent.keyDown(window, { key: "Escape" });
+      fireEvent.pointerUp(window, { pointerId: 9, clientX: 60, clientY: 60 });
+      await idle();
+      expect(groupAssignmentLogs(EVENT)).toHaveLength(logs);
+    } finally {
+      document.elementFromPoint = original;
+    }
   });
 });

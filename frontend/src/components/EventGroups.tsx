@@ -1,4 +1,11 @@
-import { useState, useSyncExternalStore, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
+import {
+  useState,
+  useSyncExternalStore,
+  type FormEvent,
+  type KeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router";
 import arrowLeft from "../assets/event-create/arrow-left.svg";
@@ -6,7 +13,6 @@ import { isApiError } from "../api/errors";
 import type { EventDetail, LifecycleStatus } from "../api/events";
 import {
   ASSIGNMENT_CHANGES_MAX,
-  GROUP_LEADERS_MAX,
   GROUP_NAME_MAX,
   assignParticipants,
   assignmentConflicts,
@@ -18,6 +24,7 @@ import {
   problemParticipantIds,
   problemReason,
   renameGroup,
+  reorderGroupMembers,
   reorderGroups,
   setGroupLeaders,
   type AttendanceSlot,
@@ -52,7 +59,9 @@ import {
   type AssignmentFilter,
   type GroupFilters,
 } from "./groupBoardView";
+import { applyPlan, draggedPeople, planDrop, planGroupOrder, stepPlan, type DropPlan, type DropTarget } from "./groupDrop";
 import { OperatorShell } from "./OperatorShell";
+import { useBoardDrag, type DragItem, type DragOver } from "./useBoardDrag";
 import { participantLabel } from "./participantLabel";
 import "./EventGroups.css";
 
@@ -72,9 +81,13 @@ type ConflictReport = {
  * 조 편성 (#301, DEC-072). Layout follows Figma P16-26 (1325:5129): page head with the 배정·미배정 chip,
  * 행사 홈 and one primary button (left for 공개, #302), group cards four at a time with 이전/다음, member
  * row cards, and the 미배정 card strip below ("이름을 눌러 배정"). The board is the working copy: every
- * change is saved at once and is not shown to participants until it is published. Moving people is
- * pick-then-send (press names, then "이 조로 보내기" or the bar at the bottom), so keyboard and touch work
- * without drag and drop. Each move sends what this screen saw (`fromGroupId`); if anyone changed in
+ * change is saved at once and is not shown to participants until it is published. People move by drag and
+ * drop (#343: mouse anywhere on a row, touch on the grip; onto a member row to place them there, onto a
+ * card or its end zone, onto the 미배정 area to unassign; checked people move together; group cards drag by
+ * their grip to reorder; the edge zones turn pages while dragging) or by pick-then-send (press names, then
+ * "이 조로 보내기" or the bar at the bottom). The grip also moves a member up and down with the arrow keys.
+ * A move shows at once and is undone if the server refuses. ♥ marks the one leader of a group; another
+ * person's ♥ replaces them. Each move sends what this screen saw (`fromGroupId`); if anyone changed in
  * between, nothing is saved, the board is read again and the differences are listed. Attendance shows
  * the ATTENDANCE tag and, when the board has 참석 칸 (#315), a bar per person and 시간대별 인원 (GroupAttendance, #318).
  * 공개 (#302) is the primary button: a confirmation shows what goes out (people whose group changes, groups
@@ -311,7 +324,13 @@ function Board({
     setBusy(false);
   }
 
-  async function move(toGroupId: string | null, ids: string[]) {
+  /** Shows the plan at once; the reload after the request puts the board back if the server refused it. */
+  async function showFirst(plan: DropPlan) {
+    await queryClient.cancelQueries({ queryKey: queryKeys.groupBoard(eventId) });
+    queryClient.setQueryData<GroupBoard>(queryKeys.groupBoard(eventId), (current) => (current ? applyPlan(current, plan) : current));
+  }
+
+  async function move(toGroupId: string | null, ids: string[], before: string | null = null) {
     const movers = ids.filter((id) => byId.has(id) && byId.get(id)!.groupId !== toGroupId);
     if (movers.length === 0) {
       setNotice({ tone: "info", text: "이미 그 조에 있어요." });
@@ -328,11 +347,15 @@ function Board({
     setNotice(null);
     setConflict(null);
     let show: () => void;
+    const changes = movers.map((participantId) => ({
+      participantId,
+      fromGroupId: seen.get(participantId) ?? null,
+      toGroupId,
+      ...(toGroupId !== null && before !== null ? { beforeParticipantId: before } : {}),
+    }));
     try {
-      const result = await assignParticipants(
-        eventId,
-        movers.map((participantId) => ({ participantId, fromGroupId: seen.get(participantId) ?? null, toGroupId })),
-      );
+      await showFirst({ kind: "assign", toGroupId, changes });
+      const result = await assignParticipants(eventId, changes);
       setSelected(new Set());
       show = () => setNotice({
         tone: "success",
@@ -462,14 +485,16 @@ function Board({
     );
   }
 
+  /** One leader per group (#343): ♥ on another member replaces the leader in one request. */
   function toggleLeader(group: Group, person: BoardParticipant) {
-    const current = people.filter((item) => item.groupId === group.groupId && item.leader).map((item) => item.participantId);
-    const next = person.leader ? current.filter((id) => id !== person.participantId) : [...current, person.participantId];
+    const previous = people.find((item) => item.groupId === group.groupId && item.leader && item.participantId !== person.participantId);
+    const next = person.leader ? [] : [person.participantId];
     void write(
       async () => {
         await setGroupLeaders(eventId, group.groupId, next, group.version);
-        return person.leader
-          ? `${participantLabel(person)}의 조장 표시를 뺐어요.`
+        if (person.leader) return `${participantLabel(person)}의 조장 표시를 뺐어요.`;
+        return previous
+          ? `${group.name} 조장을 ${participantLabel(previous)}에서 ${participantLabel(person)}으로 바꿨어요.`
           : `${participantLabel(person)}을 ${group.name} 조장으로 정했어요.`;
       },
       (error) =>
@@ -478,9 +503,80 @@ function Board({
           : isApiError(error, "CONFLICT") && problemReason(error) === "LEADER_NOT_MEMBER"
             ? "조장은 그 조의 조원만 될 수 있어요. 그사이 조를 옮긴 사람이 있어 저장하지 않았어요."
             : isApiError(error, "VALIDATION_FAILED")
-              ? `조장은 조마다 ${GROUP_LEADERS_MAX}명까지예요.`
+              ? "조장은 조마다 1명이에요."
               : "조장을 바꾸지 못했어요.",
     );
+  }
+
+  /** Saves one group's member order; shown first, put back by the reload when someone changed the group meanwhile. */
+  function reorder(plan: Extract<DropPlan, { kind: "reorder" }>, text: string) {
+    void write(
+      async () => {
+        await showFirst(plan);
+        await reorderGroupMembers(eventId, plan.groupId, plan.participantIds);
+        return { tone: "success", text };
+      },
+      (error) =>
+        assignmentConflicts(error).length > 0
+          ? "다른 운영자가 그사이 이 조의 조원을 바꿔서 순서를 저장하지 않았어요. 최신 상태를 불러왔으니 다시 옮겨 주세요."
+          : "순서를 바꾸지 못했어요.",
+    );
+  }
+
+  function dropPeople(ids: string[], target: DropTarget) {
+    if (!editable || busy) return;
+    const plan = planDrop(board, ids, target);
+    if (!plan) return;
+    if (plan.kind === "reorder") {
+      const who = ids.length === 1 && byId.has(ids[0]) ? participantLabel(byId.get(ids[0])!) : `${ids.length}명`;
+      const at = plan.participantIds.indexOf(ids[0]) + 1;
+      reorder(plan, `${who}을 ${groupName(board.groups, plan.groupId)} ${at}번째로 옮겼어요.`);
+      return;
+    }
+    const before = plan.changes[0]?.beforeParticipantId ?? null;
+    void move(plan.toGroupId, plan.changes.map((change) => change.participantId), before);
+  }
+
+  function step(person: BoardParticipant, by: -1 | 1) {
+    if (!editable || busy) return;
+    const plan = stepPlan(board, person.participantId, by);
+    if (plan?.kind !== "reorder") return;
+    const at = plan.participantIds.indexOf(person.participantId) + 1;
+    reorder(plan, `${participantLabel(person)}을 ${groupName(board.groups, plan.groupId)} ${at}번째로 옮겼어요.`);
+  }
+
+  function dropGroup(groupId: string, beforeGroupId: string | null) {
+    if (!editable || busy) return;
+    const ids = planGroupOrder(board.groups, groupId, beforeGroupId);
+    if (!ids) return;
+    const name = groupName(board.groups, groupId);
+    void write(
+      async () => {
+        await reorderGroups(eventId, ids);
+        return `${name}를 ${ids.indexOf(groupId) + 1}번째로 옮겼어요.`;
+      },
+      (error) =>
+        isApiError(error, "CONFLICT") ? "다른 운영자가 조를 바꿔서 순서를 저장하지 않았어요. 최신 순서를 불러왔어요." : "순서를 바꾸지 못했어요.",
+    );
+  }
+
+  const { drag, start } = useBoardDrag({
+    onDropPeople: dropPeople,
+    onDropGroup: dropGroup,
+    onPage: (dir) => setPage((value) => Math.min(Math.max(value + dir, 0), pages - 1)),
+  });
+  const over = drag?.over ?? null;
+
+  function startPerson(event: ReactPointerEvent<HTMLElement>, person: BoardParticipant, fromGrip: boolean) {
+    if (!editable || busy) return;
+    const ids = draggedPeople(person.participantId, selected, people);
+    const label = ids.length === 1 ? participantLabel(person) : `${participantLabel(person)} 외 ${ids.length - 1}명`;
+    start(event, { kind: "people", ids, label }, fromGrip);
+  }
+
+  function startGroup(event: ReactPointerEvent<HTMLElement>, group: Group, fromGrip: boolean) {
+    if (!editable || busy) return;
+    start(event, { kind: "group", groupId: group.groupId, label: group.name }, fromGrip);
   }
 
   /**
@@ -657,12 +753,29 @@ function Board({
             {editable ? "아직 조가 없어요. 오른쪽 위에서 조를 추가해 주세요." : "아직 만든 조가 없어요."}
           </p>
         ) : (
+          <div className="event-groups__grid-wrap">
+          {drag && current > 0 ? (
+            <div className="event-groups__page-zone event-groups__page-zone--prev" data-drop="page" data-dir="-1" aria-hidden="true">
+              ‹ 이전 조
+            </div>
+          ) : null}
+          {drag && current < pages - 1 ? (
+            <div className="event-groups__page-zone event-groups__page-zone--next" data-drop="page" data-dir="1" aria-hidden="true">
+              다음 조 ›
+            </div>
+          ) : null}
           <ol className="event-groups__grid" style={{ ["--groups-per-page" as string]: pageSize }}>
             {shown.map((group) => {
               const index = board.groups.indexOf(group);
               return (
                 <li key={group.groupId}>
                   <GroupCard
+                    nextGroupId={board.groups[index + 1]?.groupId ?? null}
+                    drag={drag?.item ?? null}
+                    over={over}
+                    onStartPerson={startPerson}
+                    onStartGroup={(event, fromGrip) => startGroup(event, group, fromGrip)}
+                    onStep={step}
                     group={group}
                     slots={board.slots}
                     members={membersOf(people, group.groupId)}
@@ -692,15 +805,25 @@ function Board({
               );
             })}
           </ol>
+          </div>
         )}
+        {board.groups.length > 0 ? <p className="event-groups__legend">♥ = 조장 · 이름 칸 색: 남 파랑, 여 분홍</p> : null}
       </section>
 
-      <section className="event-groups__pool" aria-labelledby="groups-pool-title">
+      <section
+        className={`event-groups__pool${drag?.item.kind === "people" ? " event-groups__pool--target" : ""}${over?.kind === "pool" ? " event-groups__pool--over" : ""}`}
+        aria-labelledby="groups-pool-title"
+        data-drop="pool"
+      >
         <div className="event-groups__pool-head">
           <h2 id="groups-pool-title" className="event-groups__pool-title">
             {poolTitle(filters.assignment)} <span className="event-groups__pool-count">{pool.length.toLocaleString("ko-KR")}명</span>
           </h2>
-          {editable ? <span className="event-groups__pool-hint">이름을 눌러 고른 뒤 조로 보내요</span> : null}
+          {editable ? (
+            <span className="event-groups__pool-hint">
+              {drag?.item.kind === "people" ? "여기에 놓으면 미배정으로 빠져요" : "조로 끌어 놓거나, 이름을 눌러 고른 뒤 조로 보내요"}
+            </span>
+          ) : null}
           {editable && pool.length > 0 ? (
             <label className="event-groups__check-all">
               <input
@@ -726,7 +849,9 @@ function Board({
                   showGroup={filters.assignment !== "unassigned"}
                   selectable={editable}
                   checked={selected.has(person.participantId)}
+                  dragging={drag?.item.kind === "people" && drag.item.ids.includes(person.participantId)}
                   onToggle={() => toggle(person.participantId)}
+                  onStart={(event, fromGrip) => startPerson(event, person, fromGrip)}
                 />
               </li>
             ))}
@@ -809,6 +934,15 @@ function Board({
           <Button type="button" variant="tertiary" size={40} onClick={() => setSelected(new Set())}>
             선택 해제
           </Button>
+        </div>
+      ) : null}
+
+      <p className="event-groups__visually-hidden" aria-live="assertive">
+        {drag ? dragAnnouncement(drag.item, drag.over, board) : ""}
+      </p>
+      {drag ? (
+        <div className="event-groups__ghost" style={{ left: drag.x, top: drag.y }} aria-hidden="true">
+          {drag.item.label}
         </div>
       ) : null}
 
@@ -953,13 +1087,91 @@ function AnswerSelect({
   );
 }
 
+/** "94 김하늘" on a tint of the GENDER answer; the gender is also in words for screen readers and the title. */
+function NamePill({ person, compact = false }: { person: BoardParticipant; compact?: boolean }) {
+  const tone = person.gender?.optionId === "opt_male" ? "male" : person.gender?.optionId === "opt_female" ? "female" : "none";
+  return (
+    <span className={`event-groups__pill-name event-groups__pill-name--${tone}${person.leader ? " event-groups__pill-name--leader" : ""}`}>
+      <span className="event-groups__name">{participantLabel(person)}</span>
+      {person.gender ? <span className="event-groups__visually-hidden"> ({person.gender.label})</span> : null}
+      {person.newcomer ? (
+        compact ? (
+          <span className="event-groups__newcomer" title="새가족">
+            새<span className="event-groups__visually-hidden">가족</span>
+          </span>
+        ) : (
+          <span className="event-groups__newcomer">새가족</span>
+        )
+      ) : null}
+    </span>
+  );
+}
+
+/** ♥: filled for the leader, an outline otherwise, so the state is not colour alone. */
+function Heart({ filled }: { filled: boolean }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        d="M12 20.5 4.6 13.3a4.9 4.9 0 0 1 0-7 4.8 4.8 0 0 1 6.9 0l.5.5.5-.5a4.8 4.8 0 0 1 6.9 0 4.9 4.9 0 0 1 0 7Z"
+        fill={filled ? "currentColor" : "none"}
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/** Drag handle: touch and pen drag only from here; it is a button so the keyboard can reach it. */
+function Grip({
+  label,
+  hint,
+  onStart,
+  onKeyDown,
+}: {
+  label: string;
+  hint?: string;
+  onStart: (event: ReactPointerEvent<HTMLElement>) => void;
+  onKeyDown?: (key: KeyboardEvent<HTMLButtonElement>) => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="event-groups__grip"
+      aria-label={label}
+      title={hint ? `${label} · ${hint}` : label}
+      onPointerDown={(event) => {
+        event.stopPropagation();
+        onStart(event);
+      }}
+      onClick={(click) => click.preventDefault()}
+      onKeyDown={onKeyDown}
+    >
+      <svg width="10" height="16" viewBox="0 0 10 16" aria-hidden="true" focusable="false">
+        {[3, 8, 13].flatMap((y) => [<circle key={`a${y}`} cx="2.5" cy={y} r="1.5" />, <circle key={`b${y}`} cx="7.5" cy={y} r="1.5" />])}
+      </svg>
+    </button>
+  );
+}
+
+function dragAnnouncement(item: DragItem, over: DragOver, board: GroupBoard): string {
+  const what = item.kind === "people" ? `${item.label}을 옮기는 중` : `${item.label}를 옮기는 중`;
+  if (!over) return `${what}. 놓을 곳 위에서 손을 떼세요. Esc를 누르면 취소돼요.`;
+  if (over.kind === "page") return `${what}. ${over.dir < 0 ? "이전" : "다음"} 조로 넘어가요.`;
+  if (over.kind === "pool") return `${what}. 여기에 놓으면 미배정이 돼요.`;
+  if (over.kind === "group-slot") {
+    return `${what}. ${over.beforeGroupId ? `${groupName(board.groups, over.beforeGroupId)} 앞` : "맨 뒤"}에 놓여요.`;
+  }
+  const before = over.beforeId ? board.participants.find((person) => person.participantId === over.beforeId) : null;
+  return `${what}. ${groupName(board.groups, over.groupId)} ${before ? `${participantLabel(before)} 앞` : "맨 뒤"}에 놓여요.`;
+}
+
 function AttendanceTag({ person }: { person: BoardParticipant }) {
   return (
     <>
       <span className={`event-groups__tag event-groups__tag--${person.attendance.toLowerCase()}`}>
         {ATTENDANCE_LABEL[person.attendance]}
       </span>
-      {person.newcomer ? <span className="event-groups__newcomer">새가족</span> : null}
     </>
   );
 }
@@ -972,7 +1184,9 @@ function PoolCard({
   showGroup,
   selectable,
   checked,
+  dragging,
   onToggle,
+  onStart,
 }: {
   person: BoardParticipant;
   slots: AttendanceSlot[] | null;
@@ -980,7 +1194,9 @@ function PoolCard({
   showGroup: boolean;
   selectable: boolean;
   checked: boolean;
+  dragging: boolean;
   onToggle: () => void;
+  onStart: (event: ReactPointerEvent<HTMLElement>, fromGrip: boolean) => void;
 }) {
   const label = participantLabel(person);
   const meta = [person.gender?.label, person.middleGroup, person.cell, showGroup ? groupName(groups, person.groupId) : null].filter(
@@ -992,7 +1208,8 @@ function PoolCard({
         {selectable ? (
           <input type="checkbox" checked={checked} onChange={onToggle} aria-label={`${label} 고르기`} />
         ) : null}
-        <span className="event-groups__name">{label}</span>
+        <NamePill person={person} />
+        {selectable ? <Grip label={`${label} 끌어서 옮기기`} onStart={(event) => onStart(event, true)} /> : null}
       </span>
       <AttendanceBar slots={slots} person={person} />
       <span className="event-groups__pool-meta">
@@ -1003,13 +1220,22 @@ function PoolCard({
   );
   if (!selectable) return <div className="event-groups__pool-card">{body}</div>;
   return (
-    <label className={`event-groups__pool-card event-groups__pool-card--selectable${checked ? " event-groups__pool-card--checked" : ""}`}>
+    <label
+      className={`event-groups__pool-card event-groups__pool-card--selectable${checked ? " event-groups__pool-card--checked" : ""}${dragging ? " event-groups__pool-card--dragging" : ""}`}
+      onPointerDown={(event) => onStart(event, false)}
+    >
       {body}
     </label>
   );
 }
 
 function GroupCard({
+  nextGroupId,
+  drag,
+  over,
+  onStartPerson,
+  onStartGroup,
+  onStep,
   group,
   slots,
   members,
@@ -1051,18 +1277,51 @@ function GroupCard({
   onShift: (by: -1 | 1) => void;
   onDelete: () => void;
   onLeader: (person: BoardParticipant) => void;
+  nextGroupId: string | null;
+  drag: DragItem | null;
+  over: DragOver;
+  onStartPerson: (event: ReactPointerEvent<HTMLElement>, person: BoardParticipant, fromGrip: boolean) => void;
+  onStartGroup: (event: ReactPointerEvent<HTMLElement>, fromGrip: boolean) => void;
+  onStep: (person: BoardParticipant, by: -1 | 1) => void;
 }) {
   const [draft, setDraft] = useState(group.name);
   const [menuOpen, setMenuOpen] = useState(false);
-  const leaders = members.filter((person) => person.leader).length;
   const gender = genderSummary(members, genderOrder);
   const cohort = cohortSummary(members);
   const attendance = attendanceCounts(members);
   const headingId = `group-${group.groupId}`;
+  const peopleDrag = drag?.kind === "people";
+  const overHere = over?.kind === "group" && over.groupId === group.groupId;
+  const overEnd = overHere && over.beforeId === null;
+  const groupSlot = drag?.kind === "group" && over?.kind === "group-slot" ? over.beforeGroupId : undefined;
+  const cardClass = [
+    "event-groups__card",
+    peopleDrag ? "event-groups__card--target" : "",
+    overHere ? "event-groups__card--over" : "",
+    drag?.kind === "group" && drag.groupId === group.groupId ? "event-groups__card--dragging" : "",
+    groupSlot === group.groupId ? "event-groups__card--slot-before" : "",
+    groupSlot === null && nextGroupId === null ? "event-groups__card--slot-after" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
   return (
-    <article className="event-groups__card" aria-labelledby={headingId}>
-      <header className="event-groups__card-head">
+    <article
+      className={cardClass}
+      aria-labelledby={headingId}
+      data-drop="group"
+      data-group-card=""
+      data-group-id={group.groupId}
+      data-next-group-id={nextGroupId ?? ""}
+    >
+      <header className="event-groups__card-head" onPointerDown={(event) => onStartGroup(event, false)}>
         <div className="event-groups__card-title-row">
+          {editable ? (
+            <Grip
+              label={`${group.name} 조 끌어서 순서 바꾸기`}
+              onStart={(event) => onStartGroup(event, true)}
+              hint="조 순서는 메뉴의 앞으로·뒤로로도 바꿀 수 있어요"
+            />
+          ) : null}
           <h3 id={headingId} className="event-groups__card-title">
             {group.name}
           </h3>
@@ -1164,15 +1423,23 @@ function GroupCard({
         <>
         <SlotHeader slots={slots} />
         <ul className="event-groups__members" aria-label={`${group.name} 조원`}>
-          {members.map((person) => {
+          {members.map((person, index) => {
             const label = participantLabel(person);
             const checked = selected.has(person.participantId);
+            const moving = drag?.kind === "people" && drag.ids.includes(person.participantId);
+            const dropBefore = overHere && over.beforeId === person.participantId;
             return (
               <li
                 key={person.participantId}
-                className={`event-groups__member${dim(person) ? " event-groups__member--dim" : ""}${checked ? " event-groups__member--checked" : ""}`}
+                className={`event-groups__member${dim(person) ? " event-groups__member--dim" : ""}${checked ? " event-groups__member--checked" : ""}${moving ? " event-groups__member--dragging" : ""}${dropBefore ? " event-groups__member--drop-before" : ""}${person.leader ? " event-groups__member--leader" : ""}`}
+                data-drop="member"
+                data-group-id={group.groupId}
+                data-participant-id={person.participantId}
+                data-next-id={members[index + 1]?.participantId ?? ""}
+                title={`${ATTENDANCE_LABEL[person.attendance]}${person.gender ? ` · ${person.gender.label}` : ""}`}
+                onPointerDown={(event) => onStartPerson(event, person, false)}
               >
-                <span className="event-groups__member-main">
+                <span className="event-groups__member-lead">
                   {editable ? (
                     <input
                       type="checkbox"
@@ -1181,30 +1448,55 @@ function GroupCard({
                       aria-label={`${label} 고르기`}
                     />
                   ) : null}
-                  <span className="event-groups__name">{label}</span>
-                  {person.leader ? <span className="event-groups__leader">조장</span> : null}
-                  <AttendanceTag person={person} />
+                  {editable ? (
+                    <Grip
+                      label={`${label} 순서 옮기기`}
+                      hint="위아래 화살표로 조 안 순서를 바꿔요"
+                      onStart={(event) => onStartPerson(event, person, true)}
+                      onKeyDown={(key) => {
+                        if (key.key === "ArrowUp" || key.key === "ArrowDown") {
+                          key.preventDefault();
+                          onStep(person, key.key === "ArrowUp" ? -1 : 1);
+                        }
+                      }}
+                    />
+                  ) : null}
                   {editable ? (
                     <button
                       type="button"
-                      className="event-groups__leader-toggle"
+                      className="event-groups__heart"
                       aria-pressed={person.leader}
-                      disabled={busy || (!person.leader && leaders >= GROUP_LEADERS_MAX)}
-                      title={!person.leader && leaders >= GROUP_LEADERS_MAX ? `조장은 ${GROUP_LEADERS_MAX}명까지예요` : undefined}
-                      aria-label={person.leader ? `${label} 조장 해제` : `${label} 조장으로 정하기`}
+                      disabled={busy}
+                      title={person.leader ? "조장 해제" : "조장으로 지정"}
+                      aria-label={person.leader ? `${label} 조장 해제` : `${label} 조장으로 지정`}
                       onClick={() => onLeader(person)}
                     >
-                      {person.leader ? "조장 해제" : "조장"}
+                      <Heart filled={person.leader} />
                     </button>
+                  ) : person.leader ? (
+                    <span className="event-groups__heart event-groups__heart--static" role="img" aria-label="조장">
+                      <Heart filled />
+                    </span>
                   ) : null}
+                  <NamePill person={person} compact />
                 </span>
-                <AttendanceBar slots={slots} person={person} />
+                {slots && slots.length > 0 ? <AttendanceBar slots={slots} person={person} /> : <AttendanceTag person={person} />}
               </li>
             );
           })}
         </ul>
         </>
       )}
+      {editable ? (
+        <div
+          className={`event-groups__drop-end${peopleDrag ? " event-groups__drop-end--active" : ""}${overEnd ? " event-groups__drop-end--over" : ""}`}
+          data-drop="group"
+          data-group-id={group.groupId}
+          aria-hidden="true"
+        >
+          + 여기로 끌어서 추가
+        </div>
+      ) : null}
       <SlotHeadcount slots={slots} members={members} />
       {editable && chosenCount > 0 ? (
         <Button type="button" variant="secondary" size={40} className="event-groups__send" disabled={busy} onClick={onSend}>

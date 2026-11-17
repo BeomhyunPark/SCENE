@@ -81,6 +81,11 @@
   --color-sticky-unsaved-border: #dae2e4;
   --color-sticky-unsaved-icon: #995700;
   --color-leader-icon: #0e6a7a;
+  /* 조 편성 (#343): ♥ 조장 토글, 조장 이름, 성별 이름 칸 (10% tints of blue and pink). */
+  --color-leader-heart: #c8102e;
+  --color-leader-name: #7a4a12;
+  --color-gender-male-bg: #e7effb;
+  --color-gender-female-bg: #fbe9f1;
   --color-drop-hover-bg: #d7e4e7;
   --color-drop-hover-border: #0e6a7a;
   --color-drop-rest-border: #6f8185;
@@ -201,6 +206,10 @@
   --color-sticky-unsaved-border: #4e5d62;
   --color-sticky-unsaved-icon: #e9a23b;
   --color-leader-icon: #4db3c3;
+  --color-leader-heart: #ff6b81;
+  --color-leader-name: #e3b47a;
+  --color-gender-male-bg: #1c2a40;
+  --color-gender-female-bg: #3a1f2c;
   --color-drop-hover-bg: #294145;
   --color-drop-hover-border: #4db3c3;
   --color-drop-rest-border: #71858a;

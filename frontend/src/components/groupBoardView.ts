@@ -160,10 +160,15 @@ export function attendanceCounts(members: BoardParticipant[]): { value: Attendan
     .filter((item) => item.count > 0);
 }
 
-/** Members of a group, leaders first, then the server's name order. */
+/** Members in the operator order (#343): position, then participantId. The leader is not moved to the top. */
 export function membersOf(participants: BoardParticipant[], groupId: string): BoardParticipant[] {
-  const members = participants.filter((person) => person.groupId === groupId);
-  return [...members.filter((person) => person.leader), ...members.filter((person) => !person.leader)];
+  return participants
+    .filter((person) => person.groupId === groupId)
+    .sort(
+      (a, b) =>
+        (a.position ?? Number.MAX_SAFE_INTEGER) - (b.position ?? Number.MAX_SAFE_INTEGER) ||
+        (a.participantId < b.participantId ? -1 : a.participantId > b.participantId ? 1 : 0),
+    );
 }
 
 export function groupName(groups: Group[], groupId: string | null, fallback = "지워진 조"): string {
