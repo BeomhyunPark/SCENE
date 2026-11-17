@@ -64,6 +64,7 @@ public class ApplicationSummaryService {
 
   /** Ways there whose way back is not asked: the same car comes back (DEC-070 §3). */
   private static final Set<String> SAME_WAY_BACK = Set.of(CAR, RIDE);
+
   static final String SHUTTLE = "opt_shuttle";
 
   private static final Map<String, String> ATTENDANCE =

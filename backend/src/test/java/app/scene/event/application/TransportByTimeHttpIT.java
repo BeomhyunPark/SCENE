@@ -377,8 +377,7 @@ class TransportByTimeHttpIT {
 
   private static JsonNode option(JsonNode detail, String presetKey, String optionId) {
     for (JsonNode field : detail.get("fields")) {
-      if (!field.get("presetKey").isNull()
-          && presetKey.equals(field.get("presetKey").asString())) {
+      if (!field.get("presetKey").isNull() && presetKey.equals(field.get("presetKey").asString())) {
         for (JsonNode option : field.get("config").get("options")) {
           if (optionId.equals(option.get("optionId").asString())) {
             return option;
