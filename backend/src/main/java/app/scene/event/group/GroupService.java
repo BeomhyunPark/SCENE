@@ -7,6 +7,10 @@ import app.scene.common.error.SceneException;
 import app.scene.common.permission.Permission;
 import app.scene.common.permission.PermissionEvaluator;
 import app.scene.common.tenant.SpaceMembership;
+import app.scene.event.form.FormFieldRow;
+import app.scene.event.form.FormRepository;
+import app.scene.event.form.FormRow;
+import app.scene.event.form.MealSlots;
 import app.scene.event.group.GroupResults.Assigned;
 import app.scene.event.group.GroupResults.BoardVersion;
 import app.scene.event.group.GroupResults.GroupDeleted;
@@ -67,6 +71,7 @@ public class GroupService {
   private final GroupRepository groups;
   private final EventUserPermissionRepository permissions;
   private final AuditLogRepository auditLogs;
+  private final FormRepository forms;
   private final JsonMapper json;
   private final Clock clock;
 
@@ -76,6 +81,7 @@ public class GroupService {
       GroupRepository groups,
       EventUserPermissionRepository permissions,
       AuditLogRepository auditLogs,
+      FormRepository forms,
       JsonMapper json,
       Clock clock) {
     this.gate = gate;
@@ -83,6 +89,7 @@ public class GroupService {
     this.groups = groups;
     this.permissions = permissions;
     this.auditLogs = auditLogs;
+    this.forms = forms;
     this.json = json;
     this.clock = clock;
   }
@@ -105,11 +112,12 @@ public class GroupService {
     List<BoardParticipant> participants = new ArrayList<>();
     List<ActiveParticipant> active = new ArrayList<>();
     long assigned = 0;
+    List<MealSlots.Day> days = slotDays(spaceId, eventId);
     for (BoardRow row : groups.boardParticipants(spaceId, eventId)) {
       if (row.groupId() != null) {
         assigned++;
       }
-      participants.add(participant(row, placements.get(row.participantId())));
+      participants.add(participant(row, placements.get(row.participantId()), days));
       active.add(
           new ActiveParticipant(row.participantId(), null, null, row.groupId(), row.leader()));
     }
@@ -132,7 +140,47 @@ public class GroupService {
         list,
         participants,
         groups.withdrawn(spaceId, eventId),
-        publication);
+        publication,
+        slots(days));
+  }
+
+  /**
+   * Slot days of the event's form setup, labelled with the current MEALS option labels even when
+   * the question is turned off (as in the summary). Empty when there is no form or no setup.
+   */
+  private List<MealSlots.Day> slotDays(UUID spaceId, UUID eventId) {
+    FormRow form = forms.findByEvent(spaceId, eventId).orElse(null);
+    if (form == null || form.setup() == null) {
+      return List.of();
+    }
+    JsonNode meals = null;
+    for (FormFieldRow field : forms.findFields(spaceId, eventId, form.id())) {
+      if ("MEALS".equals(field.presetKey())) {
+        meals = field.config() == null ? null : json.readTree(field.config());
+      }
+    }
+    return MealSlots.days(json.readTree(form.setup()), MealSlots.labels(meals));
+  }
+
+  private static List<BoardSlot> slots(List<MealSlots.Day> days) {
+    if (days.isEmpty()) {
+      return null;
+    }
+    List<BoardSlot> out = new ArrayList<>();
+    for (MealSlots.Day day : days) {
+      for (MealSlots.Slot slot : day.slots()) {
+        out.add(
+            new BoardSlot(
+                slot.optionId(),
+                day.day(),
+                day.date().toString(),
+                day.label(),
+                slot.meal(),
+                slot.label(),
+                out.size()));
+      }
+    }
+    return out;
   }
 
   /**
@@ -523,7 +571,8 @@ public class GroupService {
     return new LeadersWritten(group(spaceId, eventId, groupId), leaderIds, boardVersion);
   }
 
-  private static BoardParticipant participant(BoardRow row, Snapshot.Placement published) {
+  private BoardParticipant participant(
+      BoardRow row, Snapshot.Placement published, List<MealSlots.Day> days) {
     BoardParticipant.Gender gender =
         row.genderOptionId() == null
             ? null
@@ -543,7 +592,13 @@ public class GroupService {
         row.groupId(),
         row.leader(),
         published == null ? null : published.group().groupId(),
-        published != null && published.leader());
+        published != null && published.leader(),
+        days.isEmpty()
+            ? null
+            : MealSlots.attended(
+                days,
+                FULL.equals(attendance),
+                row.mealsAnswer() == null ? null : json.readTree(row.mealsAnswer())));
   }
 
   private UUID openForWrite(UUID actorId, UUID eventId) {

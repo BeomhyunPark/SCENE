@@ -113,7 +113,8 @@
            nullif(btrim(mid.value ->> 'text'), '') AS middle_group,
            nullif(btrim(cel.value ->> 'text'), '') AS cell,
            ga.group_id,
-           coalesce(ga.leader, false) AS leader
+           coalesce(ga.leader, false) AS leader,
+           mea.value::text AS meals_answer
     FROM participants p
     JOIN LATERAL (<include refid="submittedApplication"/>) app ON true
     LEFT JOIN LATERAL (
@@ -141,6 +142,11 @@
         <property name="column" value="preset_key"/>
         <property name="key" value="CELL"/>
       </include>) cel ON true
+    LEFT JOIN LATERAL (
+      <include refid="keyedAnswer">
+        <property name="column" value="preset_key"/>
+        <property name="key" value="MEALS"/>
+      </include>) mea ON true
     LEFT JOIN group_assignments ga
       ON ga.space_id = p.space_id AND ga.event_id = p.event_id AND ga.participant_id = p.id
     WHERE p.space_id = #{spaceId} AND p.event_id = #{eventId}

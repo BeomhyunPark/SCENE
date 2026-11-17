@@ -107,7 +107,15 @@ class GroupHttpIT {
     JsonNode empty = board(w);
     assertThat(empty.propertyNames())
         .containsExactly(
-            "eventStatus", "boardVersion", "groups", "participants", "withdrawn", "publication");
+            "eventStatus",
+            "boardVersion",
+            "groups",
+            "participants",
+            "withdrawn",
+            "publication",
+            "slots");
+    // No setup card: no attendance slots (#315).
+    assertThat(empty.get("slots").isNull()).isTrue();
     assertThat(empty.get("eventStatus").asString()).isEqualTo("ACTIVE");
     assertThat(empty.get("boardVersion").asLong()).isZero();
     assertThat(empty.get("participants").size()).isEqualTo(4);
@@ -132,7 +140,9 @@ class GroupHttpIT {
             "groupId",
             "leader",
             "publishedGroupId",
-            "publishedLeader");
+            "publishedLeader",
+            "slotIds");
+    assertThat(first.get("slotIds").isNull()).isTrue();
     assertThat(first.get("cohort").asString()).isEqualTo("94");
     assertThat(first.get("gender").get("optionId").asString()).isEqualTo("opt_female");
     assertThat(first.get("gender").get("label").asString()).isEqualTo("여성");
