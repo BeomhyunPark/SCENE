@@ -688,3 +688,42 @@
     padding: 32px 32px 96px;
   }
 }
+
+/* 공개 (#302): Figma 1325:5581 — tinted box of what goes out. */
+.event-groups__published {
+  color: var(--color-text-secondary);
+}
+
+.event-groups__publish-stale {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--color-danger-bg);
+  color: var(--color-danger-fg);
+}
+
+.event-groups__publish-box {
+  margin-top: 16px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: var(--color-warning-bg);
+  color: var(--color-warning-fg);
+}
+
+.event-groups__publish-box-title {
+  margin: 0;
+  font: var(--scene-label-m);
+}
+
+.event-groups__publish-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.event-groups__publish-box-note {
+  margin: 6px 0 0;
+}

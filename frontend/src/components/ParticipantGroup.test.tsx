@@ -8,15 +8,19 @@ import { createForm, setAccepting } from "../mocks/formStore";
 import { setLifecycle } from "../mocks/operatorStore";
 import { submitPublicApplication } from "../mocks/participantStore";
 import {
-  publishMockGroupsFromApplicants,
-  publishParticipantGroups,
+  assign,
+  createGroup,
+  deleteGroup,
+  publish,
+  readBoard,
   readParticipantGroup,
-  withdrawFromGroups,
-} from "../mocks/participantGroupStore";
+  setLeaders,
+  withdrawGroupParticipant,
+} from "../mocks/groupStore";
 import { server } from "../mocks/server";
 
 const EVENT = localEvent.eventId;
-const PUBLISHED = "2026-12-20T09:00:00Z";
+const PUBLISHED = "2026-12-20T09:00:00.000Z";
 const SECRET = "hidden-server-detail";
 
 function problem(status: number, code: string) {
@@ -203,18 +207,37 @@ describe("participant group mock", () => {
     expect(readParticipantGroup(EVENT, ids[0])).toMatchObject({ status: "NOT_PUBLISHED", publishedAt: null, group: null });
     expect(readParticipantGroup(EVENT, "missing")).toMatchObject({ status: "NOT_ELIGIBLE" });
 
-    publishMockGroupsFromApplicants(EVENT, 4, PUBLISHED);
+    // The operator side of the same store (#302): one group, 가 leader, 다 left unassigned.
+    const owner = localUsers[0].userId;
+    const created = createGroup(EVENT, owner, { name: "1조" });
+    if (!("group" in created)) throw new Error("group");
+    const groupId = created.group.groupId;
+    assign(EVENT, owner, { changes: ids.slice(0, 2).map((participantId) => ({ participantId, fromGroupId: null, toGroupId: groupId })) });
+    setLeaders(EVENT, groupId, owner, { participantIds: [ids[0]], expectedVersion: 0 });
+    const version = readBoard(EVENT, owner);
+    if (!("boardVersion" in version)) throw new Error("board");
+    expect(publish(EVENT, owner, { expectedBoardVersion: version.boardVersion }, new Date(PUBLISHED))).toMatchObject({
+      code: "CONFIRMATION_REQUIRED",
+    });
+    expect(readParticipantGroup(EVENT, ids[0])).toMatchObject({ status: "NOT_PUBLISHED" });
+    publish(EVENT, owner, { expectedBoardVersion: version.boardVersion, confirmUnassigned: true }, new Date(PUBLISHED));
+
     const leader = readParticipantGroup(EVENT, ids[0]);
     expect(leader).toMatchObject({ status: "ASSIGNED", publishedAt: PUBLISHED, leader: true, group: { name: "1조" } });
     expect(leader.members?.map((member) => member.name)).toEqual(["가", "나"]);
     expect(readParticipantGroup(EVENT, ids[1])).toMatchObject({ leader: false, members: null, group: { leaders: [{ name: "가" }] } });
     expect(readParticipantGroup(EVENT, ids[2])).toMatchObject({ status: "UNASSIGNED", publishedAt: PUBLISHED, group: null });
 
-    withdrawFromGroups(ids[0]);
+    withdrawGroupParticipant(EVENT, ids[0]);
     expect(readParticipantGroup(EVENT, ids[0])).toMatchObject({ status: "NOT_ELIGIBLE", publishedAt: null });
     expect(readParticipantGroup(EVENT, ids[1])).toMatchObject({ group: { leaders: [] } });
 
-    publishParticipantGroups(EVENT, { publishedAt: PUBLISHED, groups: [] });
+    // Working-copy changes stay hidden until the next publish.
+    deleteGroup(EVENT, groupId, owner, new URL(`http://x/?expectedVersion=1`));
+    expect(readParticipantGroup(EVENT, ids[1])).toMatchObject({ status: "ASSIGNED", group: { name: "1조" } });
+    const next = readBoard(EVENT, owner);
+    if (!("boardVersion" in next)) throw new Error("board");
+    publish(EVENT, owner, { expectedBoardVersion: next.boardVersion, confirmUnassigned: true });
     expect(readParticipantGroup(EVENT, ids[1])).toMatchObject({ status: "UNASSIGNED" });
   });
 });

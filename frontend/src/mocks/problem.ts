@@ -16,6 +16,7 @@ export function problem(
     conflicts?: { participantId: string; currentGroupId: string | null }[];
     boardVersion?: number;
     participantIds?: string[];
+    unassignedCount?: number;
   },
 ): Response {
   return HttpResponse.json(

@@ -6,7 +6,7 @@ import { login } from "../../api/session";
 import { seedDemoRoster } from "../../mocks/fixtures/demoRoster";
 import { localEvent, localUsers } from "../../mocks/fixtures/seed";
 import { tableApplications } from "../../mocks/participantStore";
-import { tableGroupOf } from "../../mocks/tableGroupStore";
+import { workingGroupOf } from "../../mocks/groupStore";
 
 const EVENT = localEvent.eventId;
 const OWNER = localUsers[0].userId;
@@ -34,16 +34,22 @@ function countGender(optionId: string): number {
   return tableApplications(EVENT).filter((row) => Object.values(row.answers).some((value) => value.optionId === optionId)).length;
 }
 
+function cellAt(grid: HTMLElement, r: number, c: number): HTMLElement {
+  return grid.querySelector<HTMLElement>(`[data-r="${r}"][data-c="${c}"]`)!;
+}
+
 describe("참가 현황 table at retreat size", () => {
-  it("shows 200 applicants 50 at a time with the design's columns", async () => {
+  it("shows all 200 applicants in one scrolling sheet with the design's columns and a summary line", async () => {
     seedDemoRoster(200);
     await login({ userId: OWNER });
     openApp();
 
-    const table = await screen.findByRole("table", { name: "신청자 명단" });
+    const grid = await screen.findByRole("grid", { name: "신청자 명단" });
     expect(summary()).toBe("200명");
-    expect(within(table).getAllByRole("row")).toHaveLength(52);
-    expect(within(table).getAllByRole("columnheader").map((cell) => cell.textContent?.replace(/[↕▲▼\d]/g, "").trim())).toEqual([
+    // header + 200 rows + summary line, no pages
+    expect(within(grid).getAllByRole("row")).toHaveLength(202);
+    expect(screen.queryByRole("navigation", { name: "쪽" })).not.toBeInTheDocument();
+    expect(within(grid).getAllByRole("columnheader").map((cell) => cell.querySelector(".roster__label")?.textContent ?? cell.textContent)).toEqual([
       "참가자",
       "소속",
       "연락처",
@@ -52,9 +58,10 @@ describe("참가 현황 table at retreat size", () => {
       "참석 범위",
       "작업",
     ]);
-    expect(screen.getByText("1–50 / 200")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "다음" }));
-    expect(screen.getByText("51–100 / 200")).toBeInTheDocument();
+    const totals = within(grid).getAllByRole("row").at(-1)!;
+    expect(totals).toHaveTextContent("200명");
+    expect(totals).toHaveTextContent(/도착 \d+ · 전 \d+/);
+    expect(totals).toHaveTextContent(/응답 \d+ · 고유 \d+/);
   });
 
   it("filters two questions together, including 응답 없음, and keeps choices in the address", async () => {
@@ -62,7 +69,7 @@ describe("참가 현황 table at retreat size", () => {
     const { field, options } = genderField(fields);
     await login({ userId: OWNER });
     openApp();
-    await screen.findByRole("table", { name: "신청자 명단" });
+    await screen.findByRole("grid", { name: "신청자 명단" });
 
     fireEvent.click(screen.getByRole("button", { name: "필터" }));
     fireEvent.change(screen.getByRole("combobox", { name: "조건 더하기" }), { target: { value: field.fieldId } });
@@ -89,7 +96,7 @@ describe("참가 현황 table at retreat size", () => {
     await login({ userId: OWNER });
     openApp(`${PATH}?f.${field.fieldId}=${options[1].optionId}&sort=person:desc&cols=status,${shirt.fieldId}`);
 
-    const table = await screen.findByRole("table", { name: "신청자 명단" });
+    const table = await screen.findByRole("grid", { name: "신청자 명단" });
     expect(summary()).toBe(`${countGender(options[1].optionId)}명`);
     expect(within(table).getByRole("columnheader", { name: /참가자/ })).toHaveAttribute("aria-sort", "descending");
     expect(within(table).getByRole("columnheader", { name: /티셔츠 크기/ })).toBeInTheDocument();
@@ -100,7 +107,7 @@ describe("참가 현황 table at retreat size", () => {
     seedDemoRoster(200);
     await login({ userId: OWNER });
     openApp();
-    const table = await screen.findByRole("table", { name: "신청자 명단" });
+    const table = await screen.findByRole("grid", { name: "신청자 명단" });
 
     const header = within(table).getByRole("columnheader", { name: /조 배정/ });
     fireEvent.click(within(header).getByRole("button"));
@@ -108,7 +115,7 @@ describe("참가 현황 table at retreat size", () => {
     // Numeric order: 1조, 2조, … 10조, then 미배정 last.
     expect(within(within(table).getAllByRole("row")[1]).getAllByRole("cell")[4].textContent).toMatch(/^1조/);
 
-    const unassigned = tableApplications(EVENT).filter((row) => !tableGroupOf(EVENT, row.participantId)).length;
+    const unassigned = tableApplications(EVENT).filter((row) => !workingGroupOf(EVENT, row.participantId)).length;
     const chip = screen.getByRole("button", { name: new RegExp(`미배정 ${unassigned}`) });
     fireEvent.click(chip);
     expect(chip).toHaveAttribute("aria-pressed", "true");
@@ -119,7 +126,7 @@ describe("참가 현황 table at retreat size", () => {
     seedDemoRoster(40);
     await login({ userId: OWNER });
     openApp();
-    const table = await screen.findByRole("table", { name: "신청자 명단" });
+    const table = await screen.findByRole("grid", { name: "신청자 명단" });
 
     fireEvent.click(screen.getByRole("button", { name: "+ 열 보기" }));
     const panel = screen.getByRole("group", { name: "열 보기" });
@@ -160,7 +167,7 @@ describe("참가 현황 table at retreat size", () => {
     ).length;
     fireEvent.click(within(cross).getByRole("button", { name: `${options[0].label} · 94 ${cellCount}명 명단 보기` }));
 
-    expect(await screen.findByRole("table", { name: "신청자 명단" })).toBeInTheDocument();
+    expect(await screen.findByRole("grid", { name: "신청자 명단" })).toBeInTheDocument();
     expect(summary()).toBe(`${cellCount}명`);
   });
 
@@ -168,13 +175,105 @@ describe("참가 현황 table at retreat size", () => {
     seedDemoRoster(60);
     await login({ userId: OWNER });
     openApp();
-    await screen.findByRole("table", { name: "신청자 명단" });
+    await screen.findByRole("grid", { name: "신청자 명단" });
     const target = tableApplications(EVENT)[5];
     const phone = Object.values(target.answers).find((value) => typeof value.text === "string" && value.text.startsWith("010"))!;
     fireEvent.change(screen.getByRole("searchbox", { name: "이름, 연락처, 소속 검색" }), {
       target: { value: String(phone.text).slice(-4) },
     });
     expect(Number(summary()?.replace("명", ""))).toBeGreaterThanOrEqual(1);
-    expect(screen.getByRole("table", { name: "신청자 명단" })).toHaveTextContent(String(phone.text));
+    expect(screen.getByRole("grid", { name: "신청자 명단" })).toHaveTextContent(String(phone.text));
+  });
+
+  it("moves between cells with the keyboard and copies a range as tab-separated text", async () => {
+    seedDemoRoster(30);
+    const writes: string[] = [];
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText: (text: string) => (writes.push(text), Promise.resolve()) },
+    });
+    await login({ userId: OWNER });
+    openApp(`${PATH}?sort=person:asc`);
+    const grid = await screen.findByRole("grid", { name: "신청자 명단" });
+
+    const start = cellAt(grid, 0, 0);
+    fireEvent.mouseDown(start);
+    expect(start).toHaveAttribute("tabindex", "0");
+    fireEvent.keyDown(start, { key: "ArrowDown" });
+    expect(cellAt(grid, 1, 0)).toHaveAttribute("tabindex", "0");
+    expect(cellAt(grid, 1, 0)).toHaveFocus();
+    fireEvent.keyDown(cellAt(grid, 1, 0), { key: "ArrowRight", shiftKey: true });
+    fireEvent.keyDown(cellAt(grid, 1, 1), { key: "ArrowDown", shiftKey: true });
+    expect(cellAt(grid, 2, 1)).toHaveAttribute("aria-selected", "true");
+    fireEvent.keyDown(cellAt(grid, 2, 1), { key: "c", ctrlKey: true });
+
+    await screen.findByText("2행 2열을 복사했어요.");
+    const lines = writes[0].split("\n");
+    expect(lines).toHaveLength(2);
+    expect(lines[0].split("\t")).toEqual([cellAt(grid, 1, 0).textContent?.slice(1), cellAt(grid, 1, 1).textContent]);
+  });
+
+  it("copies no phone numbers for an operator without contact access", async () => {
+    seedDemoRoster(10);
+    const writes: string[] = [];
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText: (text: string) => (writes.push(text), Promise.resolve()) },
+    });
+    await login({ userId: localUsers[2].userId });
+    openApp();
+    const grid = await screen.findByRole("grid", { name: "신청자 명단" });
+    fireEvent.mouseDown(cellAt(grid, 0, 0));
+    fireEvent.keyDown(cellAt(grid, 0, 0), { key: "a", ctrlKey: true });
+    fireEvent.keyDown(cellAt(grid, 0, 0), { key: "c", ctrlKey: true });
+    await screen.findByText(/행 \d+열을 복사했어요/);
+    expect(writes[0].split("\n")).toHaveLength(10);
+    expect(writes[0]).not.toMatch(/010-/);
+  });
+
+  it("opens the application with Enter on a cell", async () => {
+    seedDemoRoster(5);
+    await login({ userId: OWNER });
+    openApp();
+    const grid = await screen.findByRole("grid", { name: "신청자 명단" });
+    fireEvent.mouseDown(cellAt(grid, 0, 1));
+    fireEvent.keyDown(cellAt(grid, 0, 1), { key: "Enter" });
+    expect(await screen.findByRole("heading", { name: "신청 내용" })).toBeInTheDocument();
+  });
+
+  it("groups rows by a column with counts, and folds a group", async () => {
+    seedDemoRoster(200);
+    await login({ userId: OWNER });
+    openApp();
+    const grid = await screen.findByRole("grid", { name: "신청자 명단" });
+
+    fireEvent.change(screen.getByRole("combobox", { name: "묶어 보기" }), { target: { value: "group" } });
+    const unassigned = tableApplications(EVENT).filter((row) => !workingGroupOf(EVENT, row.participantId)).length;
+    const toggle = within(grid).getByRole("button", { name: new RegExp(`조 배정: 미배정\\s*${unassigned}명`) });
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    const before = within(grid).getAllByRole("row").length;
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(within(grid).getAllByRole("row")).toHaveLength(before - unassigned);
+  });
+
+  it("switches density, resizes a column from the keyboard and reorders columns", async () => {
+    seedDemoRoster(20);
+    await login({ userId: OWNER });
+    openApp();
+    const grid = await screen.findByRole("grid", { name: "신청자 명단" });
+
+    fireEvent.click(screen.getByRole("radio", { name: "촘촘하게" }));
+    expect(grid).toHaveClass("roster__table--compact");
+
+    const handle = within(grid).getByRole("separator", { name: "소속 열 너비" });
+    const width = Number(handle.getAttribute("aria-valuenow"));
+    fireEvent.keyDown(handle, { key: "ArrowRight" });
+    expect(Number(within(grid).getByRole("separator", { name: "소속 열 너비" }).getAttribute("aria-valuenow"))).toBe(width + 16);
+
+    fireEvent.click(screen.getByRole("button", { name: "+ 열 보기" }));
+    fireEvent.click(screen.getByRole("button", { name: "참석 범위 앞으로" }));
+    const headers = within(grid).getAllByRole("columnheader").map((cell) => cell.querySelector(".roster__label")?.textContent);
+    expect(headers.indexOf("참석 범위")).toBeLessThan(headers.indexOf("조 배정"));
   });
 });
