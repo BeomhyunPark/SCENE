@@ -1,0 +1,49 @@
+.participant-checkin {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+}
+
+/* The code stays black on white in every theme so scanners read it. */
+.participant-checkin__qr {
+  box-sizing: border-box;
+  align-self: center;
+  width: min(100%, 288px);
+  padding: 8px;
+  background: #ffffff;
+  border: 1px solid var(--color-border-default);
+  border-radius: 12px;
+}
+
+.participant-checkin__qr svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.participant-checkin__arrived {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0;
+  padding: 12px 16px;
+  color: var(--color-success-fg);
+  background: var(--color-success-bg);
+  border-radius: 8px;
+  font: var(--scene-body-m);
+  letter-spacing: 0;
+}
+
+.participant-checkin__notice {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0;
+  padding: 16px;
+  color: var(--color-text-primary);
+  background: var(--color-bg-canvas);
+  border: 1px solid var(--color-border-default);
+  border-radius: 8px;
+  font: var(--scene-body-m);
+  letter-spacing: 0;
+}
