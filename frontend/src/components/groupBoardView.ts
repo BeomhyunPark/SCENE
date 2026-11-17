@@ -1,4 +1,5 @@
 import type { Attendance, AttendanceSlot, BoardParticipant, Group, SlotMeal } from "../api/groups";
+import { compareCohort } from "./cohort";
 
 /** Screen-side filters for 조 편성 (DEC-072 §3). The server sends everyone; the screen narrows. */
 export const NO_ANSWER = "__none__";
@@ -79,7 +80,7 @@ function matchValue(value: string | null, wanted: string): boolean {
   return value === wanted;
 }
 
-/** Options present in the data, with "응답 없음" last when someone has no answer. 또래 sorts by number. */
+/** Options present in the data, with "응답 없음" last when someone has no answer. 또래 sorts by birth year (cohort.ts). */
 export function filterOptions(participants: BoardParticipant[]) {
   return {
     gender: optionsOf(participants, (person) =>
@@ -123,16 +124,9 @@ function optionsOf(
     else found.set(option.value, { ...option, count: 1 });
   }
   const sorted = [...found.values()].sort((a, b) =>
-    numeric ? cohortOrder(a.value, b.value) : a.label.localeCompare(b.label, "ko"),
+    numeric ? compareCohort(a.value, b.value) : a.label.localeCompare(b.label, "ko"),
   );
   return none > 0 ? [...sorted, { value: NO_ANSWER, label: NO_ANSWER_LABEL, count: none }] : sorted;
-}
-
-function cohortOrder(a: string, b: string): number {
-  const na = Number(a);
-  const nb = Number(b);
-  if (Number.isFinite(na) && Number.isFinite(nb)) return na - nb;
-  return a.localeCompare(b, "ko");
 }
 
 /** "남 2 · 여 3 · 응답 없음 1": gender labels in the filter order (label order, 응답 없음 last). */

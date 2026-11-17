@@ -33,6 +33,12 @@ function person(patch: Partial<BoardParticipant>): BoardParticipant {
 }
 
 describe("group board view", () => {
+  it("orders 또래 by birth year: 98, 99, 00, 01, and the same in a card's distribution", () => {
+    const people = [person({ cohort: "01" }), person({ cohort: "99" }), person({ cohort: "00" }), person({ cohort: "98" })];
+    expect(filterOptions(people).cohort.map((option) => option.label)).toEqual(["98", "99", "00", "01"]);
+    expect(cohortSummary(people)).toBe("98 1 · 99 1 · 00 1 · 01 1");
+  });
+
   it("orders 또래 by number and puts 응답 없음 last", () => {
     const people = [person({ cohort: "100" }), person({ cohort: "94" }), person({}), person({ cohort: "94" })];
     expect(filterOptions(people).cohort.map((option) => `${option.label}:${option.count}`)).toEqual([
