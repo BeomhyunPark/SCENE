@@ -23,14 +23,27 @@ class PermissionEvaluatorTest {
   }
 
   @Test
-  void managerAndStaffDefaultsStayUnsetExceptEventReadAndTaskWrite() {
+  void managerAndStaffDefaultsStayUnsetExceptApprovedKeys() {
     assertThat(RoleDefaults.of("MANAGER"))
-        .containsExactlyInAnyOrder(Permission.EVENT_READ, Permission.TASK_WRITE);
-    assertThat(RoleDefaults.of("STAFF")).containsExactly(Permission.EVENT_READ);
+        .containsExactlyInAnyOrder(
+            Permission.EVENT_READ, Permission.TASK_WRITE, Permission.CHECKIN_WRITE);
+    assertThat(RoleDefaults.of("STAFF"))
+        .containsExactlyInAnyOrder(Permission.EVENT_READ, Permission.CHECKIN_WRITE);
     assertThat(RoleDefaults.of("OWNER"))
         .contains(Permission.DATA_EXPORT, Permission.EVENT_LIFECYCLE);
     assertThat(RoleDefaults.of("STAFF"))
         .doesNotContain(Permission.DATA_EXPORT, Permission.FINANCE_READ);
+  }
+
+  @Test
+  void checkInWriteIsOnEveryRoleAndOwnerKeepsItOnRevoke() {
+    for (String role : new String[] {"OWNER", "MANAGER", "STAFF"}) {
+      assertThat(PermissionEvaluator.allows(Permission.CHECKIN_WRITE, role, false, null)).isTrue();
+    }
+    assertThat(PermissionEvaluator.allows(Permission.CHECKIN_WRITE, "STAFF", false, "REVOKE"))
+        .isFalse();
+    assertThat(PermissionEvaluator.allows(Permission.CHECKIN_WRITE, "MANAGER", false, "REVOKE"))
+        .isFalse();
   }
 
   @Test

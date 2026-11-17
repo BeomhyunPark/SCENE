@@ -87,7 +87,8 @@ class OwnerTransferCompletionIT {
     assertThat(role(world.eventId, world.managerId)).isEqualTo("OWNER");
     assertThat(role(world.eventId, coOwnerId)).isEqualTo("OWNER");
     assertThat(role(world.eventId, world.ownerId)).isEqualTo("STAFF");
-    assertThat(RoleDefaults.of("STAFF")).containsExactly(Permission.EVENT_READ);
+    assertThat(RoleDefaults.of("STAFF"))
+        .containsExactlyInAnyOrder(Permission.EVENT_READ, Permission.CHECKIN_WRITE);
     assertThat(overrides(world.eventId, world.ownerId)).isZero();
     assertThat(status(laterId)).isEqualTo("HANDOVER");
     assertThat(role(laterEventId, world.ownerId)).isEqualTo("OWNER");
