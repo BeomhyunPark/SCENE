@@ -242,4 +242,18 @@ describe("신청 집계 screen", () => {
     fireEvent.click(await screen.findByRole("link", { name: /신청 집계/ }));
     expect(await screen.findByRole("heading", { name: "신청 집계" })).toBeInTheDocument();
   });
+
+  it("is reachable from 참가 현황", async () => {
+    const retreat = seedRetreat();
+    retreat.apply({ NAME: "하나", COHORT: "94" });
+    await login({ userId: OWNER });
+    render(
+      <MemoryRouter initialEntries={[`/events/${RETREAT}/participants`]}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole("link", { name: "신청 집계" }));
+    expect(await screen.findByRole("heading", { name: "신청 집계" })).toBeInTheDocument();
+  });
 });
