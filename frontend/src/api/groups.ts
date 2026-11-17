@@ -91,10 +91,32 @@ export const GROUP_NAME_MAX = 50;
 export const GROUP_LEADERS_MAX = 3;
 export const ASSIGNMENT_CHANGES_MAX = 200;
 
+/**
+ * GET …/groups/published (#288): the latest publication for operators with EVENT_READ. Before the first
+ * publish `publishedAt` is null and both lists are empty (not 404). Withdrawn people are left out; people
+ * who applied after the publish are in `unassigned`. Members list leaders first, then by name.
+ */
+export type PublishedMember = { participantId: string; name: string; cohort: string | null; leader: boolean };
+export type PublishedGroup = {
+  groupId: string;
+  name: string;
+  leaders: { participantId: string; name: string }[];
+  members: PublishedMember[];
+};
+export type PublishedGroups = {
+  publishedAt: string | null;
+  groups: PublishedGroup[];
+  unassigned: { participantId: string; name: string; cohort: string | null }[];
+};
+
 const base = (eventId: string) => `/api/v1/operator/events/${eventId}`;
 
 export function getGroupBoard(eventId: string, signal?: AbortSignal): Promise<GroupBoard> {
   return apiRequest<unknown>(`${base(eventId)}/group-board`, { signal }).then(parseBoard);
+}
+
+export function getPublishedGroups(eventId: string, signal?: AbortSignal): Promise<PublishedGroups> {
+  return apiRequest<unknown>(`${base(eventId)}/groups/published`, { signal }).then(parsePublished);
 }
 
 export function createGroup(eventId: string, name: string): Promise<{ group: Group; boardVersion: number }> {
@@ -239,6 +261,25 @@ export function problemReason(error: unknown): string | null {
 
 function unexpected(): never {
   throw new ApiError({ status: 200, code: "UNEXPECTED" });
+}
+
+function parsePublished(value: unknown): PublishedGroups {
+  if (!isRecord(value) || !Array.isArray(value.groups) || !Array.isArray(value.unassigned)) unexpected();
+  const person = (item: unknown) => {
+    if (!isRecord(item) || typeof item.participantId !== "string" || typeof item.name !== "string") unexpected();
+    return { participantId: item.participantId, name: item.name, cohort: typeof item.cohort === "string" ? item.cohort : null };
+  };
+  return {
+    publishedAt: typeof value.publishedAt === "string" ? value.publishedAt : null,
+    groups: value.groups.map((group) => {
+      if (!isRecord(group) || typeof group.groupId !== "string" || typeof group.name !== "string") unexpected();
+      if (!Array.isArray(group.members)) unexpected();
+      const members = group.members.map((item) => ({ ...person(item), leader: isRecord(item) && item.leader === true }));
+      const leaders = members.filter((member) => member.leader).map(({ participantId, name }) => ({ participantId, name }));
+      return { groupId: group.groupId, name: group.name, leaders, members };
+    }),
+    unassigned: value.unassigned.map(person),
+  };
 }
 
 function parseGroupResult(value: unknown): { group: Group; boardVersion: number } {

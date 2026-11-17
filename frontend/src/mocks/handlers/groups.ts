@@ -6,6 +6,7 @@ import {
   deleteGroup,
   publish,
   readBoard,
+  readPublishedGroups,
   renameGroup,
   reorderGroups,
   setLeaders,
@@ -14,7 +15,7 @@ import {
 import { problem } from "../problem";
 import { currentOperator } from "./session";
 
-/** Shaped like GroupController (#299) and the publish of #300. The operator published read is not mocked yet. */
+/** Shaped like GroupController (#299), the publish of #300 and the operator published read (#288). */
 const base = "/api/v1/operator/events/:eventId";
 
 export const groupHandlers = [
@@ -22,6 +23,11 @@ export const groupHandlers = [
     const operator = currentOperator();
     if (!operator) return problem(401, "AUTHENTICATION_REQUIRED");
     return reply(readBoard(String(params.eventId), operator.userId));
+  }),
+  http.get(`${base}/groups/published`, ({ params }) => {
+    const operator = currentOperator();
+    if (!operator) return problem(401, "AUTHENTICATION_REQUIRED");
+    return reply(readPublishedGroups(String(params.eventId), operator.userId));
   }),
   http.post(`${base}/groups`, async ({ params, request, cookies }) => {
     if (!csrfMatches(request, cookies)) return problem(403, "FORBIDDEN");

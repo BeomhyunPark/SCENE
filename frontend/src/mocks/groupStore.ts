@@ -1,5 +1,6 @@
 import { localEvent, localUsers } from "./fixtures/seed";
 import { eventById, spacesFor } from "./operatorStore";
+import { requireEventRead } from "./formStore";
 import { checkInCandidates } from "./participantStore";
 import { permissionsFor } from "./taskStore";
 
@@ -300,6 +301,42 @@ export function readParticipantGroup(eventId: string, participantId: string): Pa
     leader,
     members: leader ? ordered : null,
   };
+}
+
+/**
+ * GET …/groups/published (#288): the latest publication for EVENT_READ. Names and 또래 are read now;
+ * withdrawn people drop out; active people outside every published group are `unassigned`.
+ */
+export function readPublishedGroups(eventId: string, actorId: string) {
+  const gate = requireEventRead(eventId, actorId);
+  if (gate) return gate;
+  const active = new Map(activePeople(eventId).map((person) => [person.participantId, person]));
+  const publication = boardOf(eventId).publications.at(-1);
+  if (!publication) return { publishedAt: null, groups: [], unassigned: [] };
+  const placed = new Set<string>();
+  const groups = [...publication.groups]
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((group) => {
+      const members = group.members
+        .flatMap((member) => {
+          const person = active.get(member.participantId);
+          if (!person) return [];
+          placed.add(person.participantId);
+          return [{ participantId: person.participantId, name: person.name, cohort: person.cohort, leader: member.leader }];
+        })
+        .sort((a, b) => Number(b.leader) - Number(a.leader) || a.name.localeCompare(b.name, "ko"));
+      return {
+        groupId: group.groupId,
+        name: group.name,
+        leaders: members.filter((member) => member.leader).map(({ participantId, name }) => ({ participantId, name })),
+        members,
+      };
+    });
+  const unassigned = [...active.values()]
+    .filter((person) => !placed.has(person.participantId))
+    .sort((a, b) => a.name.localeCompare(b.name, "ko"))
+    .map(({ participantId, name, cohort }) => ({ participantId, name, cohort }));
+  return { publishedAt: publication.publishedAt, groups, unassigned };
 }
 
 /** Working-copy group of one person, for the 참가 현황 table's group column (#308). */
