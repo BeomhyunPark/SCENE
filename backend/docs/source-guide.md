@@ -181,7 +181,8 @@ CSRF 쿠키는 `XSRF-TOKEN`, 헤더는 `X-XSRF-TOKEN`이다. 변경 요청은 �
 | 업무 목록, 생성, 상세, 수정, 삭제 | `event/task/TaskCommandController` |
 | 체크 항목, 완료, 다시 열기 | `event/task/TaskProgressController` |
 | 체크인 현황, 명단, 체크인, 취소, 이력 | `event/checkin/CheckInController` |
-| 편성판, 조 만들기·수정·삭제·순서, 배정, 조장 | `event/group/GroupController` |
+| 편성판, 조 만들기·수정·삭제·순서, 배정, 조장, 공개, 공개본 조회 | `event/group/GroupController` |
+| 참가자 내 조 | `event/group/ParticipantGroupController` |
 
 초대 수락도 operator 경로다. 수락하는 사람은 운영자 세션으로 들어와 있다. 공개 URL이 아니다.
 
@@ -226,6 +227,7 @@ Flyway만 스키마를 쓴다. `V1__baseline.sql`이 제품 테이블이고, `V2
 | 업무 명령 | `event/task/TaskCommandHttpIT` |
 | 체크와 완료 | `event/task/TaskProgressHttpIT` |
 | 조 편성 작업본 | `event/group/GroupHttpIT` |
+| 조 편성 공개, 공개본, 참가자 내 조 | `event/group/GroupPublicationHttpIT` |
 | 여러 기능이 한 행사에서 맞는지 | `event/LifecycleAndTaskIT`, `event/ServerContractRegressionIT` |
 | 로컬 시드 | `LocalSeedIT` |
 
@@ -239,7 +241,7 @@ Flyway만 스키마를 쓴다. `V1__baseline.sql`이 제품 테이블이고, `V2
 - 공개 신청, 공개 조회
 - 비밀번호, 토큰 로그인
 - SMTP. 초대 링크는 `CapturingInvitationMailer`의 메모리에만 있다
-- 참가자, 신청서, 회비, 조, 방, 차량 테이블과 그 API. 체크인은 `V12__checkins.sql`과 운영자 API가 있고, 참가자 QR 받기는 #283이다. 조 작업본은 `V13__groups.sql`과 운영자 API가 있고, 공개와 참가자 조회는 #300이다
+- 참가자, 신청서, 회비, 조, 방, 차량 테이블과 그 API. 체크인은 `V12__checkins.sql`과 운영자 API가 있고, 참가자 QR 받기는 #283이다. 조는 `V13__groups.sql`(작업본)·`V14__group_publications.sql`(공개본)과 운영자 API, 참가자 내 조(`GET /api/v1/participant/group`)가 있다
 - MANAGER와 STAFF에 대한 `TASK_WRITE`·`CHECKIN_WRITE` 외의 승인된 기본 권한
 
 `Permission`에 키가 있는 것은 그 API가 열렸다는 뜻이 아니다. `OWNER`는 등록된 키를 모두 갖고, 그 키를 쓰는 명령은 각 서비스에 있을 때만 동작한다.
