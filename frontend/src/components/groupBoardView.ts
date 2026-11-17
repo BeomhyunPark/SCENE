@@ -13,6 +13,8 @@ export type GroupFilters = {
   attendance: string;
   middleGroup: string;
   cell: string;
+  /** "yes" · "no" · NO_ANSWER · ANY */
+  newcomer: string;
   assignment: AssignmentFilter;
 };
 
@@ -23,6 +25,7 @@ export const EMPTY_FILTERS: GroupFilters = {
   attendance: ANY,
   middleGroup: ANY,
   cell: ANY,
+  newcomer: ANY,
   assignment: "unassigned",
 };
 
@@ -44,7 +47,8 @@ export function hasAnswerFilter(filters: GroupFilters): boolean {
     filters.cohort !== ANY ||
     filters.attendance !== ANY ||
     filters.middleGroup !== ANY ||
-    filters.cell !== ANY
+    filters.cell !== ANY ||
+    filters.newcomer !== ANY
   );
 }
 
@@ -58,7 +62,8 @@ export function matchesAnswers(person: BoardParticipant, filters: GroupFilters):
     matchValue(person.cohort, filters.cohort) &&
     (filters.attendance === ANY || person.attendance === filters.attendance) &&
     matchValue(person.middleGroup, filters.middleGroup) &&
-    matchValue(person.cell, filters.cell)
+    matchValue(person.cell, filters.cell) &&
+    matchValue(person.newcomer === null ? null : person.newcomer ? "yes" : "no", filters.newcomer)
   );
 }
 
@@ -92,6 +97,11 @@ export function filterOptions(participants: BoardParticipant[]) {
       person.middleGroup ? { value: person.middleGroup, label: person.middleGroup } : null,
     ),
     cell: optionsOf(participants, (person) => (person.cell ? { value: person.cell, label: person.cell } : null)),
+    newcomer: [
+      { value: "yes", label: "예", count: participants.filter((person) => person.newcomer === true).length },
+      { value: "no", label: "아니오", count: participants.filter((person) => person.newcomer === false).length },
+      { value: NO_ANSWER, label: NO_ANSWER_LABEL, count: participants.filter((person) => person.newcomer === null).length },
+    ].filter((option) => option.count > 0),
   };
 }
 

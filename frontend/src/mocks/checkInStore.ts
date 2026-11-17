@@ -312,6 +312,12 @@ function logsOf(eventId: string): Log[] {
   return list;
 }
 
+/** Arrival time of a participant for the 참가 현황 table (#308), or null when not checked in. */
+export function checkedInAtOf(eventId: string, participantId: string): string | null {
+  const row = currentRow(eventId, participantId);
+  return row?.status === "CHECKED_IN" ? row.checkedInAt : null;
+}
+
 function currentRow(eventId: string, participantId: string): Row | undefined {
   return rowsOf(eventId).find((row) => row.participantId === participantId);
 }

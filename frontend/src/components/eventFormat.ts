@@ -60,3 +60,20 @@ export function operatorRoleLabel(role: string): string {
   if (role === "STAFF") return "Staff";
   return role;
 }
+
+const publishedFormat = new Intl.DateTimeFormat("ko-KR", {
+  timeZone: "Asia/Seoul",
+  month: "numeric",
+  day: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+
+/** Publish time in Korea time, like "12월 20일 18:00" (Figma 667:75536, participant 내 조). Empty when the value is not a time. */
+export function formatPublishedAt(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  const parts = Object.fromEntries(publishedFormat.formatToParts(date).map((part) => [part.type, part.value]));
+  return `${Number(parts.month)}월 ${Number(parts.day)}일 ${parts.hour}:${parts.minute}`;
+}

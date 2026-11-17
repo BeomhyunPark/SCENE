@@ -778,7 +778,9 @@ function Filters({
   const set = (patch: Partial<GroupFilters>) => onChange({ ...filters, ...patch });
   const active =
     filters.q.trim().length > 0 ||
-    [filters.gender, filters.cohort, filters.attendance, filters.middleGroup, filters.cell].some((value) => value !== ANY) ||
+    [filters.gender, filters.cohort, filters.attendance, filters.middleGroup, filters.cell, filters.newcomer].some(
+      (value) => value !== ANY,
+    ) ||
     filters.assignment !== "unassigned";
   return (
     <div className="event-groups__filters" role="group" aria-label="참가자 거르기">
@@ -813,6 +815,7 @@ function Filters({
         onChange={(middleGroup) => set({ middleGroup })}
       />
       <AnswerSelect label="셀" value={filters.cell} options={options.cell} onChange={(cell) => set({ cell })} />
+      <AnswerSelect label="새가족" value={filters.newcomer} options={options.newcomer} onChange={(newcomer) => set({ newcomer })} />
       {active ? (
         <Button type="button" variant="tertiary" size={40} onClick={() => onChange(EMPTY_FILTERS)}>
           초기화
@@ -868,9 +871,12 @@ function AnswerSelect({
 
 function AttendanceTag({ person }: { person: BoardParticipant }) {
   return (
-    <span className={`event-groups__tag event-groups__tag--${person.attendance.toLowerCase()}`}>
-      {ATTENDANCE_LABEL[person.attendance]}
-    </span>
+    <>
+      <span className={`event-groups__tag event-groups__tag--${person.attendance.toLowerCase()}`}>
+        {ATTENDANCE_LABEL[person.attendance]}
+      </span>
+      {person.newcomer ? <span className="event-groups__newcomer">새가족</span> : null}
+    </>
   );
 }
 

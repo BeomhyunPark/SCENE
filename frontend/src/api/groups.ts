@@ -20,6 +20,8 @@ export type BoardParticipant = {
   attendance: Attendance;
   middleGroup: string | null;
   cell: string | null;
+  /** NEWCOMER answer (#316); null when unanswered or the question is off. Board only, never published. */
+  newcomer: boolean | null;
   /** null is 미배정. */
   groupId: string | null;
   leader: boolean;
@@ -222,6 +224,7 @@ function parseParticipant(value: unknown): BoardParticipant {
     attendance: isAttendance(value.attendance) ? value.attendance : "FULL",
     middleGroup: trimmedOrNull(value.middleGroup),
     cell: trimmedOrNull(value.cell),
+    newcomer: typeof value.newcomer === "boolean" ? value.newcomer : null,
     groupId: (value.groupId as string | null | undefined) ?? null,
     leader: value.leader === true,
     publishedGroupId: typeof value.publishedGroupId === "string" ? value.publishedGroupId : null,

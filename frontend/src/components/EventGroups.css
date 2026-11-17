@@ -444,6 +444,14 @@
   color: var(--color-badge-attendance-partial-fg);
 }
 
+.event-groups__newcomer {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--color-badge-new-family-bg);
+  color: var(--color-badge-new-family-fg);
+  font: var(--scene-caption-s);
+}
+
 .event-groups__leader {
   padding: 1px 6px;
   border-radius: 4px;

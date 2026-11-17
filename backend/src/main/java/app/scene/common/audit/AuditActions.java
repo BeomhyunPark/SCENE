@@ -31,6 +31,12 @@ public final class AuditActions {
   public static final String APPLICATIONS_EXPORTED = "APPLICATIONS_EXPORTED";
 
   /**
+   * The applicant table sent phone answers (#308). Detail is {@code count}, the number of applicant
+   * rows. No number or name. Stand-in for the {@code CONTACT_VIEW} privacy log until it is built.
+   */
+  public static final String APPLICANT_CONTACTS_VIEWED = "APPLICANT_CONTACTS_VIEWED";
+
+  /**
    * Group publication (#300, DEC-072). Details are {@code publicationId}, {@code boardVersion},
    * {@code assignedCount}, {@code unassignedCount}, and {@code changedParticipantCount}. Not
    * written for {@code ALREADY_PUBLISHED}. No name or phone.

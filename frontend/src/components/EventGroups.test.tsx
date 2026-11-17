@@ -126,7 +126,15 @@ describe("group board (#301)", () => {
     fireEvent.change(screen.getByLabelText("셀"), { target: { value: "다윗셀" } });
     expect(screen.getByRole("heading", { name: "미배정 참가자 3명" })).toBeInTheDocument();
 
-    expect(screen.getByRole("option", { name: "응답 없음 (2)" })).toBeInTheDocument();
+    expect(screen.getAllByRole("option", { name: "응답 없음 (2)" }).length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByRole("button", { name: "초기화" }));
+    fireEvent.change(screen.getByLabelText("새가족"), { target: { value: "yes" } });
+    expect(screen.getByRole("heading", { name: "미배정 참가자 2명" })).toBeInTheDocument();
+    expect(within(pool()).getAllByText("새가족")).toHaveLength(2);
+    fireEvent.change(screen.getByLabelText("새가족"), { target: { value: "__none__" } });
+    expect(screen.getByRole("heading", { name: "미배정 참가자 1명" })).toBeInTheDocument();
+    expect(within(pool()).getByText("정민호")).toBeInTheDocument();
   });
 
   it("creates, renames, reorders and deletes groups; deleting asks first and unassigns its members", async () => {

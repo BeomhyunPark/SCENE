@@ -11,6 +11,7 @@ function person(patch: Partial<BoardParticipant>): BoardParticipant {
     attendance: "FULL",
     middleGroup: null,
     cell: null,
+    newcomer: null,
     groupId: null,
     leader: false,
     publishedGroupId: null,

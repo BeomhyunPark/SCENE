@@ -374,7 +374,16 @@ function defaultsFor(role: Role): string[] {
   // The server gives an event OWNER every event key. The mock lists the keys these screens read.
   // DEC-071: OWNER, MANAGER and STAFF all check in by default. DEC-072: only OWNER has GROUP_WRITE.
   if (role === "OWNER") {
-    return ["EVENT_READ", "EVENT_UPDATE", "TASK_WRITE", "FORM_WRITE", "CHECKIN_WRITE", "DATA_EXPORT", "GROUP_WRITE"];
+    return [
+      "EVENT_READ",
+      "EVENT_UPDATE",
+      "TASK_WRITE",
+      "FORM_WRITE",
+      "CHECKIN_WRITE",
+      "DATA_EXPORT",
+      "PARTICIPANT_CONTACT_READ",
+      "GROUP_WRITE",
+    ];
   }
   if (role === "MANAGER") return ["EVENT_READ", "TASK_WRITE", "CHECKIN_WRITE"];
   return ["EVENT_READ", "CHECKIN_WRITE"];

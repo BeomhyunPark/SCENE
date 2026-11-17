@@ -115,6 +115,11 @@ export function formFields(eventId: string, formId: string): FormDetail["fields"
   return found ? toDetail(found).fields : [];
 }
 
+/** The event's form id, accepting or not (#308 table without applications). */
+export function eventFormId(eventId: string): string | undefined {
+  return forms.find((form) => form.eventId === eventId)?.formId;
+}
+
 /** Same read gate as the form read: EVENT_READ, or an active space OWNER or ADMIN. */
 export function requireEventRead(eventId: string, actorId: string): FormFailure | null {
   return requireRead(eventId, actorId);
@@ -392,6 +397,8 @@ function readSetup(body: unknown, days: number): FormSetup | FormFailure {
   const flags = (value: unknown, keys: string[]) =>
     isRecord(value) && keys.every((key) => typeof value[key] === "boolean");
   if (!flags(body, ["gender", "middleGroup", "cell"])) return invalid("setup");
+  // newcomer was added later: optional, off when missing.
+  if (body.newcomer !== undefined && typeof body.newcomer !== "boolean") return invalid("setup");
   if (!flags(attendance, ["partial", "worshipOnly"])) return invalid("attendance");
   if (!flags(transport, ["groupBus", "worshipShuttle", "car", "publicTransit", "support"])) return invalid("transport");
   if (
@@ -405,6 +412,7 @@ function readSetup(body: unknown, days: number): FormSetup | FormFailure {
     gender: body.gender,
     middleGroup: body.middleGroup,
     cell: body.cell,
+    newcomer: body.newcomer === true,
     attendance,
     schedule,
     transport,

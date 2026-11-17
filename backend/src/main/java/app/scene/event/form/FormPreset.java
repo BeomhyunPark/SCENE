@@ -28,6 +28,7 @@ public final class FormPreset {
           "GENDER",
           "MIDDLE_GROUP",
           "CELL",
+          "NEWCOMER",
           "ATTENDANCE",
           "ARRIVAL_AT",
           "DEPARTURE_AT",
@@ -136,6 +137,22 @@ public final class FormPreset {
           new Question(
               "CELL", "셀", "소속 셀이 있으면 적어주세요.", AnswerType.SHORT_TEXT, false, shortText(50), null));
     }
+    if (setup.newcomer()) {
+      // Who counts as new differs by church, so the operator can reword the description.
+      ObjectNode yesNo = NODES.objectNode();
+      yesNo.put("style", "YES_NO");
+      yesNo.putNull("yesLabel");
+      yesNo.putNull("noLabel");
+      out.add(
+          new Question(
+              "NEWCOMER",
+              "새가족이신가요?",
+              "교회에 처음 오셨거나 새가족 과정을 듣고 있다면 '예'를 골라주세요." + " 조 편성에서 더 잘 챙겨 드리려고 여쭤봐요.",
+              AnswerType.YES_NO,
+              true,
+              yesNo,
+              null));
+    }
 
     if (attendance) {
       ArrayNode options = NODES.arrayNode();
@@ -176,13 +193,7 @@ public final class FormPreset {
         ArrayNode nights = NODES.arrayNode();
         for (int night = 1; night < days; night++) {
           LocalDate date = start.plusDays(night - 1L);
-          nights.add(
-              option(
-                  "opt_n" + night,
-                  ORDINALS[night - 1] + " 밤 (" + dayLabel(date) + ")",
-                  null,
-                  false,
-                  null));
+          nights.add(option("opt_n" + night, nightLabel(night, date), null, false, null));
         }
         out.add(
             new Question(
@@ -408,8 +419,13 @@ public final class FormPreset {
     return out;
   }
 
+  /** Example: {@code 첫째 밤 (1월 22일 (금))}. {@code date} is the evening of that night. */
+  public static String nightLabel(int night, LocalDate date) {
+    return ORDINALS[night - 1] + " 밤 (" + dayLabel(date) + ")";
+  }
+
   /** Example: {@code 1월 22일 (금)}. */
-  static String dayLabel(LocalDate date) {
+  public static String dayLabel(LocalDate date) {
     return date.getMonthValue()
         + "월 "
         + date.getDayOfMonth()

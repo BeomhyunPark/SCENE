@@ -19,6 +19,7 @@ type Person = {
   attendance: Attendance;
   middleGroup: string | null;
   cell: string | null;
+  newcomer: boolean | null;
   submitted: boolean;
 };
 
@@ -136,6 +137,7 @@ export function readBoard(eventId: string, actorId: string) {
         attendance: person.attendance,
         middleGroup: person.middleGroup,
         cell: person.cell,
+        newcomer: person.newcomer,
         groupId: assignment.groupId,
         leader: assignment.leader,
         publishedGroupId: null,
@@ -410,6 +412,7 @@ function peopleOf(eventId: string): Person[] {
       attendance: "FULL",
       middleGroup: null,
       cell: null,
+      newcomer: null,
       submitted: true,
     });
   }
@@ -449,6 +452,8 @@ function seedPeople(): Person[] {
     ["오세훈", "96", MALE, "FULL", "청년2부", "요셉셀"],
     ["윤가은", "97", FEMALE, "FULL", "청년1부", "다윗셀"],
   ];
+  // 새가족: 박서준·윤가은 yes, 정민호 unanswered, others no.
+  const newcomers: Record<number, boolean | null> = { 2: true, 9: true, 5: null };
   return rows.map(([name, cohort, gender, attendance, middleGroup, cell], index) => ({
     participantId: `00000000-0000-4000-8000-0000000004${String(index).padStart(2, "0")}`,
     name,
@@ -457,6 +462,7 @@ function seedPeople(): Person[] {
     attendance,
     middleGroup,
     cell,
+    newcomer: index in newcomers ? newcomers[index] : false,
     submitted: true,
   }));
 }
@@ -476,6 +482,7 @@ function largePeople(count: number): Person[] {
       attendance: index % 9 === 0 ? "PARTIAL" : index % 17 === 0 ? "WORSHIP_ONLY" : "FULL",
       middleGroup: index % 10 === 9 ? null : `청년${(index % 3) + 1}부`,
       cell: index % 8 === 7 ? null : cells[index % cells.length],
+      newcomer: index % 15 === 14 ? null : index % 7 === 3,
       submitted: true,
     });
   }
