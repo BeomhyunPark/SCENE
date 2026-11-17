@@ -79,6 +79,13 @@ function EventHomeBody({
           </div>
           <span className="event-home__badge">{draftStatus ? "준비 시작" : lifecycleLabel(event.lifecycleStatus)}</span>
         </div>
+        {draftStatus ? null : (
+          // Way into 신청 집계 (#251) until 참가 현황 links to it after #308. Every state reads (DEC-073 §4).
+          <Link className="event-home__summary" to={`/events/${eventId}/participants/summary`}>
+            <span className="event-home__field-title">신청 집계</span>
+            <span className="event-home__field-detail">식수·숙박·차량·카풀 인원을 한 화면에서 봐요.</span>
+          </Link>
+        )}
         {closed ? (
           <section className="event-home__ended">
             <h2>{event.lifecycleStatus === "ARCHIVED" ? "보관된 행사예요" : "행사가 종료됐어요"}</h2>

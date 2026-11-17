@@ -117,7 +117,24 @@ function Applicants({ eventId, empty }: { eventId: string; empty: ReactNode }) {
       </>
     );
   }
-  return <ApplicantTable eventId={eventId} table={table.data} actions={<ApplicantsExport eventId={eventId} total={total} />} />;
+  return (
+    <ApplicantTable
+      eventId={eventId}
+      table={table.data}
+      actions={
+        <>
+          {/* 신청 집계 (#251): a secondary toolbar button, as 정렬·필터 on 1325:5059. */}
+          <Link
+            className="scene-button scene-button--secondary scene-button--size-40 event-home__summary-link"
+            to={`/events/${eventId}/participants/summary`}
+          >
+            신청 집계
+          </Link>
+          <ApplicantsExport eventId={eventId} total={total} />
+        </>
+      }
+    />
+  );
 }
 
 function ParticipationBody({ event, spaceName }: { event: EventDetail; spaceName?: string }) {

@@ -12,6 +12,7 @@ import { EventRetrospective } from "./components/EventRetrospective";
 import { EventSettings } from "./components/EventSettings";
 import { EventList } from "./components/EventList";
 import { EventApplication } from "./components/EventApplication";
+import { EventApplicationSummary } from "./components/EventApplicationSummary";
 import { EventMenuPending } from "./components/EventMenuPending";
 import { EventOperators } from "./components/EventOperators";
 import { EventParticipation } from "./components/EventParticipation";
@@ -94,6 +95,7 @@ export function App() {
           <Route path="/events/:eventId/tasks/:taskId" element={<TaskDetail />} />
           <Route path="/events/:eventId/tasks" element={<EventTasks />} />
           <Route path="/events/:eventId/participants/setup" element={<EventRegistrationSetup />} />
+          <Route path="/events/:eventId/participants/summary" element={<EventApplicationSummary />} />
           <Route path="/events/:eventId/operators" element={<EventOperators />} />
           <Route path="/events/:eventId/participants/:applicationId" element={<EventApplication />} />
           <Route path="/events/:eventId/participants" element={<EventParticipation />} />
