@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Link, useLocation } from "react-router";
 import symbol from "../assets/scene-symbol-header.svg";
 import events from "../assets/event-nav/events.svg";
@@ -21,13 +21,33 @@ function matchesPath(pathname: string, href?: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+const COLLAPSED_KEY = "scene.operatorSidebar.collapsed";
+
+/** Collapsed state is a per-browser convenience; storage failures fall back to expanded. */
+function readCollapsed(): boolean {
+  try {
+    return localStorage.getItem(COLLAPSED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function writeCollapsed(collapsed: boolean): void {
+  try {
+    if (collapsed) localStorage.setItem(COLLAPSED_KEY, "1");
+    else localStorage.removeItem(COLLAPSED_KEY);
+  } catch {
+    // Keep the in-memory state only.
+  }
+}
+
 /** Organization sidebar. Menus without a screen yet open the shared "준비 중" page at their own address. */
 const primary = [
   { label: "행사", icon: events, to: "/events" },
   { label: "알림", icon: bell, to: "/notifications" },
   { label: "기록", icon: note, to: "/history" },
   { label: "준비 업무", icon: clipboard, to: "/tasks" },
-  { label: "안내", icon: envelope, caret: true, to: "/guides" },
+  { label: "안내", icon: envelope, to: "/guides" },
   { label: "일정", icon: calendar, to: "/schedule" },
 ];
 
@@ -74,15 +94,29 @@ export function OperatorShell({
   const onOperators = matchesPath(pathname, operatorsHref);
   const areasHref = eventHref ? `${eventHref}/areas` : undefined;
   const settingsHref = eventHref ? `${eventHref}/settings` : undefined;
+  const fieldHref = eventHref ? `${eventHref}/field` : undefined;
+  const [collapsed, setCollapsed] = useState(readCollapsed);
+  function toggleCollapsed() {
+    setCollapsed((value) => {
+      writeCollapsed(!value);
+      return !value;
+    });
+  }
   return (
-    <div className="operator-shell">
+    <div className={collapsed ? "operator-shell operator-shell--collapsed" : "operator-shell"}>
       <aside className="operator-shell__sidebar">
         <div className="operator-shell__brand">
           <span className="operator-shell__logo">
             <img src={symbol} alt="" width={36} height={36} aria-hidden="true" />
             <span className="scene-wordmark">SCENE</span>
           </span>
-          <button className="operator-shell__collapse" type="button" aria-label="사이드바 접기">
+          <button
+            className="operator-shell__collapse"
+            type="button"
+            aria-label={collapsed ? "사이드바 펼치기" : "사이드바 접기"}
+            aria-expanded={!collapsed}
+            onClick={toggleCollapsed}
+          >
             <img className="operator-shell__collapse-icon" src={caret} alt="" />
           </button>
         </div>
@@ -101,7 +135,7 @@ export function OperatorShell({
                   />
                 </li>
               </ul>
-              {eventAreas.includes("participants") || eventAreas.includes("tasks") || operatorsHref ? (
+              {eventHref ? (
                 <div className="operator-shell__section">
                   <p className="operator-shell__section-label">행사 운영</p>
                   <ul className="operator-shell__group">
@@ -122,6 +156,11 @@ export function OperatorShell({
                         />
                       </li>
                     ) : null}
+                    <li>
+                      <NavItem
+                        item={{ label: "현장 운영", icon: chartLine, current: matchesPath(pathname, fieldHref), to: fieldHref }}
+                      />
+                    </li>
                     {operatorsHref ? (
                       <li>
                         <NavItem item={{ label: "운영 멤버", icon: briefcase, current: onOperators, to: operatorsHref }} />
@@ -214,13 +253,13 @@ function NavItem({
   );
   if (item.to) {
     return (
-      <Link className={className} to={item.to} aria-current={current ? "page" : undefined}>
+      <Link className={className} to={item.to} title={item.label} aria-current={current ? "page" : undefined}>
         {content}
       </Link>
     );
   }
   return (
-    <button className={className} type="button" aria-current={current ? "page" : undefined}>
+    <button className={className} type="button" title={item.label} aria-current={current ? "page" : undefined}>
       {content}
     </button>
   );

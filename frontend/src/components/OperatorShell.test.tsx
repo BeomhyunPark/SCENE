@@ -1,6 +1,6 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { OperatorShell } from "./OperatorShell";
 
 function renderOrgAt(path: string) {
@@ -109,5 +109,45 @@ describe("operator shell", () => {
     cleanup();
     renderAt("/events/e1/areas");
     expect(screen.getByRole("link", { name: "다른 운영 시작" })).toHaveAttribute("aria-current", "page");
+  });
+
+  it("shows 현장 운영 in the event sidebar", () => {
+    renderAt("/events/e1/field");
+    expect(screen.getByRole("link", { name: "현장 운영" })).toHaveAttribute("href", "/events/e1/field");
+    expect(screen.getByRole("link", { name: "현장 운영" })).toHaveAttribute("aria-current", "page");
+  });
+});
+
+describe("sidebar collapse", () => {
+  afterEach(() => localStorage.clear());
+
+  it("collapses to icons, keeps menu names, and remembers the choice", () => {
+    renderOrgAt("/events");
+    const toggle = screen.getByRole("button", { name: "사이드바 접기" });
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(toggle);
+    expect(screen.getByRole("button", { name: "사이드바 펼치기" })).toHaveAttribute("aria-expanded", "false");
+    expect(document.querySelector(".operator-shell")).toHaveClass("operator-shell--collapsed");
+    expect(screen.getByRole("link", { name: "일정" })).toHaveAttribute("title", "일정");
+    cleanup();
+
+    renderOrgAt("/events");
+    expect(screen.getByRole("button", { name: "사이드바 펼치기" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "사이드바 펼치기" }));
+    expect(screen.getByRole("button", { name: "사이드바 접기" })).toBeInTheDocument();
+    expect(localStorage.getItem("scene.operatorSidebar.collapsed")).toBeNull();
+  });
+
+  it("starts expanded when storage cannot be read", () => {
+    const original = Storage.prototype.getItem;
+    Storage.prototype.getItem = () => {
+      throw new Error("blocked");
+    };
+    try {
+      renderOrgAt("/events");
+      expect(screen.getByRole("button", { name: "사이드바 접기" })).toBeInTheDocument();
+    } finally {
+      Storage.prototype.getItem = original;
+    }
   });
 });

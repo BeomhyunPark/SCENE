@@ -1,7 +1,7 @@
 # 운영자 사이드바 메뉴 목적지 정리
 
 - 정리일: 2026-11-17
-- 상태: 문서 작성. 코드 변경·실제 클릭 확인은 하위 이슈에서 한다.
+- 상태: 하위 이슈 결정 완료(2026-11-17). 현장 운영의 실제 화면은 #235를 기다린다.
 - 상위 이슈: [#263 사이드바의 모든 메뉴가 화면으로 이어진다](https://github.com/BeomhyunPark/SCENE/issues/263)
 - 근거: [OperatorShell.tsx](../../frontend/src/components/OperatorShell.tsx), [App.tsx](../../frontend/src/App.tsx), [인수인계 2026-10-20 "눌러도 아직 안 가는 곳"](../handover/2026-10-20.md), 백엔드 `@*Mapping` 목록, Figma `RreFdEVMiwgHrV7teaCEOm`
 
@@ -12,6 +12,11 @@
 - 2026-11-17 [#264](https://github.com/BeomhyunPark/SCENE/issues/264): "준비 중" 화면은 메뉴별 실제 주소에 둔다. 조직 사이드바는 아래 "목적지 주소"대로 연결했다.
 - 2026-11-17 [#267](https://github.com/BeomhyunPark/SCENE/issues/267): 조직 사이드바의 준비 업무·참가자·운영 멤버(`/tasks`, `/participants`, `/operators`)는 진행 중인 행사가 하나면 그 행사의 화면으로 바로 가고, 여럿이면 행사를 고르게 한다. 종료·보관된 행사는 고르기 목록에서 빼고 행사 목록에서 연다. 서버의 행사 목록 API(첫 50개)를 그대로 쓰고 새 API는 만들지 않는다.
 - 2026-11-17 [#266](https://github.com/BeomhyunPark/SCENE/issues/266): 행사 안 사이드바의 "설정"은 그 행사의 설정(`/events/:eventId/settings`)으로 간다. 헤더의 "행사 설정"은 그대로 둔다. "다른 운영 시작"은 영역 선택을 저장할 API가 없어 `/events/:eventId/areas`의 "준비 중" 화면으로 먼저 보낸다.
+- 2026-11-17 [#265](https://github.com/BeomhyunPark/SCENE/issues/265): 사이드바를 접으면 아이콘만 남긴 72px 막대가 된다. 메뉴 이름은 툴팁과 스크린 리더용으로 남긴다. 접은 상태는 브라우저(`localStorage`)에 기억하고, 읽을 수 없으면 펼친 채로 시작한다.
+- 2026-11-17 [#268](https://github.com/BeomhyunPark/SCENE/issues/268): 현장 운영은 행사 안 사이드바 "행사 운영"에 두고 `/events/:eventId/field`로 간다. 조직 사이드바의 `/field`는 행사 고르기(#267 방식)를 따른다. 체크인 화면([#235](https://github.com/BeomhyunPark/SCENE/issues/235))이 생기기 전까지 "준비 중"을 보여 준다.
+- 2026-11-17 [#269](https://github.com/BeomhyunPark/SCENE/issues/269): 일정은 조직 달력과 행사 일정표 둘 다를 방향으로 하되 행사 일정표부터 만든다. 수련회 1차 범위에는 넣지 않고 `/schedule`은 "준비 중"을 유지한다. 후속: [#278](https://github.com/BeomhyunPark/SCENE/issues/278)
+- 2026-11-17 [#270](https://github.com/BeomhyunPark/SCENE/issues/270): 안내는 참가자 행사 안내 페이지 편집과 공지 발송 둘 다를 방향으로 하되, 하위 메뉴는 정해질 때까지 만들지 않는다. 펼침 화살표를 떼고 `/guides`는 "준비 중"을 유지한다.
+- 2026-11-17 [#271](https://github.com/BeomhyunPark/SCENE/issues/271): 알림은 운영자가 직접 확인할 요청(Owner 넘기기, 초대 수락)만 먼저([#279](https://github.com/BeomhyunPark/SCENE/issues/279)), 기록은 행사 안 변경 내역([#280](https://github.com/BeomhyunPark/SCENE/issues/280)), 연동은 1차 범위 밖으로 두고 CSV 내려받기([#233](https://github.com/BeomhyunPark/SCENE/issues/233)) 사용 뒤 다시 본다. 세 메뉴 모두 그때까지 "준비 중"을 유지한다.
 
 ## 확인 방법
 

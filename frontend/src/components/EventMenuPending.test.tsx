@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { App } from "../App";
 import { localEvent } from "../mocks/fixtures/seed";
 
-describe("event sidebar 다른 운영 시작", () => {
+describe("event sidebar pending menus", () => {
   it("shows the not-ready page inside the event and links back to it", async () => {
     render(
       <MemoryRouter initialEntries={["/login"]}>
@@ -20,6 +20,23 @@ describe("event sidebar 다른 운영 시작", () => {
     expect(screen.getByRole("link", { name: "행사로 돌아가기" })).toHaveAttribute(
       "href",
       `/events/${localEvent.eventId}`,
+    );
+  });
+
+  it("opens 현장 운영 inside the event", async () => {
+    render(
+      <MemoryRouter initialEntries={["/login"]}>
+        <App />
+      </MemoryRouter>,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "들어가기" }));
+    fireEvent.click(await screen.findByRole("button", { name: /Local event/ }));
+    fireEvent.click(await screen.findByRole("link", { name: "현장 운영" }));
+    expect(await screen.findByText("참가자 도착 체크인 화면은 아직 만들고 있어요.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "현장 운영" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "현장 운영" })).toHaveAttribute(
+      "href",
+      `/events/${localEvent.eventId}/field`,
     );
   });
 });
