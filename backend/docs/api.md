@@ -975,7 +975,7 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
   "middleGroup": false,
   "cell": false,
   "newcomer": true,
-  "attendance": { "partial": true, "worshipOnly": false },
+  "attendance": { "partial": true, "worshipOnly": false, "mode": "RANGE" },
   "schedule": [
     { "breakfast": false, "lunch": false, "dinner": true, "worship": true },
     { "breakfast": true, "lunch": true, "dinner": false, "worship": false }
@@ -988,6 +988,10 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
 
 - 모든 키가 필수이고 값은 boolean이다. 다만 `newcomer`(새가족 질문, 나중에 더한 키)는 없어도 되고 없으면 `false`다. 응답의 `setup`에는 늘 있다. 모르는 키나 다른 타입은 `400`이고 필드는 `setup`, `attendance`, `schedule`, `transport` 중 해당 묶음이다. 응답의 `generatedFor`는 다시 보내도 무시한다.
 - `newcomer`가 `true`면 `NEWCOMER` 질문(`YES_NO`, style `YES_NO`, 필수, 조건 없음, 제목 "새가족이신가요?")이 셀 다음·참석 방식 앞 자리에 생긴다. 답은 `{ "value": true|false }`다. 신청이 들어온 뒤에도 켜고 끌 수 있다: 켜면 질문이 추가되고 그 전 신청자는 답이 없다. 끄면 질문을 숨기고 답은 남긴다.
+- `attendance.mode`는 부분 참석자가 참석 칸을 알리는 방식이다(DEC-074). `RANGE`(도착~출발만 받기)와 `SLOTS`(칸마다 고르기) 중 하나이고 다른 값은 `400`이고 필드는 `attendance`다. **없어도 된다**: 저장된 설정이 있으면 그 방식을 그대로 쓰고(DEC-074 전에 저장돼 키가 없는 설정은 `SLOTS`), 설정이 처음이면 `RANGE`다. 응답의 `setup.attendance.mode`에는 늘 있다.
+  - `RANGE`: 부분 참석이 켜져 있고 일정표에 칸이 있으면 `ARRIVAL_SLOT`("수련회장에 언제 도착하나요?")·`DEPARTURE_SLOT`("수련회장에서 언제 출발하나요?")이 생긴다. 둘 다 `SINGLE_CHOICE`·`LIST`·필수이고 `ATTENDANCE = opt_partial`일 때만 보인다. 보기는 일정표의 칸을 칸 순서(일차, 아침 → 점심 → 저녁 → 집회)로 펼친 것이고, 보기 id는 칸 id(`opt_d<일차>_<칸>`, `MEALS` 보기 id와 같다), 문구는 `1월 22일 (금) 저녁부터` / `1월 22일 (금) 저녁까지` 꼴이다. 도착 칸부터 출발 칸까지(둘 다 포함) 모든 칸에 참석한 것으로 센다. `ARRIVAL_AT`·`DEPARTURE_AT`(날짜·시각)과 `LODGING`은 만들지 않는다. 숙박은 구간에서 계산한다. `MEALS`는 집회만 참석이 켜져 있고 집회 칸이 있을 때만 생기고, 제목 "참석할 집회를 선택해주세요", `ATTENDANCE = opt_worship`일 때만 보이며, 식사 보기는 숨긴(`hidden: true`) 채 집회 보기만 보인다. `PARTIAL_NOTE` 설명은 "중간에 나갔다가 다시 오거나 수련회장에서 자지 않는다면 적어 주세요."다.
+  - `SLOTS`: 지금까지와 같다(`ARRIVAL_AT`·`DEPARTURE_AT`·`LODGING`·`MEALS`). `MEALS` 설명 기본 문구는 "참석하는 일정에 포함되는 식사와 프로그램을 모두 선택해 주세요. ※ 식사는 실제 식사 여부와 관계없이 참석 일정에 포함된 경우 신청 인원에 반영됩니다."다.
+  - 신청이 들어온 신청서(`locked`)에서 저장된 방식과 다른 `mode`를 보내면 `409 FIELD_LOCKED`이고 아무것도 저장하지 않는다. 같은 방식이거나 키를 빼면 저장된다.
 - `schedule`은 행사 기간의 하루마다 한 항목이고 날짜순이다. 항목 수가 행사 일수와 다르면 `400`이고 필드는 `schedule`이다.
 - 행사에 `startDate`·`endDate`가 없거나 기간이 10일을 넘으면 `400`이고 필드는 `eventPeriod`다.
 - 서버는 이 설정과 행사 기간으로 질문을 만들어 저장된 질문과 맞춘다: 없는 질문은 추가하고, 더는 필요 없는 질문은 삭제하거나(신청이 없고, 운영자가 손대지 않았고, 다른 질문이 가리키지 않을 때) 숨기고 `presetActive: false`로 둔다. 운영자가 고친 문구와 순서는 유지한다.
@@ -1052,6 +1056,7 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
 행은 `SUBMITTED` 신청만, 목록과 같은 순서(`submittedAt`, 그다음 신청 id)다. 첫 열은 `제출 시각`(`2026. 12. 15. 12:00`, 서울 시각)이고, 그 뒤로 신청서 질문마다 한 열이 position 순으로 온다. 질문 제목이 열 이름이다.
 
 - 칸 값은 [신청 원본 조회](#get-apiv1operatoreventseventidapplicationsapplicationid) 화면과 같은 규칙으로 쓴다(`frontend/src/components/answerDisplay.ts`, 서버는 `AnswerText`). 선택형은 지금 보기 문구, 묶음이 있는 보기는 `1일차 저녁`, 여러 개는 `, `로 잇고, `other`는 `기타: …`, 모르는 보기 id는 `알 수 없는 보기`다. 날짜는 `2027. 1. 22.`·`2027. 1. 22. 14:30`, 기간은 `… ~ …`, 숫자는 단위를 붙이고, 예/아니오는 질문의 문구(없으면 `예`·`아니오`, 동의형은 `동의함`·`동의 안 함`)다.
+- 설정이 `RANGE`(DEC-074)이고 칸이 있으면 마지막에 `참석 일정` 열이 하나 더 있다. 그 사람이 참석하는 칸을 `1월 22일 (금) 저녁, 1월 22일 (금) 집회` 꼴로 칸 순서대로 쉼표로 잇는다. 집계·편성판·참가 현황 표와 같은 규칙이고, 모름이면 빈칸이다. `SLOTS` 설정에서는 이 열이 없다(`MEALS` 열이 그 답이다).
 - 숨긴 질문은 열로 남고 제목 뒤에 ` (숨김)`이 붙는다. 숨긴 보기를 고른 답도 보기 문구 뒤에 ` (숨김)`이 붙는다(DEC-068 §6).
 - 답이 없으면 빈칸이다. 조건에 맞지 않아 보이지 않은 질문은 답을 저장하지 않으므로(DEC-068) 빈칸이다. 원본 조회 화면의 "답변 없음"은 쓰지 않는다.
 
@@ -1135,12 +1140,13 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
 - `cohorts`: SYSTEM `COHORT` 답의 앞뒤 공백을 자른 글자별 인원이다. 글자 오름차순이므로 `00`이 `94`보다 앞이다. 또래가 꺼졌으면 `null`이다.
 - `meals`: 조 편성판의 `slots`·`slotIds`와 같은 칸·같은 규칙이다. 일차와 칸은 저장된 설정(`setup.schedule`)의 순서다. 칸은 아침 → 점심 → 저녁 → 집회 순이고, 칸이 없는 날은 빠진다. `label`은 `MEALS` 보기의 지금 문구이고, 보기가 없으면 기본 문구를 쓴다. 칸이 하나도 없으면 `meals`는 `null`이다.
   - 전체 참석자는 모든 칸에 센다.
-  - 부분·집회만 참석자는 고른 칸에만 센다.
+  - 부분·집회만 참석자는 고른 칸에만 센다. `RANGE` 설정(DEC-074)에서 부분 참석자는 `ARRIVAL_SLOT` 칸부터 `DEPARTURE_SLOT` 칸까지 모든 칸에 센다. 둘 중 하나라도 답이 없으면(꺼짐 포함) `unanswered`다. 집회만 참석자는 두 방식 모두 `MEALS`에서 고른 칸이다.
   - `MEALS` 답이 없는 부분·집회만 참석자(질문이 꺼졌거나 질문이 생기기 전에 낸 신청)는 칸에 넣지 않고 `unanswered`로 센다.
 - `lodging`: 밤은 `setup.generatedFor` 기간의 N박이고, 하루짜리 행사면 `null`이다. `date`는 그 밤의 날짜다.
   - 전체 참석자는 모든 밤에 센다. 집회만 참석자는 어느 밤에도 세지 않는다.
   - 부분 참석자는 고른 밤에만 센다. 선택 질문이라 답이 없으면 숙박하지 않는 것이다.
   - `LODGING`이 보이지 않으면 부분 참석자를 `unanswered`로 센다.
+  - `RANGE` 설정에서는 `LODGING`을 보지 않는다. 부분 참석자는 도착 칸의 일차가 N 이하이고 출발 칸의 일차가 N+1 이상이면 N번째 밤(N일 저녁)에 센다. 같은 날 도착·출발이면 숙박이 없다. 도착·출발 답이 없으면 `unanswered`로 센다.
 - `transport`: `TRANSPORT_IN`이 없거나 꺼졌으면 `null`이다.
   - `in`은 가는 길 보기 순서다.
   - `out`도 같은 순서다. **가는 길이 자차면 오는 길도 `opt_car`로 센다**(DEC-070 §3). 자차 행의 문구는 가는 길 질문의 것이고, 다른 행은 `TRANSPORT_OUT`의 것이다.
@@ -1195,7 +1201,19 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
       "submittedAt": "2026-12-15T03:00:00Z",
       "answers": { "<fieldId>": { "text": "김하나" } },
       "group": { "groupId": "…", "name": "2조", "leader": false },
-      "checkedInAt": null
+      "checkedInAt": null,
+      "slotIds": ["opt_d1_dinner", "opt_d1_worship"]
+    }
+  ],
+  "slots": [
+    {
+      "slotId": "opt_d1_dinner",
+      "day": 1,
+      "date": "2027-01-22",
+      "dayLabel": "1월 22일 (금)",
+      "meal": "DINNER",
+      "label": "저녁",
+      "sortOrder": 0
     }
   ]
 }
@@ -1205,6 +1223,7 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
 - `rows`는 `SUBMITTED` 신청만, CSV와 같은 순서(`submittedAt`, 그다음 신청 id)다. `answers`는 field id를 키로 저장된 값을 그대로 준다(DEC-068 §1). 답이 없는 질문(조건에 맞지 않아 보이지 않은 질문 포함)은 키가 없다. 화면은 이것을 "응답 없음"으로 센다.
 - `group`은 작업본 배정이다. 미배정이면 `null`이다. 공개본이 아니다.
 - `checkedInAt`은 도착 체크인 시각이다. 체크인이 없거나 취소됐으면 `null`이다.
+- `slots`·`rows[].slotIds`(DEC-074)는 [조 편성판](#get-apiv1operatoreventseventidgroup-board)의 `slots`·`slotIds`와 같은 모양·같은 규칙이다. 신청서가 없거나 설정이 없거나 칸이 하나도 없으면 `slots`와 모든 `slotIds`가 `null`이다. `slotIds: null`은 "모름"이다. 전화 열을 볼 수 없어도 `slotIds`는 같은 값이다.
 - 0건이면 `rows`가 빈 배열이고 `columns`는 그대로다.
 
 ## 공개 신청서
@@ -1244,7 +1263,7 @@ CSRF가 필요하다. `Idempotency-Key`는 읽지 않는다.
 | `NUMBER` | `{ "number" }` 정수, `min`–`max` 안 |
 | `YES_NO` | `{ "value": true\|false }`. 필수 `CONSENT`는 `true`여야 한다 |
 
-서버는 position 순서로 `showWhen`을 다시 계산한다. 화면이 보낸 표시 여부를 믿지 않는다. 숨겨진 질문(숨김이거나 조건이 거짓)은 필수 검사를 하지 않고, 그 답은 거절하지 않고 저장하지 않는다. 숨겨진 보기를 고른 답도 그 보기를 빼고 본다. 빈 글은 답이 없는 것으로 본다. 보이는 필수 질문에 답이 없거나, 모르는 `fieldId`, 겹친 `fieldId`, 유형과 다른 값, 범위 밖 값은 `400 APPLICATION_VALIDATION_FAILED`다. `NAME`과 `PHONE`은 늘 필수다. `COHORT`는 켜져 있으면(`hidden`이 아니면) 필수다. `errors`는 없다. 닫힌 신청서는 `409 FORM_CLOSED`다. 없는 신청서는 `404 FORM_NOT_FOUND`다. 없는 행사는 `404 RESOURCE_NOT_FOUND`다.
+서버는 position 순서로 `showWhen`을 다시 계산한다. 화면이 보낸 표시 여부를 믿지 않는다. 숨겨진 질문(숨김이거나 조건이 거짓)은 필수 검사를 하지 않고, 그 답은 거절하지 않고 저장하지 않는다. 숨겨진 보기를 고른 답도 그 보기를 빼고 본다. 빈 글은 답이 없는 것으로 본다. 보이는 필수 질문에 답이 없거나, 모르는 `fieldId`, 겹친 `fieldId`, 유형과 다른 값, 범위 밖 값, 출발 칸(`DEPARTURE_SLOT`)이 도착 칸(`ARRIVAL_SLOT`)보다 앞인 답(같은 칸은 된다, DEC-074)은 `400 APPLICATION_VALIDATION_FAILED`다. `NAME`과 `PHONE`은 늘 필수다. `COHORT`는 켜져 있으면(`hidden`이 아니면) 필수다. `errors`는 없다. 닫힌 신청서는 `409 FORM_CLOSED`다. 없는 신청서는 `404 FORM_NOT_FOUND`다. 없는 행사는 `404 RESOURCE_NOT_FOUND`다.
 
 `201`. `Location` 헤더는 없다.
 
@@ -1531,7 +1550,7 @@ CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고
   - **`slots`가 `null`인 경우:** 신청서가 없거나 설정 카드로 만들지 않은 신청서(`fromSetup: false`), 또는 설정의 일정표에 식사·집회 칸이 하나도 없을 때. 이때 모든 참가자의 `slotIds`도 `null`이다. 빈 배열은 내지 않는다.
   - 하루짜리 행사도 그날의 칸이 있으면 `slots`가 있다(집계의 `meals`와 같다). 숙박(`lodging`)은 하루짜리 행사에서 없지만 칸과는 별개다.
   - 참석 방식 질문이 없어 `MEALS`가 만들어지지 않은 설정(부분·집회만 참석을 끈 설정)도 `slots`가 있고, 모두 전체 참석이라 모든 칸이다.
-  - `slotIds`는 그 사람이 있는 칸의 `slotId`를 `slots` 순서로 담는다. **`attendance`가 `FULL`이면 모든 칸**이다. `PARTIAL`·`WORSHIP_ONLY`이면 `MEALS`에서 고른 칸만이고, 칸이 아닌 id는 버린다.
+  - `slotIds`는 그 사람이 있는 칸의 `slotId`를 `slots` 순서로 담는다. **`attendance`가 `FULL`이면 모든 칸**이다. `PARTIAL`·`WORSHIP_ONLY`이면 `MEALS`에서 고른 칸만이고, 칸이 아닌 id는 버린다. 설정이 `RANGE`(DEC-074)이면 `PARTIAL`은 `ARRIVAL_SLOT` 칸부터 `DEPARTURE_SLOT` 칸까지 모든 칸이다(둘 중 하나라도 답이 없으면 `null`). 응답 모양은 같다.
   - **`slotIds: null`은 "모름"이다.** `PARTIAL`·`WORSHIP_ONLY`인데 `MEALS` 답이 없을 때(질문이 꺼졌거나 질문이 생기기 전에 낸 신청)다. 빈 배열 `[]`은 "어느 칸에도 없음"으로 구분된다. 집계의 `meals.unanswered`가 이 사람 수와 같다.
   - **조별 칸 인원은 서버가 따로 주지 않는다.** 화면이 `groupId`와 `slotIds`로 센다. 활성 참가자 전원이 편성판에 있으므로 모든 조의 같은 칸을 더하면(미배정 포함) 집계의 그 칸 `count`와 같다. 200명 × 10칸에서도 사람마다 짧은 id 몇 개라 응답이 수십 KB 안이다.
   - 참가자용 [`GET /api/v1/participant/group`](#get-apiv1participantgroup)에는 칸 값을 넣지 않는다.
