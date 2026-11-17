@@ -3,6 +3,8 @@ import type { FieldOption } from "../api/forms";
 
 export const HIDDEN_MARK = " (숨김)";
 export const NO_ANSWER = "답변 없음";
+/** A phone answer the server left out for lack of contact permission (#332). */
+export const CONTACT_WITHHELD = "연락처 권한이 있는 운영자만 볼 수 있어요";
 
 /** Question title in the original view. A hidden question keeps its column with a mark (DEC-068 §6). */
 export function answerLabel(answer: ApplicationAnswer): string {
@@ -15,6 +17,7 @@ export function answerLabel(answer: ApplicationAnswer): string {
  * Dates stay in event-local time as stored.
  */
 export function formatAnswer(answer: ApplicationAnswer): string {
+  if (answer.withheld) return CONTACT_WITHHELD;
   const value = answer.value;
   switch (answer.answerType) {
     case "SINGLE_CHOICE":

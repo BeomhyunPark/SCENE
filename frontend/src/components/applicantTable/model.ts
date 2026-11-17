@@ -369,6 +369,8 @@ function asAnswer(column: TableColumn, value: Record<string, unknown>): Applicat
     hidden: column.hidden,
     config: column.config,
     value,
+    contact: column.contact,
+    withheld: false,
   };
 }
 

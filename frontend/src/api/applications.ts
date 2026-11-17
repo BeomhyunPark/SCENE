@@ -30,6 +30,8 @@ export type ApplicationListItem = {
  * One stored answer with its question's current type, hidden flag and config (DEC-068 §6), so the
  * original view can show option text and mark hidden questions and options. `value` keeps the
  * stored shape (DEC-068 §1), for example `{ text }`, `{ optionIds, other }` or `{ start, end }`.
+ * `contact` marks a phone question. Without contact permission the server sends no value for it
+ * (#332): `withheld` is true and `value` is empty.
  */
 export type ApplicationAnswer = {
   fieldId: string;
@@ -41,6 +43,8 @@ export type ApplicationAnswer = {
   hidden: boolean;
   config: FieldConfig;
   value: Record<string, unknown>;
+  contact: boolean;
+  withheld: boolean;
 };
 
 export type ApplicationDetail = {
@@ -48,6 +52,8 @@ export type ApplicationDetail = {
   formId: string;
   status: string;
   submittedAt: string;
+  /** False when phone answers were left out for lack of `PARTICIPANT_CONTACT_READ`. */
+  contactVisible: boolean;
   answers: ApplicationAnswer[];
 };
 
@@ -226,7 +232,10 @@ function parseDetail(value: unknown): ApplicationDetail {
   }
   const answers: ApplicationAnswer[] = [];
   for (const answer of value.answers) {
-    if (!isField(answer) || !isRecord(answer.value)) throw new ApiError({ status: 200, code: "UNEXPECTED" });
+    if (!isField(answer)) throw new ApiError({ status: 200, code: "UNEXPECTED" });
+    const contact = answer.contact === true;
+    const withheld = contact && answer.value === null;
+    if (!withheld && !isRecord(answer.value)) throw new ApiError({ status: 200, code: "UNEXPECTED" });
     answers.push({
       fieldId: answer.fieldId,
       kind: answer.kind,
@@ -237,7 +246,9 @@ function parseDetail(value: unknown): ApplicationDetail {
       answerType: typeof answer.answerType === "string" ? (answer.answerType as AnswerType) : "SHORT_TEXT",
       hidden: answer.hidden === true,
       config: isRecord(answer.config) ? (answer.config as FieldConfig) : {},
-      value: answer.value,
+      value: isRecord(answer.value) ? answer.value : {},
+      contact,
+      withheld,
     });
   }
   return {
@@ -245,6 +256,8 @@ function parseDetail(value: unknown): ApplicationDetail {
     formId: value.formId,
     status: value.status,
     submittedAt: value.submittedAt,
+    // An older server sends every phone answer.
+    contactVisible: value.contactVisible !== false,
     answers,
   };
 }

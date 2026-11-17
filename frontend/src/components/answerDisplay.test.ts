@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ApplicationAnswer } from "../api/applications";
 import type { AnswerType, FieldConfig } from "../api/forms";
-import { answerLabel, formatAnswer } from "./answerDisplay";
+import { CONTACT_WITHHELD, answerLabel, formatAnswer } from "./answerDisplay";
 
 function answer(answerType: AnswerType, value: Record<string, unknown>, config: FieldConfig = {}, hidden = false) {
   return {
@@ -14,6 +14,8 @@ function answer(answerType: AnswerType, value: Record<string, unknown>, config: 
     hidden,
     config,
     value,
+    contact: false,
+    withheld: false,
   } satisfies ApplicationAnswer;
 }
 
@@ -78,5 +80,13 @@ describe("answerLabel", () => {
   it("marks a hidden question", () => {
     expect(answerLabel(answer("SHORT_TEXT", { text: "x" }))).toBe("질문");
     expect(answerLabel(answer("SHORT_TEXT", { text: "x" }, {}, true))).toBe("질문 (숨김)");
+  });
+});
+
+describe("withheld contact answers (#332)", () => {
+  it("shows why a phone answer is missing instead of an empty answer", () => {
+    const phone = { ...answer("SHORT_TEXT", {}), systemKey: "PHONE", contact: true, withheld: true };
+    expect(formatAnswer(phone)).toBe(CONTACT_WITHHELD);
+    expect(formatAnswer({ ...phone, withheld: false, value: { text: "010-1234-5678" } })).toBe("010-1234-5678");
   });
 });

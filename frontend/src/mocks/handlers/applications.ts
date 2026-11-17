@@ -128,7 +128,17 @@ export const applicationHandlers = [
     if (!detail) return problem(404, "RESOURCE_NOT_FOUND", { detail: "hidden" });
     const gate = requireEventRead(eventId, operator.userId);
     if (gate) return problem(gate.status, gate.code, { detail: "hidden" });
-    return HttpResponse.json(detail);
+    // #332: phone answers only with PARTICIPANT_CONTACT_READ, the table's rule; otherwise value null.
+    const perms = permissionsFor(eventId, operator.userId, operator.userId);
+    const contactVisible = ("effective" in perms ? perms.effective : []).includes("PARTICIPANT_CONTACT_READ");
+    return HttpResponse.json({
+      ...detail,
+      contactVisible,
+      answers: detail.answers.map((answer) => {
+        const contact = answer.systemKey === "PHONE" || (isText(answer.answerType) && (answer.config as { format?: unknown } | null)?.format === "PHONE");
+        return { ...answer, contact, value: contact && !contactVisible ? null : answer.value };
+      }),
+    });
   }),
 
   // Applicant CSV, shaped like OperatorApplicationController#export (#233). Effective DATA_EXPORT
