@@ -22,6 +22,7 @@ import app.scene.event.form.FormFieldRow;
 import app.scene.event.form.FormPreset;
 import app.scene.event.form.FormRepository;
 import app.scene.event.form.FormRow;
+import app.scene.event.form.MealSlots;
 import app.scene.event.lifecycle.EventAccessGate;
 import app.scene.event.lifecycle.EventRepository;
 import app.scene.event.lifecycle.EventRow;
@@ -62,14 +63,6 @@ public class ApplicationSummaryService {
 
   private static final Map<String, String> ATTENDANCE =
       Map.of("opt_full", FULL, "opt_partial", PARTIAL, "opt_worship", WORSHIP_ONLY);
-
-  /** Setup schedule keys in question order, with the generated wording. */
-  private static final List<String[]> MEALS =
-      List.of(
-          new String[] {"breakfast", "BREAKFAST", "아침"},
-          new String[] {"lunch", "LUNCH", "점심"},
-          new String[] {"dinner", "DINNER", "저녁"},
-          new String[] {"worship", "WORSHIP", "집회"});
 
   private static final Comparator<String> NAMES = Comparator.nullsLast(Comparator.naturalOrder());
 
@@ -224,50 +217,45 @@ public class ApplicationSummaryService {
 
   /**
    * One row per setup meal, by day. Full attendees count in every cell. Partial and worship-only
-   * attendees count in the cells they chose; with no answer they count in {@code unanswered}.
+   * attendees count in the cells they chose; with no answer they count in {@code unanswered}. Slots
+   * and this rule are {@link MealSlots}, shared with the group board.
    */
   private static Meals meals(
       JsonNode setup, Answers answers, Map<String, List<Applicant>> byAttendance) {
-    LocalDate start = start(setup);
-    JsonNode schedule = setup.path("schedule");
-    if (start == null || !schedule.isArray()) {
-      return null;
-    }
     Question question = answers.visible("MEALS");
     Question labels = answers.any("MEALS");
-    List<Applicant> choosers = new ArrayList<>(byAttendance.get(PARTIAL));
-    choosers.addAll(byAttendance.get(WORSHIP_ONLY));
-    long full = byAttendance.get(FULL).size();
-    Map<String, Long> chosen = new HashMap<>();
+    List<MealSlots.Day> days =
+        MealSlots.days(setup, MealSlots.labels(labels == null ? null : labels.config()));
+    if (days.isEmpty()) {
+      return null;
+    }
+    Map<String, Long> counts = new HashMap<>();
     long unanswered = 0;
-    for (Applicant person : choosers) {
-      Set<String> ids = optionIds(person.answer(question));
-      if (ids == null) {
-        unanswered++;
-      } else {
-        ids.forEach(id -> chosen.merge(id, 1L, Long::sum));
+    for (Map.Entry<String, List<Applicant>> kind : byAttendance.entrySet()) {
+      boolean full = FULL.equals(kind.getKey());
+      for (Applicant person : kind.getValue()) {
+        List<String> ids = MealSlots.attended(days, full, person.answer(question));
+        if (ids == null) {
+          unanswered++;
+        } else {
+          ids.forEach(id -> counts.merge(id, 1L, Long::sum));
+        }
       }
     }
-    List<MealDay> days = new ArrayList<>();
-    for (int day = 1; day <= schedule.size(); day++) {
-      JsonNode entry = schedule.get(day - 1);
+    List<MealDay> out = new ArrayList<>();
+    for (MealSlots.Day day : days) {
       List<Slot> slots = new ArrayList<>();
-      for (String[] meal : MEALS) {
-        if (!entry.path(meal[0]).booleanValue()) {
-          continue;
-        }
-        String id = "opt_d" + day + "_" + meal[0];
-        String label = labels == null ? null : labels.label(id);
+      for (MealSlots.Slot slot : day.slots()) {
         slots.add(
             new Slot(
-                id, meal[1], label == null ? meal[2] : label, full + chosen.getOrDefault(id, 0L)));
+                slot.optionId(),
+                slot.meal(),
+                slot.label(),
+                counts.getOrDefault(slot.optionId(), 0L)));
       }
-      if (!slots.isEmpty()) {
-        LocalDate date = start.plusDays(day - 1L);
-        days.add(new MealDay(day, date.toString(), FormPreset.dayLabel(date), slots));
-      }
+      out.add(new MealDay(day.day(), day.date().toString(), day.label(), slots));
     }
-    return days.isEmpty() ? null : new Meals(days, unanswered);
+    return new Meals(out, unanswered);
   }
 
   /**

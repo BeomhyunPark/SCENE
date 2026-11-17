@@ -5,7 +5,8 @@ import java.util.UUID;
 /**
  * Active participant with the answers the board filters on. {@code attendanceAsked} is whether the
  * form has a visible ATTENDANCE question. {@code newcomer} is the NEWCOMER yes/no answer, null when
- * there is none or the question is missing or hidden.
+ * there is none or the question is missing or hidden. {@code mealsAnswer} is the stored value of
+ * the visible MEALS question as JSON text, or null.
  */
 public record BoardRow(
     UUID participantId,
@@ -19,4 +20,5 @@ public record BoardRow(
     String cell,
     Boolean newcomer,
     UUID groupId,
-    boolean leader) {}
+    boolean leader,
+    String mealsAnswer) {}
