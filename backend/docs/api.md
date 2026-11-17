@@ -1113,7 +1113,7 @@ CSRF가 필요하다. 그 쿠키의 세션 행만 지운다. `204`이고 본문�
 
 ## 체크인
 
-> 운영자 경로는 [#282](https://github.com/BeomhyunPark/SCENE/issues/282)에서 열렸다. 컨트롤러는 `event/checkin/CheckInController`다. 참가자 QR 경로(`GET /api/v1/participant/check-in`)는 아직 없다([#283](https://github.com/BeomhyunPark/SCENE/issues/283)). 정책은 [DEC-071](../../docs/product/PRODUCT_DECISIONS.md)이다.
+> 운영자 경로는 [#282](https://github.com/BeomhyunPark/SCENE/issues/282)에서 열렸다. 컨트롤러는 `event/checkin/CheckInController`다. 참가자 QR 경로(`GET /api/v1/participant/check-in`)는 [#283](https://github.com/BeomhyunPark/SCENE/issues/283)에서 열렸고 컨트롤러는 `event/checkin/ParticipantCheckInController`다. 정책은 [DEC-071](../../docs/product/PRODUCT_DECISIONS.md)이다.
 
 참가자는 행사당 한 번 도착 체크인한다. 대상은 그 행사에 `SUBMITTED` 신청이 있는 참가자다. 읽기(현황·명단)는 유효한 `EVENT_READ`, 또는 활성 공간 `OWNER`·`ADMIN`이다. 쓰기(체크인·취소)와 이력은 유효한 `CHECKIN_WRITE`다. 공간 역할만으로는 쓰지 못한다. 기본 역할은 `OWNER`·`MANAGER`·`STAFF` 모두 `CHECKIN_WRITE`를 갖는다.
 
@@ -1158,7 +1158,7 @@ CSRF가 필요하다. 그 쿠키의 세션 행만 지운다. `204`이고 본문�
 
 ### `GET /api/v1/participant/check-in`
 
-참가자 세션 쿠키가 필요하다. CSRF는 필요 없다. 쿠키가 없거나 저장된 세션이 아니면 `401 AUTHENTICATION_REQUIRED`다.
+참가자 세션 쿠키가 필요하다. CSRF는 필요 없다. 쿠키가 없거나 저장된 세션이 아니면 `401 AUTHENTICATION_REQUIRED`다. 운영자 세션 쿠키로는 열리지 않는다. 대상은 세션의 행사·참가자뿐이다.
 
 `200`
 
@@ -1173,7 +1173,13 @@ CSRF가 필요하다. 그 쿠키의 세션 행만 지운다. `204`이고 본문�
 | `ENDED` | 행사 `ENDED`·`ARCHIVED` | `null` |
 | `NOT_ELIGIBLE` | `SUBMITTED` 신청 없음(철회) | `null` |
 
-같은 참가자는 몇 번을 받아도 같은 `code`다. `checkedIn`은 지금 `status`가 `CHECKED_IN`인지다.
+행사 상태를 먼저 본다. `DRAFT`·`ENDED`·`ARCHIVED`면 신청 상태와 상관없이 `NOT_STARTED`·`ENDED`다. `ACTIVE`일 때만 `SUBMITTED` 신청을 보고 `AVAILABLE`·`NOT_ELIGIBLE`을 가린다.
+
+같은 참가자는 몇 번을 받아도, 세션을 새로 열어도 같은 `code`다. 값에는 이름·전화·접근 키·세션 토큰이 없다. `checkedIn`은 지금 체크인 행의 `status`가 `CHECKED_IN`인지이고, `checkedInAt`은 그때의 체크인 시각이다. 체크인한 적이 없거나 취소됐으면 `false`·`null`이다. 두 값은 `status`와 상관없이 채운다(끝난 행사에서도 도착 여부를 보여 준다).
+
+조회는 audit을 남기지 않고 `code`를 로그에 남기지 않는다.
+
+비밀값(`SCENE_CHECKIN_CODE_SECRET`)이 비어 있으면 `AVAILABLE`이어야 할 때 `404 RESOURCE_NOT_FOUND`다. 쓸 수 없는 값을 보여 주지 않으려는 것이고, 운영자 QR 체크인이 `404`인 것과 맞춘다. 새 ErrorCode는 만들지 않는다. `NOT_STARTED`·`ENDED`·`NOT_ELIGIBLE`은 값이 없으므로 그대로 `200`이다.
 
 ### `GET /api/v1/operator/events/{eventId}/check-ins/summary`
 
@@ -1327,9 +1333,8 @@ CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고
 - 비밀번호 로그인
 - SMTP. 초대 링크는 생성·다시 보내기 응답에 한 번 나오고, 메일 포트는 프로세스 메모리에만 담는다
 - 체크 항목 추가
-- 참가자 조회(`GET /api/v1/participant/me` 밖)
+- 참가자 조회(`GET /api/v1/participant/me`·`GET /api/v1/participant/check-in` 밖)
 - 회비, 조, 방, 차량
-- 참가자 체크인 QR 받기(`GET /api/v1/participant/check-in`). 계약은 [체크인](#체크인)에 있고 서버는 #283이다
 - Export, 공간 설정
 - 행사 기간·장소·유형을 바꾸는 `PATCH`. 이름만 바꾼다
 - 공간 소유권 이전의 전용 URL

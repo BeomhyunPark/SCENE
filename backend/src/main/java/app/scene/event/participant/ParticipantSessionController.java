@@ -1,9 +1,6 @@
 package app.scene.event.participant;
 
-import app.scene.common.error.ErrorCode;
-import app.scene.common.error.SceneException;
 import app.scene.common.security.SecurityProperties;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -26,11 +23,15 @@ public class ParticipantSessionController {
   static final String COOKIE_PATH = "/api/v1/participant";
 
   private final ParticipantSessionService sessions;
+  private final ParticipantSessionCookie cookies;
   private final SecurityProperties security;
 
   public ParticipantSessionController(
-      ParticipantSessionService sessions, SecurityProperties security) {
+      ParticipantSessionService sessions,
+      ParticipantSessionCookie cookies,
+      SecurityProperties security) {
     this.sessions = sessions;
+    this.cookies = cookies;
     this.security = security;
   }
 
@@ -49,29 +50,13 @@ public class ParticipantSessionController {
 
   @GetMapping("/api/v1/participant/me")
   ParticipantSelf me(HttpServletRequest request) {
-    return sessions
-        .current(sessionCookie(request))
-        .orElseThrow(() -> new SceneException(ErrorCode.AUTHENTICATION_REQUIRED));
+    return cookies.require(request);
   }
 
   @PostMapping("/api/v1/participant/auth/logout")
   ResponseEntity<Void> logout(HttpServletRequest request) {
-    sessions.logout(sessionCookie(request));
+    sessions.logout(cookies.token(request));
     return ResponseEntity.noContent().build();
-  }
-
-  private String sessionCookie(HttpServletRequest request) {
-    Cookie[] cookies = request.getCookies();
-    if (cookies == null) {
-      return null;
-    }
-    String name = security.session().participantCookieName();
-    for (Cookie cookie : cookies) {
-      if (name.equals(cookie.getName())) {
-        return cookie.getValue();
-      }
-    }
-    return null;
   }
 
   private static String body(HttpServletRequest request) {
