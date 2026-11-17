@@ -26,7 +26,8 @@ class FormPresetTest {
             false,
             true,
             true,
-            false,
+            List.of(),
+            List.of(),
             false,
             false,
             FormSetup.Mode.SLOTS,
@@ -69,7 +70,8 @@ class FormPresetTest {
             true,
             false,
             false,
-            false,
+            List.of(),
+            List.of(),
             true,
             false,
             FormSetup.Mode.SLOTS,
@@ -99,7 +101,8 @@ class FormPresetTest {
             true,
             true,
             true,
-            true,
+            List.of("1중그룹", "2중그룹"),
+            List.of("믿음셀", "소망셀"),
             true,
             true,
             FormSetup.Mode.SLOTS,
@@ -116,7 +119,11 @@ class FormPresetTest {
     assertThat(keys(questions))
         .isEqualTo(
             FormPreset.ORDER.stream()
-                .filter(key -> !key.equals("ARRIVAL_SLOT") && !key.equals("DEPARTURE_SLOT"))
+                .filter(
+                    key ->
+                        !key.equals("ARRIVAL_SLOT")
+                            && !key.equals("DEPARTURE_SLOT")
+                            && !key.equals("NEWCOMER"))
                 .toList());
     assertThat(find(questions, "LODGING").config().get("options")).hasSize(9);
     assertThat(find(questions, "MEALS").config().get("options")).hasSize(40);
@@ -141,43 +148,89 @@ class FormPresetTest {
   }
 
   @Test
-  void theNewcomerQuestionIsARequiredYesNoAfterTheCellAndBeforeAttendance() {
-    FormSetup setup =
-        new FormSetup(
-            true,
-            false,
-            true,
-            true,
-            true,
-            false,
-            FormSetup.Mode.SLOTS,
-            days(2, true),
-            false,
-            false,
-            false,
-            false,
-            false,
-            false);
+  void listedMiddleGroupsBecomeADropdownWithTheNewcomerOptionAndHideTheCellForNewcomers() {
+    List<FormPreset.Question> questions =
+        generate(affiliation(true, List.of("1중그룹", "2중그룹"), true, List.of("믿음셀")), FRIDAY, FRIDAY);
 
-    List<FormPreset.Question> questions = generate(setup, FRIDAY, FRIDAY.plusDays(1));
+    assertThat(keys(questions)).containsExactly("MIDDLE_GROUP", "CELL", "CONSENT");
+    FormPreset.Question middle = find(questions, "MIDDLE_GROUP");
+    assertThat(middle.type()).isEqualTo(AnswerType.DROPDOWN);
+    assertThat(middle.required()).isTrue();
+    JsonNode options = middle.config().get("options");
+    assertThat(options).hasSize(3);
+    assertThat(options.get(0).get("label").asString()).isEqualTo("1중그룹");
+    assertThat(options.get(0).get("optionId").asString())
+        .isEqualTo(FormPreset.listOptionId("mg", "1중그룹"))
+        .startsWith("opt_mg_");
+    assertThat(options.get(2).get("optionId").asString()).isEqualTo("opt_newcomer");
+    assertThat(options.get(2).get("label").asString()).isEqualTo("새가족 (등반X)");
 
-    assertThat(keys(questions)).startsWith("GENDER", "CELL", "NEWCOMER", "ATTENDANCE");
-    FormPreset.Question newcomer = find(questions, "NEWCOMER");
-    assertThat(newcomer.type()).isEqualTo(AnswerType.YES_NO);
-    assertThat(newcomer.required()).isTrue();
-    assertThat(newcomer.showWhen()).isNull();
-    assertThat(newcomer.label()).isEqualTo("새가족이신가요?");
-    assertThat(newcomer.config().get("style").asString()).isEqualTo("YES_NO");
+    FormPreset.Question cell = find(questions, "CELL");
+    assertThat(cell.type()).isEqualTo(AnswerType.DROPDOWN);
+    assertThat(cell.config().get("options")).hasSize(1);
+    // A newcomer has no cell: the cell is asked only after a listed middle group.
+    assertThat(cell.showWhen().get("fieldId").asString())
+        .isEqualTo(ids.get("MIDDLE_GROUP").toString());
+    assertThat(cell.showWhen().get("optionIds").toString())
+        .isEqualTo(
+            "[\""
+                + options.get(0).get("optionId").asString()
+                + "\",\""
+                + options.get(1).get("optionId").asString()
+                + "\"]");
   }
 
   @Test
-  void aSetupWithoutTheNewcomerKeyLeavesTheQuestionOut() {
+  void withoutAMiddleGroupListTheCellListCarriesTheNewcomerOption() {
+    List<FormPreset.Question> questions =
+        generate(affiliation(true, List.of(), true, List.of("믿음셀")), FRIDAY, FRIDAY);
+
+    FormPreset.Question middle = find(questions, "MIDDLE_GROUP");
+    assertThat(middle.type()).isEqualTo(AnswerType.SHORT_TEXT);
+    assertThat(middle.required()).isFalse();
+    FormPreset.Question cell = find(questions, "CELL");
+    assertThat(cell.showWhen()).isNull();
+    assertThat(cell.config().get("options").get(1).get("optionId").asString())
+        .isEqualTo("opt_newcomer");
+
+    // Without any list both stay free answers and nothing marks a newcomer.
+    List<FormPreset.Question> free =
+        generate(affiliation(true, List.of(), true, List.of()), FRIDAY, FRIDAY);
+    assertThat(find(free, "MIDDLE_GROUP").type()).isEqualTo(AnswerType.SHORT_TEXT);
+    assertThat(find(free, "CELL").type()).isEqualTo(AnswerType.SHORT_TEXT);
+    assertThat(find(free, "CELL").showWhen()).isNull();
+  }
+
+  @Test
+  void newcomerIsReadFromTheOptionIdWhateverItsLabel() {
+    JsonMapper mapper = JsonMapper.builder().build();
+    JsonNode middle =
+        mapper.readTree(
+            "{\"options\":[{\"optionId\":\"opt_mg_1\",\"label\":\"1중그룹\"},"
+                + "{\"optionId\":\"opt_newcomer\",\"label\":\"처음 왔어요\"}]}");
+    JsonNode cell = mapper.readTree("{\"options\":[{\"optionId\":\"opt_c\",\"label\":\"셀\"}]}");
+    JsonNode chose = mapper.readTree("{\"optionId\":\"opt_newcomer\"}");
+    JsonNode other = mapper.readTree("{\"optionId\":\"opt_mg_1\"}");
+
+    assertThat(FormPreset.newcomer(middle, chose, null, null)).isTrue();
+    assertThat(FormPreset.newcomer(middle, other, cell, null)).isFalse();
+    assertThat(FormPreset.newcomer(middle, null, null, null)).isNull();
+    // A free-text middle group cannot tell; the cell decides when it offers the option.
+    JsonNode text = mapper.readTree("{\"maxLength\":50}");
+    assertThat(FormPreset.newcomer(text, mapper.readTree("{\"text\":\"1\"}"), middle, chose))
+        .isTrue();
+    assertThat(FormPreset.newcomer(text, null, cell, other)).isNull();
+    assertThat(FormPreset.newcomer(null, null, null, null)).isNull();
+  }
+
+  @Test
+  void aStoredNewcomerSwitchIsReadAndDroppedOnTheNextSave() {
     FormSetup setup =
         FormSetup.parse(
             JsonMapper.builder()
                 .build()
                 .readTree(
-                    "{\"gender\":false,\"middleGroup\":false,\"cell\":false,"
+                    "{\"gender\":false,\"middleGroup\":false,\"cell\":false,\"newcomer\":true,"
                         + "\"attendance\":{\"partial\":false,\"worshipOnly\":false},"
                         + "\"schedule\":[{\"breakfast\":false,\"lunch\":false,"
                         + "\"dinner\":false,\"worship\":false}],"
@@ -187,9 +240,33 @@ class FormPresetTest {
             FormSetup.Mode.SLOTS,
             false);
 
-    assertThat(setup.newcomer()).isFalse();
+    assertThat(setup.middleGroups()).isEmpty();
     assertThat(keys(generate(setup, FRIDAY, FRIDAY))).containsExactly("CONSENT");
-    assertThat(setup.toJson(FRIDAY, FRIDAY).get("newcomer").booleanValue()).isFalse();
+    JsonNode stored = setup.toJson(FRIDAY, FRIDAY);
+    assertThat(stored.has("newcomer")).isFalse();
+    assertThat(stored.get("middleGroups").isArray()).isTrue();
+  }
+
+  @Test
+  void listsDropBlanksAndRepeats() {
+    FormSetup setup =
+        FormSetup.parse(
+            JsonMapper.builder()
+                .build()
+                .readTree(
+                    "{\"gender\":false,\"middleGroup\":true,\"cell\":false,"
+                        + "\"middleGroups\":[\" 1중그룹 \",\"\",\"1중그룹\",\"2중그룹\"],"
+                        + "\"attendance\":{\"partial\":false,\"worshipOnly\":false},"
+                        + "\"schedule\":[{\"breakfast\":false,\"lunch\":false,"
+                        + "\"dinner\":false,\"worship\":false}],"
+                        + "\"transport\":{\"groupBus\":false,\"worshipShuttle\":false,"
+                        + "\"car\":false,\"publicTransit\":false,\"support\":false}}"),
+            1,
+            FormSetup.Mode.SLOTS,
+            false);
+
+    assertThat(setup.middleGroups()).containsExactly("1중그룹", "2중그룹");
+    assertThat(setup.cells()).isEmpty();
   }
 
   @Test
@@ -199,7 +276,8 @@ class FormPresetTest {
             false,
             false,
             false,
-            false,
+            List.of(),
+            List.of(),
             true,
             true,
             FormSetup.Mode.RANGE,
@@ -316,7 +394,8 @@ class FormPresetTest {
         false,
         false,
         false,
-        false,
+        List.of(),
+        List.of(),
         true,
         true,
         mode,
@@ -376,6 +455,27 @@ class FormPresetTest {
                 new MealSlots.Answers(
                     null, mapper.readTree("{\"optionId\":\"opt_d2_lunch\"}"), null)))
         .isNull();
+  }
+
+  /** Only the middle group and cell switches and lists, on a one-day event. */
+  private static FormSetup affiliation(
+      boolean middleGroup, List<String> middleGroups, boolean cell, List<String> cells) {
+    return new FormSetup(
+        false,
+        middleGroup,
+        cell,
+        middleGroups,
+        cells,
+        false,
+        false,
+        FormSetup.Mode.RANGE,
+        days(1, false),
+        false,
+        false,
+        false,
+        false,
+        false,
+        false);
   }
 
   private List<FormPreset.Question> generate(FormSetup setup, LocalDate start, LocalDate end) {

@@ -103,8 +103,13 @@ export type FormSetup = {
   gender: boolean;
   middleGroup: boolean;
   cell: boolean;
-  /** 새가족 question (NEWCOMER). Added later: a setup saved before it reads as false. */
-  newcomer: boolean;
+  /**
+   * Names to choose from, one per entry (DEC-070 Follow-up 2026-11-17). With names the question is a
+   * dropdown and the first one also offers 새가족 (등반X); without, it stays a free answer. A setup
+   * saved before the lists existed has none.
+   */
+  middleGroups: string[];
+  cells: string[];
   /** `mode` is always in a response. A setup saved before DEC-074 reads as `SLOTS`. */
   attendance: { partial: boolean; worshipOnly: boolean; mode: AttendanceMode };
   /** One entry per event day, in date order. */
@@ -234,7 +239,8 @@ export function putSetup(eventId: string, formId: string, setup: FormSetup): Pro
     gender: setup.gender,
     middleGroup: setup.middleGroup,
     cell: setup.cell,
-    newcomer: setup.newcomer,
+    middleGroups: setup.middleGroups,
+    cells: setup.cells,
     attendance: setup.attendance,
     schedule: setup.schedule,
     transport: setup.transport,

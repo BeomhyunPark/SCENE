@@ -4,6 +4,9 @@ import { requireEventRead } from "./formStore";
 import { checkInCandidates } from "./participantStore";
 import { permissionsFor } from "./taskStore";
 
+/** The 새가족 option label (DEC-070 Follow-up 2026-11-17). The board shows it as the middle group. */
+const NEWCOMER_LABEL = "새가족 (등반X)";
+
 /**
  * Shaped like GroupController (#299). Write order follows backend/docs/api.md "조 편성":
  * 404·403 NOT_A_MEMBER → 403 FORBIDDEN → 400 body → 409 event state → 404 target → 409 version·conflict
@@ -723,7 +726,7 @@ function seedPeople(): Person[] {
     ["오세훈", "96", MALE, "FULL", "청년2부", "요셉셀"],
     ["윤가은", "97", FEMALE, "FULL", "청년1부", "다윗셀"],
   ];
-  // 새가족: 박서준·윤가은 yes, 정민호 unanswered, others no.
+  // 새가족 (등반X) chosen as middle group: 박서준·윤가은. 정민호 has no answer, others a listed group.
   const newcomers: Record<number, boolean | null> = { 2: true, 9: true, 5: null };
   return rows.map(([name, cohort, gender, attendance, middleGroup, cell], index) => ({
     participantId: `00000000-0000-4000-8000-0000000004${String(index).padStart(2, "0")}`,
@@ -731,8 +734,8 @@ function seedPeople(): Person[] {
     cohort,
     gender,
     attendance,
-    middleGroup,
-    cell,
+    middleGroup: newcomers[index] === true ? NEWCOMER_LABEL : middleGroup,
+    cell: newcomers[index] === true ? null : cell,
     newcomer: index in newcomers ? newcomers[index] : false,
     submitted: true,
     // 박서준: 토요일 저녁부터 끝까지. 이수아(97): 집회만. 한지우: 부분 참석인데 칸 답 없음(모름).
@@ -758,9 +761,9 @@ function largePeople(count: number): Person[] {
       cohort: cohortRoll === 12 ? null : String((90 + (index % 12)) % 100).padStart(2, "0"),
       gender: index % 11 === 10 ? null : index % 2 === 0 ? FEMALE : MALE,
       attendance: index % 9 === 0 ? "PARTIAL" : index % 17 === 0 ? "WORSHIP_ONLY" : "FULL",
-      middleGroup: index % 10 === 9 ? null : `청년${(index % 3) + 1}부`,
-      cell: index % 8 === 7 ? null : cells[index % cells.length],
-      newcomer: index % 15 === 14 ? null : index % 7 === 3,
+      middleGroup: index % 10 === 9 ? null : index % 7 === 3 ? NEWCOMER_LABEL : `청년${(index % 3) + 1}부`,
+      cell: index % 8 === 7 || index % 7 === 3 ? null : cells[index % cells.length],
+      newcomer: index % 10 === 9 ? null : index % 7 === 3,
       submitted: true,
       chosenSlots: largeChosenSlots(index),
     });
