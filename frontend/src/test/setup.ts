@@ -8,9 +8,11 @@ import { resetInvitationStore } from "../mocks/invitationStore";
 import { resetOperatorStore } from "../mocks/operatorStore";
 import { resetParticipantStore } from "../mocks/participantStore";
 import { resetParticipantCheckInStore } from "../mocks/participantCheckInStore";
+import { resetParticipantGroupStore } from "../mocks/participantGroupStore";
 import { resetRetrospectiveStore } from "../mocks/retrospectiveStore";
 import { resetAccessKeyCapture } from "../accessKey";
 import { resetCheckInStore } from "../mocks/checkInStore";
+import { resetTableGroupStore } from "../mocks/tableGroupStore";
 import { resetTaskStore } from "../mocks/taskStore";
 import { deliveryTiming } from "../components/checkInDelivery";
 
@@ -30,8 +32,10 @@ afterEach(() => {
   resetTaskStore();
   resetRetrospectiveStore();
   resetCheckInStore();
+  resetTableGroupStore();
   resetParticipantStore();
   resetParticipantCheckInStore();
+  resetParticipantGroupStore();
   resetAccessKeyCapture();
   resetFormStore();
   resetInvitationStore();

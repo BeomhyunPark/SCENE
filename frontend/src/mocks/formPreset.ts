@@ -9,6 +9,7 @@ export const PRESET_ORDER = [
   "GENDER",
   "MIDDLE_GROUP",
   "CELL",
+  "NEWCOMER",
   "ATTENDANCE",
   "ARRIVAL_AT",
   "DEPARTURE_AT",
@@ -97,6 +98,17 @@ export function generatePreset(
     add("MIDDLE_GROUP", "중그룹", "소속 중그룹이 있으면 적어주세요.", "SHORT_TEXT", false, shortText(50), null);
   }
   if (setup.cell) add("CELL", "셀", "소속 셀이 있으면 적어주세요.", "SHORT_TEXT", false, shortText(50), null);
+  if (setup.newcomer) {
+    add(
+      "NEWCOMER",
+      "새가족이신가요?",
+      "교회에 처음 오셨거나 새가족 과정을 듣고 있다면 '예'를 골라주세요. 조 편성에서 더 잘 챙겨 드리려고 여쭤봐요.",
+      "YES_NO",
+      true,
+      { style: "YES_NO", yesLabel: null, noLabel: null },
+      null,
+    );
+  }
 
   if (attendance) {
     add(

@@ -2,7 +2,10 @@ package app.scene.event.group;
 
 import java.util.UUID;
 
-/** {@code participants[]} item of the group board. No phone and no access key. */
+/**
+ * {@code participants[]} item of the group board. No phone and no access key. {@code newcomer} is
+ * care information: it stays on this operator board and never reaches participant reads.
+ */
 public record BoardParticipant(
     UUID participantId,
     String name,
@@ -11,6 +14,7 @@ public record BoardParticipant(
     String attendance,
     String middleGroup,
     String cell,
+    Boolean newcomer,
     UUID groupId,
     boolean leader,
     UUID publishedGroupId,

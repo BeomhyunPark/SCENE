@@ -3,10 +3,12 @@ import type { ApplicationAnswer } from "../../api/applications";
 import { formatAnswer } from "../../components/answerDisplay";
 import { formatSubmittedAt } from "../../components/eventFormat";
 import { currentOperator } from "./session";
-import { formFields, requireEventRead } from "../formStore";
+import { eventFormId, formFields, requireEventRead } from "../formStore";
 import { eventById, operatorRequests } from "../operatorStore";
 import { permissionsFor } from "../taskStore";
-import { submittedApplication, submittedApplications } from "../participantStore";
+import { submittedApplication, submittedApplications, tableApplications } from "../participantStore";
+import { checkedInAtOf } from "../checkInStore";
+import { tableGroupOf } from "../tableGroupStore";
 import { problem } from "../problem";
 import { applicationSummary } from "../applicationSummary";
 
@@ -60,6 +62,56 @@ export const applicationHandlers = [
     return HttpResponse.json(applicationSummary(eventId));
   }),
 
+  // 참가 현황 table (#308), shaped like ApplicationTableController. EVENT_READ or a space
+  // OWNER/ADMIN reads; phone questions only with PARTICIPANT_CONTACT_READ; groups only with
+  // GROUP_WRITE. Must stay before the :applicationId route.
+  http.get("/api/v1/operator/events/:eventId/applications/table", ({ request, params }) => {
+    const operator = currentOperator();
+    if (!operator) return problem(401, "AUTHENTICATION_REQUIRED");
+    operatorRequests.push({ method: "GET", url: new URL(request.url).pathname });
+    const eventId = String(params.eventId);
+    const gate = requireEventRead(eventId, operator.userId);
+    if (gate) return problem(gate.status, gate.code, { detail: "hidden" });
+    const perms = permissionsFor(eventId, operator.userId, operator.userId);
+    const effective = "effective" in perms ? perms.effective : [];
+    const contact = effective.includes("PARTICIPANT_CONTACT_READ");
+    const groupVisible = effective.includes("GROUP_WRITE");
+    const rows = tableApplications(eventId);
+    const formId = rows[0]?.formId ?? formOf(eventId);
+    const fields = formId ? formFields(eventId, formId) : [];
+    const columns = fields
+      .map((field) => ({
+        fieldId: field.fieldId,
+        kind: field.kind,
+        systemKey: field.systemKey,
+        presetKey: field.presetKey ?? null,
+        label: field.label,
+        position: field.position,
+        answerType: field.answerType,
+        hidden: field.hidden,
+        config: field.config,
+        contact: field.systemKey === "PHONE" || (isText(field.answerType) && field.config.format === "PHONE"),
+      }))
+      .filter((column) => contact || !column.contact);
+    const shown = new Set(columns.map((column) => column.fieldId));
+    return HttpResponse.json(
+      {
+        formId: formId ?? null,
+        contactVisible: contact && columns.some((column) => column.contact),
+        groupVisible,
+        columns,
+        rows: rows.map((row) => ({
+          applicationId: row.applicationId,
+          submittedAt: row.submittedAt,
+          answers: Object.fromEntries(Object.entries(row.answers).filter(([fieldId]) => shown.has(fieldId))),
+          group: groupVisible ? tableGroupOf(eventId, row.participantId) : null,
+          checkedInAt: checkedInAtOf(eventId, row.participantId),
+        })),
+      },
+      { headers: { "Cache-Control": "no-store" } },
+    );
+  }),
+
   http.get("/api/v1/operator/events/:eventId/applications/:applicationId", ({ request, params }) => {
     const operator = currentOperator();
     if (!operator) return problem(401, "AUTHENTICATION_REQUIRED");
@@ -111,6 +163,14 @@ export const applicationHandlers = [
     });
   }),
 ];
+
+function isText(type: string): boolean {
+  return type === "SHORT_TEXT" || type === "LONG_TEXT";
+}
+
+function formOf(eventId: string): string | undefined {
+  return eventFormId(eventId);
+}
 
 /** Same rules as the server's ApplicationCsv: formula prefix, then RFC 4180 quoting. */
 function csvCell(raw: string): string {

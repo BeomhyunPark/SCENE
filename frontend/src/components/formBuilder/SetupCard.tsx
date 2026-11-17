@@ -39,11 +39,13 @@ function suggestedDay(index: number, days: number): SetupDay {
 /** The saved setup fitted to the event's days, or the suggested starting point. */
 function initialSetup(saved: FormSetup | null, days: number): FormSetup {
   const schedule = Array.from({ length: days }, (_, index) => saved?.schedule[index] ?? suggestedDay(index, days));
-  if (saved) return { ...saved, schedule };
+  // A setup saved before the 새가족 switch existed has no key: keep it off there.
+  if (saved) return { ...saved, newcomer: saved.newcomer ?? false, schedule };
   return {
     gender: true,
     middleGroup: false,
     cell: false,
+    newcomer: true,
     attendance: { partial: true, worshipOnly: false },
     schedule,
     transport: { groupBus: true, worshipShuttle: false, car: true, publicTransit: true, support: false },
@@ -146,6 +148,12 @@ export function SetupCard({
           {check("성별", draft.gender, (gender) => change({ ...draft, gender }))}
           {check("중그룹", draft.middleGroup, (middleGroup) => change({ ...draft, middleGroup }))}
           {check("셀", draft.cell, (cell) => change({ ...draft, cell }))}
+          {check(
+            "새가족",
+            draft.newcomer,
+            (newcomer) => change({ ...draft, newcomer }),
+            "예/아니오로 물어요. 조 편성에서 새가족만 골라 볼 수 있어요.",
+          )}
         </div>
       </fieldset>
 

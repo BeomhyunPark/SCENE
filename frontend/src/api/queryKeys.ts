@@ -20,9 +20,11 @@ export const queryKeys = {
   form: (eventId: string, formId: string) => ["events", eventId, "forms", formId] as const,
   applications: (eventId: string, page: number) => ["events", eventId, "applications", page] as const,
   applicationSummary: (eventId: string) => ["events", eventId, "applications", "summary"] as const,
+  applicationTable: (eventId: string) => ["events", eventId, "applications", "table"] as const,
   application: (eventId: string, applicationId: string) =>
     ["events", eventId, "applications", "detail", applicationId] as const,
   publicForm: (eventId: string, formId: string) => ["public", "forms", eventId, formId] as const,
   participantMe: (eventId: string) => ["participant", "me", eventId] as const,
   participantCheckIn: (eventId: string) => ["participant", "check-in", eventId] as const,
+  participantGroup: (eventId: string) => ["participant", "group", eventId] as const,
 };

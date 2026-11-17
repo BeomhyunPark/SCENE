@@ -48,26 +48,39 @@ describe("event participation applicants", () => {
     expect(operatorRequests.some((request) => request.url.startsWith(`/api/v1/operator/events/${EVENT}/applications`))).toBe(true);
   });
 
-  it("lists applicant names and submit times without phone or access key", async () => {
+  it("shows applicants as the 참가 현황 table, with the phone for the owner and no access key", async () => {
     const form = openForm("식사");
-    const first = submit(form, { 이름: "김하나", 전화: "010-1111-2222", 식사: "채식" });
+    const first = submit(form, { 이름: "김하나", 전화: "010-1111-2222", 또래: "94", 식사: "채식" });
     submit(form, { 이름: "박둘", 전화: "010-3333-4444" });
     await login({ userId: OWNER });
     openApp(`/events/${EVENT}/participants`);
 
-    const section = await screen.findByRole("region", { name: "신청자" });
-    const rows = within(section).getAllByRole("link");
+    const table = await screen.findByRole("table", { name: "신청자 명단" });
+    const rows = within(table).getAllByRole("row").slice(1, -1);
     expect(rows).toHaveLength(2);
-    expect(rows[0]).toHaveTextContent("김하나");
-    expect(rows[0]).toHaveTextContent(/\d{4}\. \d{1,2}\. \d{1,2}\. \d{2}:\d{2}/);
+    expect(rows[0]).toHaveTextContent("94 김하나");
+    expect(rows[0]).toHaveTextContent("010-1111-2222");
     expect(rows[1]).toHaveTextContent("박둘");
-    expect(screen.getByText("2명")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "참가 현황" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /전체 참가자 2/ })).toHaveAttribute("aria-pressed", "true");
     expect(screen.queryByRole("heading", { name: "아직 참가자가 없어요." })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "참가자를 받는 방법" })).toBeInTheDocument();
-    const body = document.body.textContent ?? "";
-    expect(body).not.toContain("010-1111-2222");
-    expect(body).not.toContain("채식");
-    expect(body).not.toContain(first.accessKey);
+    // 식사 is not one of the design's columns: it is off until the operator turns it on.
+    expect(within(table).queryByText("채식")).not.toBeInTheDocument();
+    expect(document.body.textContent ?? "").not.toContain(first.accessKey);
+  });
+
+  it("leaves the phone column out for an operator without contact access", async () => {
+    const form = openForm();
+    submit(form, { 이름: "김하나", 전화: "010-1111-2222" });
+    await login({ userId: localUsers[2].userId });
+    openApp(`/events/${EVENT}/participants`);
+
+    const table = await screen.findByRole("table", { name: "신청자 명단" });
+    expect(within(table).getByText("김하나")).toBeInTheDocument();
+    expect(within(table).queryByRole("columnheader", { name: /연락처/ })).not.toBeInTheDocument();
+    expect(document.body.textContent ?? "").not.toContain("010-1111-2222");
+    expect(screen.getByRole("searchbox", { name: "이름, 연락처, 소속 검색" })).toHaveAttribute("placeholder", "이름, 소속 검색");
   });
 
   it("opens every answer for one applicant", async () => {
@@ -76,7 +89,7 @@ describe("event participation applicants", () => {
     await login({ userId: OWNER });
     openApp(`/events/${EVENT}/participants`);
 
-    fireEvent.click(await screen.findByRole("link", { name: /김하나/ }));
+    fireEvent.click(await screen.findByRole("link", { name: "김하나" }));
 
     expect(await screen.findByRole("heading", { name: "신청 내용" })).toBeInTheDocument();
     const answers = await screen.findAllByRole("definition");
@@ -99,8 +112,7 @@ describe("event participation applicants", () => {
     await login({ userId: OWNER });
     openApp(`/events/${EVENT}/participants`);
 
-    const row = await screen.findByRole("link", { name: /이름 없음/ });
-    expect(row).toHaveTextContent("2026. 10. 8. 12:00");
+    const row = await screen.findByRole("link", { name: "이름 없음" });
     fireEvent.click(row);
 
     expect(await screen.findByText("받은 답변이 없어요.")).toBeInTheDocument();

@@ -130,7 +130,7 @@ describe("participant arrival QR", () => {
     openApp();
     expect(await screen.findByText("도착 QR을 불러오지 못했어요.", {}, { timeout: 3000 })).toBeInTheDocument();
     fail = false;
-    fireEvent.click(screen.getByRole("button", { name: "새로 고침" }));
+    fireEvent.click(within(qrRegion()).getByRole("button", { name: "새로 고침" }));
     expect(await screen.findByRole("img", { name: "도착 QR" })).toBeInTheDocument();
   });
 
@@ -145,7 +145,7 @@ describe("participant arrival QR", () => {
     openApp();
     await screen.findByRole("img", { name: "도착 QR" });
     fail = true;
-    fireEvent.click(screen.getByRole("button", { name: "새로 고침" }));
+    fireEvent.click(within(qrRegion()).getByRole("button", { name: "새로 고침" }));
     expect(await screen.findByText(/최신 상태를 불러오지 못했어요/, {}, { timeout: 3000 })).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "도착 QR" })).toBeInTheDocument();
   });
