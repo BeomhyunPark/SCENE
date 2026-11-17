@@ -65,7 +65,7 @@ async function openField(userIndex = 2) {
 }
 
 async function showGroups() {
-  fireEvent.click(await screen.findByRole("button", { name: "조별" }, WAIT));
+  fireEvent.click(await screen.findByRole("button", { name: "조별 명단" }, WAIT));
 }
 
 async function groupCard(name: string): Promise<HTMLElement> {
@@ -150,7 +150,7 @@ describe("field check-in by group", () => {
     expect(await screen.findByText(/아직 공개된 조 편성이 없어요/, {}, WAIT)).toBeInTheDocument();
     expect(screen.queryByLabelText("이름 또는 전화 끝 4자리")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "전체" }));
+    fireEvent.click(screen.getByRole("button", { name: "전체 명단" }));
     expect(await screen.findByRole("list", { name: "체크인 명단" }, WAIT)).toBeInTheDocument();
     expect(screen.getByText("8명")).toBeInTheDocument();
   });

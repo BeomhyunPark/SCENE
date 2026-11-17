@@ -506,7 +506,41 @@
 
 /* 전체 / 조별 (#288) */
 .event-field__views {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   margin-top: 4px;
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--color-bg-canvas);
+  border: 1px solid var(--color-border-default);
+}
+
+.event-field__view {
+  min-height: 40px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font: var(--scene-label-m);
+  cursor: pointer;
+}
+
+.event-field__view[aria-pressed="true"] {
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--color-text-primary) 16%, transparent);
+}
+
+.event-field__view:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.event-field__filters-label {
+  align-self: center;
+  margin-right: 4px;
+  color: var(--color-text-secondary);
+  font: var(--scene-label-s);
 }
 
 .field-groups {
