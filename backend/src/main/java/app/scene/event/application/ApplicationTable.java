@@ -1,0 +1,53 @@
+package app.scene.event.application;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import tools.jackson.databind.JsonNode;
+
+/**
+ * Every submitted application of the event with every answer the reader may see, for the operator
+ * table (#308). The screen filters, sorts and counts these rows itself. {@code formId} is null when
+ * the event has no form.
+ *
+ * <p>{@code contactVisible} is true when phone questions are in {@code columns}; without {@code
+ * PARTICIPANT_CONTACT_READ} those columns and their answers are left out. {@code groupVisible} is
+ * true when each row carries its working-copy {@code group}; otherwise every {@code group} is null.
+ */
+public record ApplicationTable(
+    UUID formId,
+    boolean contactVisible,
+    boolean groupVisible,
+    List<Column> columns,
+    List<Row> rows) {
+
+  /**
+   * One question in position order, with its current type, hidden flag and config (the same fields
+   * as an answer on the detail). {@code contact} is true for a phone question.
+   */
+  public record Column(
+      UUID fieldId,
+      String kind,
+      String systemKey,
+      String label,
+      int position,
+      String answerType,
+      boolean hidden,
+      JsonNode config,
+      boolean contact) {}
+
+  /**
+   * One applicant. {@code answers} maps a field id to the stored value (DEC-068 §1); a question
+   * with no answer has no key. {@code checkedInAt} is the arrival time, or null.
+   */
+  public record Row(
+      UUID applicationId,
+      Instant submittedAt,
+      Map<UUID, JsonNode> answers,
+      Group group,
+      Instant checkedInAt) {}
+
+  /** Working-copy group (DEC-072). */
+  public record Group(UUID groupId, String name, boolean leader) {}
+}
