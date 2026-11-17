@@ -9,6 +9,7 @@ import app.scene.common.permission.PermissionEvaluator;
 import app.scene.event.form.FormFieldRow;
 import app.scene.event.form.FormRepository;
 import app.scene.event.form.FormRow;
+import app.scene.event.form.MealSlots;
 import app.scene.event.lifecycle.EventAccessGate;
 import app.scene.event.lifecycle.EventLocation;
 import app.scene.event.lifecycle.EventProfile;
@@ -46,6 +47,9 @@ public class ApplicationExportService {
   static final ZoneId EVENT_ZONE = ZoneId.of("Asia/Seoul");
 
   static final String SUBMITTED_AT = "제출 시각";
+
+  /** Last column in RANGE mode: the attended slots (DEC-074). */
+  static final String SLOTS = "참석 일정";
 
   private static final DateTimeFormatter SUBMITTED_FORMAT =
       DateTimeFormatter.ofPattern("yyyy. M. d. HH:mm").withZone(EVENT_ZONE);
@@ -91,12 +95,18 @@ public class ApplicationExportService {
       throw new SceneException(ErrorCode.FORBIDDEN);
     }
     UUID spaceId = opened.location().spaceId();
+    FormRow form = forms.findByEvent(spaceId, eventId).orElse(null);
     List<FormFieldRow> fields =
-        forms
-            .findByEvent(spaceId, eventId)
-            .map(FormRow::id)
-            .map(formId -> forms.findFields(spaceId, eventId, formId))
-            .orElse(List.of());
+        form == null ? List.of() : forms.findFields(spaceId, eventId, form.id());
+    AttendedSlots attended = AttendedSlots.of(form == null ? null : form.setup(), fields, json);
+    // DEC-074: in RANGE mode the attended slots are not one answer, so they get their own column.
+    boolean slotColumn = attended.range() && !attended.days().isEmpty();
+    Map<String, String> slotLabels = new HashMap<>();
+    for (MealSlots.Day day : attended.days()) {
+      for (MealSlots.Slot slot : day.slots()) {
+        slotLabels.put(slot.optionId(), day.label() + " " + slot.label());
+      }
+    }
     List<ApplicationRow> rows = applications.listSubmitted(spaceId, eventId);
     Map<UUID, Map<UUID, String>> answers = new HashMap<>();
     for (ExportAnswerRow answer : applications.listSubmittedAnswers(spaceId, eventId)) {
@@ -112,6 +122,9 @@ public class ApplicationExportService {
       header.add(AnswerText.label(field.label(), field.hidden()));
       configs.add(field.config() == null ? null : json.readTree(field.config()));
     }
+    if (slotColumn) {
+      header.add(SLOTS);
+    }
     List<List<String>> table = new ArrayList<>();
     table.add(header);
     for (ApplicationRow row : rows) {
@@ -125,6 +138,12 @@ public class ApplicationExportService {
             value == null
                 ? ""
                 : AnswerText.format(field.answerType(), configs.get(i), json.readTree(value)));
+      }
+      if (slotColumn) {
+        Map<UUID, JsonNode> trees = new HashMap<>();
+        stored.forEach((fieldId, value) -> trees.put(fieldId, json.readTree(value)));
+        List<String> ids = attended.of(trees);
+        line.add(ids == null ? "" : String.join(", ", ids.stream().map(slotLabels::get).toList()));
       }
       table.add(line);
     }

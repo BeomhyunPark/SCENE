@@ -4,6 +4,7 @@ import app.scene.common.error.ErrorCode;
 import app.scene.common.error.SceneException;
 import app.scene.event.form.FieldDefinition;
 import app.scene.event.form.FieldRules;
+import app.scene.event.form.MealSlots;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
@@ -65,7 +66,30 @@ public final class AnswerEvaluator {
     if (!submitted.isEmpty()) {
       throw invalid();
     }
+    checkRange(fields, kept);
     return answers;
+  }
+
+  /** DEC-074: the departure slot may not come before the arrival slot. The same slot is fine. */
+  private static void checkRange(List<FieldDefinition> fields, Map<UUID, ObjectNode> kept) {
+    String arrival = null;
+    String departure = null;
+    for (FieldDefinition field : fields) {
+      ObjectNode value = kept.get(field.fieldId());
+      if (value == null || !value.path("optionId").isString()) {
+        continue;
+      }
+      if ("ARRIVAL_SLOT".equals(field.presetKey())) {
+        arrival = value.get("optionId").asString();
+      } else if ("DEPARTURE_SLOT".equals(field.presetKey())) {
+        departure = value.get("optionId").asString();
+      }
+    }
+    if (arrival != null
+        && departure != null
+        && MealSlots.order(departure) < MealSlots.order(arrival)) {
+      throw invalid();
+    }
   }
 
   /** Each item is {@code fieldId} with either {@code text} (text questions) or {@code value}. */

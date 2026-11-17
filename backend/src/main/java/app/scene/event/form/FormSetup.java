@@ -21,6 +21,7 @@ public record FormSetup(
     boolean newcomer,
     boolean partial,
     boolean worshipOnly,
+    Mode mode,
     List<Day> schedule,
     boolean groupBus,
     boolean worshipShuttle,
@@ -37,6 +38,16 @@ public record FormSetup(
     schedule = List.copyOf(schedule);
   }
 
+  /**
+   * How a partial attendee says which slots they attend (DEC-074). {@code RANGE}: an arrival slot
+   * and a departure slot, and every slot between is attended. {@code SLOTS}: each slot is chosen in
+   * {@code MEALS}.
+   */
+  public enum Mode {
+    RANGE,
+    SLOTS
+  }
+
   /** Which meals and worship services one event day has. */
   public record Day(boolean breakfast, boolean lunch, boolean dinner, boolean worship) {
 
@@ -48,6 +59,11 @@ public record FormSetup(
   /** True when the form asks how the participant attends. */
   public boolean asksAttendance() {
     return partial || worshipOnly;
+  }
+
+  /** True when partial attendees give an arrival and a departure slot instead of choosing slots. */
+  public boolean range() {
+    return mode == Mode.RANGE;
   }
 
   public boolean anyTransport() {
@@ -63,8 +79,10 @@ public record FormSetup(
    * Reads the request body. Every key is required and every switch is a boolean, except {@code
    * newcomer}, which was added later and is off when missing. {@code schedule} must list exactly
    * {@code days} entries. {@code generatedFor} from an earlier response is accepted and ignored.
+   * {@code attendance.mode} may be missing; then {@code fallback} is used (the stored mode, or
+   * RANGE for a form without a setup).
    */
-  public static FormSetup parse(JsonNode body, int days) {
+  public static FormSetup parse(JsonNode body, int days, Mode fallback) {
     if (body == null || !body.isObject()) {
       throw FieldRules.invalid("setup");
     }
@@ -80,7 +98,19 @@ public record FormSetup(
         "transport",
         "generatedFor");
     JsonNode attendance = object(body.get("attendance"), "attendance");
-    only(attendance, "attendance", "partial", "worshipOnly");
+    only(attendance, "attendance", "partial", "worshipOnly", "mode");
+    Mode mode = fallback;
+    if (attendance.has("mode")) {
+      JsonNode node = attendance.get("mode");
+      if (!node.isString()) {
+        throw FieldRules.invalid("attendance");
+      }
+      try {
+        mode = Mode.valueOf(node.asString());
+      } catch (IllegalArgumentException exception) {
+        throw FieldRules.invalid("attendance");
+      }
+    }
     JsonNode transport = object(body.get("transport"), "transport");
     only(transport, "transport", "groupBus", "worshipShuttle", "car", "publicTransit", "support");
     JsonNode schedule = body.get("schedule");
@@ -105,6 +135,7 @@ public record FormSetup(
         optionalFlag(body, "newcomer"),
         flag(attendance, "partial", "attendance"),
         flag(attendance, "worshipOnly", "attendance"),
+        mode,
         list,
         flag(transport, "groupBus", "transport"),
         flag(transport, "worshipShuttle", "transport"),
@@ -123,6 +154,7 @@ public record FormSetup(
     ObjectNode attendance = out.putObject("attendance");
     attendance.put("partial", partial);
     attendance.put("worshipOnly", worshipOnly);
+    attendance.put("mode", mode.name());
     ArrayNode days = out.putArray("schedule");
     for (Day day : schedule) {
       ObjectNode entry = days.addObject();

@@ -22,6 +22,7 @@ import app.scene.event.form.FormFieldRow;
 import app.scene.event.form.FormPreset;
 import app.scene.event.form.FormRepository;
 import app.scene.event.form.FormRow;
+import app.scene.event.form.FormSetup;
 import app.scene.event.form.MealSlots;
 import app.scene.event.lifecycle.EventAccessGate;
 import app.scene.event.lifecycle.EventRepository;
@@ -222,7 +223,6 @@ public class ApplicationSummaryService {
    */
   private static Meals meals(
       JsonNode setup, Answers answers, Map<String, List<Applicant>> byAttendance) {
-    Question question = answers.visible("MEALS");
     Question labels = answers.any("MEALS");
     List<MealSlots.Day> days =
         MealSlots.days(setup, MealSlots.labels(labels == null ? null : labels.config()));
@@ -232,9 +232,9 @@ public class ApplicationSummaryService {
     Map<String, Long> counts = new HashMap<>();
     long unanswered = 0;
     for (Map.Entry<String, List<Applicant>> kind : byAttendance.entrySet()) {
-      boolean full = FULL.equals(kind.getKey());
       for (Applicant person : kind.getValue()) {
-        List<String> ids = MealSlots.attended(days, full, person.answer(question));
+        List<String> ids =
+            MealSlots.attended(setup, days, kind.getKey(), slotAnswers(answers, person));
         if (ids == null) {
           unanswered++;
         } else {
@@ -261,7 +261,9 @@ public class ApplicationSummaryService {
   /**
    * One row per night of the setup period. Full attendees sleep every night, worship-only none.
    * Partial attendees count on the nights they chose; the question is optional, so no answer is no
-   * night. When the question is not visible, partial attendees count in {@code unanswered}.
+   * night. When the question is not visible, partial attendees count in {@code unanswered}. In
+   * RANGE mode (DEC-074) partial nights come from the arrival and departure slots, and a partial
+   * attendee without a usable range counts in {@code unanswered}.
    */
   private static Lodging lodging(
       JsonNode setup, Answers answers, Map<String, List<Applicant>> byAttendance) {
@@ -270,11 +272,23 @@ public class ApplicationSummaryService {
     if (start == null || end == null || !end.isAfter(start)) {
       return null;
     }
-    Question question = answers.visible("LODGING");
+    boolean range = MealSlots.mode(setup) == FormSetup.Mode.RANGE;
+    Question question = range ? null : answers.visible("LODGING");
     Question labels = answers.any("LODGING");
     long full = byAttendance.get(FULL).size();
     Map<String, Long> chosen = new HashMap<>();
+    long unknown = 0;
     for (Applicant person : byAttendance.get(PARTIAL)) {
+      if (range) {
+        // DEC-074: nights follow the arrival and departure slots.
+        List<Integer> nights = MealSlots.nights(slotAnswers(answers, person));
+        if (nights == null) {
+          unknown++;
+        } else {
+          nights.forEach(night -> chosen.merge("opt_n" + night, 1L, Long::sum));
+        }
+        continue;
+      }
       Set<String> ids = optionIds(person.answer(question));
       if (ids != null) {
         ids.forEach(id -> chosen.merge(id, 1L, Long::sum));
@@ -294,8 +308,15 @@ public class ApplicationSummaryService {
               label == null ? FormPreset.nightLabel(night, date) : label,
               full + chosen.getOrDefault(id, 0L)));
     }
-    long unanswered = question == null ? byAttendance.get(PARTIAL).size() : 0;
+    long unanswered = range ? unknown : question == null ? byAttendance.get(PARTIAL).size() : 0;
     return new Lodging(nights, unanswered);
+  }
+
+  private static MealSlots.Answers slotAnswers(Answers answers, Applicant person) {
+    return new MealSlots.Answers(
+        person.answer(answers.visible("MEALS")),
+        person.answer(answers.visible("ARRIVAL_SLOT")),
+        person.answer(answers.visible("DEPARTURE_SLOT")));
   }
 
   /**
