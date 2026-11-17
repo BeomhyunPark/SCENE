@@ -1,7 +1,11 @@
 package app.scene.event.form;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Function;
@@ -28,6 +32,8 @@ public final class FormPreset {
           "GENDER",
           "MIDDLE_GROUP",
           "CELL",
+          // No longer generated. Kept so a question stored from the former newcomer switch keeps a
+          // place until the next setup save removes or hides it.
           "NEWCOMER",
           "ATTENDANCE",
           "ARRIVAL_AT",
@@ -58,6 +64,15 @@ public final class FormPreset {
   static final String RIDE = "opt_ride";
   static final String PUBLIC = "opt_public";
   static final String SUPPORT = "opt_support";
+
+  /**
+   * The option that marks a newcomer in the middle group or cell question (DEC-070 Follow-up
+   * 2026-11-17). A newcomer has no middle group or cell yet. The id stays when the operator rewords
+   * it.
+   */
+  public static final String NEWCOMER = "opt_newcomer";
+
+  static final String NEWCOMER_LABEL = "새가족 (등반X)";
 
   private static final JsonNodeFactory NODES = JsonNodeFactory.instance;
   private static final String[] WEEKDAYS = {"월", "화", "수", "목", "금", "토", "일"};
@@ -124,38 +139,7 @@ public final class FormPreset {
           new Question(
               "GENDER", "성별", null, AnswerType.SINGLE_CHOICE, true, single(options, true), null));
     }
-    if (setup.middleGroup()) {
-      out.add(
-          new Question(
-              "MIDDLE_GROUP",
-              "중그룹",
-              "소속 중그룹이 있으면 적어주세요.",
-              AnswerType.SHORT_TEXT,
-              false,
-              shortText(50),
-              null));
-    }
-    if (setup.cell()) {
-      out.add(
-          new Question(
-              "CELL", "셀", "소속 셀이 있으면 적어주세요.", AnswerType.SHORT_TEXT, false, shortText(50), null));
-    }
-    if (setup.newcomer()) {
-      // Who counts as new differs by church, so the operator can reword the description.
-      ObjectNode yesNo = NODES.objectNode();
-      yesNo.put("style", "YES_NO");
-      yesNo.putNull("yesLabel");
-      yesNo.putNull("noLabel");
-      out.add(
-          new Question(
-              "NEWCOMER",
-              "새가족이신가요?",
-              "교회에 처음 오셨거나 새가족 과정을 듣고 있다면 '예'를 골라주세요." + " 조 편성에서 더 잘 챙겨 드리려고 여쭤봐요.",
-              AnswerType.YES_NO,
-              true,
-              yesNo,
-              null));
-    }
+    affiliation(out, setup, ids);
 
     if (attendance) {
       ArrayNode options = NODES.arrayNode();
@@ -308,6 +292,127 @@ public final class FormPreset {
             consent,
             null));
     return out;
+  }
+
+  /**
+   * The middle group and cell questions. With a list on the setup card the question is a dropdown
+   * of those names; otherwise it stays a short free answer. The first dropdown also gets {@link
+   * #NEWCOMER}. When it is the middle group dropdown, the cell question is shown only to someone
+   * who chose a listed middle group, since a newcomer has no cell.
+   */
+  private static void affiliation(List<Question> out, FormSetup setup, Function<String, UUID> ids) {
+    boolean middleChoice = setup.middleGroup() && !setup.middleGroups().isEmpty();
+    boolean cellChoice = setup.cell() && !setup.cells().isEmpty();
+    List<String> middleIds = new ArrayList<>();
+    if (middleChoice) {
+      ArrayNode options = NODES.arrayNode();
+      for (String name : setup.middleGroups()) {
+        String id = listOptionId("mg", name);
+        middleIds.add(id);
+        options.add(option(id, name, null, false, null));
+      }
+      options.add(option(NEWCOMER, NEWCOMER_LABEL, null, false, null));
+      out.add(
+          new Question(
+              "MIDDLE_GROUP",
+              "중그룹",
+              "소속 중그룹을 골라주세요. 아직 중그룹이 없는 새가족은 '" + NEWCOMER_LABEL + "'을 골라주세요.",
+              AnswerType.DROPDOWN,
+              true,
+              dropdown(options),
+              null));
+    } else if (setup.middleGroup()) {
+      out.add(
+          new Question(
+              "MIDDLE_GROUP",
+              "중그룹",
+              "소속 중그룹이 있으면 적어주세요.",
+              AnswerType.SHORT_TEXT,
+              false,
+              shortText(50),
+              null));
+    }
+    if (!setup.cell()) {
+      return;
+    }
+    JsonNode whenListed =
+        middleChoice ? when(ids, "MIDDLE_GROUP", middleIds.toArray(String[]::new)) : null;
+    if (cellChoice) {
+      ArrayNode options = NODES.arrayNode();
+      for (String name : setup.cells()) {
+        options.add(option(listOptionId("cell", name), name, null, false, null));
+      }
+      String description = "소속 셀을 골라주세요.";
+      if (!middleChoice) {
+        options.add(option(NEWCOMER, NEWCOMER_LABEL, null, false, null));
+        description += " 아직 셀이 없는 새가족은 '" + NEWCOMER_LABEL + "'을 골라주세요.";
+      }
+      out.add(
+          new Question(
+              "CELL", "셀", description, AnswerType.DROPDOWN, true, dropdown(options), whenListed));
+    } else {
+      out.add(
+          new Question(
+              "CELL",
+              "셀",
+              "소속 셀이 있으면 적어주세요.",
+              AnswerType.SHORT_TEXT,
+              false,
+              shortText(50),
+              whenListed));
+    }
+  }
+
+  /**
+   * A listed name's option id, computed from the name so the same name keeps its id across saves.
+   * Renaming an entry on the setup card makes a new option.
+   */
+  static String listOptionId(String prefix, String name) {
+    try {
+      byte[] hash =
+          MessageDigest.getInstance("SHA-256").digest(name.getBytes(StandardCharsets.UTF_8));
+      return "opt_" + prefix + "_" + HexFormat.of().formatHex(hash, 0, 4);
+    } catch (NoSuchAlgorithmException exception) {
+      throw new IllegalStateException(exception);
+    }
+  }
+
+  /**
+   * Whether a participant is a newcomer (DEC-070 Follow-up 2026-11-17), the one place this is
+   * decided. The middle group question decides when it offers {@link #NEWCOMER}, otherwise the cell
+   * question. {@code null} when neither offers it or that question has no answer. Each config and
+   * answer is the visible question's stored JSON, or null.
+   */
+  public static Boolean newcomer(
+      JsonNode middleConfig, JsonNode middleAnswer, JsonNode cellConfig, JsonNode cellAnswer) {
+    if (offersNewcomer(middleConfig)) {
+      return chose(middleAnswer);
+    }
+    if (offersNewcomer(cellConfig)) {
+      return chose(cellAnswer);
+    }
+    return null;
+  }
+
+  private static boolean offersNewcomer(JsonNode config) {
+    if (config == null || !config.path("options").isArray()) {
+      return false;
+    }
+    for (JsonNode option : config.get("options")) {
+      JsonNode id = option.path("optionId");
+      if (id.isString() && NEWCOMER.equals(id.asString())) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static Boolean chose(JsonNode answer) {
+    JsonNode id = answer == null ? null : answer.get("optionId");
+    if (id == null || !id.isString()) {
+      return null;
+    }
+    return NEWCOMER.equals(id.asString());
   }
 
   private static void transport(
@@ -577,6 +682,12 @@ public final class FormPreset {
     out.set("options", options);
     out.put("allowOther", false);
     out.put("display", buttons ? "BUTTONS" : "LIST");
+    return out;
+  }
+
+  private static ObjectNode dropdown(ArrayNode options) {
+    ObjectNode out = NODES.objectNode();
+    out.set("options", options);
     return out;
   }
 
