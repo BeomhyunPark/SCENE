@@ -232,6 +232,7 @@ class ApplicationSummaryHttpIT {
             entry("opt_group", 1),
             entry("opt_shuttle", 1),
             entry("opt_car", 2),
+            entry("opt_ride", 0),
             entry("opt_public", 1),
             entry("opt_support", 1));
     assertThat(counts(transport.get("out")))
@@ -239,11 +240,13 @@ class ApplicationSummaryHttpIT {
             entry("opt_group", 2),
             entry("opt_shuttle", 1),
             entry("opt_car", 2),
+            entry("opt_ride", 0),
             entry("opt_public", 0),
             entry("opt_support", 1));
     assertThat(transport.get("in").get("noAnswer").asLong()).isZero();
     assertThat(transport.get("out").get("noAnswer").asLong()).isZero();
-    assertThat(transport.get("out").get("options").get(2).get("label").asString()).isEqualTo("자차");
+    assertThat(transport.get("out").get("options").get(2).get("label").asString())
+        .isEqualTo("자차 (직접 운전)");
 
     JsonNode shuttle = s.get("shuttle");
     assertThat(counts(shuttle.get("in"))).containsExactly(entry("opt_d1", 1), entry("opt_d2", 1));
@@ -321,9 +324,9 @@ class ApplicationSummaryHttpIT {
     assertThat(in.get(1).get("hidden").booleanValue()).isTrue();
     assertThat(in.get(1).get("count").asLong()).isEqualTo(1);
     JsonNode out = off.get("transport").get("out").get("options");
-    assertThat(out.get(4).get("optionId").asString()).isEqualTo("opt_support");
-    assertThat(out.get(4).get("hidden").booleanValue()).isTrue();
-    assertThat(out.get(4).get("count").asLong()).isEqualTo(1);
+    assertThat(out.get(5).get("optionId").asString()).isEqualTo("opt_support");
+    assertThat(out.get(5).get("hidden").booleanValue()).isTrue();
+    assertThat(out.get(5).get("count").asLong()).isEqualTo(1);
     assertThat(out.get(2).get("count").asLong()).isEqualTo(1);
 
     // A question the operator turns off reads as no answer.
@@ -409,6 +412,7 @@ class ApplicationSummaryHttpIT {
             entry("opt_group", 0),
             entry("opt_shuttle", 0),
             entry("opt_car", 0),
+            entry("opt_ride", 0),
             entry("opt_public", 0),
             entry("opt_support", 0));
     assertThat(s.get("carpool").toString())

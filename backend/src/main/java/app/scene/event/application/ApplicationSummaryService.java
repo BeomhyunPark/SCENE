@@ -60,6 +60,11 @@ public class ApplicationSummaryService {
   static final String PARTIAL = "PARTIAL";
   static final String WORSHIP_ONLY = "WORSHIP_ONLY";
   static final String CAR = "opt_car";
+  static final String RIDE = "opt_ride";
+
+  /** Ways there whose way back is not asked: the same car comes back (DEC-070 §3). */
+  private static final Set<String> SAME_WAY_BACK = Set.of(CAR, RIDE);
+
   static final String SHUTTLE = "opt_shuttle";
 
   private static final Map<String, String> ATTENDANCE =
@@ -320,8 +325,8 @@ public class ApplicationSummaryService {
   }
 
   /**
-   * Ways there and back, in the way-there option order. The way back of a driver there is the car,
-   * because the way-back question is not asked of them (DEC-070 §3).
+   * Ways there and back, in the way-there option order. The way back of a driver or a car rider
+   * there is the same, because the way-back question is not asked of them (DEC-070 §3).
    */
   private static Transport transport(Answers answers, List<Applicant> people) {
     Question in = answers.visible("TRANSPORT_IN");
@@ -341,8 +346,8 @@ public class ApplicationSummaryService {
         continue;
       }
       there.merge(way, 1L, Long::sum);
-      if (CAR.equals(way)) {
-        back.merge(CAR, 1L, Long::sum);
+      if (SAME_WAY_BACK.contains(way)) {
+        back.merge(way, 1L, Long::sum);
         continue;
       }
       String wayBack = optionId(person.answer(out));
@@ -357,7 +362,7 @@ public class ApplicationSummaryService {
     for (JsonNode option : in.options()) {
       String id = option.path("optionId").asString();
       listed.add(id);
-      JsonNode source = CAR.equals(id) || out == null ? null : out.option(id);
+      JsonNode source = SAME_WAY_BACK.contains(id) || out == null ? null : out.option(id);
       JsonNode shown = source == null ? option : source;
       backRows.add(new OptionCount(id, label(shown), hidden(shown), back.getOrDefault(id, 0L)));
     }

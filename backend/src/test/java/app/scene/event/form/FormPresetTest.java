@@ -35,6 +35,7 @@ class FormPresetTest {
             true,
             true,
             false,
+            false,
             false);
 
     List<FormPreset.Question> questions = generate(setup, FRIDAY, FRIDAY.plusDays(1));
@@ -56,7 +57,9 @@ class FormPresetTest {
     assertThat(in.get(0).get("hidden").booleanValue()).isFalse();
     assertThat(in.get(1).get("optionId").asString()).isEqualTo("opt_shuttle");
     assertThat(in.get(1).get("hidden").booleanValue()).isTrue();
-    assertThat(in.get(3).get("hidden").booleanValue()).isTrue();
+    assertThat(in.get(3).get("optionId").asString()).isEqualTo("opt_ride");
+    assertThat(in.get(3).get("hidden").booleanValue()).isFalse();
+    assertThat(in.get(4).get("hidden").booleanValue()).isTrue();
   }
 
   @Test
@@ -74,6 +77,7 @@ class FormPresetTest {
             false,
             false,
             true,
+            false,
             false,
             false);
 
@@ -104,7 +108,8 @@ class FormPresetTest {
             true,
             true,
             true,
-            true);
+            true,
+            false);
 
     List<FormPreset.Question> questions = generate(setup, FRIDAY, FRIDAY.plusDays(9));
 
@@ -151,6 +156,7 @@ class FormPresetTest {
             false,
             false,
             false,
+            false,
             false);
 
     List<FormPreset.Question> questions = generate(setup, FRIDAY, FRIDAY.plusDays(1));
@@ -178,7 +184,8 @@ class FormPresetTest {
                         + "\"transport\":{\"groupBus\":false,\"worshipShuttle\":false,"
                         + "\"car\":false,\"publicTransit\":false,\"support\":false}}"),
             1,
-            FormSetup.Mode.SLOTS);
+            FormSetup.Mode.SLOTS,
+            false);
 
     assertThat(setup.newcomer()).isFalse();
     assertThat(keys(generate(setup, FRIDAY, FRIDAY))).containsExactly("CONSENT");
@@ -197,6 +204,7 @@ class FormPresetTest {
             true,
             FormSetup.Mode.RANGE,
             days(2, true),
+            false,
             false,
             false,
             false,
@@ -224,6 +232,122 @@ class FormPresetTest {
     }
     assertThat(find(questions, "MEALS").showWhen().get("optionIds"))
         .hasToString("[\"opt_worship\"]");
+  }
+
+  @Test
+  void partialByTimeLetsPartialAttendeesRideOnlyAtTheFirstLastAndWorshipSlots() {
+    List<FormPreset.Question> questions =
+        generate(transportSetup(FormSetup.Mode.RANGE, true), FRIDAY, FRIDAY.plusDays(2));
+    String attendance = ids.get("ATTENDANCE").toString();
+    String arrival = ids.get("ARRIVAL_SLOT").toString();
+    String departure = ids.get("DEPARTURE_SLOT").toString();
+
+    JsonNode in = find(questions, "TRANSPORT_IN").config().get("options");
+    assertThat(in.get(0).get("showWhen"))
+        .hasToString(anyOf(attendance, "\"opt_full\"", arrival, "\"opt_d1_breakfast\""));
+    assertThat(in.get(1).get("showWhen"))
+        .hasToString(
+            anyOf(
+                attendance,
+                "\"opt_worship\"",
+                arrival,
+                "\"opt_d1_worship\",\"opt_d2_worship\",\"opt_d3_worship\""));
+    // Car, ride, public transit and support stay open to everyone.
+    for (int index = 2; index < in.size(); index++) {
+      assertThat(in.get(index).get("showWhen").isNull()).isTrue();
+    }
+    JsonNode out = find(questions, "TRANSPORT_OUT").config().get("options");
+    assertThat(out.get(0).get("showWhen"))
+        .hasToString(anyOf(attendance, "\"opt_full\"", departure, "\"opt_d3_worship\""));
+    assertThat(out.get(1).get("showWhen").toString()).contains(departure);
+    passesTheRules(questions);
+
+    // SLOTS: the first chosen slot is the event's first slot when MEALS holds it.
+    ids.clear();
+    questions = generate(transportSetup(FormSetup.Mode.SLOTS, true), FRIDAY, FRIDAY.plusDays(2));
+    String meals = ids.get("MEALS").toString();
+    in = find(questions, "TRANSPORT_IN").config().get("options");
+    assertThat(in.get(0).get("showWhen"))
+        .hasToString(
+            anyOf(ids.get("ATTENDANCE").toString(), "\"opt_full\"", meals, "\"opt_d1_breakfast\""));
+    assertThat(in.get(1).get("showWhen").get("optionIds"))
+        .hasToString("[\"opt_partial\",\"opt_worship\"]");
+    out = find(questions, "TRANSPORT_OUT").config().get("options");
+    assertThat(out.get(0).get("showWhen").toString()).contains("opt_d3_worship");
+    passesTheRules(questions);
+
+    // Off: the conditions made before the switch existed.
+    ids.clear();
+    questions = generate(transportSetup(FormSetup.Mode.RANGE, false), FRIDAY, FRIDAY.plusDays(2));
+    in = find(questions, "TRANSPORT_IN").config().get("options");
+    assertThat(in.get(0).get("showWhen").get("optionIds"))
+        .hasToString("[\"opt_full\",\"opt_partial\"]");
+    assertThat(in.get(1).get("showWhen").get("optionIds"))
+        .hasToString("[\"opt_partial\",\"opt_worship\"]");
+  }
+
+  @Test
+  void carRidersAreNotAskedTheWayBackOrToOfferSeats() {
+    List<FormPreset.Question> questions =
+        generate(transportSetup(FormSetup.Mode.RANGE, true), FRIDAY, FRIDAY.plusDays(2));
+    JsonNode in = find(questions, "TRANSPORT_IN").config().get("options");
+    assertThat(in.get(2).get("label").asString()).isEqualTo("자차 (직접 운전)");
+    assertThat(in.get(3).get("optionId").asString()).isEqualTo("opt_ride");
+    assertThat(find(questions, "CARPOOL_OFFER").showWhen().get("optionIds"))
+        .hasToString("[\"opt_car\"]");
+    assertThat(find(questions, "TRANSPORT_OUT").showWhen().get("optionIds").toString())
+        .doesNotContain("opt_car", "opt_ride");
+  }
+
+  private static String anyOf(String first, String firstIds, String second, String secondIds) {
+    return "{\"anyOf\":[{\"fieldId\":\""
+        + first
+        + "\",\"optionIds\":["
+        + firstIds
+        + "]},{\"fieldId\":\""
+        + second
+        + "\",\"optionIds\":["
+        + secondIds
+        + "]}]}";
+  }
+
+  private static FormSetup transportSetup(FormSetup.Mode mode, boolean partialByTime) {
+    return new FormSetup(
+        false,
+        false,
+        false,
+        false,
+        true,
+        true,
+        mode,
+        days(3, true),
+        true,
+        true,
+        true,
+        true,
+        true,
+        partialByTime);
+  }
+
+  /** The generated settings are in FieldRules' normalized shape and pass the condition rules. */
+  private void passesTheRules(List<FormPreset.Question> questions) {
+    List<FieldDefinition> fields = new ArrayList<>();
+    for (FormPreset.Question question : questions) {
+      fields.add(
+          FieldDefinition.custom(
+              ids.get(question.key()),
+              question.label(),
+              fields.size(),
+              question.type(),
+              question.required(),
+              question.description(),
+              question.config(),
+              question.showWhen(),
+              false));
+      assertThat(FieldRules.config(question.type(), question.config(), fields.getLast()))
+          .isEqualTo(question.config());
+    }
+    FieldRules.checkConditions(fields);
   }
 
   @Test

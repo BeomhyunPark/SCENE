@@ -262,12 +262,12 @@ public final class FormSetupPlan {
 
   private static List<UUID> targets(FieldDefinition field) {
     List<UUID> out = new ArrayList<>();
-    if (field.showWhen() != null) {
-      out.add(UUID.fromString(field.showWhen().get("fieldId").asString()));
+    for (JsonNode clause : FieldRules.clauses(field.showWhen())) {
+      out.add(UUID.fromString(clause.get("fieldId").asString()));
     }
     for (FieldDefinition.Option option : field.options()) {
-      if (option.showWhen() != null) {
-        out.add(UUID.fromString(option.showWhen().get("fieldId").asString()));
+      for (JsonNode clause : FieldRules.clauses(option.showWhen())) {
+        out.add(UUID.fromString(clause.get("fieldId").asString()));
       }
     }
     return out;
