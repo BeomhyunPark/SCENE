@@ -66,6 +66,12 @@ export type FormField = {
 /** One event day on the setup card: which meals and worship services it has. */
 export type SetupDay = { breakfast: boolean; lunch: boolean; dinner: boolean; worship: boolean };
 
+/**
+ * How a partial attendee tells which slots they attend (DEC-074). `RANGE` asks only the arrival and
+ * departure slot and counts every slot between; `SLOTS` asks each meal and service (DEC-070).
+ */
+export type AttendanceMode = "RANGE" | "SLOTS";
+
 /** The operator's answers on the form setup card (DEC-070). The server builds questions from it. */
 export type FormSetup = {
   gender: boolean;
@@ -73,7 +79,8 @@ export type FormSetup = {
   cell: boolean;
   /** 새가족 question (NEWCOMER). Added later: a setup saved before it reads as false. */
   newcomer: boolean;
-  attendance: { partial: boolean; worshipOnly: boolean };
+  /** `mode` is always in a response. A setup saved before DEC-074 reads as `SLOTS`. */
+  attendance: { partial: boolean; worshipOnly: boolean; mode: AttendanceMode };
   /** One entry per event day, in date order. */
   schedule: SetupDay[];
   transport: {

@@ -3,7 +3,8 @@ import type { ApplicationAnswer } from "../../api/applications";
 import { formatAnswer } from "../../components/answerDisplay";
 import { formatSubmittedAt } from "../../components/eventFormat";
 import { currentOperator } from "./session";
-import { eventFormId, formFields, requireEventRead } from "../formStore";
+import { attendanceMode, attendedSlotIds, formSlots } from "../attendedSlots";
+import { eventFormDetail, eventFormId, formFields, requireEventRead } from "../formStore";
 import { eventById, operatorRequests } from "../operatorStore";
 import { permissionsFor } from "../taskStore";
 import { submittedApplication, submittedApplications, tableApplications } from "../participantStore";
@@ -94,6 +95,9 @@ export const applicationHandlers = [
       }))
       .filter((column) => contact || !column.contact);
     const shown = new Set(columns.map((column) => column.fieldId));
+    // DEC-074: the same slots and per-person rule as the summary mock (attendedSlots).
+    const form = eventFormDetail(eventId);
+    const slots = form && form.formId === formId ? formSlots(form) : null;
     return HttpResponse.json(
       {
         formId: formId ?? null,
@@ -106,7 +110,9 @@ export const applicationHandlers = [
           answers: Object.fromEntries(Object.entries(row.answers).filter(([fieldId]) => shown.has(fieldId))),
           group: groupVisible ? workingGroupOf(eventId, row.participantId) : null,
           checkedInAt: checkedInAtOf(eventId, row.participantId),
+          slotIds: form && slots ? attendedSlotIds(form, slots, new Map(Object.entries(row.answers))) : null,
         })),
+        slots,
       },
       { headers: { "Cache-Control": "no-store" } },
     );
@@ -141,16 +147,29 @@ export const applicationHandlers = [
     const formId = rows[0]?.formId;
     const fields = formId ? formFields(eventId, formId) : [];
     const table: string[][] = [["제출 시각", ...fields.map((field) => (field.hidden ? `${field.label} (숨김)` : field.label))]];
+    // DEC-074: a RANGE setup adds 참석 일정 last, the same slots as the table and the summary.
+    const form = eventFormDetail(eventId);
+    const slots = form && form.formId === formId && attendanceMode(form) === "RANGE" ? formSlots(form) : null;
+    if (slots) table[0].push("참석 일정");
     for (const row of rows) {
       const detail = submittedApplication(eventId, row.applicationId);
       const answers = detail?.answers ?? [];
-      table.push([
+      const line = [
         formatSubmittedAt(row.submittedAt),
         ...fields.map((field) => {
           const answer = answers.find((item) => item.fieldId === field.fieldId);
           return answer ? formatAnswer(answer as ApplicationAnswer) : "";
         }),
-      ]);
+      ];
+      if (form && slots) {
+        const ids = attendedSlotIds(form, slots, new Map(answers.map((answer) => [answer.fieldId, answer.value as Record<string, unknown>])));
+        line.push(
+          ids === null
+            ? ""
+            : slots.filter((slot) => ids.includes(slot.slotId)).map((slot) => `${slot.dayLabel} ${slot.label}`).join(", "),
+        );
+      }
+      table.push(line);
     }
     const body = "\uFEFF" + table.map((line) => line.map(csvCell).join(",")).join("\r\n") + "\r\n";
     const name = `${event.name}_신청자.csv`;

@@ -19,7 +19,7 @@ export const RETREAT_SETUP: FormSetup = {
   middleGroup: false,
   cell: false,
   newcomer: false,
-  attendance: { partial: true, worshipOnly: true },
+  attendance: { partial: true, worshipOnly: true, mode: "SLOTS" },
   schedule: [slots(false, false, true, true), slots(true, true, true, true), slots(true, true, false, false)],
   transport: { groupBus: true, worshipShuttle: true, car: true, publicTransit: false, support: true },
 };
