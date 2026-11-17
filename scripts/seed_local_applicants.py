@@ -88,6 +88,13 @@ class Api:
                 status = res.status
         except urllib.error.HTTPError as e:
             raw, status = e.read(), e.code
+        except urllib.error.URLError as e:
+            sys.exit(
+                f"{self.base}에 연결하지 못했다 ({e.reason}).\n"
+                "backend에서 `docker compose up -d --wait` 후 "
+                "`./gradlew bootRun --args='--spring.profiles.active=local'`로 서버를 먼저 띄운다.")
+        if path.endswith("/auth/login") and status == 404:
+            sys.exit("로그인 경로가 없다(404). 서버를 local profile로 띄웠는지 확인한다.")
         if status not in expect:
             sys.exit(f"{method} {path} -> {status}\n{raw.decode(errors='replace')}")
         return json.loads(raw) if raw else None
