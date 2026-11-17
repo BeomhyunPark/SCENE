@@ -248,7 +248,7 @@ describe("참가 현황 table at retreat size", () => {
     const grid = await screen.findByRole("grid", { name: "신청자 명단" });
 
     fireEvent.change(screen.getByRole("combobox", { name: "묶어 보기" }), { target: { value: "group" } });
-    const unassigned = tableApplications(EVENT).filter((row) => !tableGroupOf(EVENT, row.participantId)).length;
+    const unassigned = tableApplications(EVENT).filter((row) => !workingGroupOf(EVENT, row.participantId)).length;
     const toggle = within(grid).getByRole("button", { name: new RegExp(`조 배정: 미배정\\s*${unassigned}명`) });
     expect(toggle).toHaveAttribute("aria-expanded", "true");
     const before = within(grid).getAllByRole("row").length;
