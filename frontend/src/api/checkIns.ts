@@ -61,6 +61,8 @@ export type CancelResult = {
 };
 
 export const CANCEL_REASON_MAX = 200;
+/** Every SCENE check-in QR starts with this (backend/docs/api.md "QR 값"). Others never reach the server. */
+export const CHECK_IN_QR_PREFIX = "SCENE-CI1.";
 export const ROSTER_QUERY_MAX = 50;
 
 export function newIdempotencyKey(): string {
@@ -96,6 +98,18 @@ export function checkInManually(
     method: "POST",
     headers: { "Idempotency-Key": idempotencyKey },
     body: { mode: "MANUAL", participantId },
+  }).then(parseCheckInResult);
+}
+
+export function isCheckInQr(value: string): boolean {
+  return value.startsWith(CHECK_IN_QR_PREFIX) && value.length > CHECK_IN_QR_PREFIX.length;
+}
+
+export function checkInByQr(eventId: string, code: string, idempotencyKey: string): Promise<CheckInResult> {
+  return apiRequest<unknown>(`/api/v1/operator/events/${eventId}/check-ins`, {
+    method: "POST",
+    headers: { "Idempotency-Key": idempotencyKey },
+    body: { mode: "QR", code },
   }).then(parseCheckInResult);
 }
 

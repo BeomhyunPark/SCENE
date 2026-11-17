@@ -8,6 +8,10 @@ import { permissionsFor } from "./taskStore";
  * Shaped like CheckInController (#282). Write order follows backend/docs/api.md "체크인":
  * 404·403 NOT_A_MEMBER → 403 FORBIDDEN → 400 Idempotency-Key·body → 409 event state → 404 target
  * → same key → 409 eligibility → 200.
+ *
+ * QR values keep the server's shape (`SCENE-CI1.` + base64url(participant id 16 bytes ‖ 16-byte tag)) and
+ * its order (prefix → base64url → 32 bytes → participant of the event → tag), but the tag is a plain
+ * hash of the event and participant, not an HMAC. Mock codes come from `checkInCodeFor`.
  */
 type Participant = {
   participantId: string;
@@ -42,6 +46,7 @@ export type CheckInFailure = {
 const MAX_KEY = 100;
 const MAX_REASON = 200;
 const MAX_Q = 50;
+const QR_PREFIX = "SCENE-CI1.";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 let participants = new Map<string, Participant[]>();
@@ -66,6 +71,15 @@ export function seedCheckIn(eventId: string, participantId: string, at = "2027-0
 export function withdrawParticipant(eventId: string, participantId: string): void {
   const found = participantsOf(eventId).find((item) => item.participantId === participantId);
   if (found) found.submitted = false;
+}
+
+/** The mock's QR value for a participant, shaped like the server's (#286). */
+export function checkInCodeFor(eventId: string, participantId: string): string {
+  const id = uuidBytes(participantId);
+  const bytes = new Uint8Array(32);
+  bytes.set(id, 0);
+  bytes.set(mockTag(eventId, participantId), 16);
+  return QR_PREFIX + base64url(bytes);
 }
 
 export function seededParticipants(): readonly { participantId: string; name: string }[] {
@@ -150,9 +164,14 @@ export function checkIn(eventId: string, actorId: string, key: string | null, bo
   }
   const state = stateGate(eventId);
   if (state) return state;
-  // The mock has no QR signer: every QR value is a miss, like an empty SCENE_CHECKIN_CODE_SECRET.
-  if (mode === "QR") return { status: 404, code: "RESOURCE_NOT_FOUND" };
-  const participantId = record!.participantId as string;
+  let participantId: string;
+  if (mode === "QR") {
+    const decoded = participantFromCode(eventId, record!.code as string);
+    if (!decoded) return { status: 404, code: "RESOURCE_NOT_FOUND" };
+    participantId = decoded;
+  } else {
+    participantId = record!.participantId as string;
+  }
   const target = participantsOf(eventId).find((item) => item.participantId === participantId);
   if (!target) return { status: 404, code: "RESOURCE_NOT_FOUND" };
   const replay = sameKey(eventId, key!, participantId, "CHECKED_IN");
@@ -164,7 +183,7 @@ export function checkIn(eventId: string, actorId: string, key: string | null, bo
   if (existing) {
     Object.assign(existing, {
       status: "CHECKED_IN",
-      method: "MANUAL",
+      method: mode,
       checkedInAt: now,
       checkedInBy: actorId,
       cancelledAt: null,
@@ -172,7 +191,7 @@ export function checkIn(eventId: string, actorId: string, key: string | null, bo
       cancelReason: null,
     });
   } else {
-    rowsOf(eventId).push(newRow(participantId, "MANUAL", actorId, now));
+    rowsOf(eventId).push(newRow(participantId, mode, actorId, now));
   }
   const row = currentRow(eventId, participantId)!;
   logsOf(eventId).push({ key: key!, checkInId: row.checkInId, participantId, action: "CHECKED_IN" });
@@ -323,4 +342,50 @@ function seedParticipants(): Participant[] {
     phoneLast4,
     submitted: true,
   }));
+}
+
+function participantFromCode(eventId: string, code: string): string | null {
+  if (!code.startsWith(QR_PREFIX)) return null;
+  const bytes = fromBase64url(code.slice(QR_PREFIX.length));
+  if (!bytes || bytes.length !== 32) return null;
+  const participantId = uuidString(bytes.slice(0, 16));
+  if (!participantsOf(eventId).some((item) => item.participantId === participantId)) return null;
+  const expected = mockTag(eventId, participantId);
+  return expected.every((byte, index) => byte === bytes[16 + index]) ? participantId : null;
+}
+
+/** FNV-1a over the server's signing input, stretched to 16 bytes. Not a signature; mock only. */
+function mockTag(eventId: string, participantId: string): Uint8Array {
+  const input = new TextEncoder().encode(`checkin|1|${eventId}|${participantId}|0`);
+  const out = new Uint8Array(16);
+  for (let block = 0; block < 4; block += 1) {
+    let hash = 0x811c9dc5 ^ block;
+    for (const byte of input) hash = Math.imul(hash ^ byte, 0x01000193) >>> 0;
+    out.set([hash >>> 24, (hash >>> 16) & 0xff, (hash >>> 8) & 0xff, hash & 0xff], block * 4);
+  }
+  return out;
+}
+
+function uuidBytes(uuid: string): Uint8Array {
+  const hex = uuid.replace(/-/g, "");
+  return Uint8Array.from({ length: 16 }, (_, index) => parseInt(hex.slice(index * 2, index * 2 + 2), 16));
+}
+
+function uuidString(bytes: Uint8Array): string {
+  const hex = [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+function base64url(bytes: Uint8Array): string {
+  return btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function fromBase64url(value: string): Uint8Array | null {
+  if (!/^[A-Za-z0-9_-]+$/.test(value)) return null;
+  try {
+    const binary = atob(value.replace(/-/g, "+").replace(/_/g, "/"));
+    return Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  } catch {
+    return null;
+  }
 }
