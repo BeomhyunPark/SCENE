@@ -16,6 +16,7 @@
 - [행사 종료·보관·재개 검토 결과](product/event-lifecycle-review.md)
 - [Export·보존·삭제·복구 검토 결과](product/data-retention-export-review.md)
 - [신청서 질문 유형·조건부 질문 검토](product/form-question-types-review.md)
+- [운영자 사이드바 메뉴 목적지 정리](product/operator-sidebar-menus-review.md)
 - [Research와 원문 Artifact](product/RESEARCH.md)
 - [Figma Workspace Governance](design/figma-workspace-governance.md)
 - [Architecture와 소스 우선순위·검토 필요사항](architecture/architecture-v0.1.md)

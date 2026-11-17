@@ -1,0 +1,63 @@
+# 운영자 사이드바 메뉴 목적지 정리
+
+- 정리일: 2026-11-17
+- 상태: 문서 작성. 코드 변경·실제 클릭 확인은 하위 이슈에서 한다.
+- 상위 이슈: [#263 사이드바의 모든 메뉴가 화면으로 이어진다](https://github.com/BeomhyunPark/SCENE/issues/263)
+- 근거: [OperatorShell.tsx](../../frontend/src/components/OperatorShell.tsx), [App.tsx](../../frontend/src/App.tsx), [인수인계 2026-10-20 "눌러도 아직 안 가는 곳"](../handover/2026-10-20.md), 백엔드 `@*Mapping` 목록, Figma `RreFdEVMiwgHrV7teaCEOm`
+
+## 이미 정한 것
+
+- 메뉴는 숨기지 않고 모두 남긴다.
+- 화면이 아직 없는 메뉴는 "준비 중" 안내 화면으로 보내고, 여유가 될 때 하나씩 실제 기능으로 바꾼다.
+
+## 확인 방법
+
+- Figma는 `91. REVIEW — PROCESS PROTOTYPE` 페이지(262:7)에서 메뉴 이름과 같은 텍스트를 찾고, 그 항목의 프로토타입 연결 목적지를 셌다. `31. SCREENS — OPERATOR` 페이지(41:16849)는 비어 있다. `10. COMPONENTS` 페이지에서 하위 메뉴가 있는 사이드바 변형을 찾았다.
+- "Figma 화면"의 "없음"은 메뉴 연결도, 메뉴 이름에 해당하는 운영자 프레임도 찾지 못했다는 뜻이다.
+- "서버 API"는 `backend/src/main`의 컨트롤러 경로로 확인했다.
+- 실제 화면 클릭은 하지 않았다.
+
+## 조직 사이드바 (`/events`, 행사 고르기 전)
+
+| 메뉴 | 지금 | 목적지 주소 (제안) | Figma 화면 | 프론트 화면 | 서버 API | 필요한 결정 | 이슈 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 행사 | 버튼. `/settings`가 아니면 항상 현재 위치로 표시 | `/events` | `P02-01 · 행사 목록` (264:25382) | 있음 `EventList` | 있음 `GET /spaces/{spaceId}/events` | 없음. 링크와 현재 위치 표시만 고친다 | [#264](https://github.com/BeomhyunPark/SCENE/issues/264) |
+| 알림 | 버튼 | `/notifications` → 준비 중 | 없음 (라벨 55곳, 연결 0) | 없음 | 없음 | 무엇을 알림으로 모을지 | [#264](https://github.com/BeomhyunPark/SCENE/issues/264), [#271](https://github.com/BeomhyunPark/SCENE/issues/271) |
+| 기록 | 버튼 | `/history` → 준비 중 | `P05-01 · 변경 내역 — List` (266:36005), `P05-MOB01` (266:36987) | 없음 | 없음 (변경 이력 저장 없음) | 행사 안 변경 내역인가, 조직 활동 기록인가 | [#264](https://github.com/BeomhyunPark/SCENE/issues/264), [#271](https://github.com/BeomhyunPark/SCENE/issues/271) |
+| 준비 업무 | 버튼 | 행사 고르기 → `/events/:eventId/tasks` | `P07-01 · 준비 업무 — List` (264:26192) | 있음 (행사 안) | 있음 (행사 단위) | 조직 사이드바에서 어느 행사로 보낼지 | [#267](https://github.com/BeomhyunPark/SCENE/issues/267) |
+| 안내 (펼침 화살표) | 버튼, 하위 메뉴 없음 | `/guides` → 준비 중 | 운영자 화면 없음. 하위 메뉴 시안 없음. 연결 1곳은 `P06-01 · 일정 — Monthly`(267:18607)로 잘못 이어진 것으로 보임. 참가자 쪽 `P18 · 행사 안내` (667:75437) 있음 | 없음 | 없음 | 안내 페이지 편집인가, 공지 발송인가. 하위 메뉴 구성과 화살표 유지 여부 | [#264](https://github.com/BeomhyunPark/SCENE/issues/264), [#270](https://github.com/BeomhyunPark/SCENE/issues/270) |
+| 일정 | 버튼 | `/schedule` → 준비 중 | `P06-01 · 일정 — Monthly` (267:18607), `P06-02 Today Agenda` (267:18675), `P06-S01 Multi-day` (267:19239), 상세·수정 P06-D01·D02, 참가자 P06-PMOB01~04 | 없음 | 없음 | 조직 달력인가, 행사 일정표인가. #230 1차 범위에 넣을지 | [#264](https://github.com/BeomhyunPark/SCENE/issues/264), [#269](https://github.com/BeomhyunPark/SCENE/issues/269) |
+| 현장 운영 | 버튼 | `/field` → 준비 중, 이후 행사 안 `/events/:eventId/field` | `TL01 · Queue + Selected Detail` (620:7), `OM01 · Field Home` (622:7), P13 섹션 (617:36424) | 없음 | 없음 ([#235](https://github.com/BeomhyunPark/SCENE/issues/235)에서 만든다) | 행사 안 메뉴로 옮길지, 주소 이름 | [#264](https://github.com/BeomhyunPark/SCENE/issues/264), [#268](https://github.com/BeomhyunPark/SCENE/issues/268) |
+| 참가자 | 버튼 | 행사 고르기 → `/events/:eventId/participants` | `P03-01 · 참가 현황 — All` (265:10253) | 있음 (행사 안) | 있음 (행사 단위) | 준비 업무와 같음 | [#267](https://github.com/BeomhyunPark/SCENE/issues/267) |
+| 운영 멤버 | 버튼 | 행사 고르기 → `/events/:eventId/operators` | 없음 (라벨 43곳, 연결 0) | 있음 (행사 안) | 있음 (행사 단위) | 준비 업무와 같음 | [#267](https://github.com/BeomhyunPark/SCENE/issues/267) |
+| 연동 | 버튼 | `/integrations` → 준비 중 | 없음 (라벨 42곳, 연결 0) | 없음 | 없음 | 무엇과 연동할지 | [#264](https://github.com/BeomhyunPark/SCENE/issues/264), [#271](https://github.com/BeomhyunPark/SCENE/issues/271) |
+| 설정 | 링크 `/settings` | `/settings` | `P14 · 조직 설정` (638:35588) | 있음 `SpaceSettings` | 있음 | 없음 | — |
+| 사이드바 접기 | 버튼, 동작 없음 | (주소 없음, 화면 안 동작) | `P08 — SIDEBAR MINIMIZED` 섹션 (262:16, RESEARCH / DUPLICATE), `Sidebar Toggle` 컴포넌트 (179:12724) | 버튼만 있음 | 필요 없음 | 접은 모양, 상태 기억 여부 | [#265](https://github.com/BeomhyunPark/SCENE/issues/265) |
+
+## 행사 안 사이드바 (`/events/:eventId/...`)
+
+| 메뉴 | 지금 | 목적지 주소 (제안) | Figma 화면 | 프론트 화면 | 서버 API | 필요한 결정 | 이슈 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 행사 이름 | 링크 `/events/:eventId` | 그대로 | — | 있음 | 있음 | 없음 | — |
+| 준비 업무 · 참가자 · 운영 멤버 | 링크 (한 번 연 영역만 `sessionStorage`로 표시) | 그대로 | P07-01, P03-01 | 있음 | 있음 | 없음 | — |
+| 다른 운영 시작 | 버튼 | `/events/:eventId/areas` (가칭) → 준비 중 | `A02 · Capability Discovery v0.2` (310:25482), `S02D · 다른 운영 시작 — 준비 업무 경로` (375:29567) | 없음 | 없음 (영역 선택을 저장하지 않음) | 영역 고르기 화면을 지금 만들지 | [#266](https://github.com/BeomhyunPark/SCENE/issues/266) |
+| 설정 | 버튼 | `/events/:eventId/settings` | `L01 · 행사 설정` (651:40076), L13·L14 | 있음 `EventSettings` | 있음 `PATCH /events/{eventId}` | 행사 설정인가, 조직 설정인가 | [#266](https://github.com/BeomhyunPark/SCENE/issues/266) |
+
+## 사용자가 정할 것 요약
+
+자세한 선택지와 영향은 각 이슈에 있다.
+
+| 이슈 | 질문 | 추천 |
+| --- | --- | --- |
+| [#264](https://github.com/BeomhyunPark/SCENE/issues/264) | "준비 중" 화면을 메뉴별 실제 주소에 둘까, 공통 주소 하나에 둘까 | 메뉴별 실제 주소 |
+| [#265](https://github.com/BeomhyunPark/SCENE/issues/265) | 접은 모양과 상태 기억 | 아이콘 막대, 브라우저에 기억 |
+| [#266](https://github.com/BeomhyunPark/SCENE/issues/266) | 행사 안 "설정"의 목적지, "다른 운영 시작"을 지금 만들지 | 행사 설정. 다른 운영 시작은 준비 중 먼저 |
+| [#267](https://github.com/BeomhyunPark/SCENE/issues/267) | 조직 사이드바의 행사 단위 메뉴를 어떻게 열지 | 행사 하나면 바로, 여럿이면 고르기 |
+| [#268](https://github.com/BeomhyunPark/SCENE/issues/268) | 현장 운영의 위치와 주소 | 행사 안 메뉴, `/field` |
+| [#269](https://github.com/BeomhyunPark/SCENE/issues/269) | 일정의 의미와 수련회 1차 포함 여부 | 행사 일정표부터, 1차 범위 밖 |
+| [#270](https://github.com/BeomhyunPark/SCENE/issues/270) | 안내의 의미, 화살표 유지 | 하위 메뉴가 정해질 때까지 화살표를 뗀다 |
+| [#271](https://github.com/BeomhyunPark/SCENE/issues/271) | 알림·기록·연동에 무엇을 둘지 | 알림은 확인할 요청만, 기록은 행사 변경 내역, 연동은 1차 밖 |
+
+## 수련회(#230)와의 관계
+
+[#230](https://github.com/BeomhyunPark/SCENE/issues/230) 1차 범위(신청·명단·조 편성·체크인)에 직접 걸리는 메뉴는 현장 운영뿐이다([#268](https://github.com/BeomhyunPark/SCENE/issues/268) → [#235](https://github.com/BeomhyunPark/SCENE/issues/235)). 나머지 메뉴는 "준비 중"으로 보내도 수련회 운영을 막지 않는다.
