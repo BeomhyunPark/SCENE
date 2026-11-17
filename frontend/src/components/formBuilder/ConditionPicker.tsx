@@ -1,4 +1,5 @@
 import type { FormField, ShowWhen } from "../../api/forms";
+import { conditionSummary } from "./questionDraft";
 
 /**
  * "Show this when …". Targets are earlier choice or yes/no questions (DEC-068). The server
@@ -19,6 +20,16 @@ export function ConditionPicker({
   disabled?: boolean;
   onChange: (next: ShowWhen | null) => void;
 }) {
+  if (value && "anyOf" in value) {
+    // The server makes `anyOf` on generated options only (#324). The editor cannot build one, so it
+    // shows the condition in words and keeps it as it is.
+    return (
+      <fieldset className="question-editor__condition" disabled>
+        <legend>{label}</legend>
+        <p className="question-editor__hint">{conditionSummary(value, targets)} 보여요. 이 조건은 여기서 바꿀 수 없어요.</p>
+      </fieldset>
+    );
+  }
   const target = value ? targets.find((field) => field.fieldId === value.fieldId) : undefined;
 
   function pickTarget(fieldId: string) {

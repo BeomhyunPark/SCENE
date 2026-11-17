@@ -1,5 +1,5 @@
 import type { AnswerItem } from "../../api/applications";
-import type { FieldOption, FormField, ShowWhen } from "../../api/forms";
+import { conditionHolds, type FieldOption, type FormField, type ShowWhen } from "../../api/forms";
 
 /**
  * What the participant has typed or picked for one question. Inputs stay strings until
@@ -47,8 +47,28 @@ export function visibleOptions(field: FormField, fields: FormField[], raw: RawAn
   return (field.config.options ?? []).filter((option) => !option.hidden && holds(option.showWhen, kept));
 }
 
-/** Drops answers to questions and options that are no longer shown. */
+/** Options left out right now because their condition does not hold (not the operator's hidden ones). */
+export function optionsHiddenByCondition(field: FormField, fields: FormField[], raw: RawAnswers): FieldOption[] {
+  const kept = keptBefore(field, fields, raw);
+  return (field.config.options ?? []).filter((option) => !option.hidden && !holds(option.showWhen, kept));
+}
+
+/**
+ * Drops answers to questions and options that are no longer shown. Repeats until nothing changes,
+ * because a dropped pick can hide a later question or option in turn (e.g. the arrival slot hides
+ * the bus, and the bus answer opened the way-back question).
+ */
 export function prune(fields: FormField[], raw: RawAnswers): RawAnswers {
+  let current = raw;
+  for (let round = 0; round <= fields.length; round++) {
+    const next = pruneOnce(fields, current);
+    if (JSON.stringify(next) === JSON.stringify(current)) return next;
+    current = next;
+  }
+  return current;
+}
+
+function pruneOnce(fields: FormField[], raw: RawAnswers): RawAnswers {
   const shown = visibleFields(fields, raw);
   const next: RawAnswers = {};
   for (const field of shown) {
@@ -187,13 +207,7 @@ function keptBefore(field: FormField, fields: FormField[], raw: RawAnswers): Map
 }
 
 function holds(condition: ShowWhen | null, kept: Map<string, Stored>): boolean {
-  if (!condition) return true;
-  const answer = kept.get(condition.fieldId);
-  if (!answer) return false;
-  if ("equals" in condition) return answer.value === condition.equals;
-  if (typeof answer.optionId === "string") return condition.optionIds.includes(answer.optionId);
-  if (Array.isArray(answer.optionIds)) return answer.optionIds.some((id) => condition.optionIds.includes(String(id)));
-  return false;
+  return conditionHolds(condition, (fieldId) => kept.get(fieldId));
 }
 
 function outOfRange(value: string, config: FormField["config"]): boolean {
