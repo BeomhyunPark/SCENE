@@ -20,7 +20,9 @@ export type ApiMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 export type ApiRequestOptions = {
   method?: ApiMethod;
   body?: unknown;
-  query?: Record<string, string | number | undefined>;
+  query?: Record<string, string | number | boolean | undefined>;
+  /** Extra request headers, such as `Idempotency-Key`. Accept, Content-Type and CSRF stay set here. */
+  headers?: Record<string, string>;
   signal?: AbortSignal;
 };
 
@@ -35,7 +37,7 @@ export async function apiRequest<T>(path: string, options?: ApiRequestOptions): 
     }
   }
 
-  const headers = new Headers();
+  const headers = new Headers(options?.headers);
   headers.set("Accept", "application/json");
   let body: string | undefined;
   if (options?.body !== undefined) {
