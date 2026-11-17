@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="app.scene.event.application.mapper.ApplicationOperationMapper">
+
+  <sql id="columns">
+    o.application_id, o.memo, o.version, o.updated_at,
+    u.display_name AS updated_by_display_name
+  </sql>
+
+  <select id="find" resultType="app.scene.event.application.ApplicationOperationRow">
+    SELECT <include refid="columns"/>
+    FROM application_operations o
+    JOIN users u ON u.id = o.updated_by
+    WHERE o.space_id = #{spaceId} AND o.event_id = #{eventId}
+      AND o.application_id = #{applicationId}
+  </select>
+
+  <select id="listByEvent" resultType="app.scene.event.application.ApplicationOperationRow">
+    SELECT <include refid="columns"/>
+    FROM application_operations o
+    JOIN users u ON u.id = o.updated_by
+    WHERE o.space_id = #{spaceId} AND o.event_id = #{eventId}
+  </select>
+
+  <insert id="insertFirst">
+    INSERT INTO application_operations (
+      application_id, space_id, event_id, memo, version, updated_by, updated_at)
+    VALUES (#{applicationId}, #{spaceId}, #{eventId}, #{memo}, 1, #{updatedBy}, #{updatedAt})
+    ON CONFLICT (application_id) DO NOTHING
+  </insert>
+
+  <update id="updateVersion">
+    UPDATE application_operations
+    SET memo = #{memo}, version = version + 1, updated_by = #{updatedBy}, updated_at = #{updatedAt}
+    WHERE space_id = #{spaceId} AND event_id = #{eventId}
+      AND application_id = #{applicationId} AND version = #{expectedVersion}
+  </update>
+
+</mapper>

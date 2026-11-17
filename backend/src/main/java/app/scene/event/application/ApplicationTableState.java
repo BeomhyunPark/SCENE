@@ -8,4 +8,9 @@ import java.util.UUID;
  * {@code checkedInAt} is null when not arrived or the check-in was cancelled.
  */
 public record ApplicationTableState(
-    UUID applicationId, UUID groupId, String groupName, boolean leader, Instant checkedInAt) {}
+    UUID applicationId,
+    UUID participantId,
+    UUID groupId,
+    String groupName,
+    boolean leader,
+    Instant checkedInAt) {}

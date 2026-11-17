@@ -14,13 +14,16 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import tools.jackson.databind.JsonNode;
 
 /**
  * Operator application reads, the summary, and the applicant CSV. These routes do not read {@code
- * Idempotency-Key}. Public and participant routes stay closed. There is no create, update, or
- * delete.
+ * Idempotency-Key}. Public and participant routes stay closed. There is no create or delete, and
+ * the answers are never updated; the only write is the operator values (#335).
  */
 @RestController
 public class OperatorApplicationController {
@@ -30,14 +33,17 @@ public class OperatorApplicationController {
   private final OperatorApplicationService applications;
   private final ApplicationExportService exports;
   private final ApplicationSummaryService summaries;
+  private final ApplicationOperationService operations;
 
   public OperatorApplicationController(
       OperatorApplicationService applications,
       ApplicationExportService exports,
-      ApplicationSummaryService summaries) {
+      ApplicationSummaryService summaries,
+      ApplicationOperationService operations) {
     this.applications = applications;
     this.exports = exports;
     this.summaries = summaries;
+    this.operations = operations;
   }
 
   @GetMapping("/api/v1/operator/events/{eventId}/applications")
@@ -59,6 +65,16 @@ public class OperatorApplicationController {
   @GetMapping("/api/v1/operator/events/{eventId}/applications/{applicationId}")
   ApplicationDetail read(@PathVariable UUID eventId, @PathVariable UUID applicationId) {
     return applications.read(actor(), eventId, applicationId);
+  }
+
+  /**
+   * Operator values of one application (#335, DEC-075): the operator memo in the first round. The
+   * participant's answers do not change. CSRF applies; {@code Idempotency-Key} is not read.
+   */
+  @PutMapping("/api/v1/operator/events/{eventId}/applications/{applicationId}/operation")
+  ApplicationOperation writeOperation(
+      @PathVariable UUID eventId, @PathVariable UUID applicationId, @RequestBody JsonNode body) {
+    return operations.write(actor(), eventId, applicationId, body);
   }
 
   /**
