@@ -16,5 +16,13 @@ public final class AuditActions {
   /** Details carry the new version only. The retrospective text is never audited. */
   public static final String EVENT_RETROSPECTIVE_UPDATED = "EVENT_RETROSPECTIVE_UPDATED";
 
+  /**
+   * Check-in and cancel (#282). Details are {@code checkInId}, {@code participantId}, {@code
+   * method} (null on cancel), and {@code reason} (null on check-in). No name or phone.
+   */
+  public static final String CHECKIN_CREATED = "CHECKIN_CREATED";
+
+  public static final String CHECKIN_CANCELLED = "CHECKIN_CANCELLED";
+
   private AuditActions() {}
 }
