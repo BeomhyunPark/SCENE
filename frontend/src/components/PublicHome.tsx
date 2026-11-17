@@ -3,6 +3,7 @@ import { Link } from "react-router";
 import "./Button.css";
 import "./PublicHome.css";
 import { MarketingPreview } from "./MarketingPreview";
+import { ScrollTopButton } from "./ScrollTopButton";
 import { startGoogleSignIn } from "../api/googleSignIn";
 
 const SERVICE = [
@@ -167,6 +168,7 @@ export function PublicHome() {
           ))}
         </dl>
       </section>
+      <ScrollTopButton />
     </main>
   );
 }
