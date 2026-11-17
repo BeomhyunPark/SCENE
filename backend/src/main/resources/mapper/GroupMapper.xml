@@ -130,7 +130,8 @@
            coalesce(ga.leader, false) AS leader,
            mea.value::text AS meals_answer,
            arr.value::text AS arrival_answer,
-           dep.value::text AS departure_answer
+           dep.value::text AS departure_answer,
+           app.id AS application_id
     FROM participants p
     JOIN LATERAL (<include refid="submittedApplication"/>) app ON true
     LEFT JOIN LATERAL (

@@ -131,6 +131,7 @@ class GroupHttpIT {
     assertThat(first.propertyNames())
         .containsExactly(
             "participantId",
+            "applicationId",
             "name",
             "cohort",
             "gender",
@@ -144,6 +145,8 @@ class GroupHttpIT {
             "publishedLeader",
             "slotIds");
     assertThat(first.get("slotIds").isNull()).isTrue();
+    assertThat(first.get("applicationId").asString())
+        .isEqualTo(submittedApplication(first.get("participantId").asString()));
     assertThat(first.get("cohort").asString()).isEqualTo("94");
     assertThat(first.get("gender").get("optionId").asString()).isEqualTo("opt_female");
     assertThat(first.get("gender").get("label").asString()).isEqualTo("여성");
@@ -778,6 +781,13 @@ class GroupHttpIT {
     } finally {
       pool.shutdownNow();
     }
+  }
+
+  private String submittedApplication(String participantId) {
+    return jdbc.queryForObject(
+        "SELECT id::text FROM applications WHERE participant_id = ?::uuid AND status = 'SUBMITTED'",
+        String.class,
+        participantId);
   }
 
   private JsonNode board(World w) throws Exception {

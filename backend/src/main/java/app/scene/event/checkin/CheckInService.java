@@ -124,6 +124,7 @@ public class CheckInService {
       items.add(
           new RosterItem(
               row.participantId(),
+              row.applicationId(),
               row.name(),
               row.cohort(),
               phoneVisible ? row.phoneLast4() : null,

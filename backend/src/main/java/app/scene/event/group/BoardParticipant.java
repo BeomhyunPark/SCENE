@@ -8,10 +8,12 @@ import java.util.UUID;
  * care information: it stays on this operator board and never reaches participant reads. {@code
  * slotIds} are the board's {@code slots} the participant attends, in slot order: every slot for a
  * full attendee, the chosen ones otherwise, and null when unknown (no MEALS answer) or when the
- * board has no slots.
+ * board has no slots. {@code applicationId} is the latest SUBMITTED application, so the screen can
+ * open its detail.
  */
 public record BoardParticipant(
     UUID participantId,
+    UUID applicationId,
     String name,
     String cohort,
     Gender gender,

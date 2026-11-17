@@ -316,7 +316,16 @@ class CheckInHttpIT {
 
     JsonNode shown = json.readTree(ok(get(rosterPath(w.eventId)).cookie(login(staffId))));
     assertThat(shown.get("items").get(0).propertyNames())
-        .containsExactly("participantId", "name", "cohort", "phoneLast4", "checkIn");
+        .containsExactly(
+            "participantId", "applicationId", "name", "cohort", "phoneLast4", "checkIn");
+    for (JsonNode item : shown.get("items")) {
+      assertThat(item.get("applicationId").asString())
+          .isEqualTo(
+              jdbc.queryForObject(
+                  "SELECT id::text FROM applications WHERE participant_id = ?::uuid",
+                  String.class,
+                  item.get("participantId").asString()));
+    }
     JsonNode byDigits =
         json.readTree(ok(get(rosterPath(w.eventId)).param("q", " 5432 ").cookie(login(staffId))));
     assertThat(byDigits.get("items").size()).isEqualTo(1);

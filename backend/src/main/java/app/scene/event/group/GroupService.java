@@ -590,6 +590,7 @@ public class GroupService {
     }
     return new BoardParticipant(
         row.participantId(),
+        row.applicationId(),
         row.name(),
         row.cohort(),
         gender,

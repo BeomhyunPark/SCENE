@@ -1415,6 +1415,7 @@ CSRF가 필요하다. 그 쿠키의 세션 행만 지운다. `204`이고 본문�
 ```json
 {
   "participantId": "…",
+  "applicationId": "…",
   "name": "김",
   "cohort": "94",
   "phoneLast4": "1234",
@@ -1422,6 +1423,7 @@ CSRF가 필요하다. 그 쿠키의 세션 행만 지운다. `204`이고 본문�
 }
 ```
 
+- `applicationId`는 그 참가자의 가장 최근 `SUBMITTED` 신청이다. 화면은 이 id로 [신청 원본](#get-apiv1operatoreventseventidapplicationsapplicationid)을 연다.
 - `cohort`는 `SUBMITTED` 신청의 SYSTEM `COHORT` 답 `value.text`다. 없거나 꺼져 있으면 `null`이다.
 - `phoneLast4`는 `CHECKIN_WRITE`가 있을 때만 값이 있고, 없으면 `null`이다. `CONTACT_VIEW`는 남기지 않는다. 전체 전화는 이 응답에 없다.
 - `checkIn`은 한 번도 체크인하지 않았으면 `null`이다.
@@ -1525,6 +1527,7 @@ CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고
   "participants": [
     {
       "participantId": "…",
+      "applicationId": "…",
       "name": "김",
       "cohort": "94",
       "gender": { "optionId": "opt_female", "label": "여" },
@@ -1561,7 +1564,7 @@ CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고
 }
 ```
 
-- `participants`는 활성 참가자 전원이고 순서는 이름, 그다음 참가자 id다. 페이지는 없다. 전화·접근 키는 없다.
+- `participants`는 활성 참가자 전원이고 순서는 이름, 그다음 참가자 id다. 페이지는 없다. 전화·접근 키는 없다. `applicationId`는 답을 읽은 가장 최근 `SUBMITTED` 신청이고, 화면은 이 id로 신청 원본을 연다.
 - `cohort`는 `SUBMITTED` 신청의 `COHORT` 답 `value.text`(앞뒤 공백 자름)다. `middleGroup`·`cell`은 `MIDDLE_GROUP`·`CELL` 답이 자유 입력이면 `value.text`(앞뒤 공백 자름), 목록 보기면 고른 보기의 지금 문구다(새가족이면 `"새가족 (등반X)"` 또는 운영자가 고친 문구). `gender`는 `GENDER` 답의 보기 id와 지금 보기 문구다. 답이 없거나 질문이 없거나 꺼져 있으면 `null`이다.
 - `newcomer`는 새가족 보기(`opt_newcomer`)를 가진 보이는 질문(중그룹이 가지면 중그룹, 아니면 셀)의 답으로 정한다: 그 보기를 골랐으면 `true`, 다른 보기면 `false`, 답이 없거나 그런 질문이 없으면 `null`이고 화면은 "응답 없음"으로 묶는다. 예전 `NEWCOMER` 예/아니오 답은 읽지 않는다. 돌봄 관련 정보라 편성판에만 있다. 참가자의 내 조(`GET /participant/group`, 조장의 조원 명단 포함)와 운영자 공개본 조회에는 없다.
 - `attendance`는 `ATTENDANCE` 답의 `opt_full`·`opt_partial`·`opt_worship`을 `FULL`·`PARTIAL`·`WORSHIP_ONLY`로 바꾼 값이다. 질문이 없거나 꺼져 있으면 `FULL`이다(DEC-070 §3). 질문이 켜진 뒤 들어온 신청이 아니라서 답이 없을 때도 `FULL`이다. `null`이 아니다.
