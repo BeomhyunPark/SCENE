@@ -93,6 +93,13 @@ function EventHomeBody({
           </section>
         ) : (
           <>
+            {event.lifecycleStatus === "ACTIVE" ? (
+              // The sidebar hides under 1024px, so on a phone this is the way into 현장 운영 (#286).
+              <Link className="event-home__field" to={`/events/${eventId}/field`}>
+                <span className="event-home__field-title">현장 운영</span>
+                <span className="event-home__field-detail">QR 스캔이나 이름으로 참가자 도착을 체크인해요.</span>
+              </Link>
+            ) : null}
             <section className="event-home__welcome">
               <span className="event-home__mark" aria-hidden="true">
                 <img src={calendarCheck} alt="" />
