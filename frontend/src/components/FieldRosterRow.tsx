@@ -1,5 +1,6 @@
 import { useId } from "react";
 import type { RosterItem } from "../api/checkIns";
+import { ApplicantLink } from "./ApplicantDialog";
 import { Button } from "./Button";
 import { formatSubmittedAt } from "./eventFormat";
 import { participantLabel } from "./participantLabel";
@@ -36,9 +37,9 @@ export function FieldRosterRow({
   return (
     <li className="event-field__row" aria-labelledby={labelId}>
       <div className="event-field__row-main">
-        <p className="event-field__name" id={labelId}>
+        <ApplicantLink className="event-field__name" id={labelId} applicationId={item.applicationId}>
           {label}
-        </p>
+        </ApplicantLink>
         {meta ? <p className="event-field__meta">{meta}</p> : null}
         {done && item.checkIn ? (
           <p className="event-field__meta">

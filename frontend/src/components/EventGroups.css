@@ -809,3 +809,13 @@
 .event-groups__publish-box-note {
   margin: 6px 0 0;
 }
+
+a.event-groups__name {
+  text-decoration: none;
+  cursor: pointer;
+}
+
+a.event-groups__name:hover {
+  color: var(--color-text-brand);
+  text-decoration: underline;
+}

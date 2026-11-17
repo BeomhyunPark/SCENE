@@ -15,6 +15,8 @@ import { permissionsFor } from "./taskStore";
  */
 type Participant = {
   participantId: string;
+  /** Null for the seeded people, who have no stored application in the mock (the server always has one). */
+  applicationId: string | null;
   name: string;
   cohort: string | null;
   phoneLast4: string;
@@ -137,6 +139,7 @@ export function readRoster(eventId: string, actorId: string, url: URL) {
     const row = currentRow(eventId, item.participantId);
     return {
       participantId: item.participantId,
+      applicationId: item.applicationId,
       name: item.name,
       cohort: item.cohort,
       phoneLast4: canWrite ? item.phoneLast4 : null,
@@ -349,6 +352,7 @@ function seedParticipants(): Participant[] {
   return rows.map(([name, cohort, phoneLast4], index) => ({
     // Same ids as the 조 편성 seed (groupStore), so the 조별 view joins them (#288).
     participantId: `00000000-0000-4000-8000-0000000004${String(index).padStart(2, "0")}`,
+    applicationId: null,
     name,
     cohort,
     phoneLast4,

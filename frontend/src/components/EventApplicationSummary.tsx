@@ -17,6 +17,7 @@ import { reloadQuery } from "../api/queryClient";
 import { queryKeys } from "../api/queryKeys";
 import { Button } from "./Button";
 import { EventScreen } from "./EventScreen";
+import { ApplicantDialog, ApplicantLink } from "./ApplicantDialog";
 import { OperatorShell } from "./OperatorShell";
 import { applicantName, eventContext } from "./eventFormat";
 import { participantLabel } from "./participantLabel";
@@ -97,6 +98,7 @@ function SummaryBody({ event, spaceName }: { event: EventDetail; spaceName?: str
         ) : null}
         {summary.isSuccess ? <SummaryContent eventId={eventId} data={summary.data} /> : null}
       </div>
+      <ApplicantDialog eventId={eventId} />
     </OperatorShell>
   );
 }
@@ -140,7 +142,7 @@ function SummaryContent({ eventId, data }: { eventId: string; data: ApplicationS
           <Meals meals={data.meals} />
           <Lodging lodging={data.lodging} />
           <Transport transport={data.transport} shuttle={data.shuttle} />
-          <Rides eventId={eventId} carpool={data.carpool} mobility={data.mobility} />
+          <Rides carpool={data.carpool} mobility={data.mobility} />
         </>
       ) : null}
     </>
@@ -461,20 +463,18 @@ function Transport({
   );
 }
 
-function PersonLink({ eventId, person }: { eventId: string; person: { applicationId: string; name: string | null; cohort: string | null } }) {
+function PersonLink({ person }: { person: { applicationId: string; name: string | null; cohort: string | null } }) {
   return (
-    <Link className="app-summary__person" to={`/events/${eventId}/participants/${person.applicationId}`}>
+    <ApplicantLink className="app-summary__person" applicationId={person.applicationId}>
       {participantLabel({ name: applicantName(person.name), cohort: person.cohort })}
-    </Link>
+    </ApplicantLink>
   );
 }
 
 function Rides({
-  eventId,
   carpool,
   mobility,
 }: {
-  eventId: string;
   carpool: ApplicationSummary["carpool"];
   mobility: ApplicationSummary["mobility"];
 }) {
@@ -494,7 +494,7 @@ function Rides({
               ) : (
                 <ul className="app-summary__people">
                   {carpool.offers.map((offer) => (
-                    <OfferRow key={offer.applicationId} eventId={eventId} offer={offer} />
+                    <OfferRow key={offer.applicationId} offer={offer} />
                   ))}
                 </ul>
               )}
@@ -507,8 +507,8 @@ function Rides({
           <h4>이동 지원 요청</h4>
           {mobility ? (
             <>
-              <RequestList eventId={eventId} title="가는 길" requests={mobility.in} />
-              <RequestList eventId={eventId} title="오는 길" requests={mobility.out} />
+              <RequestList title="가는 길" requests={mobility.in} />
+              <RequestList title="오는 길" requests={mobility.out} />
             </>
           ) : (
             <NotAsked />
@@ -519,10 +519,10 @@ function Rides({
   );
 }
 
-function OfferRow({ eventId, offer }: { eventId: string; offer: CarpoolOffer }) {
+function OfferRow({ offer }: { offer: CarpoolOffer }) {
   return (
     <li>
-      <PersonLink eventId={eventId} person={offer} />
+      <PersonLink person={offer} />
       <span className="app-summary__meta">
         {offer.seats !== null ? `${offer.seats}석` : "좌석 답 없음"}
         {offer.area ? ` · ${offer.area}` : ""}
@@ -532,7 +532,7 @@ function OfferRow({ eventId, offer }: { eventId: string; offer: CarpoolOffer }) 
   );
 }
 
-function RequestList({ eventId, title, requests }: { eventId: string; title: string; requests: MobilityRequest[] | null }) {
+function RequestList({ title, requests }: { title: string; requests: MobilityRequest[] | null }) {
   return (
     <div className="app-summary__requests">
       <h5>
@@ -547,7 +547,7 @@ function RequestList({ eventId, title, requests }: { eventId: string; title: str
         <ul className="app-summary__people">
           {requests.map((request) => (
             <li key={request.applicationId}>
-              <PersonLink eventId={eventId} person={request} />
+              <PersonLink person={request} />
               <span className="app-summary__meta">{request.area}</span>
             </li>
           ))}

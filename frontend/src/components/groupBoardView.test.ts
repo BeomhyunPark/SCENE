@@ -16,6 +16,7 @@ import {
 function person(patch: Partial<BoardParticipant>): BoardParticipant {
   return {
     participantId: crypto.randomUUID(),
+    applicationId: null,
     name: "김하늘",
     cohort: null,
     gender: null,

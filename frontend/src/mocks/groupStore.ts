@@ -18,6 +18,8 @@ type Attendance = "FULL" | "PARTIAL" | "WORSHIP_ONLY";
 
 type Person = {
   participantId: string;
+  /** Null for the seeded people, who have no stored application in the mock (the server always has one). */
+  applicationId: string | null;
   name: string;
   cohort: string | null;
   gender: { optionId: string; label: string } | null;
@@ -168,6 +170,7 @@ export function readBoard(eventId: string, actorId: string) {
       const place = published.get(person.participantId);
       return {
         participantId: person.participantId,
+        applicationId: person.applicationId,
         name: person.name,
         cohort: person.cohort,
         gender: person.gender,
@@ -679,6 +682,7 @@ function peopleOf(eventId: string): Person[] {
     if (board.people.some((person) => person.participantId === item.participantId)) continue;
     board.people.push({
       participantId: item.participantId,
+      applicationId: item.applicationId,
       name: item.name,
       cohort: item.cohort?.trim() || null,
       gender: null,
@@ -730,6 +734,7 @@ function seedPeople(): Person[] {
   const newcomers: Record<number, boolean | null> = { 2: true, 9: true, 5: null };
   return rows.map(([name, cohort, gender, attendance, middleGroup, cell], index) => ({
     participantId: `00000000-0000-4000-8000-0000000004${String(index).padStart(2, "0")}`,
+    applicationId: null,
     name,
     cohort,
     gender,
@@ -757,6 +762,7 @@ function largePeople(count: number): Person[] {
     const cohortRoll = index % 13;
     out.push({
       participantId: `00000000-0000-4000-8000-${String(500000 + index).padStart(12, "0")}`,
+      applicationId: null,
       name: `${family[index % family.length]}${given[(index + Math.floor(index / family.length) * 3) % given.length]}`,
       cohort: cohortRoll === 12 ? null : String((90 + (index % 12)) % 100).padStart(2, "0"),
       gender: index % 11 === 10 ? null : index % 2 === 0 ? FEMALE : MALE,

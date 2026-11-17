@@ -179,6 +179,7 @@ export function submittedApplication(
 /** Check-in roster rows for participants who applied through the mock form. Phone keeps only the last 4 digits. */
 export function checkInCandidates(eventId: string): {
   participantId: string;
+  applicationId: string;
   name: string;
   cohort: string | null;
   phoneLast4: string;
@@ -190,6 +191,7 @@ export function checkInCandidates(eventId: string): {
       const phone = answerFor(fields, row.answers, "PHONE") ?? "";
       return {
         participantId: row.participantId,
+        applicationId: row.applicationId,
         name: row.name,
         cohort: answerFor(fields, row.answers, "COHORT"),
         phoneLast4: phone.replace(/\D/g, "").slice(-4),

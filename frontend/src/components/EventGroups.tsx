@@ -30,6 +30,7 @@ import { reloadQuery } from "../api/queryClient";
 import { queryKeys } from "../api/queryKeys";
 import { getMe } from "../api/session";
 import { Button } from "./Button";
+import { ApplicantDialog, ApplicantLink } from "./ApplicantDialog";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { EventScreen } from "./EventScreen";
 import { eventContext, formatPublishedAt } from "./eventFormat";
@@ -152,6 +153,7 @@ function GroupsBody({ event, spaceName }: { event: EventDetail; spaceName?: stri
           </>
         )}
       </div>
+      <ApplicantDialog eventId={eventId} />
     </OperatorShell>
   );
 }
@@ -992,7 +994,9 @@ function PoolCard({
         {selectable ? (
           <input type="checkbox" checked={checked} onChange={onToggle} aria-label={`${label} 고르기`} />
         ) : null}
-        <span className="event-groups__name">{label}</span>
+        <ApplicantLink className="event-groups__name" applicationId={person.applicationId} label={`${label} 신청 내용`}>
+          {label}
+        </ApplicantLink>
       </span>
       <AttendanceBar slots={slots} person={person} />
       <span className="event-groups__pool-meta">
@@ -1181,7 +1185,9 @@ function GroupCard({
                       aria-label={`${label} 고르기`}
                     />
                   ) : null}
-                  <span className="event-groups__name">{label}</span>
+                  <ApplicantLink className="event-groups__name" applicationId={person.applicationId} label={`${label} 신청 내용`}>
+                    {label}
+                  </ApplicantLink>
                   {person.leader ? <span className="event-groups__leader">조장</span> : null}
                   <AttendanceTag person={person} />
                   {editable ? (

@@ -26,6 +26,7 @@ import { reloadQuery } from "../api/queryClient";
 import { queryKeys } from "../api/queryKeys";
 import { getMe } from "../api/session";
 import { Button } from "./Button";
+import { ApplicantDialog } from "./ApplicantDialog";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { FieldScan } from "./EventFieldScan";
 import { buildGroupStats, pendingFor, publishedGroupNames } from "./fieldGroupStats";
@@ -445,6 +446,7 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
           onConfirm={(reason) => cancel(cancelling, cancelling.checkIn!.checkInId, reason)}
         />
       ) : null}
+      <ApplicantDialog eventId={eventId} />
     </OperatorShell>
   );
 }

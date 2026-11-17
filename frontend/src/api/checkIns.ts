@@ -29,6 +29,8 @@ export type RosterCheckIn = {
 
 export type RosterItem = {
   participantId: string;
+  /** The latest SUBMITTED application; the screen opens its detail with it. */
+  applicationId: string | null;
   name: string;
   cohort: string | null;
   /** Only with CHECKIN_WRITE. */
@@ -195,6 +197,7 @@ function parseRosterItem(value: unknown): RosterItem {
   }
   return {
     participantId: value.participantId,
+    applicationId: typeof value.applicationId === "string" ? value.applicationId : null,
     name: value.name,
     cohort: value.cohort,
     phoneLast4: value.phoneLast4,

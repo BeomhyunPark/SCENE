@@ -10,7 +10,7 @@ import {
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import { Link } from "react-router";
+import { ApplicantLink } from "../ApplicantDialog";
 import type { TableRow } from "../../api/applications";
 import {
   clampWidth,
@@ -40,7 +40,6 @@ const GUESS = { comfortable: { row: 60, group: 48 }, compact: { row: 36, group: 
  * opens the application. Columns resize from the header edge, with the mouse or the arrow keys.
  */
 export function SheetGrid({
-  eventId,
   columns,
   rows,
   summaryRows,
@@ -52,7 +51,6 @@ export function SheetGrid({
   onResize,
   onOpen,
 }: {
-  eventId: string;
   columns: ColumnDef[];
   rows: TableRow[];
   /** Rows the summary line counts: the filtered rows, before grouping. */
@@ -369,8 +367,7 @@ export function SheetGrid({
                   row={line.row}
                   index={line.index}
                   columns={columns}
-                  eventId={eventId}
-                  activeC={cur.r === line.index ? cur.c : -1}
+                          activeC={cur.r === line.index ? cur.c : -1}
                   selLeft={multi && line.index >= range.top && line.index <= range.bottom ? range.left : -1}
                   selRight={multi && line.index >= range.top && line.index <= range.bottom ? range.right : -1}
                   onPick={pick}
@@ -409,7 +406,6 @@ const SheetRow = memo(function SheetRow({
   row,
   index,
   columns,
-  eventId,
   activeC,
   selLeft,
   selRight,
@@ -419,7 +415,6 @@ const SheetRow = memo(function SheetRow({
   row: TableRow;
   index: number;
   columns: ColumnDef[];
-  eventId: string;
   activeC: number;
   selLeft: number;
   selRight: number;
@@ -433,7 +428,6 @@ const SheetRow = memo(function SheetRow({
           key={column.id}
           column={column}
           row={row}
-          eventId={eventId}
           r={index}
           c={c}
           active={activeC === c}
@@ -443,14 +437,14 @@ const SheetRow = memo(function SheetRow({
         />
       ))}
       <td className="roster__actions" aria-colindex={columns.length + 1}>
-        <Link
+        <ApplicantLink
           className="roster__detail"
           tabIndex={-1}
-          to={`/events/${eventId}/participants/${row.applicationId}`}
-          aria-label={`${columns[0].text(row)} 상세`}
+          applicationId={row.applicationId}
+          label={`${columns[0].text(row)} 상세`}
         >
           상세
-        </Link>
+        </ApplicantLink>
       </td>
     </tr>
   );
@@ -518,7 +512,6 @@ function HeaderCell({
 function DataCell({
   column,
   row,
-  eventId,
   r,
   c,
   active,
@@ -528,7 +521,6 @@ function DataCell({
 }: {
   column: ColumnDef;
   row: TableRow;
-  eventId: string;
   r: number;
   c: number;
   active: boolean;
@@ -568,9 +560,9 @@ function DataCell({
         <span className="roster__avatar" aria-hidden="true">
           {[...text.replace(/^\d+\s+/, "")][0] ?? "?"}
         </span>
-        <Link tabIndex={-1} to={`/events/${eventId}/participants/${row.applicationId}`}>
+        <ApplicantLink tabIndex={-1} applicationId={row.applicationId}>
           {text}
-        </Link>
+        </ApplicantLink>
       </td>
     );
   }

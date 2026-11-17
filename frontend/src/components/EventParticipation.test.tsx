@@ -91,8 +91,10 @@ describe("event participation applicants", () => {
 
     fireEvent.click(await screen.findByRole("link", { name: "김하나" }));
 
-    expect(await screen.findByRole("heading", { name: "신청 내용" })).toBeInTheDocument();
-    const answers = await screen.findAllByRole("definition");
+    const dialog = await screen.findByRole("dialog", { name: "김하나" });
+    // The table stays underneath the popup.
+    expect(screen.getByRole("grid", { name: "신청자 명단" })).toBeInTheDocument();
+    const answers = await within(dialog).findAllByRole("definition");
     expect(answers.map((item) => item.textContent)).toEqual(["김하나", "010-1111-2222", "채식"]);
     expect(screen.getAllByRole("term").map((item) => item.textContent)).toEqual(["이름", "전화", "식사"]);
     expect(document.body.textContent ?? "").not.toContain(submitted.accessKey);
@@ -102,8 +104,9 @@ describe("event participation applicants", () => {
       ),
     ).toBe(true);
 
-    fireEvent.click(screen.getByRole("link", { name: "신청자 목록" }));
-    expect(await screen.findByRole("heading", { name: "신청자" })).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "닫기" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(screen.getByRole("grid", { name: "신청자 명단" })).toBeInTheDocument();
   });
 
   it("shows why the phone is missing on the detail for an operator without contact access", async () => {
@@ -112,8 +115,8 @@ describe("event participation applicants", () => {
     await login({ userId: localUsers[2].userId });
     openApp(`/events/${EVENT}/participants/${submitted.applicationId}`);
 
-    expect(await screen.findByRole("heading", { name: "신청 내용" })).toBeInTheDocument();
-    const answers = await screen.findAllByRole("definition");
+    const dialog = await screen.findByRole("dialog", { name: "김하나" });
+    const answers = await within(dialog).findAllByRole("definition");
     expect(answers.map((item) => item.textContent)).toEqual(["김하나", "연락처 권한이 있는 운영자만 볼 수 있어요"]);
     expect(document.body.textContent ?? "").not.toContain("010-1111-2222");
   });
@@ -128,7 +131,7 @@ describe("event participation applicants", () => {
     fireEvent.click(row);
 
     expect(await screen.findByText("받은 답변이 없어요.")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 1, name: "이름 없음" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "이름 없음" })).toBeInTheDocument();
     await waitFor(() =>
       expect(operatorRequests.some((request) => request.url.endsWith(`/applications/${applicationId}`))).toBe(true),
     );

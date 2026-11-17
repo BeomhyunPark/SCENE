@@ -196,10 +196,21 @@
 }
 
 .event-field__name {
+  display: block;
   margin: 0;
   color: var(--color-text-primary);
   font: var(--scene-heading-s);
   overflow-wrap: anywhere;
+}
+
+a.event-field__name {
+  width: fit-content;
+  text-decoration: none;
+}
+
+a.event-field__name:hover {
+  color: var(--color-text-brand);
+  text-decoration: underline;
 }
 
 .event-field__meta {

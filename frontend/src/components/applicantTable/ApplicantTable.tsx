@@ -1,5 +1,6 @@
 import { useMemo, useState, type ReactNode } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { useSearchParams } from "react-router";
+import { useApplicantLink } from "../applicantDialog";
 import type { ApplicationTable, TableRow } from "../../api/applications";
 import { Button } from "../Button";
 import {
@@ -35,7 +36,7 @@ type Panel = "sort" | "filter" | "columns" | null;
  * address so a refresh or a shared link keeps it. Copy is a draft.
  */
 export function ApplicantTable({ eventId, table, actions }: { eventId: string; table: ApplicationTable; actions?: ReactNode }) {
-  const navigate = useNavigate();
+  const applicant = useApplicantLink();
   const [params, setParams] = useSearchParams();
   const view = useMemo(() => readView(params), [params]);
   const [search, setSearch] = useState("");
@@ -225,7 +226,6 @@ export function ApplicantTable({ eventId, table, actions }: { eventId: string; t
             </div>
           </div>
           <SheetGrid
-            eventId={eventId}
             columns={shown}
             rows={sorted}
             summaryRows={filtered}
@@ -235,7 +235,7 @@ export function ApplicantTable({ eventId, table, actions }: { eventId: string; t
             groupBy={groupBy}
             onSort={(id, add) => update({ sorts: toggleSort(view.sorts, id, add) })}
             onResize={(id, width) => update({ widths: { ...view.widths, [id]: width } })}
-            onOpen={(row) => navigate(`/events/${eventId}/participants/${row.applicationId}`)}
+            onOpen={(row) => applicant.open(row.applicationId)}
           />
         </>
       ) : (

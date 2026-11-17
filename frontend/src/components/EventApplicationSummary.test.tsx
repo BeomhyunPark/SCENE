@@ -121,11 +121,11 @@ describe("신청 집계 screen", () => {
     expect(rides.getByText("판교 경유 가능")).toBeInTheDocument();
     expect(rides.getByRole("link", { name: "95 나래" })).toHaveAttribute(
       "href",
-      `/events/${RETREAT}/participants/${ids.driver}`,
+      `/events/${RETREAT}/participants/summary?applicant=${ids.driver}`,
     );
     expect(rides.getAllByRole("link", { name: "라온" })[0]).toHaveAttribute(
       "href",
-      `/events/${RETREAT}/participants/${ids.rider}`,
+      `/events/${RETREAT}/participants/summary?applicant=${ids.rider}`,
     );
     expect(screen.queryByText(/010-/)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "인쇄" })).toBeInTheDocument();

@@ -7,6 +7,7 @@ import checklist from "../assets/event-home/checklist.svg";
 import dateIcon from "../assets/event-home/date.svg";
 import { ApplicantsExport } from "./ApplicantsExport";
 import { Button } from "./Button";
+import { ApplicantDialog } from "./ApplicantDialog";
 import { OperatorShell } from "./OperatorShell";
 import { getApplicationTable } from "../api/applications";
 import { ApplicantTable } from "./applicantTable/ApplicantTable";
@@ -221,6 +222,7 @@ function ParticipationBody({ event, spaceName }: { event: EventDetail; spaceName
         </div>
         <p className="event-home__note">참가자는 링크나 QR로 신청하며 SCENE 계정이 필요하지 않아요.</p>
       </div>
+      <ApplicantDialog eventId={eventId} />
     </OperatorShell>
   );
 }
