@@ -13,14 +13,21 @@ import "./MenuPending.css";
 /** Matches the event list page so both share the first page in the query cache. */
 const PAGE_SIZE = 50;
 
-export type EventArea = "tasks" | "participants" | "operators";
+export type EventArea = "tasks" | "participants" | "operators" | "field";
+
+/** 을/를 for the last Hangul syllable of a menu name. */
+function withObjectParticle(word: string): string {
+  const code = word.charCodeAt(word.length - 1) - 0xac00;
+  const hasFinal = code >= 0 && code <= 11171 && code % 28 !== 0;
+  return `${word}${hasFinal ? "을" : "를"}`;
+}
 
 function isOpen(event: EventListItem): boolean {
   return event.lifecycleStatus !== "ENDED" && event.lifecycleStatus !== "ARCHIVED";
 }
 
 /**
- * Organization sidebar entry for menus whose screens live inside an event (#267).
+ * Organization sidebar entry for menus whose screens live inside an event (#267, 현장 운영 #268).
  * One open event opens it directly; several open events are listed to pick from.
  * Ended and archived events are reached from the event list instead.
  */
@@ -90,7 +97,7 @@ function Picker({
           ) : null}
           {open.length > 0 ? (
             <>
-              <h2 className="menu-pending__title">어느 행사의 {title}를 볼까요?</h2>
+              <h2 className="menu-pending__title">어느 행사의 {withObjectParticle(title)} 볼까요?</h2>
               <ul className="menu-pending__events">
                 {open.map((event) => (
                   <li key={event.eventId}>

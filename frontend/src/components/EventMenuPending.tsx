@@ -6,19 +6,34 @@ import { OperatorShell } from "./OperatorShell";
 import "./MenuPending.css";
 
 /**
- * "다른 운영 시작" in the event sidebar (#266). Picking which areas an event uses
- * (A02 Capability Discovery) needs an API to store the choice, so this shows "준비 중" for now.
+ * "준비 중" page inside an event, for event sidebar menus without a screen yet.
+ * - 다른 운영 시작 (#266): picking areas (A02) needs an API to store the choice.
+ * - 현장 운영 (#268): the check-in screen comes with #235.
  */
-export function EventAreasPending() {
+export function EventMenuPending({ title, message }: { title: string; message: string }) {
   const { eventId = "" } = useParams();
-  return <EventScreen eventId={eventId}>{(event, spaceName) => <Body event={event} spaceName={spaceName} />}</EventScreen>;
+  return (
+    <EventScreen eventId={eventId}>
+      {(event, spaceName) => <Body event={event} spaceName={spaceName} title={title} message={message} />}
+    </EventScreen>
+  );
 }
 
-function Body({ event, spaceName }: { event: EventDetail; spaceName?: string }) {
+function Body({
+  event,
+  spaceName,
+  title,
+  message,
+}: {
+  event: EventDetail;
+  spaceName?: string;
+  title: string;
+  message: string;
+}) {
   const eventHref = `/events/${event.eventId}`;
   return (
     <OperatorShell
-      title="다른 운영 시작"
+      title={title}
       spaceName={spaceName}
       eventName={event.name}
       eventHref={eventHref}
@@ -30,7 +45,7 @@ function Body({ event, spaceName }: { event: EventDetail; spaceName?: string }) 
       <div className="menu-pending">
         <section className="menu-pending__card">
           <h2 className="menu-pending__title">아직 준비 중이에요</h2>
-          <p className="menu-pending__body">이 행사에서 쓸 운영을 고르는 화면은 아직 만들고 있어요.</p>
+          <p className="menu-pending__body">{message}</p>
           <Link className="menu-pending__link" to={eventHref}>
             행사로 돌아가기
           </Link>

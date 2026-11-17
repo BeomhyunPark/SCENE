@@ -171,6 +171,56 @@ a.operator-shell__item {
   letter-spacing: 0;
 }
 
+/* Collapsed sidebar (#265): icons only. Labels stay in the accessibility tree. */
+.operator-shell--collapsed .operator-shell__sidebar {
+  width: 72px;
+}
+
+.operator-shell--collapsed .operator-shell__brand {
+  justify-content: center;
+  padding: 0;
+}
+
+.operator-shell--collapsed .operator-shell__logo {
+  display: none;
+}
+
+.operator-shell--collapsed .operator-shell__collapse-icon {
+  transform: rotate(-90deg);
+}
+
+.operator-shell--collapsed .operator-shell__group {
+  padding: 0 12px;
+}
+
+.operator-shell--collapsed .operator-shell__item {
+  justify-content: center;
+}
+
+.operator-shell--collapsed .operator-shell__label,
+.operator-shell--collapsed .operator-shell__section-label,
+.operator-shell--collapsed .operator-shell__org-name {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.operator-shell--collapsed .operator-shell__section {
+  padding-top: 20px;
+}
+
+.operator-shell--collapsed .operator-shell__org {
+  justify-content: center;
+  padding: 20px 0;
+}
+
+.operator-shell--collapsed .operator-shell__org > img {
+  display: none;
+}
+
 .operator-shell__main {
   display: flex;
   flex-direction: column;
@@ -186,7 +236,8 @@ a.operator-shell__item {
   .operator-shell__main--framed .space-leave,
   .operator-shell__main--framed .space-settings,
   .operator-shell__main--framed .event-tasks,
-  .operator-shell__main--framed .task-detail {
+  .operator-shell__main--framed .task-detail,
+  .operator-shell__main--framed .menu-pending {
     box-sizing: border-box;
     width: 100%;
     padding-left: max(32px, calc((100% - 1128px) / 2));

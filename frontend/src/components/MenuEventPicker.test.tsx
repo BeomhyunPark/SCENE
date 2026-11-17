@@ -73,4 +73,15 @@ describe("organization menus that live inside an event", () => {
     expect(await screen.findByRole("heading", { name: "진행 중인 행사가 없어요" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "행사 목록으로" })).toHaveAttribute("href", "/events");
   });
+
+  it("sends 현장 운영 to the only open event's field page", async () => {
+    await signInAndOpen("현장 운영");
+    expect(await screen.findByTestId("where")).toHaveTextContent(`/events/${localEvent.eventId}/field`);
+  });
+
+  it("uses the right particle in the picker heading", async () => {
+    seed("00000000-0000-4000-8000-0000000000e5", "겨울 수련회", "ACTIVE");
+    await signInAndOpen("현장 운영");
+    expect(await screen.findByRole("heading", { name: "어느 행사의 현장 운영을 볼까요?" })).toBeInTheDocument();
+  });
 });

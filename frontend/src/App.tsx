@@ -10,7 +10,7 @@ import { EventRetrospective } from "./components/EventRetrospective";
 import { EventSettings } from "./components/EventSettings";
 import { EventList } from "./components/EventList";
 import { EventApplication } from "./components/EventApplication";
-import { EventAreasPending } from "./components/EventAreasPending";
+import { EventMenuPending } from "./components/EventMenuPending";
 import { EventOperators } from "./components/EventOperators";
 import { EventParticipation } from "./components/EventParticipation";
 import { EventRegistrationSetup } from "./components/EventRegistrationSetup";
@@ -73,7 +73,7 @@ export function App() {
           <Route path="/history" element={<MenuPending title="기록" />} />
           <Route path="/guides" element={<MenuPending title="안내" />} />
           <Route path="/schedule" element={<MenuPending title="일정" />} />
-          <Route path="/field" element={<MenuPending title="현장 운영" />} />
+          <Route path="/field" element={<MenuEventPicker title="현장 운영" area="field" />} />
           <Route path="/integrations" element={<MenuPending title="연동" />} />
           <Route path="/tasks" element={<MenuEventPicker title="준비 업무" area="tasks" />} />
           <Route path="/participants" element={<MenuEventPicker title="참가자" area="participants" />} />
@@ -81,7 +81,14 @@ export function App() {
           <Route path="/spaces/:spaceId/leave" element={<SpaceLeave />} />
           <Route path="/events/new" element={<EventCreate />} />
           <Route path="/events/:eventId/settings" element={<EventSettings />} />
-          <Route path="/events/:eventId/areas" element={<EventAreasPending />} />
+          <Route
+            path="/events/:eventId/areas"
+            element={<EventMenuPending title="다른 운영 시작" message="이 행사에서 쓸 운영을 고르는 화면은 아직 만들고 있어요." />}
+          />
+          <Route
+            path="/events/:eventId/field"
+            element={<EventMenuPending title="현장 운영" message="참가자 도착 체크인 화면은 아직 만들고 있어요." />}
+          />
           <Route path="/events/:eventId/end" element={<EventEnd />} />
           <Route path="/events/:eventId/retrospective" element={<EventRetrospective />} />
           <Route path="/events/:eventId/tasks/:taskId" element={<TaskDetail />} />
