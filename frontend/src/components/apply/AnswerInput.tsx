@@ -1,5 +1,7 @@
 import type { FieldOption, FormField } from "../../api/forms";
+import type { ReactNode } from "react";
 import type { RawAnswer } from "./answerModel";
+import { groupedByDay, isRangeField } from "./attendanceRange";
 
 /**
  * One question on the public form. `options` are the options shown right now (hidden and
@@ -11,12 +13,15 @@ export function AnswerInput({
   value,
   error,
   onChange,
+  extra,
 }: {
   field: FormField;
   options: FieldOption[];
   value: RawAnswer | undefined;
   error: string | null;
   onChange: (next: RawAnswer) => void;
+  /** Shown under the choices, above the error (the range summary under 출발). */
+  extra?: ReactNode;
 }) {
   const id = `field-${field.fieldId}`;
   const describedBy = [field.description ? `${id}-description` : null, error ? `${id}-error` : null]
@@ -70,7 +75,19 @@ export function AnswerInput({
       <fieldset className="participant-gate__field participant-gate__group" {...common}>
         <legend className="participant-gate__label">{heading}</legend>
         {help}
-        <ChoiceList field={field} options={options} answer={answer} onChange={onChange} />
+        {isRangeField(field) ? (
+          // Arrival and departure (DEC-074): one row of slot chips per day, so the order reads at a glance.
+          <ChoiceList
+            field={{ ...field, config: { ...config, display: "BUTTONS" } }}
+            options={groupedByDay(options)}
+            answer={answer}
+            onChange={onChange}
+            fullLabel={(option) => (option.group ? `${option.group} ${option.label}` : undefined)}
+          />
+        ) : (
+          <ChoiceList field={field} options={options} answer={answer} onChange={onChange} />
+        )}
+        {extra}
         {errorLine}
       </fieldset>
     );
@@ -178,11 +195,14 @@ function ChoiceList({
   options,
   answer,
   onChange,
+  fullLabel,
 }: {
   field: FormField;
   options: FieldOption[];
   answer: RawAnswer;
   onChange: (next: RawAnswer) => void;
+  /** An accessible name when the visible label leans on its group heading. */
+  fullLabel?: (option: FieldOption) => string | undefined;
 }) {
   const name = `field-${field.fieldId}`;
   const multi = field.answerType === "MULTI_CHOICE";
@@ -234,6 +254,7 @@ function ChoiceList({
                     type="radio"
                     name={name}
                     checked={!answer.otherOn && answer.optionId === option.optionId}
+                    aria-label={fullLabel?.(option)}
                     onChange={() => onChange({ optionId: option.optionId })}
                   />
                 )}

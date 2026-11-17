@@ -10,6 +10,8 @@ import { queryKeys } from "../api/queryKeys";
 import { Button } from "./Button";
 import { ParticipantFrame } from "./ParticipantFrame";
 import { AnswerInput } from "./apply/AnswerInput";
+import { RangeSummary } from "./apply/RangeSummary";
+import { ARRIVAL, DEPARTURE, REVERSED_COPY, departureFieldId, rangeProblem } from "./apply/attendanceRange";
 import {
   problemFor,
   prune,
@@ -70,19 +72,37 @@ function ApplyForm({
   const [touched, setTouched] = useState<Set<string>>(new Set());
   const [showAll, setShowAll] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
+  // The server also refuses a departure before the arrival (400). It names no field, so a refusal
+  // while both are answered is shown on 출발 until either one changes.
+  const [rangeRefused, setRangeRefused] = useState(false);
+  const departureId = departureFieldId(fields);
   const submit = useMutation({
     mutationFn: () => submitApplication(eventId, formId, toAnswerItems(fields, values)),
     onSuccess: (result) => {
       setFailure(null);
       onSubmitted(result);
     },
-    onError: (error) => setFailure(submitFailure(error)),
+    onError: (error) => {
+      setFailure(submitFailure(error));
+      if (isApiError(error, "APPLICATION_VALIDATION_FAILED") && departureId && shown.some((field) => field.fieldId === departureId)) {
+        setRangeRefused(true);
+        setShowAll(true);
+      }
+    },
   });
   const shown = visibleFields(fields, values);
-  const problems = new Map(shown.map((field) => [field.fieldId, problemFor(field, values[field.fieldId])]));
+  const problems = new Map(
+    shown.map((field) => {
+      const own = problemFor(field, values[field.fieldId]);
+      if (own || field.fieldId !== departureId) return [field.fieldId, own];
+      return [field.fieldId, rangeProblem(fields, values) ?? (rangeRefused ? REVERSED_COPY : null)];
+    }),
+  );
   const firstProblem = shown.find((field) => problems.get(field.fieldId));
 
   function change(fieldId: string, next: RawAnswer) {
+    const key = fields.find((field) => field.fieldId === fieldId)?.presetKey;
+    if (key === ARRIVAL || key === DEPARTURE) setRangeRefused(false);
     setTouched((current) => new Set(current).add(fieldId));
     setValues((current) => prune(fields, { ...current, [fieldId]: next }));
   }
@@ -117,6 +137,7 @@ function ApplyForm({
                 value={values[field.fieldId]}
                 error={visibleError}
                 onChange={(next) => change(field.fieldId, next)}
+                extra={field.fieldId === departureId ? <RangeSummary fields={fields} values={values} /> : null}
               />
             );
           })}

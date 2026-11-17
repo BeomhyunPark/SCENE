@@ -289,6 +289,12 @@ export function applySetup(eventId: string, formId: string, actorId: string, bod
   const setup = readSetup(body, eventDays(event.startDate, event.endDate));
   if (isFormFailure(setup)) return setup;
   const locked = found.submitted > 0;
+  // DEC-074: no mode keeps the stored one (SLOTS before DEC-074), a first save is RANGE, and a
+  // form with applications refuses another mode.
+  const stored = found.setup ? (found.setup.attendance.mode ?? "SLOTS") : null;
+  const mode = setup.attendance.mode ?? stored ?? "RANGE";
+  if (locked && stored !== null && mode !== stored) return { status: 409, code: "FIELD_LOCKED" };
+  setup.attendance = { ...setup.attendance, mode };
   const ids = new Map(found.fields.filter((field) => field.presetKey).map((field) => [field.presetKey!, field.fieldId]));
   const idOf = (key: string) => {
     if (!ids.has(key)) ids.set(key, crypto.randomUUID());
@@ -406,6 +412,8 @@ function readSetup(body: unknown, days: number): FormSetup | FormFailure {
   // newcomer was added later: optional, off when missing.
   if (body.newcomer !== undefined && typeof body.newcomer !== "boolean") return invalid("setup");
   if (!flags(attendance, ["partial", "worshipOnly"])) return invalid("attendance");
+  const mode = (attendance as Record<string, unknown>).mode;
+  if (mode !== undefined && mode !== "RANGE" && mode !== "SLOTS") return invalid("attendance");
   if (!flags(transport, ["groupBus", "worshipShuttle", "car", "publicTransit", "support"])) return invalid("transport");
   if (
     !Array.isArray(schedule) ||

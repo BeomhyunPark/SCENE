@@ -2,6 +2,8 @@ import { useState } from "react";
 import type { FormField } from "../../api/forms";
 import { Button } from "../Button";
 import { AnswerInput } from "../apply/AnswerInput";
+import { RangeSummary } from "../apply/RangeSummary";
+import { departureFieldId, rangeProblem } from "../apply/attendanceRange";
 import { prune, visibleFields, visibleOptions, type RawAnswer, type RawAnswers } from "../apply/answerModel";
 import "../ParticipantGate.css";
 
@@ -22,6 +24,7 @@ export function FormPreview({ fields }: { fields: FormField[] }) {
   const pruned = prune(shownFields, values);
   const shown = visibleFields(shownFields, pruned);
   const waiting = shownFields.length - shown.length;
+  const departureId = departureFieldId(shownFields);
 
   function change(fieldId: string, next: RawAnswer) {
     setValues((current) => prune(shownFields, { ...current, [fieldId]: next }));
@@ -46,8 +49,9 @@ export function FormPreview({ fields }: { fields: FormField[] }) {
             field={field}
             options={visibleOptions(field, shownFields, pruned)}
             value={pruned[field.fieldId]}
-            error={null}
+            error={field.fieldId === departureId ? rangeProblem(shownFields, pruned) : null}
             onChange={(next) => change(field.fieldId, next)}
+            extra={field.fieldId === departureId ? <RangeSummary fields={shownFields} values={pruned} /> : null}
           />
         ))}
       </div>

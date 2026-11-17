@@ -1,4 +1,5 @@
-import { formFields, publicForm } from "./formStore";
+import { reversedRange } from "./attendedSlots";
+import { eventFormDetail, formFields, publicForm } from "./formStore";
 import { eventById } from "./operatorStore";
 
 type Issued = {
@@ -39,6 +40,11 @@ export function submitPublicApplication(
   const name = answerFor(form.fields, answers, "NAME");
   const phone = answerFor(form.fields, answers, "PHONE");
   if (!name || !phone || phone.trim().length > 50 || phone.replace(/\D/g, "").length < 4) {
+    return { status: 400, code: "APPLICATION_VALIDATION_FAILED" };
+  }
+  // DEC-074: leaving before arriving is refused like the server's AnswerEvaluator.
+  const detail = eventFormDetail(eventId);
+  if (detail && reversedRange(detail, new Map(answers.map((answer) => [answer.fieldId, answer.value])))) {
     return { status: 400, code: "APPLICATION_VALIDATION_FAILED" };
   }
   const row: Issued = {

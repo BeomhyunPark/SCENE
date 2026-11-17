@@ -106,6 +106,20 @@ export type TableRow = {
   /** Working-copy group (DEC-072). Null when unassigned or when `groupVisible` is false. */
   group: { groupId: string; name: string; leader: boolean } | null;
   checkedInAt: string | null;
+  /** Slot ids the person attends, in `slots` order (DEC-074). Null is "모름", and always null without `slots`. */
+  slotIds: string[] | null;
+};
+
+/** One meal or service slot, the same shape as the group board's `slots`. */
+export type TableSlot = {
+  slotId: string;
+  day: number;
+  date: string;
+  /** Example: `1월 22일 (금)`. */
+  dayLabel: string;
+  meal: string;
+  label: string;
+  sortOrder: number;
 };
 
 export type ApplicationTable = {
@@ -114,6 +128,8 @@ export type ApplicationTable = {
   groupVisible: boolean;
   columns: TableColumn[];
   rows: TableRow[];
+  /** Null when the form has no setup or no slot. */
+  slots: TableSlot[] | null;
 };
 
 /**
@@ -282,6 +298,7 @@ function parseTable(value: unknown): ApplicationTable {
           ? { groupId: group.groupId, name: group.name, leader: group.leader === true }
           : null,
       checkedInAt: typeof row.checkedInAt === "string" ? row.checkedInAt : null,
+      slotIds: Array.isArray(row.slotIds) ? row.slotIds.filter((id): id is string => typeof id === "string") : null,
     });
   }
   return {
@@ -290,7 +307,26 @@ function parseTable(value: unknown): ApplicationTable {
     groupVisible: value.groupVisible === true,
     columns,
     rows,
+    slots: parseSlots(value.slots),
   };
+}
+
+function parseSlots(value: unknown): TableSlot[] | null {
+  if (!Array.isArray(value)) return null;
+  const slots: TableSlot[] = [];
+  for (const slot of value) {
+    if (!isRecord(slot) || typeof slot.slotId !== "string" || typeof slot.label !== "string") continue;
+    slots.push({
+      slotId: slot.slotId,
+      day: typeof slot.day === "number" ? slot.day : 0,
+      date: typeof slot.date === "string" ? slot.date : "",
+      dayLabel: typeof slot.dayLabel === "string" ? slot.dayLabel : "",
+      meal: typeof slot.meal === "string" ? slot.meal : "",
+      label: slot.label,
+      sortOrder: typeof slot.sortOrder === "number" ? slot.sortOrder : 0,
+    });
+  }
+  return slots.length > 0 ? slots : null;
 }
 
 function isPage(value: unknown): value is ItemPage<unknown>["page"] {

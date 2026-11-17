@@ -1,13 +1,13 @@
 import type {
   ApplicationSummary,
   CarpoolOffer,
-  MealKind,
   MobilityRequest,
   SummaryChoice,
   SummaryDay,
   SummaryNight,
 } from "../api/applicationSummary";
 import type { FormField } from "../api/forms";
+import { attendanceMode, attendedSlotIds, formSlots, rangeEnds, slotDay } from "./attendedSlots";
 import { dayLabel, eventDays } from "./formPreset";
 import { eventFormDetail } from "./formStore";
 import { eventById } from "./operatorStore";
@@ -24,12 +24,6 @@ const ATTENDANCE: Record<string, "full" | "partial" | "worshipOnly"> = {
   opt_partial: "partial",
   opt_worship: "worshipOnly",
 };
-const MEALS: [key: "breakfast" | "lunch" | "dinner" | "worship", meal: MealKind, label: string][] = [
-  ["breakfast", "BREAKFAST", "아침"],
-  ["lunch", "LUNCH", "점심"],
-  ["dinner", "DINNER", "저녁"],
-  ["worship", "WORSHIP", "집회"],
-];
 const ORDINALS = ["첫째", "둘째", "셋째", "넷째", "다섯째", "여섯째", "일곱째", "여덟째", "아홉째"];
 
 type Value = Record<string, unknown>;
@@ -144,30 +138,24 @@ export function applicationSummary(eventId: string): ApplicationSummary {
   }
 
   function meals(): ApplicationSummary["meals"] {
-    const field = shown("MEALS");
-    const labels = byKey.get("MEALS");
-    const chosen = new Map<string, number>();
+    // Same slots and the same per-person rule as the table and the board (attendedSlots).
+    const slots = formSlots(form!);
+    if (!slots) return null;
+    const tally = new Map<string, number>();
     let unanswered = 0;
-    for (const person of [...groups.partial, ...groups.worshipOnly]) {
-      const ids = optionIds(answer(person, field));
+    for (const person of people) {
+      const ids = attendedSlotIds(form!, slots, person.answers);
       if (!ids) unanswered++;
-      else ids.forEach((id) => bump(chosen, id));
+      else ids.forEach((id) => bump(tally, id));
     }
     const days: SummaryDay[] = [];
-    setup!.schedule.forEach((entry, index) => {
-      const day = index + 1;
-      const slots = MEALS.filter(([key]) => entry[key]).map(([key, meal, fallback]) => {
-        const id = `opt_d${day}_${key}`;
-        return {
-          optionId: id,
-          meal,
-          label: optionLabel(labels, id) ?? fallback,
-          count: groups.full.length + (chosen.get(id) ?? 0),
-        };
-      });
-      if (slots.length > 0) days.push({ day, date: dateAt(start!, index), label: dayLabel(start!, index), slots });
-    });
-    return days.length === 0 ? null : { days, unanswered };
+    for (const slot of slots) {
+      const entry = { optionId: slot.slotId, meal: slot.meal, label: slot.label, count: tally.get(slot.slotId) ?? 0 };
+      const last = days.at(-1);
+      if (last && last.day === slot.day) last.slots.push(entry);
+      else days.push({ day: slot.day, date: slot.date, label: slot.dayLabel, slots: [entry] });
+    }
+    return { days, unanswered };
   }
 
   function lodging(from: string, to: string): ApplicationSummary["lodging"] {
@@ -176,7 +164,23 @@ export function applicationSummary(eventId: string): ApplicationSummary {
     const field = shown("LODGING");
     const labels = byKey.get("LODGING");
     const chosen = new Map<string, number>();
-    for (const person of groups.partial) optionIds(answer(person, field))?.forEach((id) => bump(chosen, id));
+    const range = attendanceMode(form!) === "RANGE";
+    let rangeUnknown = 0;
+    for (const person of groups.partial) {
+      if (!range) {
+        optionIds(answer(person, field))?.forEach((id) => bump(chosen, id));
+        continue;
+      }
+      // DEC-074 §5: arriving on day ≤ N and leaving on day ≥ N+1 sleeps the Nth night.
+      const ends = rangeEnds(form!, person.answers);
+      const from = ends ? slotDay(ends.from) : null;
+      const to = ends ? slotDay(ends.to) : null;
+      if (from === null || to === null) {
+        rangeUnknown++;
+        continue;
+      }
+      for (let night = from; night < to; night++) bump(chosen, `opt_n${night}`);
+    }
     const nights: SummaryNight[] = Array.from({ length: count }, (_, index) => {
       const id = `opt_n${index + 1}`;
       return {
@@ -187,7 +191,7 @@ export function applicationSummary(eventId: string): ApplicationSummary {
         count: groups.full.length + (chosen.get(id) ?? 0),
       };
     });
-    return { nights, unanswered: field ? 0 : groups.partial.length };
+    return { nights, unanswered: range ? rangeUnknown : field ? 0 : groups.partial.length };
   }
 
   function transport(): ApplicationSummary["transport"] {

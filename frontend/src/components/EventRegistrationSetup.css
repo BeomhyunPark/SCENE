@@ -237,3 +237,64 @@
   color: var(--color-text-secondary);
   font: var(--scene-label-s);
 }
+
+/* Partial attendance mode (DEC-074). Not in the design: same rows and chips as the card and form. */
+.setup-card__mode {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  margin: 4px 0 0;
+  padding: 12px 16px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 8px;
+}
+
+.setup-card__mode legend {
+  padding: 0 4px;
+  font: var(--scene-label-m);
+  letter-spacing: 0;
+}
+
+.setup-card__checks--column {
+  flex-direction: column;
+}
+
+.setup-card__sample {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--color-bg-subtle);
+  font: var(--scene-body-s);
+  letter-spacing: 0;
+}
+
+.setup-card__sample p {
+  margin: 0;
+}
+
+.setup-card__sample-title {
+  color: var(--color-text-secondary);
+  font: var(--scene-label-s);
+}
+
+.setup-card__sample-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.setup-card__sample-chip {
+  padding: 4px 10px;
+  border: 1px solid var(--color-border-control);
+  border-radius: 8px;
+  background: var(--color-bg-surface);
+}
+
+.setup-card__sample-more {
+  color: var(--color-text-secondary);
+}

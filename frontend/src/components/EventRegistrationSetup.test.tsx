@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { http } from "msw";
 import { MemoryRouter, Route, Routes } from "react-router";
@@ -275,6 +275,9 @@ describe("event registration setup", () => {
     expect(screen.getByRole("checkbox", { name: "이름" })).toBeDisabled();
     fireEvent.click(screen.getByRole("checkbox", { name: /집회만 받기/ }));
     fireEvent.click(screen.getByRole("checkbox", { name: /집회 차량/ }));
+    // A new card asks partial attendees for arrival and departure only; this test asks slot by slot.
+    expect(screen.getByRole("radio", { name: /도착~출발만 받기/ })).toBeChecked();
+    fireEvent.click(screen.getByRole("radio", { name: /칸마다 고르기/ }));
     fireEvent.click(screen.getByRole("button", { name: "질문 만들기" }));
 
     const list = await questionList();
@@ -285,7 +288,7 @@ describe("event registration setup", () => {
     const sent = operatorRequests.find((request) => request.method === "PUT" && request.url.endsWith("/setup"));
     expect(sent?.body).toMatchObject({
       gender: true,
-      attendance: { partial: true, worshipOnly: true },
+      attendance: { partial: true, worshipOnly: true, mode: "SLOTS" },
       transport: { groupBus: true, worshipShuttle: true, car: true },
     });
     expect((sent?.body as { schedule: unknown[] }).schedule).toHaveLength(3);
@@ -322,6 +325,85 @@ describe("event registration setup", () => {
     await waitFor(() => expect(list.queryByText("숙박하는 밤을 모두 골라주세요")).not.toBeInTheDocument());
     expect(list.getByText("어떻게 참석하세요?")).toBeInTheDocument();
     expect(list.getByText("보기: 전체 참석 (2박 3일), 집회만 참석")).toBeInTheDocument();
+  });
+
+  it("asks partial attendees for arrival and departure only, and previews the range (DEC-074)", async () => {
+    await login({ userId: localUsers[0].userId });
+    const retreat = await createEvent(localSpace.spaceId, {
+      name: "도착 출발 수련회",
+      startDate: "2027-01-22",
+      endDate: "2027-01-24",
+    });
+    renderSetup(retreat.eventId);
+    fireEvent.click(await screen.findByRole("button", { name: "신청서 만들기" }, { timeout: 4000 }));
+
+    // The card explains each mode and shows a sample from its own schedule.
+    expect(await screen.findByRole("radio", { name: /도착~출발만 받기/ })).toBeChecked();
+    const sample = within(screen.getByLabelText("참가자에게 보이는 모습"));
+    expect(sample.getByText("1월 22일 (금) 저녁부터")).toBeInTheDocument();
+    expect(sample.getByText("1월 24일 (일) 점심까지")).toBeInTheDocument();
+    expect(screen.getByText(/중간에 나갔다가 다시 오는 경우는 따로 챙겨 주세요/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("radio", { name: /칸마다 고르기/ }));
+    expect(sample.getByText("참석할 프로그램과 식사를 선택해주세요")).toBeInTheDocument();
+    expect(sample.getByText("외 4칸")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("radio", { name: /도착~출발만 받기/ }));
+    fireEvent.click(screen.getByRole("button", { name: "질문 만들기" }));
+
+    const list = await questionList();
+    expect(await list.findByText("수련회장에 언제 도착하나요?")).toBeInTheDocument();
+    expect(list.queryByText("숙박하는 밤을 모두 골라주세요")).not.toBeInTheDocument();
+    const sent = operatorRequests.findLast((request) => request.method === "PUT" && request.url.endsWith("/setup"));
+    expect(sent?.body).toMatchObject({ attendance: { partial: true, worshipOnly: false, mode: "RANGE" } });
+
+    // Preview: chips by day, a reversed range is caught on 출발, and the covered slots are listed.
+    const preview = within(screen.getByRole("region", { name: "참가자 화면 미리보기" }));
+    fireEvent.click(preview.getByRole("radio", { name: "부분 참석" }));
+    expect(preview.getAllByText("1월 23일 (토)").length).toBeGreaterThan(0);
+    fireEvent.click(preview.getByRole("radio", { name: "1월 23일 (토) 점심부터" }));
+    fireEvent.click(preview.getByRole("radio", { name: "1월 22일 (금) 집회까지" }));
+    expect(preview.getByText(/출발은 도착보다 앞일 수 없어요/)).toBeInTheDocument();
+    expect(preview.queryByText("이 일정에 포함돼요")).not.toBeInTheDocument();
+    fireEvent.click(preview.getByRole("radio", { name: "1월 24일 (일) 아침까지" }));
+    expect(preview.queryByText(/출발은 도착보다 앞일 수 없어요/)).not.toBeInTheDocument();
+    const covered = within(preview.getByRole("status"));
+    expect(covered.getByText("이 일정에 포함돼요")).toBeInTheDocument();
+    expect(covered.getByText("점심 · 저녁 · 집회")).toBeInTheDocument();
+    expect(covered.getByText("아침")).toBeInTheDocument();
+
+    // An application arrived after this page loaded: the server refuses the other mode.
+    server.use(
+      http.put("/api/v1/operator/events/:eventId/forms/:formId/setup", () => problem(409, "FIELD_LOCKED", { detail: "hidden" })),
+    );
+    fireEvent.click(screen.getByRole("radio", { name: /칸마다 고르기/ }));
+    fireEvent.click(screen.getByRole("button", { name: "설정 저장" }));
+    expect(await screen.findByText(/부분 참석을 받는 방식을 바꿀 수 없어요/)).toBeInTheDocument();
+  });
+
+  it("keeps the attendance mode once applications are in, and explains a refused change", async () => {
+    await login({ userId: localUsers[0].userId });
+    const retreat = await createEvent(localSpace.spaceId, {
+      name: "잠긴 수련회",
+      startDate: "2027-01-22",
+      endDate: "2027-01-24",
+    });
+    const created = await createForm(retreat.eventId);
+    renderSetup(retreat.eventId);
+    fireEvent.click(await screen.findByRole("button", { name: "질문 만들기" }, { timeout: 4000 }));
+    await (await questionList()).findByText("수련회장에 언제 도착하나요?");
+    markSubmitted(retreat.eventId, created.formId);
+    cleanup();
+    renderSetup(retreat.eventId);
+    expect(await screen.findByRole("radio", { name: /칸마다 고르기/ }, { timeout: 4000 })).toBeDisabled();
+    expect(screen.getByRole("radio", { name: /도착~출발만 받기/ })).toBeChecked();
+    expect(screen.getByText(/신청이 들어온 신청서라 방식을 바꿀 수 없어요/)).toBeInTheDocument();
+
+    // A page opened before the first application still sends the old choice: the 409 is explained.
+    server.use(
+      http.put("/api/v1/operator/events/:eventId/forms/:formId/setup", () => problem(409, "FIELD_LOCKED", { detail: "hidden" })),
+    );
+    fireEvent.click(screen.getByRole("checkbox", { name: /성별/ }));
+    fireEvent.click(screen.getByRole("button", { name: "설정 저장" }));
+    expect(await screen.findByText(/이미 받은 질문의 표시 조건이 바뀌는 설정은 저장할 수 없어요/)).toBeInTheDocument();
   });
 
   it("asks 새가족 from the setup card, shows it in the preview, and drops it when turned off", async () => {

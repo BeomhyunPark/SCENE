@@ -13,6 +13,8 @@ export const PRESET_ORDER = [
   "ATTENDANCE",
   "ARRIVAL_AT",
   "DEPARTURE_AT",
+  "ARRIVAL_SLOT",
+  "DEPARTURE_SLOT",
   "LODGING",
   "MEALS",
   "PARTIAL_NOTE",
@@ -39,6 +41,12 @@ export type PresetQuestion = {
   showWhen: ShowWhen | null;
 };
 
+const SLOT_WORDS: [key: "breakfast" | "lunch" | "dinner" | "worship", word: string][] = [
+  ["breakfast", "아침"],
+  ["lunch", "점심"],
+  ["dinner", "저녁"],
+  ["worship", "집회"],
+];
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 const ORDINALS = ["첫째", "둘째", "셋째", "넷째", "다섯째", "여섯째", "일곱째", "여덟째", "아홉째"];
 const SUPPORT_NOTICE = "이동 지원은 매칭이 보장되지 않으며, 탑승 위치가 희망 지역과 달라질 수 있습니다.";
@@ -129,10 +137,35 @@ export function generatePreset(
     );
   }
   const whenPartial = attendance ? when("ATTENDANCE", "opt_partial") : null;
-  if (setup.attendance.partial) {
-    const range: FieldConfig = { includeTime: true, min: `${start}T00:00`, max: `${end}T23:59` };
-    add("ARRIVAL_AT", "수련회장에 언제 도착할 예정인가요?", null, "DATE", true, range, whenPartial);
-    add("DEPARTURE_AT", "수련회장에서 언제 출발할 예정인가요?", null, "DATE", true, { ...range }, whenPartial);
+  const range = setup.attendance.mode === "RANGE";
+  // Every slot on the schedule in order: [id, "1월 22일 (금) 저녁", day label, slot word].
+  const slots: [string, string, string, string][] = [];
+  setup.schedule.forEach((day, index) => {
+    const group = dayLabel(start, index);
+    for (const [key, word] of SLOT_WORDS) {
+      if (day[key]) slots.push([`opt_d${index + 1}_${key}`, `${group} ${word}`, group, word]);
+    }
+  });
+  if (setup.attendance.partial && range) {
+    // DEC-074: the arrival and departure slots stand for every slot between them.
+    if (slots.length > 0) {
+      const from = slots.map(([id, label]) => option(id, `${label}부터`));
+      const to = slots.map(([id, label]) => option(id, `${label}까지`));
+      add(
+        "ARRIVAL_SLOT",
+        "수련회장에 언제 도착하나요?",
+        "도착부터 출발까지의 식사와 프로그램에 모두 참석하는 것으로 신청됩니다.",
+        "SINGLE_CHOICE",
+        true,
+        single(from, false),
+        whenPartial,
+      );
+      add("DEPARTURE_SLOT", "수련회장에서 언제 출발하나요?", null, "SINGLE_CHOICE", true, single(to, false), whenPartial);
+    }
+  } else if (setup.attendance.partial) {
+    const dates: FieldConfig = { includeTime: true, min: `${start}T00:00`, max: `${end}T23:59` };
+    add("ARRIVAL_AT", "수련회장에 언제 도착할 예정인가요?", null, "DATE", true, dates, whenPartial);
+    add("DEPARTURE_AT", "수련회장에서 언제 출발할 예정인가요?", null, "DATE", true, { ...dates }, whenPartial);
     if (days > 1) {
       const nights = Array.from({ length: days - 1 }, (_, index) =>
         option(`opt_n${index + 1}`, `${ORDINALS[index]} 밤 (${dayLabel(start, index)})`),
@@ -141,33 +174,29 @@ export function generatePreset(
     }
   }
   const worshipDays: number[] = [];
-  if (attendance) {
-    const cells: FieldOption[] = [];
-    setup.schedule.forEach((slots, index) => {
-      const day = index + 1;
-      const group = dayLabel(start, index);
-      if (slots.breakfast) cells.push(option(`opt_d${day}_breakfast`, "아침", { group }));
-      if (slots.lunch) cells.push(option(`opt_d${day}_lunch`, "점심", { group }));
-      if (slots.dinner) cells.push(option(`opt_d${day}_dinner`, "저녁", { group }));
-      if (slots.worship) cells.push(option(`opt_d${day}_worship`, "집회", { group }));
-    });
-    if (cells.length > 0) {
-      add(
-        "MEALS",
-        "참석할 프로그램과 식사를 선택해주세요",
-        "식수 인원 확인을 위해 식사도 빠짐없이 골라주세요.",
-        "MULTI_CHOICE",
-        true,
-        multi(cells),
-        when("ATTENDANCE", "opt_partial", "opt_worship"),
-      );
-    }
+  const cells = slots.map(([id, , group, word]) => option(id, word, { group }));
+  if (attendance && !range && cells.length > 0) {
+    add(
+      "MEALS",
+      "참석할 프로그램과 식사를 선택해주세요",
+      "참석하는 일정에 포함되는 식사와 프로그램을 모두 선택해 주세요. ※ 식사는 실제 식사 여부와 관계없이 참석 일정에 포함된 경우 신청 인원에 반영됩니다.",
+      "MULTI_CHOICE",
+      true,
+      multi(cells),
+      when("ATTENDANCE", "opt_partial", "opt_worship"),
+    );
+  }
+  if (setup.attendance.worshipOnly && range && cells.some((cell) => cell.optionId.endsWith("_worship"))) {
+    // DEC-074: worship-only still picks services; meals stay listed but hidden so ids match SLOTS.
+    const services = cells.map((cell) => ({ ...cell, hidden: !cell.optionId.endsWith("_worship") }));
+    add("MEALS", "참석할 집회를 선택해주세요", null, "MULTI_CHOICE", true, multi(services), when("ATTENDANCE", "opt_worship"));
   }
   setup.schedule.forEach((slots, index) => {
     if (slots.worship) worshipDays.push(index + 1);
   });
   if (setup.attendance.partial) {
-    add("PARTIAL_NOTE", "운영진이 알아야 할 부분 참석 메모가 있나요?", null, "LONG_TEXT", false, longText(), whenPartial);
+    const note = range ? "중간에 나갔다가 다시 오거나 수련회장에서 자지 않는다면 적어 주세요." : null;
+    add("PARTIAL_NOTE", "운영진이 알아야 할 부분 참석 메모가 있나요?", note, "LONG_TEXT", false, longText(), whenPartial);
   }
 
   const transport = setup.transport;

@@ -24,7 +24,7 @@ export function seedDemoRoster(count = 200, eventId: string = localEvent.eventId
     gender: true,
     middleGroup: true,
     cell: true,
-    attendance: { partial: true, worshipOnly: true },
+    attendance: { partial: true, worshipOnly: true, mode: "SLOTS" },
     schedule: [day, day, day],
     transport: { groupBus: true, worshipShuttle: true, car: true, publicTransit: true, support: true },
   });

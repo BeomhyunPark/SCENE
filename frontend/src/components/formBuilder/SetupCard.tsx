@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { FormSetup, SetupDay } from "../../api/forms";
+import type { AttendanceMode, FormSetup, SetupDay } from "../../api/forms";
 import { Button } from "../Button";
 
 const DAYS_MAX = 10;
@@ -23,10 +23,35 @@ function daysBetween(start: string, end: string): number {
   return Math.round((Date.parse(`${end}T00:00:00Z`) - Date.parse(`${start}T00:00:00Z`)) / 86_400_000) + 1;
 }
 
-function dayLabel(start: string, index: number): string {
+/** Example: `1월 22일 (금)`, the server's wording for a day. */
+function dateLabel(start: string, index: number): string {
   const date = new Date(Date.parse(`${start}T00:00:00Z`) + index * 86_400_000);
-  return `${index + 1}일차 · ${date.getUTCMonth() + 1}월 ${date.getUTCDate()}일 (${WEEKDAYS[date.getUTCDay()]})`;
+  return `${date.getUTCMonth() + 1}월 ${date.getUTCDate()}일 (${WEEKDAYS[date.getUTCDay()]})`;
 }
+
+function dayLabel(start: string, index: number): string {
+  return `${index + 1}일차 · ${dateLabel(start, index)}`;
+}
+
+/** The slots on the schedule in order, worded like the generated options (`1월 22일 (금) 저녁`). */
+function slotLabels(start: string, schedule: SetupDay[]): string[] {
+  return schedule.flatMap((day, index) =>
+    SLOTS.filter((slot) => day[slot.key]).map((slot) => `${dateLabel(start, index)} ${slot.label}`),
+  );
+}
+
+const MODES: { mode: AttendanceMode; label: string; hint: string }[] = [
+  {
+    mode: "RANGE",
+    label: "도착~출발만 받기",
+    hint: "언제 도착하고 언제 출발하는지만 골라요. 그 사이의 식사와 집회는 모두 참석으로 세요.",
+  },
+  {
+    mode: "SLOTS",
+    label: "칸마다 고르기",
+    hint: "참석하는 식사와 집회를 하나씩 골라요. 숙박하는 밤과 도착·출발 시각도 따로 물어요.",
+  },
+];
 
 /** A usual retreat: arrive for dinner and worship, full days in between, leave after lunch. */
 function suggestedDay(index: number, days: number): SetupDay {
@@ -40,13 +65,17 @@ function suggestedDay(index: number, days: number): SetupDay {
 function initialSetup(saved: FormSetup | null, days: number): FormSetup {
   const schedule = Array.from({ length: days }, (_, index) => saved?.schedule[index] ?? suggestedDay(index, days));
   // A setup saved before the 새가족 switch existed has no key: keep it off there.
-  if (saved) return { ...saved, newcomer: saved.newcomer ?? false, schedule };
+  // A setup saved before DEC-074 has no mode: it keeps asking slot by slot.
+  if (saved) {
+    const attendance = { ...saved.attendance, mode: saved.attendance.mode ?? "SLOTS" };
+    return { ...saved, newcomer: saved.newcomer ?? false, attendance, schedule };
+  }
   return {
     gender: true,
     middleGroup: false,
     cell: false,
     newcomer: true,
-    attendance: { partial: true, worshipOnly: false },
+    attendance: { partial: true, worshipOnly: false, mode: "RANGE" },
     schedule,
     transport: { groupBus: true, worshipShuttle: false, car: true, publicTransit: true, support: false },
   };
@@ -108,6 +137,9 @@ export function SetupCard({
   const stale =
     saved?.generatedFor !== undefined &&
     (saved.generatedFor.startDate !== startDate || saved.generatedFor.endDate !== endDate);
+  // Once an application is in, the server refuses another mode (DEC-074 §6). A form that never
+  // saved a setup has no answers that depend on it.
+  const modeFixed = locked && saved !== null;
   const change = (next: FormSetup) => {
     setDraft(next);
     setTouched(true);
@@ -165,15 +197,25 @@ export function SetupCard({
             "부분 참석 받기",
             draft.attendance.partial,
             (partial) => change({ ...draft, attendance: { ...draft.attendance, partial } }),
-            "도착·출발 시각, 숙박하는 밤, 참석할 식사·집회를 이어서 물어요.",
+            draft.attendance.mode === "RANGE"
+              ? "도착 칸과 출발 칸을 이어서 물어요."
+              : "도착·출발 시각, 숙박하는 밤, 참석할 식사·집회를 이어서 물어요.",
           )}
           {check(
             "집회만 받기",
             draft.attendance.worshipOnly,
             (worshipOnly) => change({ ...draft, attendance: { ...draft.attendance, worshipOnly } }),
-            "참석할 식사·집회만 물어요.",
+            draft.attendance.mode === "RANGE" ? "참석할 집회만 물어요." : "참석할 식사·집회만 물어요.",
           )}
         </div>
+        {draft.attendance.partial ? (
+          <ModePicker
+            mode={draft.attendance.mode}
+            slots={slotLabels(startDate!, draft.schedule)}
+            fixed={modeFixed}
+            onChange={(mode) => change({ ...draft, attendance: { ...draft.attendance, mode } })}
+          />
+        ) : null}
         {!draft.attendance.partial && !draft.attendance.worshipOnly ? (
           <p className="registration-setup__note">둘 다 끄면 참석 방식을 묻지 않고 모두 전체 참석으로 받아요.</p>
         ) : null}
@@ -259,5 +301,80 @@ export function SetupCard({
         {saved ? "설정 저장" : "질문 만들기"}
       </Button>
     </section>
+  );
+}
+
+/**
+ * How partial attendees answer (DEC-074), with a small sample of what they see. New element: the
+ * design has no frame for it, so it reuses the card's radio rows and the participant choice chips.
+ */
+function ModePicker({
+  mode,
+  slots,
+  fixed,
+  onChange,
+}: {
+  mode: AttendanceMode;
+  slots: string[];
+  fixed: boolean;
+  onChange: (mode: AttendanceMode) => void;
+}) {
+  const first = slots[0];
+  const last = slots.at(-1);
+  return (
+    <fieldset className="setup-card__mode">
+      <legend>부분 참석을 받는 방식</legend>
+      <div className="setup-card__checks setup-card__checks--column">
+        {MODES.map((item) => (
+          <label key={item.mode} className="setup-card__check">
+            <input
+              type="radio"
+              name="attendance-mode"
+              value={item.mode}
+              checked={mode === item.mode}
+              disabled={fixed}
+              onChange={() => onChange(item.mode)}
+            />
+            <span>
+              {item.label}
+              <small>{item.hint}</small>
+            </span>
+          </label>
+        ))}
+      </div>
+      {fixed ? (
+        <p className="registration-setup__note">
+          신청이 들어온 신청서라 방식을 바꿀 수 없어요. 이미 받은 답과 집계가 같은 방식으로 세어져야 해요.
+        </p>
+      ) : null}
+      {mode === "RANGE" ? (
+        <p className="registration-setup__note">중간에 나갔다가 다시 오는 경우는 따로 챙겨 주세요. 부분 참석 메모에 적게 안내해요.</p>
+      ) : null}
+      {first && last ? (
+        <div className="setup-card__sample" aria-label="참가자에게 보이는 모습">
+          <p className="setup-card__sample-title">참가자에게 이렇게 보여요</p>
+          {mode === "RANGE" ? (
+            <>
+              <p>수련회장에 언제 도착하나요?</p>
+              <span className="setup-card__sample-chip">{first}부터</span>
+              <p>수련회장에서 언제 출발하나요?</p>
+              <span className="setup-card__sample-chip">{last}까지</span>
+            </>
+          ) : (
+            <>
+              <p>참석할 프로그램과 식사를 선택해주세요</p>
+              <div className="setup-card__sample-chips">
+                {slots.slice(0, 4).map((slot) => (
+                  <span key={slot} className="setup-card__sample-chip">
+                    {slot}
+                  </span>
+                ))}
+                {slots.length > 4 ? <span className="setup-card__sample-more">외 {slots.length - 4}칸</span> : null}
+              </div>
+            </>
+          )}
+        </div>
+      ) : null}
+    </fieldset>
   );
 }

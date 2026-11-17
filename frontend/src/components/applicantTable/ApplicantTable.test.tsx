@@ -56,6 +56,7 @@ describe("참가 현황 table at retreat size", () => {
       "현재 상태",
       "조 배정",
       "참석 범위",
+      "참석 일정",
       "작업",
     ]);
     const totals = within(grid).getAllByRole("row").at(-1)!;

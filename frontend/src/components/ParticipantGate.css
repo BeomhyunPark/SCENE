@@ -209,3 +209,45 @@
 .participant-gate__number {
   max-width: 160px;
 }
+
+/* Arrival–departure summary (DEC-074). Neutral brand tint like other feedback banners. */
+.participant-gate__range {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  text-align: left;
+  gap: 6px;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--color-bg-brand-subtle);
+  color: var(--color-text-primary);
+  font: var(--scene-body-m);
+  letter-spacing: 0;
+}
+
+.participant-gate__range-title {
+  margin: 0;
+  color: var(--color-text-brand);
+  font: var(--scene-label-m);
+}
+
+.participant-gate__range ul {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.participant-gate__range li {
+  display: flex;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+
+.participant-gate__range-day {
+  min-width: 96px;
+  color: var(--color-text-secondary);
+}
