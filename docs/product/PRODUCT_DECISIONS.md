@@ -2496,3 +2496,81 @@ SYSTEM 이름·전화는 제목만 고칠 수 있었고 늘 맨 앞에 고정이
 ### Evidence
 
 사용자 위임 2026-11-17: #235 질문에 답하는 일을 "알아서" 맡겼고, 6개 질문 모두 추천안을 채택했다. 근거 자료는 RES-006, event-lifecycle-review "종료 후 허용 행동", API Architecture §14, DEC-060(연락처 숨김), DEC-062(업무 체크 `NO_CHANGE`)다.
+
+## DEC-072 — 조 편성은 작업본과 공개 스냅샷으로 나누고, 조장은 참가자이며, 참가자는 조 이름과 조장 이름만 본다
+
+**Date:** 2026-11-17
+
+**Status:** CONFIRMED (사용자 위임 2026-11-17, 추천안 채택)
+
+### Context
+
+2027년 1월 수련회([#230](https://github.com/BeomhyunPark/SCENE/issues/230))는 조 편성과 공개까지 SCENE으로 한다([#234](https://github.com/BeomhyunPark/SCENE/issues/234), 마감 1/15). 제품 정책은 DEC-040~048에서 정했다: 저장과 공개 분리, 부분 배정 공개와 미배정 경고, 공개본만 참가자에게, 준비 중 편성은 `GROUP_WRITE`, 철회자 즉시 제외, 오래된 저장의 덮어쓰기 금지, 재시도 중복 금지, 변경 기록. 그런데 저장 구조, 버전 단위, 조장의 신원, 필터에 쓰는 답, 공개 API, 참가자에게 보이는 정보, 기본 권한, 행사 상태별 동작은 정해지지 않았다. API 초안 §11과 데이터 모델 초안(`groups`·`group_members`·`group_leaders`)은 조장 identity와 공개 endpoint를 OPEN으로 둔다. 지금 서버에는 신청을 철회하는 경로가 없다(`WITHDRAWN`은 값만 있다).
+
+질문·선택지·추천안은 [#234 결정 대기 댓글](https://github.com/BeomhyunPark/SCENE/issues/234#issuecomment-6936684799)에 있다. 사용자가 이 결정을 맡겨서 추천안을 그대로 채택했다. 🔒는 나중에 뒤집기 어려운 결정이다. 뒤집을 때는 아래 Alternatives와 Consequence를 본다.
+
+### Decision
+
+1. 🔒 **작업본은 테이블, 공개본은 스냅샷이다.** `groups`(조)와 `group_assignments`(참가자당 한 행, `group_id`, `leader`)가 작업본이다. 공개하면 `group_publications`에 그 순간의 조 이름·순서·조원·조장을 **참가자 id만** 담은 JSON 한 행을 더한다. 참가자 조회는 가장 최근 공개 행만 읽는다. 이름·또래는 읽을 때 지금 값으로 붙인다.
+   - 버전은 행사당 하나인 `boardVersion`(작업본이 실제로 바뀔 때마다 +1, 공개는 올리지 않음)과 조마다 `version`(이름·삭제·조장)이다.
+   - 변경 기록은 1차부터 `group_assignment_logs`에 남긴다(참가자, 이전·새 조, 조장 전후, 처리자, 시각). 공개는 `audit_logs`에 남긴다.
+2. 🔒 **조장은 그 행사의 참가자이고, 배정 행의 표시다.** 조장은 그 조의 조원이어야 하고, 다른 조로 옮기거나 미배정이 되면 표시가 풀린다. 조당 0–3명(잠정). 조장은 자기 참가자 링크로 들어온다. 같은 사람이 운영자이기도 하면 두 신원은 연결하지 않는다.
+3. **필터는 자동 질문의 고정 키로 찾는다.** `GENDER`(보기 id와 지금 문구), `COHORT`, `ATTENDANCE`(`FULL`·`PARTIAL`·`WORSHIP_ONLY`), `MIDDLE_GROUP`·`CELL`(자유 입력 그대로)이다. 답이 없거나 질문이 꺼져 있으면 `null`이고 화면은 "응답 없음"으로 묶는다. 참석 방식은 DEC-070 §3대로 질문이 없거나 꺼졌으면 `FULL`이다. 필터는 화면에서 하고, 서버는 편성판에 `SUBMITTED` 신청자 전원과 이 값을 준다. 중그룹·셀은 1차에 자유 입력을 같은 글자끼리 묶는다(목록화는 하지 않는다).
+4. **동시 수정.** 배정 변경은 사람마다 `fromGroupId`(내가 본 지금 조)를 보낸다. 하나라도 다르면 아무것도 저장하지 않고 `409 CONCURRENT_MODIFICATION`과 `conflicts[]`를 돌려준다. 지금 값이 이미 목적지면 반영된 것으로 본다. 서로 다른 사람을 옮기는 두 운영자는 충돌하지 않는다(DEC-046의 비충돌 병합). 조 이름·삭제·조장은 조의 `expectedVersion`, 공개는 `expectedBoardVersion`이다. 공개 버전이 다르면 최신 내용을 다시 확인하게 한다.
+   - `Idempotency-Key`는 쓰지 않는다. 배정은 "이미 목적지면 성공", 공개는 "직전 공개본과 같으면 `ALREADY_PUBLISHED`"라서 같은 요청을 다시 보내도 두 번 반영되지 않는다(DEC-047).
+   - 미배정 활성 참가자가 있으면 공개에 `confirmUnassigned: true`가 필요하다. 없으면 `409 CONFIRMATION_REQUIRED`와 `unassignedCount`(DEC-041).
+5. **철회자는 읽을 때 뺀다.** `SUBMITTED` 신청이 없는 참가자는 편성판의 활성 명단·미배정 수, 공개본 조회, 조장 명단에서 빠진다(DEC-044). 편성판은 "철회됨 · 이전 조"를 참고로 따로 보여 준다. 신청 철회 경로를 열 때는 그 transaction에서 배정을 지우고 이력에 남겨, 복귀할 때 옛 조가 자동으로 돌아오지 않게 한다.
+6. 🔒 **참가자에게 보이는 범위.** 일반 참가자는 내 조 이름, 조장 이름, 공개 시각만 본다. 조원 명단은 보지 않는다. 조장은 여기에 자기 조원의 이름·또래를 더 본다. 조장의 조원 연락처(DEC-030)는 1차에 보여 주지 않는다. 참가자 상태는 `NOT_PUBLISHED`(준비 중)·`UNASSIGNED`(공개됐지만 미배정)·`ASSIGNED`·`NOT_ELIGIBLE`(신청 없음)이다.
+7. 🔒 **편성과 공개 모두 `GROUP_WRITE`이고, 기본값은 OWNER만이다.** 공개 전용 키는 만들지 않는다. MANAGER·STAFF 기본값에 `GROUP_WRITE`를 넣지 않고, OWNER가 편성 담당에게 개별로 GRANT한다. 작업본 조회는 `GROUP_WRITE` 또는 활성 공간 `OWNER`·`ADMIN`이다. 공개본 조회(운영자)는 `EVENT_READ`다.
+8. **행사 상태별 동작.**
+
+| 상태 | 편성판·공개본 조회 | 편집·공개 | 참가자 내 조 |
+|---|---|---|---|
+| DRAFT | 조회 | 가능 | 공개본 |
+| ACTIVE | 조회 | 가능 | 공개본 |
+| ENDED | 조회 | `409 EVENT_ENDED` | 마지막 공개본 |
+| ARCHIVED | 읽기 전용 조회 | `409 EVENT_ARCHIVED` | 마지막 공개본 |
+
+- 새 ErrorCode는 만들지 않는다. 계약은 [backend/docs/api.md](../../backend/docs/api.md) "조 편성"이다.
+
+### 범위 밖
+
+- 자동 배정, 조 사이 균형 추천. 화면은 조별 인원·성별·또래 분포만 보여 준다.
+- 방·차량 배정과 조 이동의 의존 안내(DEC-045)
+- 공개 알림 전달(DEC-042). 공개 때 영향받은 참가자 수만 센다. 참가자는 자기 링크에서 확인한다.
+- 조장 화면의 조원 연락처, 조장과 운영자 신원 연결
+- 되돌리기 화면과 이력 조회 화면(DEC-048). 이력 저장은 1차에 한다.
+- 신청 정보가 바뀐 참가자의 "배정 검토 필요" 표시(DEC-044). 편성판이 늘 지금 답을 보여 준다.
+- 공개 취소, 조 안내문·집합 장소, 직접 만든 질문으로 거르기, 중그룹·셀 목록화
+
+### Alternatives
+
+- 작업본·공개본 테이블 두 벌: 공개 때 행을 복사하고 조 삭제·이름 변경이 공개본 FK와 얽힌다. 스냅샷은 공개 기록(DEC-048)을 따로 만들 필요가 없다.
+- 스냅샷에 이름까지 넣기: 철회자 제외와 보존 정리(DEC-056)를 지난 공개 행마다 고쳐야 한다.
+- 별도 `group_leaders` 테이블(초안): 조원이 아닌 조장, 다른 조로 간 조장이 생길 수 있다. 1차는 "조장은 그 조의 조원"이면 충분하다.
+- 조장을 운영자로: 조장마다 Google 계정과 초대가 필요하고, 운영자 권한 모델에 조 단위 범위를 새로 넣어야 한다.
+- 편성판 전체에 `expectedBoardVersion` 하나: 두 운영자가 서로 다른 사람을 옮겨도 매번 충돌한다.
+- 배정마다 `Idempotency-Key`: 체크인처럼 키 저장이 필요하다. 목적지 비교로 같은 효과가 난다.
+- 서버에서 필터: 수련회 규모(수백 명)에서는 한 번에 받아 화면에서 거르는 게 빠르고 API가 작다.
+- 일반 참가자에게 조원 이름 공개: DEC-043은 다른 사람 정보를 자동으로 주지 않는다. 범위는 나중에 넓히기 쉽고 줄이기 어렵다.
+- 조장에게 조원 연락처(DEC-030 그대로): 참가자 링크가 새면 조원 연락처가 같이 새고, 참가자 세션의 연락처 조회 기록이 아직 없다. 연락처는 운영자가 전달한다([#233](https://github.com/BeomhyunPark/SCENE/issues/233)).
+- 공개 전용 키(`GROUP_PUBLISH`): 편성하는 사람이 보통 공개한다. 확인 창과 미배정 경고가 안전장치다. 나중에 키를 나눌 수 있다.
+- MANAGER 기본 `GROUP_WRITE`: 편성은 보통 1–2명이 맡는다. 체크인(STAFF 전원)과 달리 넓게 줄 이유가 없다.
+- DRAFT에서 편성 막기: 신청을 행사 시작 전에 받으므로 행사 전에 편성·공개해야 한다.
+
+### Reason
+
+1월에 꼭 필요한 것은 "운영자 몇 명이 동시에 사람을 조에 넣고, 확인하고 공개하면, 참가자가 자기 링크에서 내 조와 조장을 본다"이다. 작업본 + 스냅샷은 DEC-040의 "한 번에 반영"과 DEC-048의 기록을 테이블 하나로 해결한다. 사람 단위 비교는 여러 운영자의 동시 작업을 막지 않으면서 덮어쓰기를 막는다. 참가자에게는 찾아갈 사람(조장)까지만 보여 주고, 개인정보 범위를 넓히는 일은 실제 사용 뒤로 미룬다.
+
+### Consequence
+
+- 서버: Flyway로 `groups`·`group_assignments`·`group_boards`(행사당 `version`)·`group_assignment_logs`·`group_publications`. 쓰기는 행사 행을 잠그고 처리한다. audit `GROUPS_PUBLISHED`. `RoleDefaults`는 바꾸지 않는다.
+- 조장 신원이 참가자라는 점은 [데이터 모델 초안](../architecture/data-model-v0.1.md)의 OPEN(Group Leader identity)을 닫는다. 조장 겸 운영자가 조장 화면을 운영자 계정으로 보려면 나중에 신원 연결이 필요하다.
+- 조장 연락처를 열 때는 참가자 세션 actor의 연락처 조회 기록과 링크 유출 대응을 먼저 정한다.
+- 신청 철회 경로를 여는 이슈는 배정 정리(5번)를 완료 조건에 넣는다.
+- [#288](https://github.com/BeomhyunPark/SCENE/issues/288) 조별 체크인 현황은 공개본(`GET …/groups/published`)을 기준으로 한다. 조장이 자기 조 미도착자를 참가자 링크에서 보는 것은 #288에서 이 범위(이름·또래) 안에서 정한다.
+- 하위 이슈(순서대로): [#299](https://github.com/BeomhyunPark/SCENE/issues/299) 서버 조·배정 저장, [#300](https://github.com/BeomhyunPark/SCENE/issues/300) 서버 공개와 참가자 조회, [#301](https://github.com/BeomhyunPark/SCENE/issues/301) 운영자 편성 화면, [#302](https://github.com/BeomhyunPark/SCENE/issues/302) 운영자 공개 흐름, [#303](https://github.com/BeomhyunPark/SCENE/issues/303) 참가자 내 조 화면, [#304](https://github.com/BeomhyunPark/SCENE/issues/304) 실제 명단 확인. #288은 #300 뒤다.
+
+### Evidence
+
+사용자 위임 2026-11-17: #234 질문에 답하는 일을 "알아서" 맡겼고, 9개 질문 모두 추천안을 채택했다. 근거 자료는 DEC-030·040~048, DEC-070 §3, DEC-071, [group-publication-review](group-publication-review.md), [group-change-recovery-review](group-change-recovery-review.md), event-lifecycle-review "종료 후 허용 행동", API Architecture §11.
