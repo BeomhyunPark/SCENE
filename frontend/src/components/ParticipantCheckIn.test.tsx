@@ -3,10 +3,10 @@ import { http, HttpResponse } from "msw";
 import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { App } from "../App";
-import { seedCheckIn, seededParticipants } from "../mocks/checkInStore";
-import { localEvent } from "../mocks/fixtures/seed";
+import { checkIn as operatorCheckIn, checkInCodeFor, seedCheckIn, seededParticipants } from "../mocks/checkInStore";
+import { localEvent, localUsers } from "../mocks/fixtures/seed";
 import { setLifecycle } from "../mocks/operatorStore";
-import { readParticipantCheckIn, setParticipantCheckInSecret, signedCode } from "../mocks/participantCheckInStore";
+import { readParticipantCheckIn, setParticipantCheckInSecret } from "../mocks/participantCheckInStore";
 import { server } from "../mocks/server";
 import { qrPath } from "./qrPath";
 
@@ -161,7 +161,7 @@ describe("participant check-in mock", () => {
     expect(active).toMatchObject({ status: "AVAILABLE", checkedIn: false, checkedInAt: null });
     const code = "code" in active ? active.code! : "";
     expect(code).toMatch(/^SCENE-CI1\.[A-Za-z0-9_-]{43}$/);
-    expect(code).toBe(await signedCode("scene-mock-checkin-secret", EVENT, participant));
+    expect(code).toBe(checkInCodeFor(EVENT, participant));
     expect(await readParticipantCheckIn(EVENT, participant)).toMatchObject({ code });
     seedCheckIn(EVENT, participant);
     expect(await readParticipantCheckIn(EVENT, participant)).toMatchObject({
@@ -170,6 +170,16 @@ describe("participant check-in mock", () => {
     });
     setLifecycle(EVENT, "ENDED", 3);
     expect(await readParticipantCheckIn(EVENT, participant)).toMatchObject({ status: "ENDED", code: null, checkedIn: true });
+  });
+
+  it("shows a value the mock operator scan checks in as that participant (#287)", async () => {
+    setLifecycle(EVENT, "ACTIVE", 2);
+    for (const { participantId, name } of seededParticipants()) {
+      const shown = await readParticipantCheckIn(EVENT, participantId);
+      const code = "code" in shown ? shown.code! : "";
+      const scanned = operatorCheckIn(EVENT, localUsers[2].userId, crypto.randomUUID(), { mode: "QR", code });
+      expect(scanned).toMatchObject({ result: "CHECKED_IN", participant: { participantId, name } });
+    }
   });
 
   it("is a 404 without a secret and NOT_ELIGIBLE off the roster", async () => {
