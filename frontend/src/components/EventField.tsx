@@ -301,17 +301,18 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
           </Button>
         )}
 
-        <div className="event-field__filters event-field__views" role="group" aria-label="현황 보기">
+        {/* 보기 전환 is a segmented control, set apart from the 체크인 상태 chips below (#337). */}
+        <div className="event-field__views" role="group" aria-label="현황 보기">
           {(
             [
-              ["all", "전체"],
-              ["groups", "조별"],
+              ["all", "전체 명단"],
+              ["groups", "조별 명단"],
             ] as const
           ).map(([value, label]) => (
             <button
               key={value}
               type="button"
-              className="event-field__filter"
+              className="event-field__view"
               aria-pressed={view === value}
               onClick={() => setView(value)}
             >
@@ -341,6 +342,9 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
             </div>
 
             <div className="event-field__filters" role="group" aria-label="체크인 상태로 보기">
+              <span className="event-field__filters-label" aria-hidden="true">
+                체크인
+              </span>
               {(
                 [
                   ["all", "전체"],

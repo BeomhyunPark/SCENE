@@ -80,7 +80,7 @@ describe("event participation applicants", () => {
     expect(within(table).getByText("김하나")).toBeInTheDocument();
     expect(within(table).queryByRole("columnheader", { name: /연락처/ })).not.toBeInTheDocument();
     expect(document.body.textContent ?? "").not.toContain("010-1111-2222");
-    expect(screen.getByRole("searchbox", { name: "이름, 연락처, 소속 검색" })).toHaveAttribute("placeholder", "이름, 소속 검색");
+    expect(screen.getByRole("searchbox", { name: "이름, 연락처, 소속, 메모 검색" })).toHaveAttribute("placeholder", "이름, 소속, 메모 검색");
   });
 
   it("opens every answer for one applicant", async () => {

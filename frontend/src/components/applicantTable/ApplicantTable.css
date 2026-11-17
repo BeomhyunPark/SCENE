@@ -881,3 +881,15 @@ th[aria-sort="descending"] .roster__arrow {
   border: 0;
   background: none;
 }
+
+/* 수정 (#337): next to 상세 in the row's 작업 cell. */
+.roster__edit {
+  margin-left: 6px;
+  background: var(--color-bg-surface, #fff);
+  cursor: pointer;
+}
+
+.roster__edit:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}

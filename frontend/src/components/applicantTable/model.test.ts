@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { ApplicationTable, TableColumn, TableRow } from "../../api/applications";
+import { EMPTY_OPERATION, type ApplicationTable, type TableColumn, type TableRow } from "../../api/applications";
 import {
   bucketsOf,
   applyFilters,
@@ -10,6 +10,9 @@ import {
   groupRows,
   moveColumn,
   crossCount,
+  EMPTY_VIEW,
+  HAS_MEMO,
+  MEMO,
   NONE,
   OTHER,
   readView,
@@ -75,7 +78,17 @@ const COLUMNS: TableColumn[] = [
 ];
 
 function row(id: string, answers: Record<string, Record<string, unknown>>, extra: Partial<TableRow> = {}): TableRow {
-  return { applicationId: id, submittedAt: `2026-12-1${id}T03:00:00Z`, answers, group: null, checkedInAt: null, slotIds: null, ...extra };
+  return {
+    applicationId: id,
+    participantId: `p${id}`,
+    submittedAt: `2026-12-1${id}T03:00:00Z`,
+    answers,
+    group: null,
+    checkedInAt: null,
+    slotIds: null,
+    operation: EMPTY_OPERATION,
+    ...extra,
+  };
 }
 
 const ROWS: TableRow[] = [
@@ -144,6 +157,7 @@ describe("columns", () => {
       "도착일",
       "동의",
       "메모 (숨김)",
+      "운영 메모",
       "제출 시각",
     ]);
     expect(visibleColumns(COLS, null).map((item) => item.id)).toEqual([
@@ -468,5 +482,35 @@ describe("참석 일정 (DEC-074)", () => {
       "모름",
     ]);
     expect(table.rows.map((item) => column.buckets(item).includes("opt_d2_lunch"))).toEqual([true, true, false]);
+  });
+});
+
+describe("운영 메모 column (#337)", () => {
+  const withMemo = [
+    row("1", { name: { text: "김하나" } }, { operation: { memo: "토 저녁\n외출", version: 1, updatedAt: null, updatedByDisplayName: "운영" } }),
+    row("2", { name: { text: "박둘" } }),
+  ];
+  const memo = buildColumns({ ...TABLE, rows: withMemo }).find((item) => item.id === MEMO)!;
+
+  it("is off by default, filters 메모 있음/없음 and counts", () => {
+    expect(memo.defaultVisible).toBe(false);
+    expect(names(applyFilters(withMemo, [memo], { [MEMO]: { kind: "in", keys: [HAS_MEMO] } }, "", null))).toEqual(["김하나"]);
+    expect(names(applyFilters(withMemo, [memo], { [MEMO]: { kind: "in", keys: [NONE] } }, "", null))).toEqual(["박둘"]);
+    expect(countBy(withMemo, memo).map((item) => [item.label, item.count])).toEqual([
+      ["메모 있음", 1],
+      ["메모 없음", 1],
+    ]);
+    expect(summarize(withMemo, memo)).toBe("메모 1");
+  });
+
+  it("is found by the top search and keeps memo words out of the address", () => {
+    const columns = buildColumns({ ...TABLE, rows: withMemo });
+    expect(names(applyFilters(withMemo, columns, {}, "외출", null))).toEqual(["김하나"]);
+    const params = writeView({ ...EMPTY_VIEW, filters: { [MEMO]: { kind: "text", query: "외출" } } });
+    expect(params.toString()).toBe("");
+  });
+
+  it("copies on one line", () => {
+    expect(copyText([withMemo[0]], [memo])).toBe("토 저녁 외출");
   });
 });

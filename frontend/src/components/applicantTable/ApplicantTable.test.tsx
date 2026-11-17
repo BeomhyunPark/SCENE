@@ -179,7 +179,7 @@ describe("참가 현황 table at retreat size", () => {
     await screen.findByRole("grid", { name: "신청자 명단" });
     const target = tableApplications(EVENT)[5];
     const phone = Object.values(target.answers).find((value) => typeof value.text === "string" && value.text.startsWith("010"))!;
-    fireEvent.change(screen.getByRole("searchbox", { name: "이름, 연락처, 소속 검색" }), {
+    fireEvent.change(screen.getByRole("searchbox", { name: "이름, 연락처, 소속, 메모 검색" }), {
       target: { value: String(phone.text).slice(-4) },
     });
     expect(Number(summary()?.replace("명", ""))).toBeGreaterThanOrEqual(1);
