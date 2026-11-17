@@ -746,11 +746,10 @@ body.event-groups--dragging {
 }
 
 .event-groups__slot-head,
-.event-groups__slot-bar,
-.event-groups__headcount-cells {
+.event-groups__slot-bar {
   display: grid;
   grid-template-columns: repeat(var(--slot-count), minmax(0, 1fr));
-  /* Same columns and gap as the bars, so header, bars and 인원 line up slot by slot. */
+  /* Same columns and gap as the bars, so the day ticks line up with them. */
   column-gap: 2px;
 }
 
@@ -772,7 +771,12 @@ body.event-groups--dragging {
   overflow: hidden;
 }
 
-/* Narrow cards: "1/23" over days with 3+ slots, the day number over shorter ones; full label in title. */
+/* Narrow cards: only the day boundaries; the dates show when there is room. The table at the bottom of
+   the card names every slot. */
+.event-groups__slot-day {
+  min-height: 8px;
+}
+
 .event-groups__slot-day-wide {
   display: none;
 }
@@ -780,10 +784,6 @@ body.event-groups--dragging {
 @container (min-width: 360px) {
   .event-groups__slot-day-wide {
     display: inline;
-  }
-
-  .event-groups__slot-day-tight {
-    display: none;
   }
 }
 
@@ -842,31 +842,45 @@ body.event-groups--dragging {
   color: var(--color-text-tertiary);
 }
 
-.event-groups__headcount-cells {
-  margin: 0;
-  padding: 0 9px 0 calc(var(--member-lead, 0px) + 11px);
-  list-style: none;
-  font: var(--scene-label-s);
+/* 시간대별 인원 (#343): a small table across the card — dates, slot names, counts. */
+.event-groups__headcount-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font: var(--scene-caption-s);
   text-align: center;
 }
 
-/* One cell per slot, tinted like a bar cell; digits stack upright so 10+ still fits one column. */
-.event-groups__headcount-cells li {
-  display: flex;
-  justify-content: center;
-  min-width: 0;
-  padding: 2px 0;
-  border-radius: 2px;
-  background: var(--color-bg-surface);
-  font-size: 10px;
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
+.event-groups__headcount-table th {
+  padding: 1px 0;
+  overflow: hidden;
+  color: var(--color-text-tertiary);
+  font-weight: 400;
+  white-space: nowrap;
 }
 
-.event-groups__headcount-cells li > [aria-hidden] {
-  letter-spacing: -1px;
-  text-orientation: upright;
-  writing-mode: vertical-rl;
+.event-groups__headcount-table thead tr:first-child th {
+  border-bottom: 1px solid var(--color-border-default);
+  color: var(--color-text-secondary);
+}
+
+.event-groups__headcount-table thead tr:first-child th + th {
+  border-left: 1px solid var(--color-border-default);
+}
+
+.event-groups__headcount-table td {
+  padding: 3px 0;
+  color: var(--color-text-primary);
+  font: var(--scene-label-s);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Someone in the group is not there: bold, accent and a dotted underline ("n명 빠짐" for screen readers). */
+.event-groups__headcount-table td.event-groups__headcount-short {
+  color: var(--color-badge-attendance-partial-fg);
+  font-weight: 700;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
 }
 
 .event-groups__send {

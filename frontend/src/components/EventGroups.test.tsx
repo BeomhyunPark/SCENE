@@ -491,9 +491,17 @@ describe("attendance bars (#318)", () => {
     expect(within(group).getByText("참석 칸 모름")).toBeInTheDocument();
 
     expect(within(group).getByText(/시간대별 인원/)).toHaveTextContent("시간대별 인원 · 모름 1");
-    const cells = within(within(group).getByRole("list", { name: "시간대별 인원" })).getAllByRole("listitem");
-    expect(cells.map((cell) => cell.querySelector("[aria-hidden]")?.textContent)).toEqual(["1", "1", "1", "1", "2", "2", "2", "2", "1", "2"]);
-    expect(cells[4]).toHaveTextContent("1월 23일 (토) 저녁 2명");
+    // A table across the card (#343): dates, slot names, counts; slots someone misses are marked in words too.
+    const table = within(group).getByRole("table", { name: "시간대별 인원" });
+    const heads = within(table).getAllByRole("columnheader").map((cell) => cell.textContent);
+    expect(heads.slice(0, 3)).toEqual(["1/22", "1/23", "1/24"]);
+    expect(heads.slice(3)).toHaveLength(10);
+    const cells = within(table).getAllByRole("cell");
+    expect(cells.map((cell) => cell.firstChild?.textContent)).toEqual(["1", "1", "1", "1", "2", "2", "2", "2", "1", "2"]);
+    expect(cells[0]).toHaveTextContent("1 (2명 빠짐)");
+    expect(cells[0]).toHaveClass("event-groups__headcount-short");
+    // One member attends no slot at all here, so every slot misses someone.
+    expect(cells[4]).toHaveAttribute("title", "1월 23일 (토) 저녁 2명 · 1명 빠짐");
 
     // 미배정 cards carry the same bar; everyone else here attends all slots.
     expect(within(pool()).getAllByRole("img", { name: "모든 칸 참석" }).length).toBeGreaterThan(0);
