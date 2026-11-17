@@ -65,6 +65,7 @@ export const CANCEL_REASON_MAX = 200;
 /** Every SCENE check-in QR starts with this (backend/docs/api.md "QR 값"). Others never reach the server. */
 export const CHECK_IN_QR_PREFIX = "SCENE-CI1.";
 export const ROSTER_QUERY_MAX = 50;
+export const ROSTER_PAGE_MAX = 100;
 
 export function newIdempotencyKey(): string {
   return crypto.randomUUID();
@@ -88,6 +89,16 @@ export function listCheckInRoster(
     },
     signal,
   }).then(parseRoster);
+}
+
+/** The whole roster, page by page at the largest size, for the 조별 view (#288). */
+export async function listAllCheckInRoster(eventId: string, signal?: AbortSignal): Promise<RosterItem[]> {
+  const items: RosterItem[] = [];
+  for (let page = 0; ; page += 1) {
+    const result = await listCheckInRoster(eventId, { page, size: ROSTER_PAGE_MAX }, signal);
+    items.push(...result.items);
+    if (page + 1 >= result.page.totalPages) return items;
+  }
 }
 
 export function checkInManually(
