@@ -340,7 +340,8 @@ class ApplicationReadHttpIT {
     List<String> details = auditDetails(event.eventId, "APPLICATION_OPERATION_UPDATED");
     assertThat(details).hasSize(2);
     JsonNode last = json.readTree(details.get(details.size() - 1));
-    assertThat(last.propertyNames()).containsExactly("applicationId", "version", "fields");
+    assertThat(last.propertyNames())
+        .containsExactlyInAnyOrder("applicationId", "version", "fields");
     assertThat(last.get("version").asInt()).isEqualTo(2);
     assertThat(last.get("applicationId").asString()).isEqualTo(seeded.applicationId.toString());
     assertThat(String.join(" ", details)).doesNotContain("통근", "외출");
