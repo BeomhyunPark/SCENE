@@ -42,6 +42,7 @@ public class OperatorApplicationService {
   private final EventAccessGate gate;
   private final ApplicationRepository applications;
   private final EventUserPermissionRepository permissions;
+  private final ApplicationOperationRepository operations;
   private final AuditLogRepository auditLogs;
   private final JsonMapper json;
   private final Clock clock;
@@ -50,12 +51,14 @@ public class OperatorApplicationService {
       EventAccessGate gate,
       ApplicationRepository applications,
       EventUserPermissionRepository permissions,
+      ApplicationOperationRepository operations,
       AuditLogRepository auditLogs,
       JsonMapper json,
       Clock clock) {
     this.gate = gate;
     this.applications = applications;
     this.permissions = permissions;
+    this.operations = operations;
     this.auditLogs = auditLogs;
     this.json = json;
     this.clock = clock;
@@ -135,7 +138,8 @@ public class OperatorApplicationService {
         row.status(),
         row.submittedAt(),
         contactVisible,
-        answers);
+        answers,
+        operations.find(spaceId, eventId, applicationId));
   }
 
   /**

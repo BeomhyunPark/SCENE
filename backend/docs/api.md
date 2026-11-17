@@ -1062,7 +1062,32 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
 }
 ```
 
+`operation`은 운영 정보다(#335, DEC-075). 참가 현황 표의 `rows[].operation`과 같다. `answers`는 바뀌지 않는 원본이다.
+
 `answers`는 필드 position 순이다. 받은 답만 있고, 답이 없는 질문은 빠진다. `answerType`·`hidden`·`config`는 그 질문의 **현재** 값이다(운영자 신청서 상세의 필드와 같은 모양). 화면은 이것으로 선택형 답의 `optionId`를 지금 보기 문구로 바꾸고, 숨긴 질문(`hidden: true`)과 숨긴 보기(`config.options[].hidden: true`)에 "(숨김)"을 붙인다(DEC-068 §6). `value` 모양은 DEC-068 §1을 따른다.
+
+### `PUT /api/v1/operator/events/{eventId}/applications/{applicationId}/operation`
+
+운영 정보 저장(#335, DEC-075). 1차는 운영 메모 하나다. **참가자가 낸 답(`answers`)은 바꾸지 않는다.** CSRF가 필요하고 `Idempotency-Key`는 읽지 않는다.
+
+```json
+{ "memo": "토요일 저녁 잠시 외출 후 복귀", "expectedVersion": 0 }
+```
+
+- 순서는 404 → 403 → 400 → 409 상태 → 409 version이다.
+- 행사·신청이 없으면 `404 RESOURCE_NOT_FOUND`.
+- 쓰기는 effective `PARTICIPANT_WRITE`다(행사 OWNER 기본, 다른 운영자는 개인별 GRANT). 공간 `OWNER`·`ADMIN`이라는 것만으로는 못 쓴다. 아니면 `403 FORBIDDEN`.
+- `memo`는 문자열, 0~2,000자(잠정)다. 빈 글은 메모를 지운다. 없거나 길면 `400 VALIDATION_FAILED`(필드 `memo`). `expectedVersion`은 0 이상의 정수다(필드 `expectedVersion`). 처음 저장은 `0`이다.
+- `ARCHIVED` 행사는 `409 EVENT_ARCHIVED`다. `DRAFT`·`ACTIVE`·`ENDED`에서 쓴다(ENDED는 기록 정정, DEC-051). 신청이 `SUBMITTED`가 아니면 `409 INVALID_STATE_TRANSITION`이고 확장 필드 `applicationStatus`가 붙는다.
+- 저장된 version이 다르면 `409 CONCURRENT_MODIFICATION`이고 확장 필드 `version`이 지금 version이다.
+
+`200`
+
+```json
+{ "memo": "토요일 저녁 잠시 외출 후 복귀", "version": 1, "updatedAt": "2026-12-20T03:00:00Z", "updatedByDisplayName": "김운영" }
+```
+
+저장마다 audit `APPLICATION_OPERATION_UPDATED` 한 줄을 남기고 details는 `{ "applicationId", "version", "fields": ["memo"] }`다. 메모 본문은 audit·로그·오류 응답에 넣지 않는다. 누가 언제 고쳤는지는 응답의 `updatedAt`·`updatedByDisplayName`과 audit 행으로 남는다. 참가자 경로(`/api/v1/participant/**`)와 CSV에는 운영 정보가 없다.
 
 ### `POST /api/v1/operator/events/{eventId}/applications/export`
 
@@ -1223,11 +1248,13 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
   "rows": [
     {
       "applicationId": "…",
+      "participantId": "…",
       "submittedAt": "2026-12-15T03:00:00Z",
       "answers": { "<fieldId>": { "text": "김하나" } },
       "group": { "groupId": "…", "name": "2조", "leader": false },
       "checkedInAt": null,
-      "slotIds": ["opt_d1_dinner", "opt_d1_worship"]
+      "slotIds": ["opt_d1_dinner", "opt_d1_worship"],
+      "operation": { "memo": "토 저녁 잠시 외출", "version": 1, "updatedAt": "…", "updatedByDisplayName": "김운영" }
     }
   ],
   "slots": [
@@ -1250,6 +1277,8 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
 - `checkedInAt`은 도착 체크인 시각이다. 체크인이 없거나 취소됐으면 `null`이다.
 - `slots`·`rows[].slotIds`(DEC-074)는 [조 편성판](#get-apiv1operatoreventseventidgroup-board)의 `slots`·`slotIds`와 같은 모양·같은 규칙이다. 신청서가 없거나 설정이 없거나 칸이 하나도 없으면 `slots`와 모든 `slotIds`가 `null`이다. `slotIds: null`은 "모름"이다. 전화 열을 볼 수 없어도 `slotIds`는 같은 값이다.
 - 0건이면 `rows`가 빈 배열이고 `columns`는 그대로다.
+- `participantId`는 조 편성판·`group-assignments`가 쓰는 참가자 id다. 서랍에서 조를 바꿀 때 쓴다(#335).
+- `operation`은 운영 정보다(#335, DEC-075). 모양은 [운영 정보 저장](#put-apiv1operatoreventseventidapplicationsapplicationidoperation)의 응답과 같고, 저장된 것이 없으면 `{ "memo": "", "version": 0, "updatedAt": null, "updatedByDisplayName": null }`이다. 표를 읽을 수 있으면 모두 본다. `answers`는 언제나 참가자가 낸 원본이다.
 
 ## 공개 신청서
 
@@ -1778,6 +1807,7 @@ audit `GROUPS_PUBLISHED`: detail은 `publicationId`, `boardVersion`, `assignedCo
 | `TASK_ASSIGNEE_CLEARED` | 그 제거 또는 탈퇴가 업무 담당을 비울 때. `DONE`과 `CANCELLED`를 포함해 담당인 업무마다 한 줄 |
 | `TASK_ITEM_CHECKED`, `TASK_ITEM_UNCHECKED` | 체크 값이 바뀔 때 |
 | `TASK_COMPLETED` | 업무가 `DONE`이 될 때 |
+| `APPLICATION_OPERATION_UPDATED` | 신청의 운영 정보(운영 메모)를 저장할 때마다. details는 `applicationId`·`version`·`fields`뿐이고 메모 본문은 없다(#335) |
 | `TASK_REOPENED` | `DONE` 업무가 다시 열릴 때 |
 
 이름 상수는 `common/audit/AuditActions`에 있다. 업무 진행의 네 이름은 그 클래스 밖에 있고, `TaskProgressService`가 문자열로 넣는다. `OWNER_TRANSFER_ACCEPTED`도 그 클래스 밖에 있고, `OwnerTransferService`가 문자열로 넣는다. detail은 `transferId`, `toUserId`, `recipientPriorRole`, `deletedOverrides`다. actor는 받는 사람이다.

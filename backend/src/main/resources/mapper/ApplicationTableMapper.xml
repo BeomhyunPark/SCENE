@@ -9,7 +9,7 @@
     as not arrived.
   -->
   <select id="findStates" resultType="app.scene.event.application.ApplicationTableState">
-    SELECT app.id AS application_id,
+    SELECT app.id AS application_id, app.participant_id,
            g.id AS group_id, g.name AS group_name, COALESCE(ga.leader, false) AS leader,
            c.checked_in_at
     FROM applications app
