@@ -185,9 +185,10 @@ class GroupPublicationHttpIT {
     assertThat(moved.get("group").get("name").asString()).isEqualTo("새2조");
     assertThat(moved.get("publishedAt").asString()).isEqualTo(second.get("publishedAt").asString());
 
-    // Moving someone back and forth is no change against the publication.
-    assign(w, change(other.id, g2, g1));
-    assign(w, change(other.id, g1, g2));
+    // Moving someone back and forth is no change against the publication. The last member comes
+    // back to the end, so the member order is the same too.
+    assign(w, change(mate.id, g2, g1));
+    assign(w, change(mate.id, g1, g2));
     JsonNode same = publish(w, boardVersion(w), false);
     assertThat(same.get("result").asString()).isEqualTo("ALREADY_PUBLISHED");
     assertThat(publicationCount(w)).isEqualTo(2);
@@ -277,7 +278,7 @@ class GroupPublicationHttpIT {
         change(quitLead.id, null, g1),
         change(otherLead.id, null, g2),
         change(otherMate.id, null, g2));
-    ok(leaders(w, g1, 0, lead.id, quitLead.id));
+    ok(leaders(w, g1, 0, lead.id));
     ok(leaders(w, g2, 0, otherLead.id));
     publish(w, boardVersion(w), false);
     w.withdraw(quit.id);
@@ -346,6 +347,39 @@ class GroupPublicationHttpIT {
     // Withdrawing later makes a member not eligible as well.
     w.withdraw(mate.id);
     assertThat(myGroup(mate).get("status").asString()).isEqualTo("NOT_ELIGIBLE");
+  }
+
+  @Test
+  void publicationsKeepTheOperatorMemberOrderAndAnOrderChangeIsUnpublished() throws Exception {
+    World w = world();
+    Person lead = w.participant("가조장", "010-4100-0001", "90");
+    Person mate = w.participant("나조원", "010-4100-0002", "91");
+    Person third = w.participant("다조원", "010-4100-0003", "92");
+    String g1 = createGroup(w, "1조");
+    assign(w, change(lead.id, null, g1), change(mate.id, null, g1), change(third.id, null, g1));
+    ok(memberOrder(w, g1, third.id, lead.id, mate.id));
+    ok(leaders(w, g1, 0, lead.id));
+    publish(w, boardVersion(w), false);
+
+    // The operator order, not leader first and not by name.
+    JsonNode first = published(w).get("groups").get(0);
+    assertThat(names(first.get("members"))).containsExactly("다조원", "가조장", "나조원");
+    assertThat(names(first.get("leaders"))).containsExactly("가조장");
+    assertThat(names(myGroup(lead).get("members"))).containsExactly("다조원", "가조장", "나조원");
+
+    // Order only is an unpublished change of that group.
+    ok(memberOrder(w, g1, lead.id, mate.id, third.id));
+    JsonNode summary = board(w).get("publication");
+    assertThat(summary.get("changedParticipantCount").asLong()).isZero();
+    assertThat(summary.get("groupChanges").asLong()).isEqualTo(1);
+    assertThat(summary.get("hasUnpublishedChanges").asBoolean()).isTrue();
+    assertThat(names(myGroup(lead).get("members"))).containsExactly("다조원", "가조장", "나조원");
+    JsonNode second = publish(w, boardVersion(w), false);
+    assertThat(second.get("result").asString()).isEqualTo("PUBLISHED");
+    assertThat(second.get("changedParticipantCount").asLong()).isZero();
+    assertThat(names(published(w).get("groups").get(0).get("members")))
+        .containsExactly("가조장", "나조원", "다조원");
+    assertThat(names(myGroup(lead).get("members"))).containsExactly("가조장", "나조원", "다조원");
   }
 
   @Test
@@ -620,6 +654,15 @@ class GroupPublicationHttpIT {
     String body =
         json.writeValueAsString(Map.of("participantIds", list, "expectedVersion", version));
     return write(put(groupPath(w, groupId) + "/leaders"), session, body);
+  }
+
+  private MockHttpServletRequestBuilder memberOrder(World w, String groupId, UUID... ids) {
+    List<String> list = new ArrayList<>();
+    for (UUID id : ids) {
+      list.add(id.toString());
+    }
+    String body = json.writeValueAsString(Map.of("participantIds", list));
+    return write(put(groupPath(w, groupId) + "/members/order"), w.owner, body);
   }
 
   private JsonNode assign(World w, String... changes) throws Exception {

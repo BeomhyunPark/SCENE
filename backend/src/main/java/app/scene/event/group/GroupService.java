@@ -60,7 +60,7 @@ public class GroupService {
   public static final int NAME_MAX = 50;
   public static final int GROUPS_MAX = 100;
   public static final int CHANGES_MAX = 200;
-  public static final int LEADERS_MAX = 3;
+  public static final int LEADERS_MAX = 1;
 
   static final String FULL = "FULL";
 
@@ -121,7 +121,8 @@ public class GroupService {
       }
       participants.add(participant(row, placements.get(row.participantId()), setup, days));
       active.add(
-          new ActiveParticipant(row.participantId(), null, null, row.groupId(), row.leader()));
+          new ActiveParticipant(
+              row.participantId(), null, null, row.groupId(), row.leader(), row.position()));
     }
     long activeCount = participants.size();
     PublicationDiff diff = PublicationDiff.of(list, active, snapshot);
@@ -234,9 +235,9 @@ public class GroupService {
     }
 
     Map<UUID, List<Snapshot.SnapshotMember>> members = new HashMap<>();
-    List<ActiveParticipant> byId = new ArrayList<>(active);
-    byId.sort(Comparator.comparing(ActiveParticipant::participantId));
-    for (ActiveParticipant participant : byId) {
+    List<ActiveParticipant> ordered = new ArrayList<>(active);
+    ordered.sort(MEMBER_ORDER);
+    for (ActiveParticipant participant : ordered) {
       if (participant.groupId() != null) {
         members
             .computeIfAbsent(participant.groupId(), id -> new ArrayList<>())
@@ -311,7 +312,6 @@ public class GroupService {
           members.add(new PublishedMember(current, member.leader()));
         }
       }
-      members.sort(PublishedMember.ORDER);
       List<PublishedGroups.Leader> leaders = new ArrayList<>();
       List<PublishedGroups.Member> items = new ArrayList<>();
       for (PublishedMember member : members) {
@@ -499,9 +499,56 @@ public class GroupService {
       return new Assigned(0, alreadyApplied, groups.boardVersion(spaceId, eventId));
     }
     Instant at = now();
+    Map<UUID, List<Change>> arrivals = new LinkedHashMap<>();
+    for (Change change : moves) {
+      if (change.toGroupId() != null) {
+        arrivals.computeIfAbsent(change.toGroupId(), id -> new ArrayList<>()).add(change);
+      }
+    }
+    Map<UUID, Integer> positions = new HashMap<>();
+    List<Runnable> shifts = new ArrayList<>();
+    for (Map.Entry<UUID, List<Change>> entry : arrivals.entrySet()) {
+      UUID groupId = entry.getKey();
+      List<Assignment> stay = groups.members(spaceId, eventId, groupId);
+      List<UUID> order = new ArrayList<>();
+      for (Assignment member : stay) {
+        order.add(member.participantId());
+      }
+      for (Change change : entry.getValue()) {
+        int anchor =
+            change.beforeParticipantId() == null ? -1 : order.indexOf(change.beforeParticipantId());
+        if (anchor < 0) {
+          order.add(change.participantId());
+        } else {
+          order.add(anchor, change.participantId());
+        }
+      }
+      Map<UUID, Integer> was = new HashMap<>();
+      for (Assignment member : stay) {
+        was.put(member.participantId(), member.position());
+      }
+      for (int i = 0; i < order.size(); i++) {
+        UUID id = order.get(i);
+        int position = i;
+        if (was.containsKey(id)) {
+          if (!Objects.equals(was.get(id), position)) {
+            shifts.add(() -> groups.position(spaceId, eventId, groupId, id, position));
+          }
+        } else {
+          positions.put(id, position);
+        }
+      }
+    }
     for (Change change : moves) {
       Assignment before = current.get(change.participantId());
-      groups.assign(spaceId, eventId, change.participantId(), change.toGroupId(), actorId, at);
+      groups.assign(
+          spaceId,
+          eventId,
+          change.participantId(),
+          change.toGroupId(),
+          positions.getOrDefault(change.participantId(), 0),
+          actorId,
+          at);
       groups.log(
           spaceId,
           eventId,
@@ -514,8 +561,91 @@ public class GroupService {
           actorId,
           at);
     }
+    shifts.forEach(Runnable::run);
     long boardVersion = groups.bumpBoardVersion(spaceId, eventId, at);
     return new Assigned(moves.size(), alreadyApplied, boardVersion);
+  }
+
+  /**
+   * Member order within one group (api.md {@code PUT …/groups/{groupId}/members/order}). The list
+   * must hold the group's active members exactly once each; otherwise someone moved meanwhile and
+   * nothing is saved ({@code 409 CONCURRENT_MODIFICATION} with {@code conflicts}). Withdrawn rows
+   * keep their relative order after the active ones. The group {@code version} does not change.
+   */
+  @Transactional
+  public BoardVersion memberOrder(UUID actorId, UUID eventId, UUID groupId, JsonNode body) {
+    UUID spaceId = openForWrite(actorId, eventId);
+    List<UUID> order = uuidList(field(body, "participantIds"), "participantIds", Integer.MAX_VALUE);
+    if (new HashSet<>(order).size() != order.size()) {
+      throw invalid("participantIds");
+    }
+    lockWritable(spaceId, eventId);
+
+    target(spaceId, eventId, groupId);
+    List<Assignment> members = groups.members(spaceId, eventId, groupId);
+    List<UUID> active = new ArrayList<>();
+    List<Assignment> withdrawn = new ArrayList<>();
+    for (Assignment member : members) {
+      if (member.submitted()) {
+        active.add(member.participantId());
+      } else {
+        withdrawn.add(member);
+      }
+    }
+    Set<UUID> wanted = new HashSet<>(order);
+    List<Map<String, Object>> conflicts = new ArrayList<>();
+    List<UUID> strangers = new ArrayList<>();
+    for (UUID id : order) {
+      if (!active.contains(id)) {
+        strangers.add(id);
+      }
+    }
+    Map<UUID, UUID> elsewhere = new HashMap<>();
+    if (!strangers.isEmpty()) {
+      for (Assignment found : groups.assignments(spaceId, eventId, strangers)) {
+        elsewhere.put(found.participantId(), found.groupId());
+      }
+    }
+    for (UUID id : strangers) {
+      Map<String, Object> conflict = new LinkedHashMap<>();
+      conflict.put("participantId", id.toString());
+      UUID currentGroupId = elsewhere.get(id);
+      conflict.put("currentGroupId", currentGroupId == null ? null : currentGroupId.toString());
+      conflicts.add(conflict);
+    }
+    for (UUID id : active) {
+      if (!wanted.contains(id)) {
+        Map<String, Object> conflict = new LinkedHashMap<>();
+        conflict.put("participantId", id.toString());
+        conflict.put("currentGroupId", groupId.toString());
+        conflicts.add(conflict);
+      }
+    }
+    if (!conflicts.isEmpty()) {
+      Map<String, Object> details = new LinkedHashMap<>();
+      details.put("conflicts", conflicts);
+      details.put("boardVersion", groups.boardVersion(spaceId, eventId));
+      throw new SceneException(ErrorCode.CONCURRENT_MODIFICATION, details);
+    }
+    List<UUID> next = new ArrayList<>(order);
+    for (Assignment member : withdrawn) {
+      next.add(member.participantId());
+    }
+    Map<UUID, Integer> was = new HashMap<>();
+    List<UUID> before = new ArrayList<>();
+    for (Assignment member : members) {
+      was.put(member.participantId(), member.position());
+      before.add(member.participantId());
+    }
+    if (before.equals(next)) {
+      return new BoardVersion(groups.boardVersion(spaceId, eventId));
+    }
+    for (int i = 0; i < next.size(); i++) {
+      if (!Objects.equals(was.get(next.get(i)), i)) {
+        groups.position(spaceId, eventId, groupId, next.get(i), i);
+      }
+    }
+    return new BoardVersion(groups.bumpBoardVersion(spaceId, eventId, now()));
   }
 
   @Transactional
@@ -557,6 +687,8 @@ public class GroupService {
     if (flips.isEmpty()) {
       return new LeadersWritten(group, leaderIds, groups.boardVersion(spaceId, eventId));
     }
+    // Clear the old leader before marking the new one: at most one leader row per group.
+    flips.sort(Comparator.comparing(Assignment::leader).reversed());
     Instant now = now();
     for (Assignment member : flips) {
       boolean after = !member.leader();
@@ -603,6 +735,7 @@ public class GroupService {
             tree(row.cellAnswer())),
         row.groupId(),
         row.leader(),
+        row.position(),
         published == null ? null : published.group().groupId(),
         published != null && published.leader(),
         days.isEmpty()
@@ -769,11 +902,13 @@ public class GroupService {
       if (participantId == null || !seen.add(participantId)) {
         throw invalid("changes");
       }
+      JsonNode before = item.get("beforeParticipantId");
       out.add(
           new Change(
               participantId,
               nullableUuid(item.get("fromGroupId")),
-              nullableUuid(item.get("toGroupId"))));
+              nullableUuid(item.get("toGroupId")),
+              before == null ? null : nullableUuid(before)));
     }
     return out;
   }
@@ -809,13 +944,17 @@ public class GroupService {
     return new SceneException(ErrorCode.VALIDATION_FAILED, Map.of("field", fieldName));
   }
 
-  private record Change(UUID participantId, UUID fromGroupId, UUID toGroupId) {}
+  private record Change(
+      UUID participantId, UUID fromGroupId, UUID toGroupId, UUID beforeParticipantId) {}
 
-  /** A published member with the current values; leaders first, then name, then id. */
-  record PublishedMember(ActiveParticipant participant, boolean leader) {
-    static final Comparator<PublishedMember> ORDER =
-        Comparator.comparing((PublishedMember m) -> !m.leader())
-            .thenComparing(m -> m.participant().name())
-            .thenComparing(m -> m.participant().participantId());
-  }
+  /** Working-copy member order: group, then position, then participant id. */
+  static final Comparator<ActiveParticipant> MEMBER_ORDER =
+      Comparator.comparing(
+              ActiveParticipant::groupId, Comparator.nullsLast(Comparator.naturalOrder()))
+          .thenComparing(
+              ActiveParticipant::position, Comparator.nullsLast(Comparator.naturalOrder()))
+          .thenComparing(ActiveParticipant::participantId);
+
+  /** A published member with the current values, in the publication's member order. */
+  record PublishedMember(ActiveParticipant participant, boolean leader) {}
 }

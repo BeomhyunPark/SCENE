@@ -76,6 +76,14 @@ public class GroupController {
     return groups.leaders(actor(), eventId, groupId, body);
   }
 
+  @PutMapping(BASE + "/groups/{groupId}/members/order")
+  BoardVersion memberOrder(
+      @PathVariable UUID eventId,
+      @PathVariable UUID groupId,
+      @RequestBody(required = false) JsonNode body) {
+    return groups.memberOrder(actor(), eventId, groupId, body);
+  }
+
   @PostMapping(BASE + "/group-assignments")
   Assigned assign(@PathVariable UUID eventId, @RequestBody(required = false) JsonNode body) {
     return groups.assign(actor(), eventId, body);

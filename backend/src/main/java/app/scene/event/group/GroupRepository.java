@@ -100,19 +100,39 @@ public class GroupRepository {
     return groups.findMembers(GroupParam.of(spaceId, eventId).group(groupId));
   }
 
-  /** Puts the participant in {@code groupId}, or unassigns when null. The leader mark clears. */
+  /**
+   * Puts the participant in {@code groupId} at {@code position}, or unassigns when {@code groupId}
+   * is null. The leader mark clears.
+   */
   public void assign(
-      UUID spaceId, UUID eventId, UUID participantId, UUID groupId, UUID actorId, Instant at) {
+      UUID spaceId,
+      UUID eventId,
+      UUID participantId,
+      UUID groupId,
+      int position,
+      UUID actorId,
+      Instant at) {
     GroupParam param =
         GroupParam.of(spaceId, eventId)
             .participant(participantId)
             .group(groupId)
+            .sortOrder(position)
             .actor(actorId, at);
     if (groupId == null) {
       groups.deleteAssignment(param);
     } else {
       groups.upsertAssignment(param);
     }
+  }
+
+  /** Sets the order of a member of {@code groupId} within the group. */
+  public void position(UUID spaceId, UUID eventId, UUID groupId, UUID participantId, int position) {
+    requireOne(
+        groups.updatePosition(
+            GroupParam.of(spaceId, eventId)
+                .group(groupId)
+                .participant(participantId)
+                .sortOrder(position)));
   }
 
   public void leader(

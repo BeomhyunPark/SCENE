@@ -128,6 +128,7 @@
            cel.value::text AS cell_answer,
            ga.group_id,
            coalesce(ga.leader, false) AS leader,
+           ga.position,
            mea.value::text AS meals_answer,
            arr.value::text AS arrival_answer,
            dep.value::text AS departure_answer
@@ -192,7 +193,7 @@
 
   <sql id="assignmentColumns">
     p.id AS participant_id, ga.group_id, coalesce(ga.leader, false) AS leader,
-    <include refid="submitted"/> AS submitted
+    <include refid="submitted"/> AS submitted, ga.position
   </sql>
 
   <!-- Participants of the event among participantIds, assigned or not. -->
@@ -208,22 +209,24 @@
       </foreach>
   </select>
 
-  <!-- Every assignment row of one group, withdrawn participants included. -->
+  <!-- Every assignment row of one group, withdrawn participants included, in member order. -->
   <select id="findMembers" resultType="app.scene.event.group.Assignment">
     SELECT <include refid="assignmentColumns"/>
     FROM group_assignments ga
     JOIN participants p
       ON p.space_id = ga.space_id AND p.event_id = ga.event_id AND p.id = ga.participant_id
     WHERE ga.space_id = #{spaceId} AND ga.event_id = #{eventId} AND ga.group_id = #{groupId}
-    ORDER BY p.id
+    ORDER BY ga.position, p.id
   </select>
 
   <insert id="upsertAssignment">
     INSERT INTO group_assignments (
-      space_id, event_id, participant_id, group_id, leader, updated_by, updated_at)
-    VALUES (#{spaceId}, #{eventId}, #{participantId}, #{groupId}, false, #{actorUserId}, #{at})
+      space_id, event_id, participant_id, group_id, leader, position, updated_by, updated_at)
+    VALUES (
+      #{spaceId}, #{eventId}, #{participantId}, #{groupId}, false, #{sortOrder}, #{actorUserId},
+      #{at})
     ON CONFLICT (space_id, event_id, participant_id)
-    DO UPDATE SET group_id = excluded.group_id, leader = false,
+    DO UPDATE SET group_id = excluded.group_id, leader = false, position = excluded.position,
                   updated_by = excluded.updated_by, updated_at = excluded.updated_at
   </insert>
 
@@ -236,6 +239,13 @@
     DELETE FROM group_assignments
     WHERE space_id = #{spaceId} AND event_id = #{eventId} AND group_id = #{groupId}
   </delete>
+
+  <!-- Order only: no updated_by change, as the move or reorder that caused it is the write. -->
+  <update id="updatePosition">
+    UPDATE group_assignments SET position = #{sortOrder}
+    WHERE space_id = #{spaceId} AND event_id = #{eventId} AND participant_id = #{participantId}
+      AND group_id = #{groupId}
+  </update>
 
   <update id="updateLeader">
     UPDATE group_assignments
@@ -261,7 +271,8 @@
     SELECT p.id AS participant_id, p.name,
            nullif(btrim(coh.value ->> 'text'), '') AS cohort,
            ga.group_id,
-           coalesce(ga.leader, false) AS leader
+           coalesce(ga.leader, false) AS leader,
+           ga.position
     FROM participants p
     JOIN LATERAL (<include refid="submittedApplication"/>) app ON true
     LEFT JOIN LATERAL (

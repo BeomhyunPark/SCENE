@@ -51,17 +51,22 @@ public class ParticipantGroupService {
           ParticipantGroup.UNASSIGNED, publication.publishedAt(), null, false, null);
     }
 
-    Map<UUID, Boolean> leaderMarks = new HashMap<>();
+    List<UUID> ids = new ArrayList<>();
     for (SnapshotMember member : mine.group().members()) {
-      leaderMarks.put(member.participantId(), member.leader());
+      ids.add(member.participantId());
     }
+    Map<UUID, ActiveParticipant> current = new HashMap<>();
+    for (ActiveParticipant participant : groups.active(spaceId, eventId, ids)) {
+      current.put(participant.participantId(), participant);
+    }
+    // The publication's member order, which is the operator's order at publication time.
     List<GroupService.PublishedMember> members = new ArrayList<>();
-    for (ActiveParticipant current :
-        groups.active(spaceId, eventId, new ArrayList<>(leaderMarks.keySet()))) {
-      members.add(
-          new GroupService.PublishedMember(current, leaderMarks.get(current.participantId())));
+    for (SnapshotMember member : mine.group().members()) {
+      ActiveParticipant participant = current.get(member.participantId());
+      if (participant != null) {
+        members.add(new GroupService.PublishedMember(participant, member.leader()));
+      }
     }
-    members.sort(GroupService.PublishedMember.ORDER);
 
     List<LeaderName> leaders = new ArrayList<>();
     for (GroupService.PublishedMember member : members) {

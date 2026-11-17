@@ -45,6 +45,8 @@ public interface GroupMapper {
 
   int deleteGroupAssignments(GroupParam param);
 
+  int updatePosition(GroupParam param);
+
   int updateLeader(GroupParam param);
 
   int insertLog(GroupParam param);
