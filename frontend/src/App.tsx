@@ -32,6 +32,7 @@ import { PublicRegisterOrganization } from "./components/PublicRegisterOrganizat
 import { PublicResetPassword } from "./components/PublicResetPassword";
 import { PublicVerifyEmail } from "./components/PublicVerifyEmail";
 import { LoginDone } from "./components/LoginDone";
+import { MenuEventPicker } from "./components/MenuEventPicker";
 import { MenuPending } from "./components/MenuPending";
 
 function Home() {
@@ -73,9 +74,9 @@ export function App() {
           <Route path="/schedule" element={<MenuPending title="일정" />} />
           <Route path="/field" element={<MenuPending title="현장 운영" />} />
           <Route path="/integrations" element={<MenuPending title="연동" />} />
-          <Route path="/tasks" element={<MenuPending title="준비 업무" needsEvent />} />
-          <Route path="/participants" element={<MenuPending title="참가자" needsEvent />} />
-          <Route path="/operators" element={<MenuPending title="운영 멤버" needsEvent />} />
+          <Route path="/tasks" element={<MenuEventPicker title="준비 업무" area="tasks" />} />
+          <Route path="/participants" element={<MenuEventPicker title="참가자" area="participants" />} />
+          <Route path="/operators" element={<MenuEventPicker title="운영 멤버" area="operators" />} />
           <Route path="/spaces/:spaceId/leave" element={<SpaceLeave />} />
           <Route path="/events/new" element={<EventCreate />} />
           <Route path="/events/:eventId/settings" element={<EventSettings />} />
