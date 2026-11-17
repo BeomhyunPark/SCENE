@@ -316,8 +316,8 @@ class ApplicationTableHttpIT {
     jdbc.update(
         """
         INSERT INTO group_assignments (
-          space_id, event_id, participant_id, group_id, leader, updated_by, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, now())
+          space_id, event_id, participant_id, group_id, leader, position, updated_by, updated_at)
+        VALUES (?, ?, ?, ?, ?, 0, ?, now())
         """,
         event.spaceId,
         event.eventId,
