@@ -124,7 +124,7 @@ export function buildColumns(table: ApplicationTable): ColumnDef[] {
     const parts = [middle, cell].filter((column): column is TableColumn => column !== undefined);
     const text = (row: TableRow) =>
       parts
-        .map((column) => textOf(row.answers[column.fieldId]).trim())
+        .map((column) => affiliationOf(column, row.answers[column.fieldId]))
         .filter((part) => part.length > 0)
         .join(" · ");
     columns.push(textColumn("affiliation", "소속", true, text));
@@ -369,7 +369,17 @@ function asAnswer(column: TableColumn, value: Record<string, unknown>): Applicat
     hidden: column.hidden,
     config: column.config,
     value,
+    contact: column.contact,
+    withheld: false,
   };
+}
+
+/** A middle group or cell answer: the free text, or the chosen option's label (새가족 (등반X) too). */
+function affiliationOf(column: TableColumn, value: Record<string, unknown> | undefined): string {
+  if (typeof value?.optionId === "string") {
+    return column.config.options?.find((option) => option.optionId === value.optionId)?.label ?? "";
+  }
+  return textOf(value).trim();
 }
 
 function textOf(value: Record<string, unknown> | undefined): string {

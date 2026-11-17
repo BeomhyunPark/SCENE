@@ -208,27 +208,35 @@ class GroupHttpIT {
   }
 
   @Test
-  void boardGivesTheNewcomerAnswerAsTrueFalseOrNull() throws Exception {
+  void boardReadsTheNewcomerFromTheMiddleGroupOptionAsTrueFalseOrNull() throws Exception {
     World w = world();
     UUID yes = w.participant("가새", "010-1100-0001", "94");
     UUID no = w.participant("나기존", "010-1100-0002", "95");
     UUID before = w.participant("다이전", "010-1100-0003", "96");
 
-    // The question does not exist yet.
+    // No middle group or cell question offers the option yet.
     assertThat(item(board(w).get("participants"), yes).get("newcomer").isNull()).isTrue();
 
-    UUID newcomer = w.preset("NEWCOMER", "YES_NO", "{\"style\":\"YES_NO\"}");
-    w.answer(yes, newcomer, "{\"value\":true}");
-    w.answer(no, newcomer, "{\"value\":false}");
+    // The operator reworded the option: the id still decides (DEC-070 Follow-up 2026-11-17).
+    UUID middle =
+        w.preset(
+            "MIDDLE_GROUP",
+            "DROPDOWN",
+            "{\"options\":[{\"optionId\":\"opt_mg_a\",\"label\":\"청년1부\",\"group\":null,\"hidden\":false,\"showWhen\":null},{\"optionId\":\"opt_newcomer\",\"label\":\"처음이에요\",\"group\":null,\"hidden\":false,\"showWhen\":null}]}");
+    w.answer(yes, middle, "{\"optionId\":\"opt_newcomer\"}");
+    w.answer(no, middle, "{\"optionId\":\"opt_mg_a\"}");
     JsonNode b = board(w);
-    assertThat(item(b.get("participants"), yes).get("newcomer").asBoolean()).isTrue();
+    JsonNode newcomer = item(b.get("participants"), yes);
+    assertThat(newcomer.get("newcomer").asBoolean()).isTrue();
+    assertThat(newcomer.get("middleGroup").asString()).isEqualTo("처음이에요");
     assertThat(item(b.get("participants"), no).get("newcomer").isBoolean()).isTrue();
     assertThat(item(b.get("participants"), no).get("newcomer").asBoolean()).isFalse();
-    // Applied before the switch went on: no answer.
+    assertThat(item(b.get("participants"), no).get("middleGroup").asString()).isEqualTo("청년1부");
+    // Applied before the question existed: no answer.
     assertThat(item(b.get("participants"), before).get("newcomer").isNull()).isTrue();
 
     // Turned off: no answer for anyone, the stored answers stay.
-    jdbc.update("UPDATE fields SET hidden = true WHERE id = ?", newcomer);
+    jdbc.update("UPDATE fields SET hidden = true WHERE id = ?", middle);
     JsonNode off = board(w);
     assertThat(item(off.get("participants"), yes).get("newcomer").isNull()).isTrue();
     assertThat(item(off.get("participants"), no).get("newcomer").isNull()).isTrue();

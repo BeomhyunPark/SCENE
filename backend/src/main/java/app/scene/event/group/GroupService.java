@@ -8,6 +8,7 @@ import app.scene.common.permission.Permission;
 import app.scene.common.permission.PermissionEvaluator;
 import app.scene.common.tenant.SpaceMembership;
 import app.scene.event.form.FormFieldRow;
+import app.scene.event.form.FormPreset;
 import app.scene.event.form.FormRepository;
 import app.scene.event.form.FormRow;
 import app.scene.event.form.MealSlots;
@@ -595,7 +596,11 @@ public class GroupService {
         attendance,
         row.middleGroup(),
         row.cell(),
-        row.newcomer(),
+        FormPreset.newcomer(
+            tree(row.middleGroupConfig()),
+            tree(row.middleGroupAnswer()),
+            tree(row.cellConfig()),
+            tree(row.cellAnswer())),
         row.groupId(),
         row.leader(),
         published == null ? null : published.group().groupId(),

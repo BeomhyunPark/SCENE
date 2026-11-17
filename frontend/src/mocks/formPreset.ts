@@ -79,6 +79,72 @@ const multi = (options: FieldOption[]): FieldConfig => ({ options, allowOther: f
 const shortText = (maxLength: number): FieldConfig => ({ maxLength, format: "NONE", placeholder: null });
 const longText = (): FieldConfig => ({ maxLength: 1000, placeholder: null });
 
+/** Option id of the 새가족 (등반X) option (DEC-070 Follow-up 2026-11-17). */
+export const NEWCOMER_OPTION = "opt_newcomer";
+const NEWCOMER_LABEL = "새가족 (등반X)";
+
+/**
+ * A listed name's option id. The server hashes with SHA-256; the mock uses FNV-1a, which is enough
+ * for the same name to keep the same id.
+ */
+export function listOptionId(prefix: string, name: string): string {
+  let hash = 0x811c9dc5;
+  for (const char of new TextEncoder().encode(name)) {
+    hash = Math.imul(hash ^ char, 0x01000193) >>> 0;
+  }
+  return `opt_${prefix}_${hash.toString(16).padStart(8, "0")}`;
+}
+
+function cleanNames(names: readonly string[] | undefined): string[] {
+  return [...new Set((names ?? []).map((name) => name.trim()).filter((name) => name !== ""))];
+}
+
+function affiliation(
+  setup: FormSetup,
+  add: (
+    key: string,
+    label: string,
+    description: string | null,
+    answerType: AnswerType,
+    required: boolean,
+    config: FieldConfig,
+    showWhen: ShowWhen | null,
+  ) => void,
+  when: (key: string, ...optionIds: string[]) => ShowWhen,
+) {
+  const middleNames = setup.middleGroup ? cleanNames(setup.middleGroups) : [];
+  const cellNames = setup.cell ? cleanNames(setup.cells) : [];
+  const middleIds = middleNames.map((name) => listOptionId("mg", name));
+  if (middleNames.length > 0) {
+    const options = middleNames.map((name, index) => option(middleIds[index], name));
+    options.push(option(NEWCOMER_OPTION, NEWCOMER_LABEL));
+    add(
+      "MIDDLE_GROUP",
+      "중그룹",
+      `소속 중그룹을 골라주세요. 아직 중그룹이 없는 새가족은 '${NEWCOMER_LABEL}'을 골라주세요.`,
+      "DROPDOWN",
+      true,
+      { options },
+      null,
+    );
+  } else if (setup.middleGroup) {
+    add("MIDDLE_GROUP", "중그룹", "소속 중그룹이 있으면 적어주세요.", "SHORT_TEXT", false, shortText(50), null);
+  }
+  if (!setup.cell) return;
+  const whenListed = middleIds.length > 0 ? when("MIDDLE_GROUP", ...middleIds) : null;
+  if (cellNames.length > 0) {
+    const options = cellNames.map((name) => option(listOptionId("cell", name), name));
+    let description = "소속 셀을 골라주세요.";
+    if (middleIds.length === 0) {
+      options.push(option(NEWCOMER_OPTION, NEWCOMER_LABEL));
+      description += ` 아직 셀이 없는 새가족은 '${NEWCOMER_LABEL}'을 골라주세요.`;
+    }
+    add("CELL", "셀", description, "DROPDOWN", true, { options }, whenListed);
+  } else {
+    add("CELL", "셀", "소속 셀이 있으면 적어주세요.", "SHORT_TEXT", false, shortText(50), whenListed);
+  }
+}
+
 export function generatePreset(
   setup: FormSetup,
   start: string,
@@ -102,21 +168,7 @@ export function generatePreset(
   if (setup.gender) {
     add("GENDER", "성별", null, "SINGLE_CHOICE", true, single([option("opt_female", "여성"), option("opt_male", "남성")], true), null);
   }
-  if (setup.middleGroup) {
-    add("MIDDLE_GROUP", "중그룹", "소속 중그룹이 있으면 적어주세요.", "SHORT_TEXT", false, shortText(50), null);
-  }
-  if (setup.cell) add("CELL", "셀", "소속 셀이 있으면 적어주세요.", "SHORT_TEXT", false, shortText(50), null);
-  if (setup.newcomer) {
-    add(
-      "NEWCOMER",
-      "새가족이신가요?",
-      "교회에 처음 오셨거나 새가족 과정을 듣고 있다면 '예'를 골라주세요. 조 편성에서 더 잘 챙겨 드리려고 여쭤봐요.",
-      "YES_NO",
-      true,
-      { style: "YES_NO", yesLabel: null, noLabel: null },
-      null,
-    );
-  }
+  affiliation(setup, add, when);
 
   if (attendance) {
     add(

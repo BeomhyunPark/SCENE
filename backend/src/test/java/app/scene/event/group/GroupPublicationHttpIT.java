@@ -351,11 +351,15 @@ class GroupPublicationHttpIT {
   @Test
   void newcomerAnswersStayOnTheBoardAndNeverReachParticipantReads() throws Exception {
     World w = world();
-    UUID newcomer = w.preset("NEWCOMER", "YES_NO", "{\"style\":\"YES_NO\"}");
+    UUID newcomer =
+        w.preset(
+            "MIDDLE_GROUP",
+            "DROPDOWN",
+            "{\"options\":[{\"optionId\":\"opt_mg_a\",\"label\":\"청년1부\",\"group\":null,\"hidden\":false,\"showWhen\":null},{\"optionId\":\"opt_newcomer\",\"label\":\"처음이에요\",\"group\":null,\"hidden\":false,\"showWhen\":null}]}");
     Person lead = w.participant("가조장", "010-4100-0001", "90");
     Person mate = w.participant("나새가족", "010-4100-0002", "91");
-    w.answer(lead.id, newcomer, "{\"value\":false}");
-    w.answer(mate.id, newcomer, "{\"value\":true}");
+    w.answer(lead.id, newcomer, "{\"optionId\":\"opt_mg_a\"}");
+    w.answer(mate.id, newcomer, "{\"optionId\":\"opt_newcomer\"}");
     String g1 = createGroup(w, "1조");
     assign(w, change(lead.id, null, g1), change(mate.id, null, g1));
     ok(leaders(w, g1, 0, lead.id));
@@ -365,8 +369,8 @@ class GroupPublicationHttpIT {
     String plainBody = myGroupBody(mate);
     String leadBody = myGroupBody(lead);
     assertThat(json.readTree(leadBody).get("members").size()).isEqualTo(2);
-    assertThat(plainBody).doesNotContain("newcomer").doesNotContain("NEWCOMER");
-    assertThat(leadBody).doesNotContain("newcomer").doesNotContain("NEWCOMER").contains("나새가족");
+    assertThat(plainBody).doesNotContain("newcomer").doesNotContain("처음이에요");
+    assertThat(leadBody).doesNotContain("newcomer").doesNotContain("처음이에요").contains("나새가족");
     assertThat(json.readTree(leadBody).get("members").get(1).propertyNames())
         .containsExactly("name", "cohort", "leader");
     // The operator's published view (EVENT_READ) does not carry it either.

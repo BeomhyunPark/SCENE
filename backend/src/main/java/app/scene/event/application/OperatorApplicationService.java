@@ -1,5 +1,7 @@
 package app.scene.event.application;
 
+import app.scene.common.audit.AuditActions;
+import app.scene.common.audit.AuditLogRepository;
 import app.scene.common.error.ErrorCode;
 import app.scene.common.error.SceneException;
 import app.scene.common.permission.Permission;
@@ -11,20 +13,26 @@ import app.scene.common.web.Sorts;
 import app.scene.event.lifecycle.EventAccessGate;
 import app.scene.event.lifecycle.EventLocation;
 import app.scene.space.EventUserPermissionRepository;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Operator reads of submitted application source. §7 names {@code APPLICATION_READ} for these
  * routes. That key is already in the permission catalog and is not checked here. Both reads use
  * effective {@code EVENT_READ}, the same allowance as form read. Public submit, revision, and
- * withdraw stay closed. {@code FORM_CLOSED} and {@code APPLICATION_CLOSED} are not returned. No
- * audit action and no privacy log are written. {@code Idempotency-Key} is not read.
+ * withdraw stay closed. {@code FORM_CLOSED} and {@code APPLICATION_CLOSED} are not returned. The
+ * list writes nothing. The detail sends phone answers only with effective {@code
+ * PARTICIPANT_CONTACT_READ}, the applicant table's rule (#308, #332), and then writes one {@code
+ * APPLICANT_CONTACTS_VIEWED} audit row ({@code count: 1}, {@code applicationId}) as the stand-in
+ * for the {@code CONTACT_VIEW} privacy log. {@code Idempotency-Key} is not read.
  */
 @Service
 public class OperatorApplicationService {
@@ -34,17 +42,23 @@ public class OperatorApplicationService {
   private final EventAccessGate gate;
   private final ApplicationRepository applications;
   private final EventUserPermissionRepository permissions;
+  private final AuditLogRepository auditLogs;
   private final JsonMapper json;
+  private final Clock clock;
 
   public OperatorApplicationService(
       EventAccessGate gate,
       ApplicationRepository applications,
       EventUserPermissionRepository permissions,
-      JsonMapper json) {
+      AuditLogRepository auditLogs,
+      JsonMapper json,
+      Clock clock) {
     this.gate = gate;
     this.applications = applications;
     this.permissions = permissions;
+    this.auditLogs = auditLogs;
     this.json = json;
+    this.clock = clock;
   }
 
   public ItemPage<ApplicationListItem> list(
@@ -70,6 +84,7 @@ public class OperatorApplicationService {
     return ItemPage.of(items, request, total);
   }
 
+  @Transactional
   public ApplicationDetail read(UUID actorId, UUID eventId, UUID applicationId) {
     EventAccessGate.Opened opened = gate.open(actorId, eventId);
     UUID spaceId = opened.location().spaceId();
@@ -79,12 +94,19 @@ public class OperatorApplicationService {
     if (!mayRead(opened, actorId)) {
       throw new SceneException(ErrorCode.FORBIDDEN);
     }
+    boolean contactVisible = allows(opened, actorId, Permission.PARTICIPANT_CONTACT_READ);
     ApplicationRow row =
         applications
             .find(spaceId, eventId, applicationId)
             .orElseThrow(() -> new SceneException(ErrorCode.RESOURCE_NOT_FOUND));
     List<ApplicationAnswer> answers = new ArrayList<>();
+    boolean contactSent = false;
     for (ApplicationAnswerRow answer : applications.findAnswers(spaceId, eventId, applicationId)) {
+      JsonNode config = json.readTree(answer.config());
+      boolean contact =
+          ApplicationTableService.isPhone(answer.systemKey(), answer.answerType(), config);
+      JsonNode value = contact && !contactVisible ? null : json.readTree(answer.value());
+      contactSent |= contact && value != null;
       answers.add(
           new ApplicationAnswer(
               answer.fieldId(),
@@ -94,11 +116,26 @@ public class OperatorApplicationService {
               answer.position(),
               answer.answerType(),
               answer.hidden(),
-              json.readTree(answer.config()),
-              json.readTree(answer.value())));
+              config,
+              value,
+              contact));
+    }
+    if (contactSent) {
+      auditLogs.save(
+          spaceId,
+          eventId,
+          actorId,
+          AuditActions.APPLICANT_CONTACTS_VIEWED,
+          "{\"count\":1,\"applicationId\":\"" + applicationId + "\"}",
+          clock.instant());
     }
     return new ApplicationDetail(
-        row.applicationId(), row.formId(), row.status(), row.submittedAt(), answers);
+        row.applicationId(),
+        row.formId(),
+        row.status(),
+        row.submittedAt(),
+        contactVisible,
+        answers);
   }
 
   /**

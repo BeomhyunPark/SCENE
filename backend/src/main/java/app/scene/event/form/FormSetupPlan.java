@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -166,10 +167,19 @@ public final class FormSetupPlan {
     ObjectNode before = existing.presetState();
     ObjectNode defaults = question.defaults();
     ObjectNode config = question.config().deepCopy();
-    if (locked
-        && (existing.answerType() != question.type()
-            || !Objects.equals(existing.showWhen(), question.showWhen()))) {
-      throw new SceneException(ErrorCode.FIELD_LOCKED);
+    JsonNode showWhen = question.showWhen();
+    if (locked) {
+      if (existing.answerType() != question.type()) {
+        throw new SceneException(ErrorCode.FIELD_LOCKED);
+      }
+      if (!Objects.equals(existing.showWhen(), showWhen)) {
+        // The cell question follows the middle group list, which may grow after applications.
+        showWhen =
+            "CELL".equals(existing.presetKey()) ? widened(existing.showWhen(), showWhen) : null;
+        if (showWhen == null) {
+          throw new SceneException(ErrorCode.FIELD_LOCKED);
+        }
+      }
     }
     if (config.has("placeholder")) {
       String kept =
@@ -227,10 +237,36 @@ public final class FormSetupPlan {
             : existing.required(),
         keep(existing.description(), text(before.get("description")), question.description()),
         config,
-        question.showWhen(),
+        showWhen,
         wasActive && existing.hidden(),
         existing.presetKey(),
         defaults);
+  }
+
+  /**
+   * {@code now} with the option ids of {@code before} kept, when both point at the same question by
+   * option ids. Only more people see the question, and an option that was removed after
+   * applications is hidden, not deleted, so its id stays. Null for any other change.
+   */
+  static JsonNode widened(JsonNode before, JsonNode now) {
+    if (before == null
+        || now == null
+        || !before.has("optionIds")
+        || !now.has("optionIds")
+        || !before.get("fieldId").equals(now.get("fieldId"))) {
+      return null;
+    }
+    ObjectNode out = (ObjectNode) now.deepCopy();
+    ArrayNode ids = out.putArray("optionIds");
+    Set<String> seen = new LinkedHashSet<>();
+    for (JsonNode id : before.get("optionIds")) {
+      seen.add(id.asString());
+    }
+    for (JsonNode id : now.get("optionIds")) {
+      seen.add(id.asString());
+    }
+    seen.forEach(ids::add);
+    return out;
   }
 
   private static FieldDefinition inactive(FieldDefinition field) {

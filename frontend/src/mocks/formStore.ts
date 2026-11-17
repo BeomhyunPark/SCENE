@@ -322,6 +322,14 @@ export function applySetup(eventId: string, formId: string, actorId: string, bod
       continue;
     }
     const question = wanted.get(field.presetKey);
+    if (question && locked && (field.presetKey === "MIDDLE_GROUP" || field.presetKey === "CELL")) {
+      // DEC-070 Follow-up 2026-11-17: free answer ↔ list is locked; the cell condition only widens.
+      if (field.answerType !== question.answerType) return { status: 409, code: "FIELD_LOCKED" };
+      const was = field.showWhen && "optionIds" in field.showWhen ? field.showWhen : null;
+      const now = question.showWhen && "optionIds" in question.showWhen ? question.showWhen : null;
+      if ((field.showWhen === null) !== (question.showWhen === null)) return { status: 409, code: "FIELD_LOCKED" };
+      if (was && now) question.showWhen = { ...now, optionIds: [...new Set([...was.optionIds, ...now.optionIds])] };
+    }
     if (question) kept.push(mergePreset(field, question, locked));
     else if (locked || !untouched(field)) kept.push({ ...field, hidden: true, presetActive: false });
   }
@@ -433,8 +441,16 @@ function readSetup(body: unknown, days: number): FormSetup | FormFailure {
   const flags = (value: unknown, keys: string[]) =>
     isRecord(value) && keys.every((key) => typeof value[key] === "boolean");
   if (!flags(body, ["gender", "middleGroup", "cell"])) return invalid("setup");
-  // newcomer was added later: optional, off when missing.
-  if (body.newcomer !== undefined && typeof body.newcomer !== "boolean") return invalid("setup");
+  // Name lists were added later: optional, empty when missing. A former newcomer switch is ignored.
+  const names = (value: unknown) =>
+    value === undefined || (Array.isArray(value) && value.every((item) => typeof item === "string" && item.trim().length <= 50));
+  if (!names(body.middleGroups)) return invalid("middleGroups");
+  if (!names(body.cells)) return invalid("cells");
+  const clean = (value: unknown) => [
+    ...new Set(((value as string[] | undefined) ?? []).map((item) => item.trim()).filter((item) => item !== "")),
+  ];
+  if (clean(body.middleGroups).length > 49) return invalid("middleGroups");
+  if (clean(body.cells).length > 49) return invalid("cells");
   if (!flags(attendance, ["partial", "worshipOnly"])) return invalid("attendance");
   const mode = (attendance as Record<string, unknown>).mode;
   if (mode !== undefined && mode !== "RANGE" && mode !== "SLOTS") return invalid("attendance");
@@ -453,7 +469,8 @@ function readSetup(body: unknown, days: number): FormSetup | FormFailure {
     gender: body.gender,
     middleGroup: body.middleGroup,
     cell: body.cell,
-    newcomer: body.newcomer === true,
+    middleGroups: clean(body.middleGroups),
+    cells: clean(body.cells),
     attendance,
     schedule,
     transport,

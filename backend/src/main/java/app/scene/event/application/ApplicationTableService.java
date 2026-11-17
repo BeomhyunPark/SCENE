@@ -191,11 +191,15 @@ public class ApplicationTableService {
   }
 
   static boolean isPhone(FormFieldRow field, JsonNode config) {
-    if ("PHONE".equals(field.systemKey())) {
+    return isPhone(field.systemKey(), field.answerType(), config);
+  }
+
+  /** A phone question: SYSTEM {@code PHONE}, or a text question with {@code format: PHONE}. */
+  static boolean isPhone(String systemKey, String answerType, JsonNode config) {
+    if ("PHONE".equals(systemKey)) {
       return true;
     }
-    boolean text =
-        "SHORT_TEXT".equals(field.answerType()) || "LONG_TEXT".equals(field.answerType());
+    boolean text = "SHORT_TEXT".equals(answerType) || "LONG_TEXT".equals(answerType);
     return text
         && config != null
         && config.path("format").isString()

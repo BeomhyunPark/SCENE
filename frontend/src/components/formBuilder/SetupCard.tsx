@@ -87,19 +87,27 @@ function suggestedDay(index: number, days: number): SetupDay {
 /** The saved setup fitted to the event's days, or the suggested starting point. */
 function initialSetup(saved: FormSetup | null, days: number): FormSetup {
   const schedule = Array.from({ length: days }, (_, index) => saved?.schedule[index] ?? suggestedDay(index, days));
-  // A setup saved before the 새가족 switch existed has no key: keep it off there.
+  // A setup saved before the middle group and cell lists existed has none: free answers stay.
   // A setup saved before DEC-074 has no mode: it keeps asking slot by slot.
   if (saved) {
     // A setup saved before #324 has no partialByTime: it keeps showing vehicles as before.
     const attendance = { ...saved.attendance, mode: saved.attendance.mode ?? "SLOTS" };
     const transport = { ...saved.transport, partialByTime: saved.transport.partialByTime ?? false };
-    return { ...saved, newcomer: saved.newcomer ?? false, attendance, schedule, transport };
+    return {
+      ...saved,
+      middleGroups: saved.middleGroups ?? [],
+      cells: saved.cells ?? [],
+      attendance,
+      schedule,
+      transport,
+    };
   }
   return {
     gender: true,
     middleGroup: false,
     cell: false,
-    newcomer: true,
+    middleGroups: [],
+    cells: [],
     attendance: { partial: true, worshipOnly: false, mode: "RANGE" },
     schedule,
     transport: { groupBus: true, worshipShuttle: false, car: true, publicTransit: true, support: false, partialByTime: true },
@@ -205,13 +213,18 @@ export function SetupCard({
           {check("성별", draft.gender, (gender) => change({ ...draft, gender }))}
           {check("중그룹", draft.middleGroup, (middleGroup) => change({ ...draft, middleGroup }))}
           {check("셀", draft.cell, (cell) => change({ ...draft, cell }))}
-          {check(
-            "새가족",
-            draft.newcomer,
-            (newcomer) => change({ ...draft, newcomer }),
-            "예/아니오로 물어요. 조 편성에서 새가족만 골라 볼 수 있어요.",
-          )}
         </div>
+        {draft.middleGroup ? (
+          <NameList
+            label="중그룹 목록"
+            names={draft.middleGroups}
+            onChange={(middleGroups) => change({ ...draft, middleGroups })}
+          />
+        ) : null}
+        {draft.cell ? (
+          <NameList label="셀 목록" names={draft.cells} onChange={(cells) => change({ ...draft, cells })} />
+        ) : null}
+        <p className="registration-setup__note">{newcomerNote(draft)}</p>
       </fieldset>
 
       <fieldset className="setup-card__group">
@@ -480,5 +493,34 @@ function VehicleTiming({
         </div>
       ) : null}
     </div>
+  );
+}
+
+/** Where 새가족 (등반X) shows up, matching the server's rule (DEC-070 Follow-up 2026-11-17). */
+function newcomerNote(setup: FormSetup): string {
+  const middle = setup.middleGroup && setup.middleGroups.some((name) => name.trim() !== "");
+  const cell = setup.cell && setup.cells.some((name) => name.trim() !== "");
+  if (middle) {
+    return setup.cell
+      ? "중그룹 보기 맨 끝에 '새가족 (등반X)'이 붙어요. 그걸 고르면 새가족으로 분류되고 셀은 묻지 않아요."
+      : "중그룹 보기 맨 끝에 '새가족 (등반X)'이 붙어요. 그걸 고르면 새가족으로 분류돼요.";
+  }
+  if (cell) return "셀 보기 맨 끝에 '새가족 (등반X)'이 붙어요. 그걸 고르면 새가족으로 분류돼요.";
+  return "중그룹이나 셀 목록을 적으면 보기에 '새가족 (등반X)'이 붙어 새가족을 알 수 있어요. 목록이 없으면 직접 적는 칸이 되고 새가족은 알 수 없어요.";
+}
+
+/** One name per line. Blank lines are kept while typing; the server drops them. */
+function NameList({ label, names, onChange }: { label: string; names: string[]; onChange: (names: string[]) => void }) {
+  return (
+    <label className="setup-card__names">
+      <span>{label}</span>
+      <textarea
+        rows={4}
+        value={names.join("\n")}
+        placeholder={"한 줄에 하나씩 적어 주세요\n예) 1중그룹\n2중그룹"}
+        onChange={(event) => onChange(event.target.value === "" ? [] : event.target.value.split("\n"))}
+      />
+      <small>목록이 있으면 참가자가 목록에서 골라요. 신청이 들어온 뒤에도 이름을 더하거나 뺄 수 있지만, 비워 둔 목록을 새로 채우거나 다 지울 수는 없어요.</small>
+    </label>
   );
 }
