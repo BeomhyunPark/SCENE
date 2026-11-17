@@ -12,9 +12,14 @@ import { resetRetrospectiveStore } from "../mocks/retrospectiveStore";
 import { resetAccessKeyCapture } from "../accessKey";
 import { resetCheckInStore } from "../mocks/checkInStore";
 import { resetTaskStore } from "../mocks/taskStore";
+import { deliveryTiming } from "../components/checkInDelivery";
+
+/** Check-in retries (#287) wait 1·2·4 s in the app; tests that want real waits set their own. */
+const TEST_RETRY_DELAYS_MS = [1, 1, 1];
 
 beforeAll(() => {
   server.listen({ onUnhandledFrame: "error" });
+  deliveryTiming.retryDelaysMs = TEST_RETRY_DELAYS_MS;
 });
 
 afterEach(() => {
@@ -30,6 +35,7 @@ afterEach(() => {
   resetAccessKeyCapture();
   resetFormStore();
   resetInvitationStore();
+  deliveryTiming.retryDelaysMs = TEST_RETRY_DELAYS_MS;
   window.history.replaceState(null, "", window.location.pathname);
   document.cookie = "XSRF-TOKEN=; Path=/; Max-Age=0";
 });

@@ -5,8 +5,9 @@ import type { ItemPage } from "./types";
 
 /**
  * Operator check-in (#282, DEC-071). Reads need EVENT_READ or an active space OWNER·ADMIN. Check-in
- * and cancel need CHECKIN_WRITE and an ACTIVE event, and each request carries a fresh
- * `Idempotency-Key`. A repeat check-in or cancel is a 200 result, not an error.
+ * and cancel need CHECKIN_WRITE and an ACTIVE event and carry an `Idempotency-Key`: one key per operator
+ * action, sent again unchanged when that action is retried (#287, components/checkInDelivery.ts). A repeat
+ * check-in or cancel is a 200 result, not an error.
  */
 export type CheckInStatus = "CHECKED_IN" | "CANCELLED";
 export type CheckInMethod = "QR" | "MANUAL";
@@ -93,11 +94,13 @@ export function checkInManually(
   eventId: string,
   participantId: string,
   idempotencyKey: string,
+  signal?: AbortSignal,
 ): Promise<CheckInResult> {
   return apiRequest<unknown>(`/api/v1/operator/events/${eventId}/check-ins`, {
     method: "POST",
     headers: { "Idempotency-Key": idempotencyKey },
     body: { mode: "MANUAL", participantId },
+    signal,
   }).then(parseCheckInResult);
 }
 
@@ -105,11 +108,17 @@ export function isCheckInQr(value: string): boolean {
   return value.startsWith(CHECK_IN_QR_PREFIX) && value.length > CHECK_IN_QR_PREFIX.length;
 }
 
-export function checkInByQr(eventId: string, code: string, idempotencyKey: string): Promise<CheckInResult> {
+export function checkInByQr(
+  eventId: string,
+  code: string,
+  idempotencyKey: string,
+  signal?: AbortSignal,
+): Promise<CheckInResult> {
   return apiRequest<unknown>(`/api/v1/operator/events/${eventId}/check-ins`, {
     method: "POST",
     headers: { "Idempotency-Key": idempotencyKey },
     body: { mode: "QR", code },
+    signal,
   }).then(parseCheckInResult);
 }
 
@@ -118,12 +127,14 @@ export function cancelCheckIn(
   checkInId: string,
   input: { reason?: string },
   idempotencyKey: string,
+  signal?: AbortSignal,
 ): Promise<CancelResult> {
   const reason = input.reason?.trim();
   return apiRequest<unknown>(`/api/v1/operator/events/${eventId}/check-ins/${checkInId}/cancel`, {
     method: "POST",
     headers: { "Idempotency-Key": idempotencyKey },
     body: reason ? { reason } : {},
+    signal,
   }).then(parseCancelResult);
 }
 

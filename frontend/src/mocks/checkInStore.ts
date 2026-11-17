@@ -67,6 +67,11 @@ export function seedCheckIn(eventId: string, participantId: string, at = "2027-0
   return row.checkInId;
 }
 
+/** Test seam: the check-in_logs rows the mock wrote, to count how many times a resend was recorded (#287). */
+export function checkInLogsOf(eventId: string): readonly { participantId: string; action: "CHECKED_IN" | "CANCELLED" }[] {
+  return logsOf(eventId).map(({ participantId, action }) => ({ participantId, action }));
+}
+
 /** Test seam: a participant whose application was withdrawn after the roster was loaded. */
 export function withdrawParticipant(eventId: string, participantId: string): void {
   const found = participantsOf(eventId).find((item) => item.participantId === participantId);

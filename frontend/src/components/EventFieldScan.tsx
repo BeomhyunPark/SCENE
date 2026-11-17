@@ -1,37 +1,38 @@
 import { useEffect, useRef, useState } from "react";
-import { checkInByQr, isCheckInQr, newIdempotencyKey, type CheckInResult } from "../api/checkIns";
+import { isCheckInQr, type CheckInResult } from "../api/checkIns";
 import { isApiError } from "../api/errors";
 import { Button } from "./Button";
 import { formatSubmittedAt } from "./eventFormat";
+import { participantLabel } from "./participantLabel";
 import { CameraError, startQrCamera, type CameraFailure } from "./qrCamera";
+import { isEventBlocked, type ActionDelivery, type CheckInAction } from "./useCheckInQueue";
 
 /** A just-handled QR read again within this window after "다음 스캔" is ignored (#286). */
 const REPEAT_MS = 2500;
 
 type Outcome =
   | { kind: "checked-in" | "already"; result: CheckInResult }
-  | { kind: "not-scene" | "not-event" | "withdrawn" | "forbidden" | "network" | "failed" };
+  | { kind: "not-scene" | "not-event" | "withdrawn" | "forbidden" | "unconfirmed" | "offline" | "failed" };
 
 type CameraState = "starting" | "live" | CameraFailure;
 
 /**
  * Camera QR check-in for 현장 운영 (#286, DEC-071). One read at a time: while a request is out or a
  * result is on screen every read is ignored, so a QR held in front of the camera sends one request.
- * Values without the SCENE prefix never reach the server. Each request carries a fresh
- * Idempotency-Key. The camera stops when this unmounts. Copy is a draft.
+ * Values without the SCENE prefix never reach the server. Requests go through the page's check-in queue
+ * (#287): the same QR keeps its Idempotency-Key until the server answers, so scanning it again after
+ * "확인 안 됨" resends rather than checking in twice. The camera stops when this unmounts. Copy is a draft.
  */
 export function FieldScan({
-  eventId,
+  submit,
   onClose,
   onSearchInstead,
-  onChanged,
   onEventBlocked,
 }: {
-  eventId: string;
+  /** The page's useCheckInQueue; it also reloads the summary and roster after an answer. */
+  submit: (action: CheckInAction) => Promise<ActionDelivery>;
   onClose: () => void;
   onSearchInstead: () => void;
-  /** After any request: summary and roster may have changed. */
-  onChanged: () => void;
   /** The event left ACTIVE: the page shows why and closes the scanner. */
   onEventBlocked: (error: unknown) => void;
 }) {
@@ -64,27 +65,23 @@ export function FieldScan({
         return;
       }
       setSending(true);
-      checkInByQr(eventId, code, newIdempotencyKey())
-        .then((result) => {
-          if (mounted.current) {
-            setOutcome({ kind: result.result === "CHECKED_IN" ? "checked-in" : "already", result });
-          }
-        })
-        .catch((error: unknown) => {
-          if (!mounted.current) return;
-          if (isApiError(error, "EVENT_ENDED", "EVENT_ARCHIVED") || isDraftRefusal(error)) {
-            onEventBlocked(error);
-            return;
-          }
-          const kind = failureKind(error);
-          // A retry of the same QR is the way forward after these, so it is not held back.
-          if (kind === "network" || kind === "failed") last.current = null;
-          setOutcome({ kind });
-        })
-        .finally(() => {
-          if (mounted.current) setSending(false);
-          onChanged();
-        });
+      void submit({ kind: "check-in", mode: "QR", code }).then((delivery) => {
+        if (!mounted.current) return;
+        setSending(false);
+        if (delivery.kind === "done") {
+          const result = delivery.value as CheckInResult;
+          setOutcome({ kind: result.result === "CHECKED_IN" ? "checked-in" : "already", result });
+          return;
+        }
+        if (delivery.kind === "refused" && isEventBlocked(delivery.error)) {
+          onEventBlocked(delivery.error);
+          return;
+        }
+        const kind = delivery.kind === "refused" ? failureKind(delivery.error) : delivery.kind;
+        // A rescan of the same QR is the way forward after these, so it is not held back.
+        if (kind === "unconfirmed" || kind === "offline" || kind === "failed") last.current = null;
+        setOutcome({ kind });
+      });
     };
   });
 
@@ -184,10 +181,7 @@ function ScanOutcome({ outcome, onNext }: { outcome: Outcome; onNext: () => void
       <p className="event-field__scan-label">{copy.label}</p>
       {person ? (
         <>
-          <p className="event-field__scan-name">{person.participant.name}</p>
-          <p className="event-field__scan-cohort">
-            {person.participant.cohort ? `또래 ${person.participant.cohort}` : "또래 정보 없음"}
-          </p>
+          <p className="event-field__scan-name">{participantLabel(person.participant)}</p>
         </>
       ) : null}
       {copy.detail ? <p className="event-field__scan-detail">{copy.detail}</p> : null}
@@ -201,7 +195,7 @@ function ScanOutcome({ outcome, onNext }: { outcome: Outcome; onNext: () => void
 function outcomeCopy(outcome: Outcome): { tone: "success" | "info" | "error"; label: string; detail?: string } {
   switch (outcome.kind) {
     case "checked-in":
-      return { tone: "success", label: "체크인됨", detail: "이름과 또래가 맞는지 확인해 주세요." };
+      return { tone: "success", label: "체크인됨", detail: "또래와 이름이 맞는지 확인해 주세요." };
     case "already": {
       const check = outcome.result.checkIn;
       const by = check.checkedInByDisplayName ? ` · ${check.checkedInByDisplayName}` : "";
@@ -223,11 +217,17 @@ function outcomeCopy(outcome: Outcome): { tone: "success" | "info" | "error"; la
       return { tone: "error", label: "신청이 철회됐어요", detail: "신청을 철회한 참가자라 체크인할 수 없어요." };
     case "forbidden":
       return { tone: "error", label: "체크인 권한이 없어요", detail: "행사 OWNER에게 권한을 요청해 주세요." };
-    case "network":
+    case "unconfirmed":
       return {
         tone: "error",
-        label: "연결이 불안정해요",
-        detail: "체크인되지 않았을 수 있어요. 연결을 확인하고 같은 QR을 다시 스캔해 주세요.",
+        label: "확인 안 됨",
+        detail: "체크인됐는지 확인하지 못했어요. 연결을 확인하고 같은 QR을 다시 스캔하거나 '확인 안 된 요청'에서 다시 시도해 주세요.",
+      };
+    case "offline":
+      return {
+        tone: "info",
+        label: "오프라인이에요",
+        detail: "아직 보내지 않았어요. 연결되면 자동으로 다시 보내요. 결과는 '확인 안 된 요청'에서 볼 수 있어요.",
       };
     case "failed":
       return { tone: "error", label: "처리하지 못했어요", detail: "잠시 후 같은 QR을 다시 스캔해 주세요." };
@@ -255,16 +255,13 @@ function cameraCopy(reason: CameraFailure): { title: string; detail: string } {
   }
 }
 
-function failureKind(error: unknown): Exclude<Outcome["kind"], "checked-in" | "already" | "not-scene"> {
+function failureKind(
+  error: unknown,
+): Exclude<Outcome["kind"], "checked-in" | "already" | "not-scene" | "unconfirmed" | "offline"> {
   if (isApiError(error, "RESOURCE_NOT_FOUND")) return "not-event";
   if (isApiError(error, "INVALID_STATE_TRANSITION") && error.extensions.reason === "APPLICATION_NOT_SUBMITTED") {
     return "withdrawn";
   }
   if (isApiError(error, "FORBIDDEN")) return "forbidden";
-  if (isApiError(error, "NETWORK_ERROR")) return "network";
   return "failed";
-}
-
-function isDraftRefusal(error: unknown): boolean {
-  return isApiError(error, "INVALID_STATE_TRANSITION") && error.extensions.reason !== "APPLICATION_NOT_SUBMITTED";
 }

@@ -1,14 +1,11 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router";
 import arrowLeft from "../assets/event-create/arrow-left.svg";
 import {
   CANCEL_REASON_MAX,
-  cancelCheckIn,
-  checkInManually,
   getCheckInSummary,
   listCheckInRoster,
-  newIdempotencyKey,
   ROSTER_QUERY_MAX,
   type CancelResult,
   type CheckInResult,
@@ -27,6 +24,16 @@ import { EventScreen } from "./EventScreen";
 import { formatSubmittedAt } from "./eventFormat";
 import { readEventAreas } from "./eventLocalState";
 import { OperatorShell } from "./OperatorShell";
+import { participantLabel } from "./participantLabel";
+import {
+  isEventBlocked,
+  targetOf,
+  useCheckInQueue,
+  type ActionDelivery,
+  type CheckInAction,
+  type PendingRequest,
+  type Settled,
+} from "./useCheckInQueue";
 import "./EventField.css";
 
 const PAGE_SIZE = 50;
@@ -37,9 +44,11 @@ type Notice = { tone: "success" | "info" | "error"; text: string };
 
 /**
  * 현장 운영 (#285): arrival check-in by name or phone last 4 (DEC-071). Reads need EVENT_READ; check-in
- * and cancel need CHECKIN_WRITE and an ACTIVE event. Every request sends a fresh Idempotency-Key, and
- * ALREADY_CHECKED_IN·ALREADY_CANCELLED read as notices, not errors. "QR 스캔" opens the rear camera
- * (#286, EventFieldScan); it is blocked for the same reasons as check-in. Copy is a draft.
+ * and cancel need CHECKIN_WRITE and an ACTIVE event. ALREADY_CHECKED_IN·ALREADY_CANCELLED read as notices,
+ * not errors. "QR 스캔" opens the rear camera (#286, EventFieldScan); it is blocked for the same reasons as
+ * check-in. Requests go through useCheckInQueue (#287): one Idempotency-Key per action, short automatic
+ * retries, then "확인 안 됨" with "다시 시도"; offline is shown, and coming back online resends and reloads.
+ * A request whose result is unknown is never shown as done. Copy is a draft.
  */
 export function EventField() {
   const { eventId = "" } = useParams();
@@ -117,30 +126,49 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
     refresh();
   }
 
-  const checkIn = useMutation({
-    mutationFn: (item: RosterItem) => checkInManually(eventId, item.participantId, newIdempotencyKey()),
-    onMutate: () => setNotice(null),
-    onSuccess: (result) => {
-      setNotice(checkInNotice(result));
+  function report(action: CheckInAction, delivery: ActionDelivery) {
+    if (delivery.kind === "refused") {
+      onFailure(delivery.error, actionName(action));
+      if (isEventBlocked(delivery.error)) setScanning(false);
+      return;
+    }
+    setNotice(deliveryNotice(action, delivery));
+  }
+
+  const queue = useCheckInQueue(eventId, {
+    onChanged: refresh,
+    onReconnected: (settled) => {
       refresh();
-    },
-    onError: (error, item) => onFailure(error, item.name),
-  });
-  const cancel = useMutation({
-    mutationFn: (input: { item: RosterItem; checkInId: string; reason: string }) =>
-      cancelCheckIn(eventId, input.checkInId, { reason: input.reason }, newIdempotencyKey()),
-    onMutate: () => setNotice(null),
-    onSuccess: (result, input) => {
-      setCancelling(null);
-      setNotice(cancelNotice(result, input.item.name));
-      refresh();
-    },
-    onError: (error, input) => {
-      setCancelling(null);
-      onFailure(error, input.item.name);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.event(eventId) });
+      if (settled.length === 1) report(settled[0].action, settled[0].delivery);
+      else setNotice(reconnectNotice(settled));
     },
   });
-  const pendingId = checkIn.isPending ? checkIn.variables?.participantId : undefined;
+  const pendingByTarget = new Map(queue.pending.map((item) => [item.target, item]));
+  const [cancelBusy, setCancelBusy] = useState(false);
+
+  function checkIn(item: RosterItem) {
+    const action: CheckInAction = { kind: "check-in", mode: "MANUAL", participantId: item.participantId, name: participantLabel(item) };
+    setNotice(null);
+    void queue.submit(action).then((delivery) => report(action, delivery));
+  }
+
+  function cancel(item: RosterItem, checkInId: string, reason: string) {
+    const action: CheckInAction = { kind: "cancel", checkInId, participantId: item.participantId, name: participantLabel(item), reason };
+    setNotice(null);
+    setCancelBusy(true);
+    void queue.submit(action).then((delivery) => {
+      setCancelBusy(false);
+      setCancelling(null);
+      report(action, delivery);
+    });
+  }
+
+  function retry(request: PendingRequest) {
+    setNotice(null);
+    void queue.retry(request.target)?.then((delivery) => report(request.action, delivery));
+  }
+
   const items = roster.data?.pages.flatMap((page) => page.items) ?? [];
   const total = roster.data?.pages[0]?.page.totalItems ?? 0;
 
@@ -197,15 +225,24 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
           </p>
         ) : null}
 
+        {!queue.online ? (
+          <p className="event-field__offline" role="status">
+            오프라인이에요. 연결되면 확인 안 된 요청을 다시 보내고 현황을 새로 불러올게요.
+          </p>
+        ) : null}
+
+        {queue.pending.length > 0 ? (
+          <PendingList pending={queue.pending} online={queue.online} onRetry={retry} />
+        ) : null}
+
         {scanOpen ? (
           <FieldScan
-            eventId={eventId}
+            submit={queue.submit}
             onClose={() => setScanning(false)}
             onSearchInstead={() => {
               setScanning(false);
               searchRef.current?.focus();
             }}
-            onChanged={refresh}
             onEventBlocked={(error) => {
               setScanning(false);
               onFailure(error, "");
@@ -293,16 +330,20 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
               {total.toLocaleString("ko-KR")}명
             </p>
             <ul className="event-field__list" aria-label="체크인 명단">
-              {items.map((item) => (
-                <RosterRow
-                  key={item.participantId}
-                  item={item}
-                  disabled={Boolean(blocked)}
-                  busy={pendingId === item.participantId}
-                  onCheckIn={() => checkIn.mutate(item)}
-                  onCancel={() => setCancelling(item)}
-                />
-              ))}
+              {items.map((item) => {
+                const request = pendingFor(item, pendingByTarget);
+                return (
+                  <RosterRow
+                    key={item.participantId}
+                    item={item}
+                    disabled={Boolean(blocked)}
+                    request={request}
+                    onCheckIn={() => checkIn(item)}
+                    onCancel={() => setCancelling(item)}
+                    onRetry={() => request && retry(request)}
+                  />
+                );
+              })}
             </ul>
           </>
         ) : null}
@@ -323,11 +364,11 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
       {cancelling?.checkIn ? (
         <CancelDialog
           item={cancelling}
-          busy={cancel.isPending}
+          busy={cancelBusy}
           onClose={() => {
-            if (!cancel.isPending) setCancelling(null);
+            if (!cancelBusy) setCancelling(null);
           }}
-          onConfirm={(reason) => cancel.mutate({ item: cancelling, checkInId: cancelling.checkIn!.checkInId, reason })}
+          onConfirm={(reason) => cancel(cancelling, cancelling.checkIn!.checkInId, reason)}
         />
       ) : null}
     </OperatorShell>
@@ -337,25 +378,32 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
 function RosterRow({
   item,
   disabled,
-  busy,
+  request,
   onCheckIn,
   onCancel,
+  onRetry,
 }: {
   item: RosterItem;
   disabled: boolean;
-  busy: boolean;
+  /** A check-in or cancel for this participant whose result is not known yet. */
+  request: PendingRequest | undefined;
   onCheckIn: () => void;
   onCancel: () => void;
+  onRetry: () => void;
 }) {
+  const busy = request?.phase === "sending";
+  const unknown = request !== undefined && !busy;
   const done = item.checkIn?.status === "CHECKED_IN";
   const wasCancelled = item.checkIn?.status === "CANCELLED";
-  const meta = [item.cohort, item.phoneLast4 ? `끝자리 ${item.phoneLast4}` : null].filter(Boolean).join(" · ");
+  // 또래 is in the title ("94 김하늘"), so the line below keeps only phone last 4.
+  const label = participantLabel(item);
+  const meta = item.phoneLast4 ? `끝자리 ${item.phoneLast4}` : "";
   const labelId = useId();
   return (
     <li className="event-field__row" aria-labelledby={labelId}>
       <div className="event-field__row-main">
         <p className="event-field__name" id={labelId}>
-          {item.name}
+          {label}
         </p>
         {meta ? <p className="event-field__meta">{meta}</p> : null}
         {done && item.checkIn ? (
@@ -367,18 +415,34 @@ function RosterRow({
         ) : null}
         {wasCancelled ? <p className="event-field__meta">체크인을 취소했어요</p> : null}
       </div>
-      <span className={done ? "event-field__badge event-field__badge--done" : "event-field__badge"}>
-        {done ? "체크인 완료" : "미완료"}
-      </span>
+      {unknown ? (
+        <span className="event-field__badge event-field__badge--unknown">확인 안 됨</span>
+      ) : (
+        <span className={done ? "event-field__badge event-field__badge--done" : "event-field__badge"}>
+          {done ? "체크인 완료" : "미완료"}
+        </span>
+      )}
       <div className="event-field__row-action">
-        {done ? (
+        {unknown ? (
+          <Button
+            type="button"
+            variant="secondary"
+            size={48}
+            disabled={disabled || request.phase === "offline"}
+            aria-label={`${label} ${request.action.kind === "cancel" ? "체크인 취소" : "체크인"} 다시 시도`}
+            onClick={onRetry}
+          >
+            다시 시도
+          </Button>
+        ) : done ? (
           <Button
             type="button"
             variant="danger-outline"
             size={48}
-            disabled={disabled}
+            disabled={disabled || busy}
+            loading={busy}
             aria-describedby={disabled ? "field-blocked" : undefined}
-            aria-label={`${item.name} 체크인 취소`}
+            aria-label={`${label} 체크인 취소`}
             onClick={onCancel}
           >
             체크인 취소
@@ -391,7 +455,7 @@ function RosterRow({
             disabled={disabled}
             loading={busy}
             aria-describedby={disabled ? "field-blocked" : undefined}
-            aria-label={`${item.name} 체크인`}
+            aria-label={`${label} 체크인`}
             onClick={onCheckIn}
           >
             체크인
@@ -399,6 +463,50 @@ function RosterRow({
         )}
       </div>
     </li>
+  );
+}
+
+function PendingList({
+  pending,
+  online,
+  onRetry,
+}: {
+  pending: PendingRequest[];
+  online: boolean;
+  onRetry: (request: PendingRequest) => void;
+}) {
+  return (
+    <section className="event-field__pending" aria-labelledby="field-pending-title">
+      <h2 className="event-field__pending-title" id="field-pending-title">
+        확인 안 된 요청 {pending.length.toLocaleString("ko-KR")}건
+      </h2>
+      <p className="event-field__pending-note">
+        처리됐는지 아직 몰라요. 이 화면을 닫거나 새로 고치면 이 목록은 사라져요. 사라졌다면 명단에서 실제 상태를
+        확인해 주세요.
+      </p>
+      <ul className="event-field__pending-list">
+        {pending.map((request) => (
+          <li key={request.target} className="event-field__pending-item">
+            <div>
+              <p className="event-field__pending-name">{actionLabel(request.action)}</p>
+              <p className="event-field__meta">{phaseCopy(request.phase)}</p>
+            </div>
+            {request.phase === "sending" ? null : (
+              <Button
+                type="button"
+                variant="secondary"
+                size={40}
+                disabled={!online}
+                aria-label={`${actionLabel(request.action)} 다시 시도`}
+                onClick={() => onRetry(request)}
+              >
+                다시 시도
+              </Button>
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -416,7 +524,7 @@ function CancelDialog({
   const [reason, setReason] = useState("");
   return (
     <ConfirmDialog
-      title={`${item.name} 님의 체크인을 취소할까요?`}
+      title={`${participantLabel(item)} 님의 체크인을 취소할까요?`}
       onClose={onClose}
       footer={
         <>
@@ -454,8 +562,58 @@ function blockedReason(status: LifecycleStatus, mayWrite: boolean, permissionsPe
   return null;
 }
 
+function pendingFor(item: RosterItem, byTarget: Map<string, PendingRequest>): PendingRequest | undefined {
+  const manual = byTarget.get(targetOf({ kind: "check-in", mode: "MANUAL", participantId: item.participantId, name: "" }));
+  if (manual) return manual;
+  if (!item.checkIn) return undefined;
+  return byTarget.get(
+    targetOf({ kind: "cancel", checkInId: item.checkIn.checkInId, participantId: item.participantId, name: "", reason: "" }),
+  );
+}
+
+function actionName(action: CheckInAction): string {
+  return action.kind === "check-in" && action.mode === "QR" ? "" : action.name;
+}
+
+function actionLabel(action: CheckInAction): string {
+  if (action.kind === "cancel") return `${action.name} 님 체크인 취소`;
+  if (action.mode === "QR") return "QR 스캔 체크인";
+  return `${action.name} 님 체크인`;
+}
+
+function phaseCopy(phase: PendingRequest["phase"]): string {
+  if (phase === "sending") return "보내는 중이에요.";
+  if (phase === "offline") return "오프라인이라 연결되면 다시 보내요.";
+  return "응답을 받지 못했어요. 다시 시도해 주세요.";
+}
+
+function deliveryNotice(action: CheckInAction, delivery: Exclude<ActionDelivery, { kind: "refused" }>): Notice {
+  const label = actionLabel(action);
+  // Labels end in 체크인 or 취소, so the particle follows the action.
+  const [object, subject] = action.kind === "cancel" ? ["를", "가"] : ["을", "이"];
+  if (delivery.kind === "offline") {
+    return { tone: "info", text: `오프라인이에요. 연결되면 ${label}${object} 다시 보낼게요.` };
+  }
+  if (delivery.kind === "unconfirmed") {
+    return { tone: "error", text: `${label}${subject} 처리됐는지 확인하지 못했어요. 연결을 확인하고 다시 시도해 주세요.` };
+  }
+  if (action.kind === "cancel") return cancelNotice(delivery.value as CancelResult, action.name);
+  return checkInNotice(delivery.value as CheckInResult);
+}
+
+function reconnectNotice(settled: Settled[]): Notice {
+  const left = settled.filter((item) => item.delivery.kind === "unconfirmed" || item.delivery.kind === "offline").length;
+  const refused = settled.filter((item) => item.delivery.kind === "refused").length;
+  const sent = settled.length - left - refused;
+  if (settled.length === 0) return { tone: "info", text: "다시 연결됐어요. 현황을 새로 불러왔어요." };
+  const parts = [`다시 연결돼 ${sent.toLocaleString("ko-KR")}건을 처리했어요`];
+  if (refused > 0) parts.push(`${refused.toLocaleString("ko-KR")}건은 처리할 수 없었어요`);
+  if (left > 0) parts.push(`${left.toLocaleString("ko-KR")}건은 아직 확인 안 됨이에요`);
+  return { tone: left + refused > 0 ? "error" : "success", text: `${parts.join(", ")}. 현황을 새로 불러왔어요.` };
+}
+
 function checkInNotice(result: CheckInResult): Notice {
-  const name = result.participant.name;
+  const name = participantLabel(result.participant);
   if (result.result === "ALREADY_CHECKED_IN") {
     const by = result.checkIn.checkedInByDisplayName ? ` · ${result.checkIn.checkedInByDisplayName}` : "";
     return { tone: "info", text: `${name} 님은 이미 체크인했어요 (${formatSubmittedAt(result.checkIn.checkedInAt)}${by}).` };
@@ -479,7 +637,6 @@ function failureCopy(error: unknown, name: string): string {
   }
   if (isApiError(error, "FORBIDDEN")) return "체크인 권한이 없어요.";
   if (isApiError(error, "RESOURCE_NOT_FOUND")) return `${name} 님을 명단에서 찾지 못했어요. 명단을 새로 불러왔어요.`;
-  if (isApiError(error, "NETWORK_ERROR")) return "연결이 불안정해요. 연결을 확인하고 다시 눌러 주세요.";
   return "처리하지 못했어요. 잠시 후 다시 시도해 주세요.";
 }
 
