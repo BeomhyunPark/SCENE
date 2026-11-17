@@ -122,11 +122,53 @@ html {
 }
 
 .public-home__cards {
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
 }
 
 .public-home__steps {
   grid-template-columns: repeat(4, 1fr);
+  margin-top: 32px;
+}
+
+.public-home__sizes {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.public-home__size {
+  padding: 24px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 10px;
+  background: var(--color-bg-surface);
+}
+
+.public-home__uses {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.public-home__uses .public-home__tag {
+  margin: 0;
+  background: var(--color-bg-subtle);
+}
+
+.public-home__tag {
+  display: inline-block;
+  margin-bottom: 10px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-brand);
+  font: var(--scene-label-s);
+  letter-spacing: 0;
 }
 
 .public-home__card,
@@ -221,15 +263,19 @@ html {
 
   .public-home__cards,
   .public-home__steps,
+  .public-home__sizes,
   .public-home__faq {
     grid-template-columns: 1fr;
   }
 }
 
 @media (min-width: 640px) and (max-width: 959px) {
-  .public-home__cards,
   .public-home__steps,
   .public-home__faq {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .public-home__sizes {
+    grid-template-columns: 1fr;
   }
 }

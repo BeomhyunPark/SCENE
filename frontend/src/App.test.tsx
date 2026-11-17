@@ -61,8 +61,8 @@ describe("public shell", () => {
     expect(document.querySelector("[data-theme]")).toBeNull();
 
     for (const [id, name] of [
-      ["service", "흩어진 행사 정보를 한곳에"],
-      ["how", "준비부터 마무리까지, 하나의 흐름으로"],
+      ["service", "행사를 처음 맡아도, 운영할 수 있도록"],
+      ["how", "행사 크기만큼만, 필요한 운영만"],
       ["help", "자주 묻는 질문"],
     ]) {
       expect(screen.getByRole("heading", { level: 2, name })).toBeInTheDocument();
