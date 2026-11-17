@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router";
 import arrowLeft from "../assets/event-create/arrow-left.svg";
@@ -22,6 +22,7 @@ import { queryKeys } from "../api/queryKeys";
 import { getMe } from "../api/session";
 import { Button } from "./Button";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { FieldScan } from "./EventFieldScan";
 import { EventScreen } from "./EventScreen";
 import { formatSubmittedAt } from "./eventFormat";
 import { readEventAreas } from "./eventLocalState";
@@ -37,7 +38,8 @@ type Notice = { tone: "success" | "info" | "error"; text: string };
 /**
  * 현장 운영 (#285): arrival check-in by name or phone last 4 (DEC-071). Reads need EVENT_READ; check-in
  * and cancel need CHECKIN_WRITE and an ACTIVE event. Every request sends a fresh Idempotency-Key, and
- * ALREADY_CHECKED_IN·ALREADY_CANCELLED read as notices, not errors. Copy is a draft.
+ * ALREADY_CHECKED_IN·ALREADY_CANCELLED read as notices, not errors. "QR 스캔" opens the rear camera
+ * (#286, EventFieldScan); it is blocked for the same reasons as check-in. Copy is a draft.
  */
 export function EventField() {
   const { eventId = "" } = useParams();
@@ -55,6 +57,8 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
   const [filter, setFilter] = useState<Filter>("all");
   const [notice, setNotice] = useState<Notice | null>(null);
   const [cancelling, setCancelling] = useState<RosterItem | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setQ(search.trim()), SEARCH_DELAY_MS);
@@ -89,6 +93,17 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
   const status: LifecycleStatus = summary.data?.eventStatus ?? event.lifecycleStatus;
   const mayWrite = permissions.data?.effective.includes("CHECKIN_WRITE") ?? false;
   const blocked = blockedReason(status, mayWrite, permissions.isPending);
+  const scanOpen = scanning && !blocked && mayWrite;
+
+  // Leaving the tab closes the scanner, so the camera does not stay on in the background.
+  useEffect(() => {
+    if (!scanOpen) return;
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") setScanning(false);
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, [scanOpen]);
 
   function refresh() {
     void queryClient.invalidateQueries({ queryKey: queryKeys.checkIns(eventId) });
@@ -182,12 +197,44 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
           </p>
         ) : null}
 
+        {scanOpen ? (
+          <FieldScan
+            eventId={eventId}
+            onClose={() => setScanning(false)}
+            onSearchInstead={() => {
+              setScanning(false);
+              searchRef.current?.focus();
+            }}
+            onChanged={refresh}
+            onEventBlocked={(error) => {
+              setScanning(false);
+              onFailure(error, "");
+            }}
+          />
+        ) : (
+          <Button
+            type="button"
+            variant="primary"
+            size={48}
+            className="event-field__scan-open"
+            disabled={Boolean(blocked) || !mayWrite}
+            aria-describedby={blocked ? "field-blocked" : undefined}
+            onClick={() => {
+              setNotice(null);
+              setScanning(true);
+            }}
+          >
+            QR 스캔
+          </Button>
+        )}
+
         <div className="event-field__search">
           <label className="event-field__search-label" htmlFor="field-search">
             이름 또는 전화 끝 4자리
           </label>
           <input
             id="field-search"
+            ref={searchRef}
             className="event-field__search-input"
             type="search"
             value={search}

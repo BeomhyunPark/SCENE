@@ -4,7 +4,7 @@ import { csrfMatches } from "../csrf";
 import { problem } from "../problem";
 import { currentOperator } from "./session";
 
-/** Shaped like CheckInController (#282). The QR value and check-in logs are not mocked. */
+/** Shaped like CheckInController (#282). QR values use the mock tag in checkInStore; check-in logs are not mocked. */
 export const checkInHandlers = [
   http.get("/api/v1/operator/events/:eventId/check-ins/summary", ({ params }) => {
     const operator = currentOperator();
