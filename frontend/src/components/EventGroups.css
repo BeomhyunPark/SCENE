@@ -1,7 +1,7 @@
 /* 조 편성 (#301). Follows Figma P16-26 · 조 편성 (1325:5129, v2 light): page head with the 배정·미배정
    chip, 행사 홈 and a primary slot; group cards four across (subtle panel, white member row cards); the
    미배정 card strip below. Filters, selection bar, leader marks and group menus are additions in the same
-   visual language. Per-slot attendance bars are not drawn (user, 2026-11-17). */
+   visual language. Member rows are one line with the 참석 막대, a ♥ 조장 toggle and drag grips (#343). */
 .event-groups {
   display: flex;
   flex-direction: column;
@@ -237,7 +237,6 @@
 
 .event-groups__input:focus-visible,
 .event-groups__select:focus-visible,
-.event-groups__leader-toggle:focus-visible,
 .event-groups__menu-button:focus-visible,
 .event-groups__pool-card input:focus-visible,
 .event-groups__member input:focus-visible {
@@ -385,31 +384,299 @@
 .event-groups__members {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-/* Member row card: white, 44px, name left. */
+/* Member row card (#343): one line as in Figma 1325:5129 — controls and the name pill on the left, the
+   참석 막대 on the same line. The lead column has a fixed width so the bars and the slot header line up. */
+.event-groups__card {
+  --member-lead: 116px;
+}
+
+.event-groups__card:has(.event-groups__heart:not(.event-groups__heart--static)) {
+  --member-lead: 150px;
+}
+
 .event-groups__member {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 4px;
-  min-height: 44px;
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--member-lead) minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
   box-sizing: border-box;
-  padding: 6px 10px;
+  padding: 3px 8px 3px 4px;
   border: 1px solid var(--color-border-default);
   border-radius: 4px;
   background: var(--color-bg-surface);
+  touch-action: pan-y;
 }
 
-.event-groups__member-main {
+.event-groups__member-lead {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: 2px;
+  min-width: 0;
+}
+
+.event-groups__member-lead input {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin: 0 2px 0 4px;
+}
+
+.event-groups__member .event-groups__tag {
+  justify-self: start;
+}
+
+.event-groups__member--dragging,
+.event-groups__pool-card--dragging {
+  opacity: 0.45;
+}
+
+/* Where the dragged people land: a line above that row. */
+.event-groups__member--drop-before::before {
+  position: absolute;
+  top: -7px;
+  right: 0;
+  left: 0;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--color-drop-hover-border);
+  content: "";
+}
+
+.event-groups__pill-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 3px 5px;
+  border-radius: 4px;
+}
+
+.event-groups__pill-name .event-groups__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.event-groups__pill-name--male {
+  background: var(--color-gender-male-bg);
+}
+
+.event-groups__pill-name--female {
+  background: var(--color-gender-female-bg);
+}
+
+.event-groups__pill-name--leader .event-groups__name {
+  color: var(--color-leader-name);
+  font-weight: 700;
+}
+
+.event-groups__grip {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--color-text-tertiary);
+  cursor: grab;
+  touch-action: none;
+}
+
+.event-groups__grip svg {
+  fill: currentColor;
+}
+
+.event-groups__grip:hover {
+  background: var(--color-bg-hover-row);
+  color: var(--color-text-secondary);
+}
+
+.event-groups__grip:focus-visible,
+.event-groups__heart:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 1px;
+}
+
+/* ♥ 조장 토글: a 24×32px hit area around an 18px circle. Leader: filled red heart on a light tint. */
+.event-groups__heart {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+}
+
+.event-groups__heart svg {
+  box-sizing: content-box;
+  width: 12px;
+  height: 12px;
+  padding: 2px;
+  border: 1px solid var(--color-border-control);
+  border-radius: 999px;
+  background: var(--color-bg-surface);
+}
+
+.event-groups__heart[aria-pressed="true"],
+.event-groups__heart--static {
+  color: var(--color-leader-heart);
+}
+
+.event-groups__heart[aria-pressed="true"] svg,
+.event-groups__heart--static svg {
+  border-color: var(--color-leader-heart);
+  background: var(--color-danger-bg);
+}
+
+.event-groups__heart:disabled {
+  cursor: not-allowed;
+}
+
+.event-groups__heart--static {
+  width: 22px;
+}
+
+.event-groups__legend {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font: var(--scene-caption-s);
+}
+
+/* Drop zones while dragging (#343). */
+body.event-groups--dragging {
+  cursor: grabbing;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.event-groups__card--target {
+  border-style: dashed;
+  border-color: var(--color-drop-rest-border);
+}
+
+.event-groups__card--over {
+  border-style: solid;
+  border-color: var(--color-drop-hover-border);
+  background: var(--color-drop-hover-bg);
+}
+
+.event-groups__card--dragging {
+  opacity: 0.5;
+}
+
+.event-groups__card--slot-before {
+  box-shadow: -6px 0 0 -2px var(--color-drop-hover-border);
+}
+
+.event-groups__card--slot-after {
+  box-shadow: 6px 0 0 -2px var(--color-drop-hover-border);
+}
+
+.event-groups__card-head {
+  touch-action: pan-y;
+}
+
+.event-groups__drop-end {
+  padding: 8px;
+  border: 1px dashed var(--color-drop-rest-border);
+  border-radius: 4px;
+  color: var(--color-drop-rest-text);
+  font: var(--scene-caption-m);
+  text-align: center;
+}
+
+.event-groups__drop-end--active {
+  border-color: var(--color-drop-hover-border);
+  color: var(--color-text-brand);
+}
+
+.event-groups__drop-end--over {
+  border-style: solid;
+  background: var(--color-bg-surface);
+}
+
+.event-groups__pool {
+  border-radius: 8px;
+}
+
+.event-groups__pool--target {
+  outline: 2px dashed var(--color-drop-rest-border);
+  outline-offset: 6px;
+}
+
+.event-groups__pool--over {
+  outline-color: var(--color-drop-hover-border);
+  background: var(--color-drop-hover-bg);
+}
+
+.event-groups__grid-wrap {
+  position: relative;
+}
+
+/* Hold here while dragging to turn the page. */
+.event-groups__page-zone {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  border: 1px dashed var(--color-drop-hover-border);
+  border-radius: 8px;
+  background: var(--color-drop-hover-bg);
+  color: var(--color-text-brand);
+  font: var(--scene-label-s);
+  writing-mode: vertical-rl;
+}
+
+/* In the page gutter, so the card edges stay droppable. */
+.event-groups__page-zone--prev {
+  left: -29px;
+}
+
+.event-groups__page-zone--next {
+  right: -29px;
+}
+
+/* One letter per slot does not fit next to the names in a one-line row; the dates stay, the legend names
+   the slots and each bar's title lists them. */
+.event-groups__card .event-groups__slot-name {
+  display: none;
+}
+
+.event-groups__ghost {
+  position: fixed;
+  z-index: 50;
+  padding: 6px 10px;
+  border: 1px solid var(--color-border-selected);
+  border-radius: 6px;
+  background: var(--color-bg-raised);
+  box-shadow: 0 4px 16px var(--color-shadow-sticky);
+  color: var(--color-text-primary);
+  font: var(--scene-label-m);
+  pointer-events: none;
+  transform: translate(12px, 12px);
+  white-space: nowrap;
 }
 
 .event-groups__member--dim {
@@ -452,36 +719,6 @@
   font: var(--scene-caption-s);
 }
 
-.event-groups__leader {
-  padding: 1px 6px;
-  border-radius: 4px;
-  background: var(--color-bg-brand-subtle);
-  color: var(--color-leader-icon);
-  font: var(--scene-caption-s);
-}
-
-.event-groups__leader-toggle {
-  margin-left: auto;
-  min-height: 28px;
-  padding: 0 8px;
-  border: 1px solid var(--color-border-control);
-  border-radius: 4px;
-  background: var(--color-bg-surface);
-  color: var(--color-text-secondary);
-  font: var(--scene-caption-m);
-  cursor: pointer;
-}
-
-.event-groups__leader-toggle[aria-pressed="true"] {
-  border-color: var(--color-border-selected);
-  color: var(--color-text-primary);
-}
-
-.event-groups__leader-toggle:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
-}
-
 /* 참석 막대 (#318): one column per 참석 칸. Attended cells are filled, absent cells are outlines (Figma 1325:5669). */
 .event-groups__slot-legend {
   display: flex;
@@ -518,7 +755,7 @@
 .event-groups__slot-head {
   row-gap: 2px;
   margin: 0 0 4px;
-  padding: 0 10px;
+  padding: 0 9px 0 calc(var(--member-lead, 0px) + 11px);
   color: var(--color-text-tertiary);
   font: var(--scene-caption-s);
   text-align: center;
@@ -588,7 +825,7 @@
 
 .event-groups__headcount-cells {
   margin: 0;
-  padding: 0 10px;
+  padding: 0 9px 0 calc(var(--member-lead, 0px) + 11px);
   list-style: none;
   font: var(--scene-label-s);
   text-align: center;
