@@ -974,6 +974,7 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
   "gender": true,
   "middleGroup": false,
   "cell": false,
+  "newcomer": true,
   "attendance": { "partial": true, "worshipOnly": false },
   "schedule": [
     { "breakfast": false, "lunch": false, "dinner": true, "worship": true },
@@ -985,7 +986,8 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
 }
 ```
 
-- 모든 키가 필수이고 값은 boolean이다. 모르는 키나 다른 타입은 `400`이고 필드는 `setup`, `attendance`, `schedule`, `transport` 중 해당 묶음이다. 응답의 `generatedFor`는 다시 보내도 무시한다.
+- 모든 키가 필수이고 값은 boolean이다. 다만 `newcomer`(새가족 질문, 나중에 더한 키)는 없어도 되고 없으면 `false`다. 응답의 `setup`에는 늘 있다. 모르는 키나 다른 타입은 `400`이고 필드는 `setup`, `attendance`, `schedule`, `transport` 중 해당 묶음이다. 응답의 `generatedFor`는 다시 보내도 무시한다.
+- `newcomer`가 `true`면 `NEWCOMER` 질문(`YES_NO`, style `YES_NO`, 필수, 조건 없음, 제목 "새가족이신가요?")이 셀 다음·참석 방식 앞 자리에 생긴다. 답은 `{ "value": true|false }`다. 신청이 들어온 뒤에도 켜고 끌 수 있다: 켜면 질문이 추가되고 그 전 신청자는 답이 없다. 끄면 질문을 숨기고 답은 남긴다.
 - `schedule`은 행사 기간의 하루마다 한 항목이고 날짜순이다. 항목 수가 행사 일수와 다르면 `400`이고 필드는 `schedule`이다.
 - 행사에 `startDate`·`endDate`가 없거나 기간이 10일을 넘으면 `400`이고 필드는 `eventPeriod`다.
 - 서버는 이 설정과 행사 기간으로 질문을 만들어 저장된 질문과 맞춘다: 없는 질문은 추가하고, 더는 필요 없는 질문은 삭제하거나(신청이 없고, 운영자가 손대지 않았고, 다른 질문이 가리키지 않을 때) 숨기고 `presetActive: false`로 둔다. 운영자가 고친 문구와 순서는 유지한다.
@@ -1339,6 +1341,7 @@ CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고
       "attendance": "FULL",
       "middleGroup": "청년1부",
       "cell": "다윗셀",
+      "newcomer": true,
       "groupId": "…",
       "leader": false,
       "publishedGroupId": "…",
@@ -1364,6 +1367,7 @@ CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고
 
 - `participants`는 활성 참가자 전원이고 순서는 이름, 그다음 참가자 id다. 페이지는 없다. 전화·접근 키는 없다.
 - `cohort`·`middleGroup`·`cell`은 `SUBMITTED` 신청의 `COHORT`·`MIDDLE_GROUP`·`CELL` 답 `value.text`(앞뒤 공백 자름)다. `gender`는 `GENDER` 답의 보기 id와 지금 보기 문구다. 답이 없거나 질문이 없거나 꺼져 있으면 `null`이다.
+- `newcomer`는 `NEWCOMER` 답의 `value`(`true`·`false`)다. 답이 없거나(질문을 켜기 전에 신청함) 질문이 없거나 꺼져 있으면 `null`이고 화면은 "응답 없음"으로 묶는다. 돌봄 관련 정보라 편성판에만 있다. 참가자의 내 조(`GET /participant/group`, 조장의 조원 명단 포함)와 운영자 공개본 조회에는 없다.
 - `attendance`는 `ATTENDANCE` 답의 `opt_full`·`opt_partial`·`opt_worship`을 `FULL`·`PARTIAL`·`WORSHIP_ONLY`로 바꾼 값이다. 질문이 없거나 꺼져 있으면 `FULL`이다(DEC-070 §3). 질문이 켜진 뒤 들어온 신청이 아니라서 답이 없을 때도 `FULL`이다. `null`이 아니다.
 - `groupId`가 `null`이면 미배정이다. `publishedGroupId`·`publishedLeader`는 가장 최근 공개본의 값이고, 공개한 적이 없거나 그 공개본에 없으면 `null`·`false`다.
 - `withdrawn`은 배정 행이 남아 있지만 활성 참가자가 아닌 사람이다. `groupId`는 참고값이다. 조별 인원·미배정 수에 넣지 않는다.
