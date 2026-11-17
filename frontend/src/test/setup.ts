@@ -11,6 +11,7 @@ import { resetParticipantCheckInStore } from "../mocks/participantCheckInStore";
 import { resetRetrospectiveStore } from "../mocks/retrospectiveStore";
 import { resetAccessKeyCapture } from "../accessKey";
 import { resetCheckInStore } from "../mocks/checkInStore";
+import { resetGroupStore } from "../mocks/groupStore";
 import { resetTaskStore } from "../mocks/taskStore";
 import { deliveryTiming } from "../components/checkInDelivery";
 
@@ -30,6 +31,7 @@ afterEach(() => {
   resetTaskStore();
   resetRetrospectiveStore();
   resetCheckInStore();
+  resetGroupStore();
   resetParticipantStore();
   resetParticipantCheckInStore();
   resetAccessKeyCapture();
