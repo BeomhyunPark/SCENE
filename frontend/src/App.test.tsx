@@ -19,10 +19,13 @@ describe("public shell", () => {
     expect(wordmark.tagName).toBe("SPAN");
     expect(wordmark).toHaveClass("scene-wordmark");
 
-    for (const label of ["서비스", "운영 방식", "도움말"]) {
-      const text = screen.getByText(label);
-      expect(text.tagName).not.toBe("A");
-      expect(text.closest("a")).toBeNull();
+    const nav = screen.getByRole("navigation", { name: "소개" });
+    for (const [label, href] of [
+      ["서비스", "/#service"],
+      ["운영 방식", "/#how"],
+      ["도움말", "/#help"],
+    ]) {
+      expect(within(nav).getByRole("link", { name: label })).toHaveAttribute("href", href);
     }
 
     const login = screen.getByRole("link", { name: "로그인" });
@@ -56,6 +59,15 @@ describe("public shell", () => {
     expect(screen.queryByRole("textbox")).toBeNull();
     expect(screen.queryAllByRole("button")).toHaveLength(1);
     expect(document.querySelector("[data-theme]")).toBeNull();
+
+    for (const [id, name] of [
+      ["service", "흩어진 행사 정보를 한곳에"],
+      ["how", "준비부터 마무리까지, 하나의 흐름으로"],
+      ["help", "자주 묻는 질문"],
+    ]) {
+      expect(screen.getByRole("heading", { level: 2, name })).toBeInTheDocument();
+      expect(document.getElementById(id)).not.toBeNull();
+    }
   });
 
   it("starts Google sign-in from 계정 만들기 on /", async () => {
@@ -282,10 +294,13 @@ describe("public shell", () => {
     );
     expect(screen.getByRole("link", { name: "로그인" })).toHaveAttribute("href", "/login");
     expect(screen.getByRole("link", { name: "시작하기" })).toHaveAttribute("href", "/signup");
-    for (const label of ["서비스", "운영 방식", "도움말"]) {
-      const text = screen.getByText(label);
-      expect(text.tagName).not.toBe("A");
-      expect(text.closest("a")).toBeNull();
+    const nav = screen.getByRole("navigation", { name: "소개" });
+    for (const [label, href] of [
+      ["서비스", "/#service"],
+      ["운영 방식", "/#how"],
+      ["도움말", "/#help"],
+    ]) {
+      expect(within(nav).getByRole("link", { name: label })).toHaveAttribute("href", href);
     }
     const again = screen.getByText("다시 보내기");
     expect(again.tagName).not.toBe("A");
@@ -334,10 +349,13 @@ describe("public shell", () => {
     const start = screen.getByRole("link", { name: "시작하기" });
     expect(start).toHaveAttribute("href", "/signup");
     expect(start).toHaveClass("scene-button--primary");
-    for (const label of ["서비스", "운영 방식", "도움말"]) {
-      const text = screen.getByText(label);
-      expect(text.tagName).not.toBe("A");
-      expect(text.closest("a")).toBeNull();
+    const nav = screen.getByRole("navigation", { name: "소개" });
+    for (const [label, href] of [
+      ["서비스", "/#service"],
+      ["운영 방식", "/#how"],
+      ["도움말", "/#help"],
+    ]) {
+      expect(within(nav).getByRole("link", { name: label })).toHaveAttribute("href", href);
     }
 
     expect(screen.getByRole("button", { name: /드림공동체/ })).toBeInTheDocument();

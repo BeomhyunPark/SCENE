@@ -79,6 +79,98 @@
     0 4px 16px var(--color-shadow-popover);
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
+.public-home__section {
+  box-sizing: border-box;
+  width: min(940px, calc(100% - 48px));
+  margin: 0 auto;
+  padding: 72px 0;
+  border-top: 1px solid var(--color-border-default);
+  scroll-margin-top: 16px;
+}
+
+.public-home__section:last-child {
+  padding-bottom: 120px;
+}
+
+.public-home__section-title {
+  margin: 0 0 12px;
+  color: var(--color-text-primary);
+  font: var(--scene-heading-l);
+  letter-spacing: 0;
+  text-align: center;
+}
+
+.public-home__section-lead {
+  margin: 0 0 40px;
+  color: var(--color-text-tertiary);
+  font: var(--scene-body-m);
+  letter-spacing: 0;
+  text-align: center;
+}
+
+.public-home__cards,
+.public-home__steps {
+  display: grid;
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.public-home__cards {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.public-home__steps {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.public-home__card,
+.public-home__step,
+.public-home__faq-item {
+  padding: 24px;
+  border-radius: 10px;
+  background: var(--color-bg-subtle);
+}
+
+.public-home__step-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-bottom: 12px;
+  border-radius: 50%;
+  background: var(--color-text-brand);
+  color: var(--color-bg-surface);
+  font: var(--scene-label-m);
+}
+
+.public-home__card-title {
+  margin: 0 0 8px;
+  color: var(--color-text-primary);
+  font: var(--scene-title);
+  letter-spacing: 0;
+}
+
+.public-home__card-body {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font: var(--scene-body-m);
+  letter-spacing: 0;
+}
+
+.public-home__faq {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin: 0;
+}
+
 @media (min-width: 1280px) {
   .public-home__stack {
     width: 940px;
@@ -116,5 +208,28 @@
 
   .marketing-preview {
     width: calc(100% - 40px);
+  }
+
+  .public-home__section {
+    width: calc(100% - 40px);
+    padding: 48px 0;
+  }
+
+  .public-home__section-title {
+    font: var(--scene-heading-m);
+  }
+
+  .public-home__cards,
+  .public-home__steps,
+  .public-home__faq {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 959px) {
+  .public-home__cards,
+  .public-home__steps,
+  .public-home__faq {
+    grid-template-columns: 1fr 1fr;
   }
 }

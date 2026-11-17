@@ -20,11 +20,17 @@ export function PublicHeader({ accountActions = false, primaryStart = false, log
         <img src={symbol} alt="" width={35.712} height={35.712} aria-hidden="true" />
         <span className="scene-wordmark">SCENE</span>
       </span>
-      <div className="public-header__nav">
-        <span className="public-header__text">서비스</span>
-        <span className="public-header__text">운영 방식</span>
-        <span className="public-header__text">도움말</span>
-      </div>
+      <nav className="public-header__nav" aria-label="소개">
+        <a className="public-header__text public-header__link" href="/#service">
+          서비스
+        </a>
+        <a className="public-header__text public-header__link" href="/#how">
+          운영 방식
+        </a>
+        <a className="public-header__text public-header__link" href="/#help">
+          도움말
+        </a>
+      </nav>
       {accountActions ? (
         <div className="public-header__actions">
           <Link className="public-header__login" to="/login">
