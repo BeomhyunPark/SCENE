@@ -3,6 +3,7 @@ package app.scene.event.form;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import tools.jackson.databind.JsonNode;
@@ -18,7 +19,8 @@ public record FormSetup(
     boolean gender,
     boolean middleGroup,
     boolean cell,
-    boolean newcomer,
+    List<String> middleGroups,
+    List<String> cells,
     boolean partial,
     boolean worshipOnly,
     Mode mode,
@@ -33,10 +35,21 @@ public record FormSetup(
   /** Events longer than this cannot use the setup. Meals fit in one question's 50 options. */
   public static final int DAYS_MAX = 10;
 
+  /**
+   * Most entries in the middle group or cell list. One more option, {@code 새가족 (등반X)}, may join
+   * them, and a question holds at most 50 options.
+   */
+  public static final int LIST_MAX = 49;
+
+  /** Longest middle group or cell name. */
+  public static final int LIST_ITEM_MAX = 50;
+
   private static final JsonNodeFactory NODES = JsonNodeFactory.instance;
 
   public FormSetup {
     schedule = List.copyOf(schedule);
+    middleGroups = List.copyOf(middleGroups);
+    cells = List.copyOf(cells);
   }
 
   /**
@@ -77,12 +90,14 @@ public record FormSetup(
   }
 
   /**
-   * Reads the request body. Every key is required and every switch is a boolean, except {@code
-   * newcomer}, which was added later and is off when missing. {@code schedule} must list exactly
-   * {@code days} entries. {@code generatedFor} from an earlier response is accepted and ignored.
-   * {@code attendance.mode} may be missing; then {@code fallback} is used (the stored mode, or
-   * RANGE for a form without a setup). {@code transport.partialByTime} may be missing too; then
-   * {@code fallbackByTime} is used (the stored value, or false).
+   * Reads the request body. Every key is required and every switch is a boolean, except the lists
+   * below. {@code middleGroups} and {@code cells} are lists of names, empty when missing; blank
+   * entries are dropped and repeats kept once. A former {@code newcomer} switch (DEC-070 Follow-up
+   * 2026-11-17, replaced the same day) is accepted and ignored, and the next save drops it. {@code
+   * schedule} must list exactly {@code days} entries. {@code generatedFor} from an earlier response
+   * is accepted and ignored. {@code attendance.mode} may be missing; then {@code fallback} is used
+   * (the stored mode, or RANGE for a form without a setup). {@code transport.partialByTime} may be
+   * missing too; then {@code fallbackByTime} is used (the stored value, or false).
    */
   public static FormSetup parse(JsonNode body, int days, Mode fallback, boolean fallbackByTime) {
     if (body == null || !body.isObject()) {
@@ -94,6 +109,8 @@ public record FormSetup(
         "gender",
         "middleGroup",
         "cell",
+        "middleGroups",
+        "cells",
         "newcomer",
         "attendance",
         "schedule",
@@ -142,7 +159,8 @@ public record FormSetup(
         flag(body, "gender", "gender"),
         flag(body, "middleGroup", "middleGroup"),
         flag(body, "cell", "cell"),
-        optionalFlag(body, "newcomer"),
+        names(body.get("middleGroups"), "middleGroups"),
+        names(body.get("cells"), "cells"),
         flag(attendance, "partial", "attendance"),
         flag(attendance, "worshipOnly", "attendance"),
         mode,
@@ -172,7 +190,10 @@ public record FormSetup(
     out.put("gender", gender);
     out.put("middleGroup", middleGroup);
     out.put("cell", cell);
-    out.put("newcomer", newcomer);
+    ArrayNode middleGroupList = out.putArray("middleGroups");
+    middleGroups.forEach(middleGroupList::add);
+    ArrayNode cellList = out.putArray("cells");
+    cells.forEach(cellList::add);
     ObjectNode attendance = out.putObject("attendance");
     attendance.put("partial", partial);
     attendance.put("worshipOnly", worshipOnly);
@@ -213,9 +234,31 @@ public record FormSetup(
     return node.booleanValue();
   }
 
-  /** A switch that may be missing (then off). A present value must be a boolean. */
-  private static boolean optionalFlag(JsonNode parent, String key) {
-    return parent.has(key) && flag(parent, key, "setup");
+  /** A list of names that may be missing (then empty). */
+  private static List<String> names(JsonNode node, String name) {
+    if (node == null || node.isNull()) {
+      return List.of();
+    }
+    if (!node.isArray()) {
+      throw FieldRules.invalid(name);
+    }
+    Set<String> out = new LinkedHashSet<>();
+    for (JsonNode item : node) {
+      if (!item.isString()) {
+        throw FieldRules.invalid(name);
+      }
+      String text = item.asString().strip();
+      if (text.length() > LIST_ITEM_MAX) {
+        throw FieldRules.invalid(name);
+      }
+      if (!text.isEmpty()) {
+        out.add(text);
+      }
+    }
+    if (out.size() > LIST_MAX) {
+      throw FieldRules.invalid(name);
+    }
+    return List.copyOf(out);
   }
 
   private static void only(JsonNode node, String name, String... keys) {

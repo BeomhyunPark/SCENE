@@ -298,3 +298,29 @@
 .setup-card__sample-more {
   color: var(--color-text-secondary);
 }
+
+.setup-card__names {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 12px;
+  font: var(--scene-label-m);
+  letter-spacing: 0;
+}
+
+.setup-card__names textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border-control);
+  border-radius: 8px;
+  font: var(--scene-body-m);
+  letter-spacing: 0;
+  resize: vertical;
+}
+
+.setup-card__names small {
+  color: var(--color-text-secondary);
+  font: var(--scene-label-s);
+  letter-spacing: 0;
+}

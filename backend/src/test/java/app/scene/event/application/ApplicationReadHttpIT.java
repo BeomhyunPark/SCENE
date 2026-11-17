@@ -126,7 +126,9 @@ class ApplicationReadHttpIT {
         ok(read(event.owner, applicationPath(event.eventId, seeded.applicationId), "req-detail"));
     JsonNode body = json.readTree(detail);
     assertThat(body.propertyNames())
-        .containsExactly("applicationId", "formId", "status", "submittedAt", "answers");
+        .containsExactly(
+            "applicationId", "formId", "status", "submittedAt", "contactVisible", "answers");
+    assertThat(body.get("contactVisible").asBoolean()).isTrue();
     assertThat(body.get("answers")).hasSize(5);
     assertAnswer(body.get("answers").get(0), "SYSTEM", "NAME", "이름", 0, "이름답");
     assertAnswer(body.get("answers").get(1), "SYSTEM", "PHONE", "전화", 1, "전화답");
@@ -145,7 +147,15 @@ class ApplicationReadHttpIT {
     assertThat(retired.get("label").asString()).isEqualTo("옛 질문");
     assertThat(retired.get("hidden").asBoolean()).isTrue();
     assertThat(retired.get("value").get("text").asString()).isEqualTo("숨긴답");
-    assertThat(auditCount(event.eventId)).isEqualTo(audits);
+    assertThat(body.get("answers").get(1).get("contact").asBoolean()).isTrue();
+    assertThat(body.get("answers").get(0).get("contact").asBoolean()).isFalse();
+    assertThat(auditCount(event.eventId)).isEqualTo(audits + 1);
+    String audit = contactAudit(event.eventId);
+    assertThat(json.readTree(audit).propertyNames()).containsExactly("count", "applicationId");
+    assertThat(json.readTree(audit).get("count").asInt()).isEqualTo(1);
+    assertThat(json.readTree(audit).get("applicationId").asString())
+        .isEqualTo(seeded.applicationId.toString());
+    assertThat(audit).doesNotContain("전화답", "이름답");
 
     problem(
         read(event.owner, applications(event.eventId) + "?size=101", "req-size"),
@@ -198,6 +208,54 @@ class ApplicationReadHttpIT {
             .getResponse()
             .getContentAsString();
     assertThat(missingList).doesNotContain(seeded.applicationId.toString(), "이름답");
+  }
+
+  @Test
+  void detailSendsPhoneAnswersOnlyWithContactReadAndRecordsTheView() throws Exception {
+    Held event = openEvent("Contact owner");
+    Seeded seeded = seed(event);
+    UUID staffId = user("Plain staff");
+    member(event.spaceId, staffId, "MEMBER");
+    operator(event.spaceId, event.eventId, staffId, "STAFF");
+    UUID adminId = user("Contact admin");
+    member(event.spaceId, adminId, "ADMIN");
+    UUID contactId = user("Contact staff");
+    member(event.spaceId, contactId, "MEMBER");
+    operator(event.spaceId, event.eventId, contactId, "STAFF");
+    jdbc.update(
+        """
+        INSERT INTO event_user_permissions (
+          space_id, event_id, user_id, permission, effect, granted_by, granted_at)
+        VALUES (?, ?, ?, 'PARTICIPANT_CONTACT_READ', 'GRANT', ?, now())
+        """,
+        event.spaceId,
+        event.eventId,
+        contactId,
+        contactId);
+    String path = applicationPath(event.eventId, seeded.applicationId);
+    int audits = auditCount(event.eventId);
+
+    for (Cookie reader : List.of(login(staffId), login(adminId))) {
+      String body = ok(read(reader, path, "req-no-contact"));
+      assertThat(body).doesNotContain("전화답");
+      JsonNode detail = json.readTree(body);
+      assertThat(detail.get("contactVisible").asBoolean()).isFalse();
+      JsonNode phone = detail.get("answers").get(1);
+      assertThat(phone.propertyNames()).containsExactly(ANSWER_KEYS);
+      assertThat(phone.get("systemKey").asString()).isEqualTo("PHONE");
+      assertThat(phone.get("contact").asBoolean()).isTrue();
+      assertThat(phone.get("value").isNull()).isTrue();
+      assertThat(detail.get("answers").get(0).get("value").get("text").asString()).isEqualTo("이름답");
+      assertThat(detail.get("answers").get(2).get("value").get("text").asString())
+          .isEqualTo("커스텀답");
+    }
+    assertThat(auditCount(event.eventId)).isEqualTo(audits);
+
+    JsonNode granted = json.readTree(ok(read(login(contactId), path, "req-contact")));
+    assertThat(granted.get("contactVisible").asBoolean()).isTrue();
+    assertThat(granted.get("answers").get(1).get("value").get("text").asString()).isEqualTo("전화답");
+    assertThat(auditCount(event.eventId)).isEqualTo(audits + 1);
+    assertThat(contactAudit(event.eventId)).contains(seeded.applicationId.toString());
   }
 
   @Test
@@ -604,8 +662,25 @@ class ApplicationReadHttpIT {
     return count == null ? 0 : count;
   }
 
+  private String contactAudit(UUID eventId) {
+    return jdbc.queryForObject(
+        "SELECT detail::text FROM audit_logs WHERE event_id = ?"
+            + " AND action = 'APPLICANT_CONTACTS_VIEWED' ORDER BY occurred_at DESC, id DESC LIMIT 1",
+        String.class,
+        eventId);
+  }
+
   private static final String[] ANSWER_KEYS = {
-    "fieldId", "kind", "systemKey", "label", "position", "answerType", "hidden", "config", "value"
+    "fieldId",
+    "kind",
+    "systemKey",
+    "label",
+    "position",
+    "answerType",
+    "hidden",
+    "config",
+    "value",
+    "contact"
   };
 
   private static final String MEALS_CONFIG =

@@ -156,6 +156,17 @@ describe("columns", () => {
     ]);
   });
 
+  it("shows a listed middle group by its label, 새가족 (등반X) included", () => {
+    const middle = column("middle", "중그룹", "DROPDOWN", {
+      presetKey: "MIDDLE_GROUP",
+      config: { options: [option("opt_mg_1", "1중그룹"), option("opt_newcomer", "처음 왔어요")] },
+    });
+    const affiliation = buildColumns({ ...TABLE, columns: [middle] }).find((item) => item.id === "affiliation")!;
+    expect(affiliation.text(row("a", { middle: { optionId: "opt_newcomer" } }))).toBe("처음 왔어요");
+    expect(affiliation.text(row("b", { middle: { optionId: "opt_mg_1" } }))).toBe("1중그룹");
+    expect(affiliation.text(row("c", {}))).toBe("");
+  });
+
   it("names a person as 또래 then 이름, joins 소속, and shows group, arrival and options as text", () => {
     expect(col("person").text(ROWS[0])).toBe("94 김하나");
     expect(col("affiliation").text(ROWS[0])).toBe("청년2부 · 소망셀");

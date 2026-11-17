@@ -124,12 +124,16 @@ describe("group board (#301)", () => {
     expect(within(pool()).getByText("정민호")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "초기화" }));
+    // 새가족 (등반X) people have no cell (DEC-070 Follow-up 2026-11-17).
     fireEvent.change(screen.getByLabelText("셀"), { target: { value: "__none__" } });
-    expect(screen.getByRole("heading", { name: "미배정 참가자 2명" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "미배정 참가자 4명" })).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("셀"), { target: { value: "다윗셀" } });
-    expect(screen.getByRole("heading", { name: "미배정 참가자 3명" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "미배정 참가자 2명" })).toBeInTheDocument();
 
-    expect(screen.getAllByRole("option", { name: "응답 없음 (2)" }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("option", { name: "응답 없음 (4)" }).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: "초기화" }));
+    fireEvent.change(screen.getByLabelText("중그룹"), { target: { value: "새가족 (등반X)" } });
+    expect(screen.getByRole("heading", { name: "미배정 참가자 2명" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "초기화" }));
     fireEvent.change(screen.getByLabelText("새가족"), { target: { value: "yes" } });

@@ -460,7 +460,7 @@ describe("event registration setup", () => {
     expect(await screen.findByText(/이미 받은 질문의 표시 조건이 바뀌는 설정은 저장할 수 없어요/)).toBeInTheDocument();
   });
 
-  it("asks 새가족 from the setup card, shows it in the preview, and drops it when turned off", async () => {
+  it("lists middle groups as a dropdown with 새가족 (등반X) and hides the cell for a newcomer", async () => {
     await login({ userId: localUsers[0].userId });
     const retreat = await createEvent(localSpace.spaceId, {
       name: "새가족 수련회",
@@ -470,26 +470,29 @@ describe("event registration setup", () => {
     renderSetup(retreat.eventId);
     fireEvent.click(await screen.findByRole("button", { name: "신청서 만들기" }, { timeout: 4000 }));
 
-    // A new setup card starts with 새가족 on.
-    const newcomer = await screen.findByRole("checkbox", { name: /새가족/ });
-    expect(newcomer).toBeChecked();
+    // There is no separate 새가족 switch any more.
+    await screen.findByRole("checkbox", { name: /중그룹/ });
+    expect(screen.queryByRole("checkbox", { name: /새가족/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("checkbox", { name: /중그룹/ }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /^셀/ }));
+    fireEvent.change(screen.getByRole("textbox", { name: /중그룹 목록/ }), { target: { value: "1중그룹\n2중그룹\n" } });
+    expect(screen.getByText(/새가족으로 분류되고 셀은 묻지 않아요/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "질문 만들기" }));
 
     const list = await questionList();
-    expect(await list.findByText("새가족이신가요?")).toBeInTheDocument();
+    expect(await list.findByText("중그룹")).toBeInTheDocument();
     const sent = operatorRequests.filter((request) => request.method === "PUT" && request.url.endsWith("/setup"));
-    expect(sent.at(-1)?.body).toMatchObject({ newcomer: true });
+    expect(sent.at(-1)?.body).toMatchObject({ middleGroups: ["1중그룹", "2중그룹", ""], cells: [] });
+    expect(sent.at(-1)?.body).not.toHaveProperty("newcomer");
     const preview = within(screen.getByRole("region", { name: "참가자 화면 미리보기" }));
-    expect(preview.getByText("새가족이신가요?")).toBeInTheDocument();
-    expect(preview.getByText(/새가족 과정을 듣고 있다면/)).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("checkbox", { name: /새가족/ }));
-    fireEvent.click(screen.getByRole("button", { name: "설정 저장" }));
-    await waitFor(() => expect(list.queryByText("새가족이신가요?")).not.toBeInTheDocument());
-    expect(preview.queryByText("새가족이신가요?")).not.toBeInTheDocument();
-    expect(
-      operatorRequests.filter((request) => request.method === "PUT" && request.url.endsWith("/setup")).at(-1)?.body,
-    ).toMatchObject({ newcomer: false });
+    const middle = await preview.findByRole("combobox", { name: /중그룹/ });
+    expect(within(middle).getByRole("option", { name: "새가족 (등반X)" })).toBeInTheDocument();
+    // The cell is asked only after a listed middle group.
+    expect(preview.queryByRole("textbox", { name: /^셀/ })).not.toBeInTheDocument();
+    fireEvent.change(middle, { target: { value: within(middle).getByRole("option", { name: "1중그룹" }).getAttribute("value") } });
+    expect(await preview.findByRole("textbox", { name: /^셀/ })).toBeInTheDocument();
+    fireEvent.change(middle, { target: { value: "opt_newcomer" } });
+    await waitFor(() => expect(preview.queryByRole("textbox", { name: /^셀/ })).not.toBeInTheDocument());
   });
 
   it("rewords and moves base questions and turns 또래 off", async () => {
