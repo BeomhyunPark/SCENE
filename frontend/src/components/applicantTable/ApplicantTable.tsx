@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import type { ApplicationTable, TableRow } from "../../api/applications";
 import { Button } from "../Button";
 import {
@@ -9,10 +9,10 @@ import {
   countBy,
   crossCount,
   isActive,
+  moveColumn,
   NONE,
   readView,
   sortRows,
-  summarize,
   toggleSort,
   visibleColumns,
   writeView,
@@ -21,9 +21,9 @@ import {
   type Sort,
   type ViewState,
 } from "./model";
+import { SheetGrid } from "./SheetGrid";
 import "./ApplicantTable.css";
 
-const PAGE_SIZE = 50;
 /** A text column offers value checkboxes when it has at most this many distinct answers (또래, 셀). */
 const VALUE_LIST_MAX = 40;
 
@@ -41,7 +41,6 @@ export function ApplicantTable({ eventId, table, actions }: { eventId: string; t
   const [search, setSearch] = useState("");
   const [textFilters, setTextFilters] = useState<Record<string, Filter>>({});
   const [panel, setPanel] = useState<Panel>(null);
-  const [page, setPage] = useState(0);
 
   const columns = useMemo(() => buildColumns(table), [table]);
   const phoneId = table.contactVisible ? (table.columns.find((column) => column.systemKey === "PHONE")?.fieldId ?? null) : null;
@@ -59,21 +58,17 @@ export function ApplicantTable({ eventId, table, actions }: { eventId: string; t
   );
   const sorted = useMemo(() => sortRows(filtered, columns, view.sorts), [filtered, columns, view.sorts]);
   const shown = visibleColumns(columns, view.visible);
-  const pages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
-  const current = Math.min(page, pages - 1);
-  const pageRows = sorted.slice(current * PAGE_SIZE, current * PAGE_SIZE + PAGE_SIZE);
+  const groupBy = columns.find((column) => column.id === view.groupBy && column.countable) ?? null;
   const activeCount = Object.values(filters).filter(isActive).length;
 
   function update(next: Partial<ViewState>) {
     setParams(writeView({ ...view, ...next }), { replace: true });
-    setPage(0);
   }
 
   /** A text search stays in memory (it may be personal); every other condition goes to the address. */
   function setFilter(id: string, filter: Filter | null) {
     if (filter?.kind === "text") {
       setTextFilters((before) => ({ ...before, [id]: filter }));
-      setPage(0);
       return;
     }
     if (textFilters[id]) {
@@ -118,10 +113,7 @@ export function ApplicantTable({ eventId, table, actions }: { eventId: string; t
             aria-label="이름, 연락처, 소속 검색"
             placeholder={table.contactVisible ? "이름, 연락처, 소속 검색" : "이름, 소속 검색"}
             value={search}
-            onChange={(event) => {
-              setSearch(event.target.value);
-              setPage(0);
-            }}
+            onChange={(event) => setSearch(event.target.value)}
           />
           <Button
             type="button"
@@ -185,10 +177,7 @@ export function ApplicantTable({ eventId, table, actions }: { eventId: string; t
           visible={shown.map((column) => column.id)}
           onChange={(visible) => update({ visible })}
           params={params}
-          onApply={(saved) => {
-            setParams(new URLSearchParams(saved), { replace: true });
-            setPage(0);
-          }}
+          onApply={(saved) => setParams(new URLSearchParams(saved), { replace: true })}
         />
       ) : null}
 
@@ -207,65 +196,47 @@ export function ApplicantTable({ eventId, table, actions }: { eventId: string; t
 
       {view.tab === "list" ? (
         <>
-          <div className="roster__scroll">
-            <table className="roster__table" aria-label="신청자 명단">
-              <thead>
-                <tr>
-                  {shown.map((column) => (
-                    <HeaderCell key={column.id} column={column} sorts={view.sorts} onSort={(add) => update({ sorts: toggleSort(view.sorts, column.id, add) })} />
+          <div className="roster__layout" role="group" aria-label="표 모양">
+            <label className="roster__field roster__field--inline">
+              묶어 보기
+              <select value={groupBy?.id ?? ""} onChange={(event) => update({ groupBy: event.target.value || null })}>
+                <option value="">묶지 않음</option>
+                {columns
+                  .filter((column) => column.countable)
+                  .map((column) => (
+                    <option key={column.id} value={column.id}>
+                      {column.label}
+                    </option>
                   ))}
-                  <th scope="col" className="roster__actions-head">
-                    작업
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {pageRows.map((row) => (
-                  <tr
-                    key={row.applicationId}
-                    onClick={(event) => {
-                      if ((event.target as HTMLElement).closest("a,button")) return;
-                      navigate(`/events/${eventId}/participants/${row.applicationId}`);
-                    }}
-                  >
-                    {shown.map((column) => (
-                      <Cell key={column.id} column={column} row={row} eventId={eventId} />
-                    ))}
-                    <td className="roster__actions">
-                      <Link className="roster__detail" to={`/events/${eventId}/participants/${row.applicationId}`} aria-label={`${columns[0].text(row)} 상세`}>
-                        상세
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr>
-                  {shown.map((column) => (
-                    <td key={column.id}>{summarize(filtered, column)}</td>
-                  ))}
-                  <td />
-                </tr>
-              </tfoot>
-            </table>
-            {filtered.length === 0 ? <p className="roster__empty">조건에 맞는 신청자가 없어요.</p> : null}
+              </select>
+            </label>
+            <div className="roster__segmented" role="radiogroup" aria-label="줄 간격">
+              {(["comfortable", "compact"] as const).map((density) => (
+                <button
+                  key={density}
+                  type="button"
+                  role="radio"
+                  aria-checked={view.density === density}
+                  onClick={() => update({ density })}
+                >
+                  {density === "comfortable" ? "넉넉하게" : "촘촘하게"}
+                </button>
+              ))}
+            </div>
           </div>
-          {pages > 1 ? (
-            <nav className="roster__pager" aria-label="쪽">
-              <span>
-                {current * PAGE_SIZE + 1}–{Math.min(sorted.length, (current + 1) * PAGE_SIZE)} / {sorted.length}
-              </span>
-              <Button type="button" variant="secondary" size={32} disabled={current === 0} onClick={() => setPage(current - 1)}>
-                이전
-              </Button>
-              <span>
-                {current + 1} / {pages}
-              </span>
-              <Button type="button" variant="secondary" size={32} disabled={current + 1 >= pages} onClick={() => setPage(current + 1)}>
-                다음
-              </Button>
-            </nav>
-          ) : null}
+          <SheetGrid
+            eventId={eventId}
+            columns={shown}
+            rows={sorted}
+            summaryRows={filtered}
+            sorts={view.sorts}
+            widths={view.widths}
+            density={view.density}
+            groupBy={groupBy}
+            onSort={(id, add) => update({ sorts: toggleSort(view.sorts, id, add) })}
+            onResize={(id, width) => update({ widths: { ...view.widths, [id]: width } })}
+            onOpen={(row) => navigate(`/events/${eventId}/participants/${row.applicationId}`)}
+          />
         </>
       ) : (
         <CountView
@@ -291,52 +262,6 @@ function TabButton({ selected, onClick, children }: { selected: boolean; onClick
       {children}
     </button>
   );
-}
-
-function HeaderCell({ column, sorts, onSort }: { column: ColumnDef; sorts: Sort[]; onSort: (add: boolean) => void }) {
-  const index = sorts.findIndex((sort) => sort.id === column.id);
-  const sort = index >= 0 ? sorts[index] : null;
-  return (
-    <th scope="col" aria-sort={sort ? (sort.dir === "asc" ? "ascending" : "descending") : "none"} className={column.type === "person" ? "roster__sticky" : undefined}>
-      <button type="button" className="roster__sort" title="누르면 정렬, Shift를 누른 채 누르면 정렬 기준을 더해요" onClick={(event) => onSort(event.shiftKey)}>
-        {column.label}
-        <span className="roster__arrow" aria-hidden="true">
-          {sort ? (sort.dir === "asc" ? "▲" : "▼") : "↕"}
-          {sort && sorts.length > 1 ? <sub>{index + 1}</sub> : null}
-        </span>
-      </button>
-    </th>
-  );
-}
-
-function Cell({ column, row, eventId }: { column: ColumnDef; row: TableRow; eventId: string }) {
-  const text = column.text(row);
-  if (column.type === "person") {
-    return (
-      <td className="roster__sticky roster__person">
-        <span className="roster__avatar" aria-hidden="true">
-          {initial(text)}
-        </span>
-        <Link to={`/events/${eventId}/participants/${row.applicationId}`}>{text}</Link>
-      </td>
-    );
-  }
-  if (column.type === "status") {
-    return (
-      <td>
-        <span className={row.checkedInAt ? "roster__tag roster__tag--done" : "roster__tag"}>{text}</span>
-      </td>
-    );
-  }
-  if (column.type === "group" && !row.group) {
-    return <td className="roster__muted">{text}</td>;
-  }
-  return <td className={text ? undefined : "roster__muted"}>{text || "–"}</td>;
-}
-
-function initial(text: string): string {
-  const name = text.replace(/^\d+\s+/, "");
-  return [...name][0] ?? "?";
 }
 
 type Chip = { label: string; count: number; selected: boolean; filter: { id: string; key: string } | null };
@@ -656,22 +581,50 @@ function ColumnsPanel({
   return (
     <div className="roster__panel roster__panel--columns" role="group" aria-label="열 보기">
       <div>
-        <p className="roster__hint">표에 보일 열을 골라요. 숨긴 열도 필터와 세기에는 쓸 수 있어요.</p>
-        <div className="roster__options roster__options--columns">
+        <p className="roster__hint">표에 보일 열과 순서를 정해요. 숨긴 열도 필터와 세기에는 쓸 수 있어요.</p>
+        <ol className="roster__order" aria-label="보이는 열 순서">
+          {visible
+            .filter((id) => id !== "person")
+            .map((id, index, list) => {
+              const column = columns.find((item) => item.id === id);
+              if (!column) return null;
+              return (
+                <li key={id}>
+                  <label>
+                    <input type="checkbox" checked onChange={() => onChange(visible.filter((item) => item !== id))} />
+                    {column.label}
+                  </label>
+                  <span className="roster__order-buttons">
+                    <button
+                      type="button"
+                      aria-label={`${column.label} 앞으로`}
+                      disabled={index === 0}
+                      onClick={() => onChange(moveColumn(visible, id, -1))}
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`${column.label} 뒤로`}
+                      disabled={index === list.length - 1}
+                      onClick={() => onChange(moveColumn(visible, id, 1))}
+                    >
+                      ↓
+                    </button>
+                  </span>
+                </li>
+              );
+            })}
+        </ol>
+        <div className="roster__options roster__options--columns" aria-label="숨긴 열">
           {columns
-            .filter((column) => column.type !== "person")
+            .filter((column) => column.type !== "person" && !visible.includes(column.id))
             .map((column) => (
               <label key={column.id}>
                 <input
                   type="checkbox"
-                  checked={visible.includes(column.id)}
-                  onChange={(event) =>
-                    onChange(
-                      event.target.checked
-                        ? columns.filter((item) => item.id === column.id || visible.includes(item.id)).map((item) => item.id)
-                        : visible.filter((id) => id !== column.id),
-                    )
-                  }
+                  checked={false}
+                  onChange={() => onChange([...visible.filter((id) => id !== "person"), column.id])}
                 />
                 {column.label}
               </label>

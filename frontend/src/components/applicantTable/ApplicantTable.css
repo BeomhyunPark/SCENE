@@ -346,9 +346,9 @@
 
 .roster__table {
   min-width: 100%;
+  table-layout: fixed;
   border-collapse: separate;
   border-spacing: 0 12px;
-  margin-top: -12px;
   font: var(--scene-body-m);
   color: var(--color-text-primary);
 }
@@ -359,7 +359,6 @@
   padding: 0 16px;
   text-align: left;
   white-space: nowrap;
-  max-width: 280px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -399,8 +398,8 @@
   border-radius: 0 8px 8px 0;
 }
 
-.roster__table tbody tr {
-  cursor: pointer;
+.roster__table tbody td {
+  cursor: cell;
 }
 
 .roster__table tbody tr:hover td {
@@ -514,15 +513,6 @@ th[aria-sort="descending"] .roster__arrow {
   text-align: center;
 }
 
-.roster__pager {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px 12px;
-  color: var(--color-text-secondary);
-  font: var(--scene-body-m);
-}
 
 .roster__count {
   display: flex;
@@ -616,4 +606,278 @@ th[aria-sort="descending"] .roster__arrow {
 /* No CSV button without DATA_EXPORT: drop the divider that would precede it. */
 .roster__divider:last-child {
   display: none;
+}
+
+/* --- 2단계: sheet --- */
+
+.roster__layout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.roster__field--inline {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  font: var(--scene-label-m);
+}
+
+.roster__field--inline select {
+  box-sizing: border-box;
+  min-height: 36px;
+  padding: 0 8px;
+  border: 1px solid var(--color-border-control);
+  border-radius: 6px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font: var(--scene-body-m);
+}
+
+.roster__segmented {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 8px;
+  background: var(--color-bg-canvas);
+}
+
+.roster__segmented button {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--color-text-secondary);
+  font: var(--scene-label-s);
+  cursor: pointer;
+}
+
+.roster__segmented button[aria-checked="true"] {
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  box-shadow: 0 0 0 1px var(--color-border-default);
+}
+
+/* The sheet scrolls inside itself so the header row and the first column can stay put. */
+.roster__sheet {
+  position: relative;
+  max-height: max(420px, calc(100vh - 260px));
+  overflow: auto;
+  overscroll-behavior: contain;
+  border-radius: 8px;
+}
+
+.roster__sheet .roster__table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.roster__sheet .roster__table thead th.roster__sticky {
+  left: 0;
+  z-index: 3;
+}
+
+.roster__sheet .roster__table tfoot td {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  background: var(--color-bg-canvas);
+  border-top: 1px solid var(--color-border-default);
+}
+
+.roster__sheet .roster__table tfoot td.roster__sticky {
+  left: 0;
+  z-index: 3;
+}
+
+.roster__sheet--comfortable .roster__table {
+  border-spacing: 0 8px;
+}
+
+.roster__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.roster__sort {
+  max-width: calc(100% - 8px);
+}
+
+.roster__resize {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 8px;
+  height: 100%;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.roster__resize::after {
+  content: "";
+  position: absolute;
+  top: 25%;
+  right: 3px;
+  width: 2px;
+  height: 50%;
+  border-radius: 1px;
+  background: var(--color-border-default);
+}
+
+.roster__resize:hover::after,
+.roster__resize:focus-visible::after {
+  background: var(--color-accent);
+}
+
+.roster__resize:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: -2px;
+}
+
+.roster__table thead th {
+  position: relative;
+}
+
+.roster__table td.is-selected {
+  background: var(--color-bg-selected);
+}
+
+.roster__table td.is-active {
+  outline: 2px solid var(--color-selected-indicator);
+  outline-offset: -2px;
+}
+
+.roster__table td:focus {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: -2px;
+}
+
+.roster__group-row th {
+  position: sticky;
+  left: 0;
+  height: 40px;
+  padding: 0;
+  background: var(--color-bg-canvas);
+}
+
+.roster__group-row button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 12px;
+  border: 0;
+  background: none;
+  color: var(--color-text-primary);
+  font: var(--scene-body-m-strong);
+  cursor: pointer;
+}
+
+.roster__group-count {
+  color: var(--color-text-tertiary);
+  font: var(--scene-label-s);
+}
+
+/* Compact: a sheet. One line per person, grid lines, no gaps between rows. */
+.roster__table--compact {
+  border-spacing: 0;
+}
+
+.roster__table--compact th,
+.roster__table--compact td {
+  height: 36px;
+  padding: 0 10px;
+}
+
+.roster__table--compact thead th {
+  height: 36px;
+}
+
+.roster__table--compact tbody td,
+.roster__table--compact tbody td:first-child,
+.roster__table--compact tbody td:last-child,
+.roster__table--compact thead th:first-child,
+.roster__table--compact thead th:last-child {
+  border-radius: 0;
+}
+
+.roster__table--compact tbody td {
+  border-top: 0;
+  border-left: 0;
+  border-right: 1px solid var(--color-border-default);
+}
+
+.roster__table--compact tbody td:first-child {
+  border-left: 1px solid var(--color-border-default);
+}
+
+.roster__table--compact .roster__avatar {
+  display: none;
+}
+
+.roster__table--compact .roster__detail {
+  height: 28px;
+  min-width: 40px;
+}
+
+.roster__keys {
+  margin-top: -8px;
+}
+
+.roster__order {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  max-height: 260px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+  font: var(--scene-body-m);
+}
+
+.roster__order li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 32px;
+}
+
+.roster__order label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.roster__order-buttons {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.roster__order-buttons button {
+  min-width: 28px;
+  min-height: 28px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 6px;
+  background: var(--color-bg-surface);
+  cursor: pointer;
+}
+
+.roster__order-buttons button:disabled {
+  color: var(--color-text-disabled);
+  cursor: default;
+}
+
+/* Spacer rows that stand in for the rows outside the drawn window. */
+.roster__table tbody tr.roster__pad td {
+  height: auto;
+  padding: 0;
+  border: 0;
+  background: none;
 }
