@@ -199,18 +199,13 @@ export function slotFullLabel(slot: AttendanceSlot): string {
 }
 
 /** Consecutive slots of one day, for the first header row. `short` is "1/22" from the date, else "n일차". */
-/**
- * Day groups over the slot columns. `short` is "1/23"; `tight` is what fits over the day's columns in a
- * narrow card: the date when the day has 3 or more slots, else only the day number (full label in title).
- */
-export function slotDays(slots: AttendanceSlot[]): { day: number; label: string; short: string; tight: string; count: number }[] {
-  const days: { day: number; label: string; short: string; tight: string; count: number }[] = [];
+export function slotDays(slots: AttendanceSlot[]): { day: number; label: string; short: string; count: number }[] {
+  const days: { day: number; label: string; short: string; count: number }[] = [];
   for (const slot of slots) {
     const last = days.at(-1);
     if (last && last.day === slot.day) last.count += 1;
-    else days.push({ day: slot.day, label: slot.dayLabel, short: shortDate(slot), tight: "", count: 1 });
+    else days.push({ day: slot.day, label: slot.dayLabel, short: shortDate(slot), count: 1 });
   }
-  for (const day of days) day.tight = day.count >= 3 ? day.short : String(day.day);
   return days;
 }
 

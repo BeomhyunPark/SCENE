@@ -100,8 +100,6 @@ describe("attendance slots (#318)", () => {
 
   it("groups the header by day with a short date", () => {
     expect(slotDays(slots).map((day) => `${day.short}×${day.count}`)).toEqual(["1/22×2", "1/23×4"]);
-    // Narrow cards show the date only over days with 3+ slots, else the day number.
-    expect(slotDays(slots).map((day) => day.tight)).toEqual(["1", "1/23"]);
   });
 
   it("counts people per slot, keeps 모름 (null) apart from no slot ([]), and adds up to the summary", () => {

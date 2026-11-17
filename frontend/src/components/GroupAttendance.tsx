@@ -37,7 +37,10 @@ export function SlotLegend({ slots }: { slots: AttendanceSlot[] | null }) {
   );
 }
 
-/** Two header rows over a card's bars: dates, then one letter per slot (full name in title). */
+/**
+ * Day boundaries over a card's bars, on the bars' columns. Narrow cards show only the ticks; the dates
+ * appear when there is room. The table at the bottom of the card names every slot.
+ */
 export function SlotHeader({ slots }: { slots: AttendanceSlot[] | null }) {
   if (!slots || slots.length === 0) return null;
   return (
@@ -45,14 +48,6 @@ export function SlotHeader({ slots }: { slots: AttendanceSlot[] | null }) {
       {slotDays(slots).map((day) => (
         <span key={day.day} className="event-groups__slot-day" style={{ gridColumn: `span ${day.count}` }} title={day.label}>
           <span className="event-groups__slot-day-wide">{day.short}</span>
-          <span className="event-groups__slot-day-tight" aria-hidden="true">
-            {day.tight}
-          </span>
-        </span>
-      ))}
-      {slots.map((slot) => (
-        <span key={slot.slotId} className="event-groups__slot-name" title={slotFullLabel(slot)}>
-          {slotShortLabel(slot)}
         </span>
       ))}
     </div>
@@ -80,26 +75,56 @@ export function AttendanceBar({ slots, person }: { slots: AttendanceSlot[] | nul
   );
 }
 
-/** 시간대별 인원 at the bottom of a card: per slot, the members attending it; "모름" people apart. */
+/**
+ * 시간대별 인원 at the bottom of a card (#343): a small table across the whole card width — dates, slot
+ * names, then the members attending each slot, so two-digit counts read across. A slot with fewer people
+ * than the group is marked (bold, accent, and "n명 빠짐" in words); "모름" people are counted apart.
+ */
 export function SlotHeadcount({ slots, members }: { slots: AttendanceSlot[] | null; members: Pick<BoardParticipant, "slotIds">[] }) {
   if (!slots || slots.length === 0) return null;
   const { counts, unknown } = slotHeadcount(slots, members);
+  const known = members.length - unknown;
   return (
     <div className="event-groups__headcount">
       <p className="event-groups__headcount-title">
         시간대별 인원
         {unknown > 0 ? <span className="event-groups__headcount-unknown"> · 모름 {unknown}</span> : null}
       </p>
-      <ol className="event-groups__headcount-cells" aria-label="시간대별 인원" style={{ ["--slot-count" as string]: slots.length }}>
-        {slots.map((slot, index) => (
-          <li key={slot.slotId} title={`${slotFullLabel(slot)} ${counts[index]}명`}>
-            <span aria-hidden="true">{counts[index]}</span>
-            <span className="event-groups__visually-hidden">
-              {slotFullLabel(slot)} {counts[index]}명
-            </span>
-          </li>
-        ))}
-      </ol>
+      <table className="event-groups__headcount-table" aria-label="시간대별 인원">
+        <thead>
+          <tr>
+            {slotDays(slots).map((day) => (
+              <th key={day.day} colSpan={day.count} scope="colgroup" title={day.label}>
+                {day.short}
+              </th>
+            ))}
+          </tr>
+          <tr>
+            {slots.map((slot) => (
+              <th key={slot.slotId} scope="col" title={slotFullLabel(slot)}>
+                {slotShortLabel(slot)}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            {slots.map((slot, index) => {
+              const missing = known - counts[index];
+              return (
+                <td
+                  key={slot.slotId}
+                  className={missing > 0 ? "event-groups__headcount-short" : undefined}
+                  title={`${slotFullLabel(slot)} ${counts[index]}명${missing > 0 ? ` · ${missing}명 빠짐` : ""}`}
+                >
+                  {counts[index]}
+                  {missing > 0 ? <span className="event-groups__visually-hidden"> ({missing}명 빠짐)</span> : null}
+                </td>
+              );
+            })}
+          </tr>
+        </tbody>
+      </table>
     </div>
   );
 }
