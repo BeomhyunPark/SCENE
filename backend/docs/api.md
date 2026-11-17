@@ -1385,7 +1385,7 @@ CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고
 
 ## 조 편성
 
-> 작업본(편성판, 조, 배정, 조장)은 서버에 있다([#299](https://github.com/BeomhyunPark/SCENE/issues/299), 컨트롤러 `event/group/GroupController`, 스키마 `V13__groups.sql`). 공개(`POST …/groups/publish`), 공개본 조회, 참가자 내 조는 아직 계약만 있고 [#300](https://github.com/BeomhyunPark/SCENE/issues/300)에서 연다. 정책은 [DEC-072](../../docs/product/PRODUCT_DECISIONS.md)와 DEC-040~048이다.
+> 작업본(편성판, 조, 배정, 조장)은 [#299](https://github.com/BeomhyunPark/SCENE/issues/299), 공개·공개본 조회·참가자 내 조는 [#300](https://github.com/BeomhyunPark/SCENE/issues/300)에서 서버에 열었다(컨트롤러 `event/group/GroupController`·`ParticipantGroupController`, 스키마 `V13__groups.sql`·`V14__group_publications.sql`). 정책은 [DEC-072](../../docs/product/PRODUCT_DECISIONS.md)와 DEC-040~048이다.
 
 운영자가 조를 만들고 참가자를 넣는 **작업본**과, 공개할 때 한 번에 찍는 **공개본**(스냅샷)이 따로 있다. 작업본 저장은 참가자에게 보이지 않는다. 참가자와 조장은 가장 최근 공개본만 본다.
 
@@ -1462,7 +1462,7 @@ CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고
 - `attendance`는 `ATTENDANCE` 답의 `opt_full`·`opt_partial`·`opt_worship`을 `FULL`·`PARTIAL`·`WORSHIP_ONLY`로 바꾼 값이다. 질문이 없거나 꺼져 있으면 `FULL`이다(DEC-070 §3). 질문이 켜진 뒤 들어온 신청이 아니라서 답이 없을 때도 `FULL`이다. `null`이 아니다.
 - `groupId`가 `null`이면 미배정이다. `publishedGroupId`·`publishedLeader`는 가장 최근 공개본의 값이고, 공개한 적이 없거나 그 공개본에 없으면 `null`·`false`다.
 - `withdrawn`은 배정 행이 남아 있지만 활성 참가자가 아닌 사람이다. `groupId`는 참고값이다. 조별 인원·미배정 수에 넣지 않는다.
-- `publication`: 공개한 적이 없으면 `lastPublished…`가 `null`이다. #300 전까지는 늘 공개 전이다. `changedParticipantCount`는 활성 참가자 중 작업본과 최근 공개본의 조 또는 조장 표시가 다른 사람 수다(처음 공개 전에는 배정된 사람 수). `groupChanges`는 조 추가·삭제·이름·순서가 다른 조 수다. `hasUnpublishedChanges`는 둘 중 하나라도 0이 아니면 `true`다. 화면은 이 값으로 "미공개 변경 있음"을 보여 준다(DEC-040).
+- `publication`: 공개한 적이 없으면 `lastPublished…`가 `null`이다. `lastPublishedBoardVersion`은 그 공개 때의 `boardVersion`이다. `changedParticipantCount`는 활성 참가자 중 작업본과 최근 공개본의 조 또는 조장 표시가 다른 사람 수다(처음 공개 전에는 배정된 사람 수). `groupChanges`는 작업본과 최근 공개본 사이에 추가·삭제됐거나 이름 또는 `sortOrder` 값이 다른 조 수다(처음 공개 전에는 조 수). 비교는 내용으로 한다. 옮겼다가 되돌려 내용이 같으면 `boardVersion`이 올라도 변경이 없다. `hasUnpublishedChanges`는 둘 중 하나라도 0이 아니면 `true`다. 화면은 이 값으로 "미공개 변경 있음"을 보여 준다(DEC-040).
 
 ### `POST /api/v1/operator/events/{eventId}/groups`
 
@@ -1532,7 +1532,7 @@ CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고
 `expectedBoardVersion`이 없으면 `400`(필드 `expectedBoardVersion`). `confirmUnassigned`는 생략하면 `false`다. 판정은 행사 상태 다음에 이 순서다.
 
 1. `boardVersion`이 다르면 `409 CONCURRENT_MODIFICATION`, 확장 필드 `boardVersion`. 화면은 최신 편성판을 보여 주고 다시 확인받는다(DEC-046).
-2. 작업본이 가장 최근 공개본과 같으면(`hasUnpublishedChanges: false`) `200`, `result: ALREADY_PUBLISHED`. 아무것도 남기지 않는다. 같은 공개 요청을 다시 보낸 경우가 여기다.
+2. 공개한 적이 있고 작업본이 가장 최근 공개본과 같으면(`hasUnpublishedChanges: false`) `200`, `result: ALREADY_PUBLISHED`. 아무것도 남기지 않는다. 같은 공개 요청을 다시 보낸 경우가 여기다. 공개한 적이 없으면 이 단계를 건너뛰어 조·배정이 없어도 첫 공개가 된다.
 3. 미배정 활성 참가자가 있고 `confirmUnassigned`가 `false`면 `409 CONFIRMATION_REQUIRED`, 확장 필드 `unassignedCount`(DEC-041).
 4. 공개한다.
 
@@ -1550,7 +1550,7 @@ CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고
 }
 ```
 
-`ALREADY_PUBLISHED`면 `publicationId`·`publishedAt`이 가장 최근 공개 값이다. 공개는 `group_publications`에 한 행을 더한다. 내용은 조 id·이름·순서와 조마다 조원·조장의 참가자 id다(활성 참가자만). 이름·전화는 넣지 않는다. 같은 transaction에 audit `GROUPS_PUBLISHED`를 남긴다. 알림은 보내지 않는다(DEC-072 범위 밖). 조가 하나도 없어도 공개할 수 있고, 그러면 모두 미배정으로 보인다.
+`ALREADY_PUBLISHED`면 `publicationId`·`publishedAt`이 가장 최근 공개 값이고 `changedParticipantCount`는 0이다. `assignedCount`·`unassignedCount`는 지금 활성 참가자 기준이다. `PUBLISHED`의 `changedParticipantCount`는 직전 공개본과 비교한 값이다. `confirmUnassigned`가 불리언이 아니면 `400`(필드 `confirmUnassigned`), `expectedBoardVersion`이 0 이상 정수가 아니면 `400`(필드 `expectedBoardVersion`)이다. 공개는 `group_publications`에 한 행을 더한다. 내용은 조 id·이름·순서와 조마다 조원·조장의 참가자 id다(활성 참가자만). 이름·전화는 넣지 않는다. 같은 transaction에 audit `GROUPS_PUBLISHED`를 남긴다. 알림은 보내지 않는다(DEC-072 범위 밖). 조가 하나도 없어도 공개할 수 있고, 그러면 모두 미배정으로 보인다.
 
 ### `GET /api/v1/operator/events/{eventId}/groups/published`
 
@@ -1655,6 +1655,7 @@ audit `GROUPS_PUBLISHED`: detail은 `publicationId`, `boardVersion`, `assignedCo
 | `EVENT_USER_ROLE_CHANGED` | 운영자 역할을 다시 쓸 때 |
 | `EVENT_USER_PERMISSIONS_REPLACED` | 권한 override 내용이 바뀔 때 |
 | `CHECKIN_CREATED`, `CHECKIN_CANCELLED` | 체크인·취소가 기록을 만들 때. `ALREADY_…`와 같은 키 재전송은 남기지 않는다([체크인 감사 로그](#감사-로그)) |
+| `GROUPS_PUBLISHED` | 조 편성을 공개할 때. `ALREADY_PUBLISHED`는 남기지 않는다. detail은 [이력과 감사 로그](#이력과-감사-로그) |
 | `APPLICATIONS_EXPORTED` | 신청자 CSV를 내려받을 때마다. detail은 `count`뿐이다([신청자 CSV](#post-apiv1operatoreventseventidapplicationsexport)) |
 | `OWNER_TRANSFER_ACCEPTED` | 소유권 이전을 처음 수락할 때. 다시 수락하면 더 쓰지 않는다 |
 | `EVENT_ACCESS_REVOKED` | 운영자 제거 또는 공간 탈퇴로 그 행사 접근이 끊길 때. 탈퇴에서 유지한 행사는 끊지 않는다 |
@@ -1680,9 +1681,8 @@ audit `GROUPS_PUBLISHED`: detail은 `publicationId`, `boardVersion`, `assignedCo
 - 비밀번호 로그인
 - SMTP. 초대 링크는 생성·다시 보내기 응답에 한 번 나오고, 메일 포트는 프로세스 메모리에만 담는다
 - 체크 항목 추가
-- 참가자 조회(`GET /api/v1/participant/me`·`GET /api/v1/participant/check-in` 밖)
+- 참가자 조회(`GET /api/v1/participant/me`·`GET /api/v1/participant/check-in`·`GET /api/v1/participant/group` 밖)
 - 회비, 방, 차량
-- 조 공개, 공개본 조회, 참가자 내 조. [계약](#조-편성)만 있고 서버는 #300에서 연다
 - 신청자 CSV([신청자 CSV](#post-apiv1operatoreventseventidapplicationsexport)) 밖의 Export, 공간 설정
 - 행사 기간·장소·유형을 바꾸는 `PATCH`. 이름만 바꾼다
 - 공간 소유권 이전의 전용 URL

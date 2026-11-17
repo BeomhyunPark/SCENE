@@ -1,5 +1,7 @@
 package app.scene.event.group;
 
+import app.scene.common.audit.AuditActions;
+import app.scene.common.audit.AuditLogRepository;
 import app.scene.common.error.ErrorCode;
 import app.scene.common.error.SceneException;
 import app.scene.common.permission.Permission;
@@ -19,6 +21,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -26,20 +29,25 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
- * Group assignment working copy (#299, DEC-072, api.md "조 편성"). The board read needs effective
- * {@code GROUP_WRITE} or an active space owner or admin; every write needs effective {@code
- * GROUP_WRITE}. Writes run 404 → 403 → 400 → 409 state → 404 target → 409 version or conflict → 409
- * rule → result, and lock the event row, so writes of one event commit one after another.
+ * Group assignment working copy and publication (#299, #300, DEC-072, api.md "조 편성"). The board
+ * read needs effective {@code GROUP_WRITE} or an active space owner or admin; the published read
+ * needs effective {@code EVENT_READ} or an active space owner or admin; every write and the
+ * publication need effective {@code GROUP_WRITE}. Writes run 404 → 403 → 400 → 409 state → 404
+ * target → 409 version or conflict → 409 rule → result, and lock the event row, so writes of one
+ * event commit one after another.
  *
- * <p>Edits go to {@code group_assignment_logs}, not to audit. Names, phones, and answers never go
- * to the history or to logs. Participants without a SUBMITTED application drop out of every read.
+ * <p>Edits go to {@code group_assignment_logs}, not to audit; a publication writes audit {@code
+ * GROUPS_PUBLISHED}. Names, phones, and answers never go to the history or to logs. Participants
+ * without a SUBMITTED application drop out of every read.
  */
 @Service
 public class GroupService {
@@ -58,6 +66,8 @@ public class GroupService {
   private final EventRepository events;
   private final GroupRepository groups;
   private final EventUserPermissionRepository permissions;
+  private final AuditLogRepository auditLogs;
+  private final JsonMapper json;
   private final Clock clock;
 
   public GroupService(
@@ -65,11 +75,15 @@ public class GroupService {
       EventRepository events,
       GroupRepository groups,
       EventUserPermissionRepository permissions,
+      AuditLogRepository auditLogs,
+      JsonMapper json,
       Clock clock) {
     this.gate = gate;
     this.events = events;
     this.groups = groups;
     this.permissions = permissions;
+    this.auditLogs = auditLogs;
+    this.json = json;
     this.clock = clock;
   }
 
@@ -85,30 +99,33 @@ public class GroupService {
             .find(spaceId, eventId)
             .orElseThrow(() -> new SceneException(ErrorCode.RESOURCE_NOT_FOUND));
     List<Group> list = groups.groups(spaceId, eventId);
+    Optional<Publication> latest = groups.latestPublication(spaceId, eventId);
+    Snapshot snapshot = latest.map(Publication::snapshot).orElse(Snapshot.EMPTY);
+    Map<UUID, Snapshot.Placement> placements = snapshot.placements();
     List<BoardParticipant> participants = new ArrayList<>();
+    List<ActiveParticipant> active = new ArrayList<>();
     long assigned = 0;
     for (BoardRow row : groups.boardParticipants(spaceId, eventId)) {
       if (row.groupId() != null) {
         assigned++;
       }
-      participants.add(participant(row));
+      participants.add(participant(row, placements.get(row.participantId())));
+      active.add(
+          new ActiveParticipant(row.participantId(), null, null, row.groupId(), row.leader()));
     }
-    long active = participants.size();
-    // #300 compares with the latest publication. Until then nothing is published, so every
-    // assigned person and every group is an unpublished change.
-    long changedParticipants = assigned;
-    long groupChanges = list.size();
+    long activeCount = participants.size();
+    PublicationDiff diff = PublicationDiff.of(list, active, snapshot);
     PublicationSummary publication =
         new PublicationSummary(
-            null,
-            null,
-            null,
-            active,
+            latest.map(Publication::publishedAt).orElse(null),
+            latest.map(Publication::publishedByDisplayName).orElse(null),
+            latest.map(Publication::boardVersion).orElse(null),
+            activeCount,
             assigned,
-            active - assigned,
-            changedParticipants,
-            groupChanges,
-            changedParticipants != 0 || groupChanges != 0);
+            activeCount - assigned,
+            diff.changedParticipants(),
+            diff.groupChanges(),
+            diff.any());
     return new GroupBoard(
         event.lifecycleStatus(),
         groups.boardVersion(spaceId, eventId),
@@ -116,6 +133,151 @@ public class GroupService {
         participants,
         groups.withdrawn(spaceId, eventId),
         publication);
+  }
+
+  /**
+   * Publishes the working copy (api.md {@code POST …/groups/publish}). After the event state: a
+   * different {@code boardVersion} is 409; a working copy equal to the latest publication is {@code
+   * ALREADY_PUBLISHED} and writes nothing; unassigned active participants need {@code
+   * confirmUnassigned}. The first publication is never {@code ALREADY_PUBLISHED}, even with no
+   * group. The snapshot holds participant ids only; one {@code GROUPS_PUBLISHED} audit row goes in
+   * the same transaction.
+   */
+  @Transactional
+  public PublishResult publish(UUID actorId, UUID eventId, JsonNode body) {
+    UUID spaceId = openForWrite(actorId, eventId);
+    long expected = requiredBoardVersion(field(body, "expectedBoardVersion"));
+    boolean confirmUnassigned = optionalFlag(field(body, "confirmUnassigned"));
+    lockWritable(spaceId, eventId);
+
+    long boardVersion = groups.boardVersion(spaceId, eventId);
+    if (boardVersion != expected) {
+      throw new SceneException(
+          ErrorCode.CONCURRENT_MODIFICATION, Map.of("boardVersion", boardVersion));
+    }
+    List<Group> list = groups.groups(spaceId, eventId);
+    List<ActiveParticipant> active = groups.active(spaceId, eventId);
+    Optional<Publication> latest = groups.latestPublication(spaceId, eventId);
+    PublicationDiff diff =
+        PublicationDiff.of(list, active, latest.map(Publication::snapshot).orElse(Snapshot.EMPTY));
+    long assigned = active.stream().filter(p -> p.groupId() != null).count();
+    long unassigned = active.size() - assigned;
+    if (latest.isPresent() && !diff.any()) {
+      Publication last = latest.get();
+      return new PublishResult(
+          PublishResult.ALREADY_PUBLISHED,
+          last.publicationId(),
+          last.publishedAt(),
+          boardVersion,
+          assigned,
+          unassigned,
+          0);
+    }
+    if (unassigned > 0 && !confirmUnassigned) {
+      throw new SceneException(
+          ErrorCode.CONFIRMATION_REQUIRED, Map.of("unassignedCount", unassigned));
+    }
+
+    Map<UUID, List<Snapshot.SnapshotMember>> members = new HashMap<>();
+    List<ActiveParticipant> byId = new ArrayList<>(active);
+    byId.sort(Comparator.comparing(ActiveParticipant::participantId));
+    for (ActiveParticipant participant : byId) {
+      if (participant.groupId() != null) {
+        members
+            .computeIfAbsent(participant.groupId(), id -> new ArrayList<>())
+            .add(new Snapshot.SnapshotMember(participant.participantId(), participant.leader()));
+      }
+    }
+    List<Snapshot.SnapshotGroup> snapshotGroups = new ArrayList<>();
+    for (Group group : list) {
+      snapshotGroups.add(
+          new Snapshot.SnapshotGroup(
+              group.groupId(),
+              group.name(),
+              group.sortOrder(),
+              members.getOrDefault(group.groupId(), List.of())));
+    }
+    Instant now = now();
+    UUID publicationId = UUID.randomUUID();
+    groups.insertPublication(
+        spaceId, eventId, publicationId, boardVersion, new Snapshot(snapshotGroups), actorId, now);
+    Map<String, Object> detail = new LinkedHashMap<>();
+    detail.put("publicationId", publicationId.toString());
+    detail.put("boardVersion", boardVersion);
+    detail.put("assignedCount", assigned);
+    detail.put("unassignedCount", unassigned);
+    detail.put("changedParticipantCount", diff.changedParticipants());
+    auditLogs.save(
+        spaceId,
+        eventId,
+        actorId,
+        AuditActions.GROUPS_PUBLISHED,
+        json.writeValueAsString(detail),
+        now);
+    return new PublishResult(
+        PublishResult.PUBLISHED,
+        publicationId,
+        now,
+        boardVersion,
+        assigned,
+        unassigned,
+        diff.changedParticipants());
+  }
+
+  /**
+   * The latest publication for operators (api.md {@code GET …/groups/published}). Needs effective
+   * {@code EVENT_READ} or an active space owner or admin. Not blocked by the event state.
+   */
+  @Transactional(readOnly = true)
+  public PublishedGroups published(UUID actorId, UUID eventId) {
+    EventAccessGate.Opened opened = gate.open(actorId, eventId);
+    if (!mayReadPublished(opened, actorId)) {
+      throw new SceneException(ErrorCode.FORBIDDEN);
+    }
+    UUID spaceId = opened.location().spaceId();
+    Optional<Publication> latest = groups.latestPublication(spaceId, eventId);
+    if (latest.isEmpty()) {
+      return new PublishedGroups(null, List.of(), List.of());
+    }
+    Publication publication = latest.get();
+    List<ActiveParticipant> active = groups.active(spaceId, eventId);
+    Map<UUID, ActiveParticipant> byId = new HashMap<>();
+    for (ActiveParticipant participant : active) {
+      byId.put(participant.participantId(), participant);
+    }
+    Set<UUID> placed = new HashSet<>();
+    List<PublishedGroups.PublishedGroup> out = new ArrayList<>();
+    for (Snapshot.SnapshotGroup group : publication.snapshot().groups()) {
+      List<PublishedMember> members = new ArrayList<>();
+      for (Snapshot.SnapshotMember member : group.members()) {
+        ActiveParticipant current = byId.get(member.participantId());
+        if (current != null) {
+          placed.add(member.participantId());
+          members.add(new PublishedMember(current, member.leader()));
+        }
+      }
+      members.sort(PublishedMember.ORDER);
+      List<PublishedGroups.Leader> leaders = new ArrayList<>();
+      List<PublishedGroups.Member> items = new ArrayList<>();
+      for (PublishedMember member : members) {
+        ActiveParticipant p = member.participant();
+        if (member.leader()) {
+          leaders.add(new PublishedGroups.Leader(p.participantId(), p.name()));
+        }
+        items.add(
+            new PublishedGroups.Member(p.participantId(), p.name(), p.cohort(), member.leader()));
+      }
+      out.add(new PublishedGroups.PublishedGroup(group.groupId(), group.name(), leaders, items));
+    }
+    List<PublishedGroups.Unassigned> unassigned = new ArrayList<>();
+    for (ActiveParticipant participant : active) {
+      if (!placed.contains(participant.participantId())) {
+        unassigned.add(
+            new PublishedGroups.Unassigned(
+                participant.participantId(), participant.name(), participant.cohort()));
+      }
+    }
+    return new PublishedGroups(publication.publishedAt(), out, unassigned);
   }
 
   @Transactional
@@ -361,7 +523,7 @@ public class GroupService {
     return new LeadersWritten(group(spaceId, eventId, groupId), leaderIds, boardVersion);
   }
 
-  private static BoardParticipant participant(BoardRow row) {
+  private static BoardParticipant participant(BoardRow row, Snapshot.Placement published) {
     BoardParticipant.Gender gender =
         row.genderOptionId() == null
             ? null
@@ -380,8 +542,8 @@ public class GroupService {
         row.cell(),
         row.groupId(),
         row.leader(),
-        null,
-        false);
+        published == null ? null : published.group().groupId(),
+        published != null && published.leader());
   }
 
   private UUID openForWrite(UUID actorId, UUID eventId) {
@@ -436,6 +598,15 @@ public class GroupService {
         && ("OWNER".equals(membership.role()) || "ADMIN".equals(membership.role()));
   }
 
+  private boolean mayReadPublished(EventAccessGate.Opened opened, UUID actorId) {
+    if (allows(opened, actorId, Permission.EVENT_READ)) {
+      return true;
+    }
+    SpaceMembership membership = opened.membership();
+    return membership.kind() == SpaceMembership.Kind.ACTIVE
+        && ("OWNER".equals(membership.role()) || "ADMIN".equals(membership.role()));
+  }
+
   private boolean allows(EventAccessGate.Opened opened, UUID actorId, Permission permission) {
     if (opened.eventRole() == null) {
       return false;
@@ -467,6 +638,23 @@ public class GroupService {
       throw invalid("expectedVersion");
     }
     return node.asInt();
+  }
+
+  private static long requiredBoardVersion(JsonNode node) {
+    if (node == null || !node.isIntegralNumber() || !node.canConvertToLong() || node.asLong() < 0) {
+      throw invalid("expectedBoardVersion");
+    }
+    return node.asLong();
+  }
+
+  private static boolean optionalFlag(JsonNode node) {
+    if (node == null || node.isNull()) {
+      return false;
+    }
+    if (!node.isBoolean()) {
+      throw invalid("confirmUnassigned");
+    }
+    return node.asBoolean();
   }
 
   private static int requiredVersion(String value) {
@@ -547,4 +735,12 @@ public class GroupService {
   }
 
   private record Change(UUID participantId, UUID fromGroupId, UUID toGroupId) {}
+
+  /** A published member with the current values; leaders first, then name, then id. */
+  record PublishedMember(ActiveParticipant participant, boolean leader) {
+    static final Comparator<PublishedMember> ORDER =
+        Comparator.comparing((PublishedMember m) -> !m.leader())
+            .thenComparing(m -> m.participant().name())
+            .thenComparing(m -> m.participant().participantId());
+  }
 }
