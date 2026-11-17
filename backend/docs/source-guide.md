@@ -155,8 +155,8 @@ CSRF 쿠키는 `XSRF-TOKEN`, 헤더는 `X-XSRF-TOKEN`이다. 변경 요청은 �
 | 행사 역할 | 지금 코드가 주는 키 |
 | --- | --- |
 | `OWNER` | `Permission`에 등록된 전부 |
-| `MANAGER` | `EVENT_READ`, `TASK_WRITE` |
-| `STAFF` | `EVENT_READ` |
+| `MANAGER` | `EVENT_READ`, `TASK_WRITE`, `CHECKIN_WRITE` |
+| `STAFF` | `EVENT_READ`, `CHECKIN_WRITE` |
 | 그 외 | 없음 |
 
 `EVENT_LIFECYCLE`과 `EVENT_USER_MANAGE`는 소유자만 가진다. `GRANT`로 넘길 수 없다. `EVENT_READ`는 `REVOKE`로 빼지 않는다. 운영자 제거와 공간 탈퇴가 그 접근을 끊는다. MANAGER와 STAFF의 나머지 기본값은 승인 전까지 비어 있다. `Permission` enum에 키가 있어도 기본값으로 들어가 있다는 뜻은 아니다.
@@ -180,6 +180,7 @@ CSRF 쿠키는 `XSRF-TOKEN`, 헤더는 `X-XSRF-TOKEN`이다. 변경 요청은 �
 | 행사 소유권 이전 요청, 조회, 수락, 거절, 취소 | `event/transfer/OwnerTransferController` |
 | 업무 목록, 생성, 상세, 수정, 삭제 | `event/task/TaskCommandController` |
 | 체크 항목, 완료, 다시 열기 | `event/task/TaskProgressController` |
+| 체크인 현황, 명단, 체크인, 취소, 이력 | `event/checkin/CheckInController` |
 
 초대 수락도 operator 경로다. 수락하는 사람은 운영자 세션으로 들어와 있다. 공개 URL이 아니다.
 
@@ -236,7 +237,7 @@ Flyway만 스키마를 쓴다. `V1__baseline.sql`이 제품 테이블이고, `V2
 - 공개 신청, 공개 조회
 - 비밀번호, 토큰 로그인
 - SMTP. 초대 링크는 `CapturingInvitationMailer`의 메모리에만 있다
-- 참가자, 신청서, 회비, 조, 방, 차량, 체크인 테이블과 그 API
-- MANAGER와 STAFF에 대한 `TASK_WRITE` 외의 승인된 기본 권한
+- 참가자, 신청서, 회비, 조, 방, 차량 테이블과 그 API. 체크인은 `V12__checkins.sql`과 운영자 API가 있고, 참가자 QR 받기는 #283이다
+- MANAGER와 STAFF에 대한 `TASK_WRITE`·`CHECKIN_WRITE` 외의 승인된 기본 권한
 
 `Permission`에 키가 있는 것은 그 API가 열렸다는 뜻이 아니다. `OWNER`는 등록된 키를 모두 갖고, 그 키를 쓰는 명령은 각 서비스에 있을 때만 동작한다.
