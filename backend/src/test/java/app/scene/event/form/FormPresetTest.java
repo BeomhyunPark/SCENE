@@ -126,7 +126,9 @@ class FormPresetTest {
                     key ->
                         !key.equals("ARRIVAL_SLOT")
                             && !key.equals("DEPARTURE_SLOT")
-                            && !key.equals("NEWCOMER"))
+                            && !key.equals("NEWCOMER")
+                            // SLOTS partial attendees choose nights in LODGING instead.
+                            && !key.equals("NO_LODGING"))
                 .toList());
     assertThat(find(questions, "LODGING").config().get("options")).hasSize(9);
     assertThat(find(questions, "MEALS").config().get("options")).hasSize(40);
