@@ -330,19 +330,52 @@ function Lodging({ lodging }: { lodging: ApplicationSummary["lodging"] }) {
   );
 }
 
-function ChoiceRows({ title, choice }: { title: string; choice: SummaryChoice | null }) {
+const DRIVE = "opt_car";
+const RIDE = "opt_ride";
+const CHURCH_VEHICLES = ["opt_group", "opt_shuttle"];
+
+type Row = { key: string; label: string; hidden: boolean; count: number; detail?: string };
+
+/**
+ * Rows in option order. With `joinCar`, 자차 (직접 운전) and 자차 합승 (#324) read as one 자차 row
+ * with the split under it, so the two are not mistaken for each other.
+ */
+function rowsOf(choice: SummaryChoice, joinCar: boolean): Row[] {
+  const options = visibleOptions(choice);
+  const drive = options.find((option) => option.optionId === DRIVE);
+  const ride = options.find((option) => option.optionId === RIDE);
+  const rows: Row[] = [];
+  for (const option of options) {
+    if (joinCar && drive && ride && (option.optionId === DRIVE || option.optionId === RIDE)) {
+      if (option.optionId === RIDE) continue;
+      rows.push({
+        key: "car",
+        label: "자차",
+        hidden: drive.hidden && ride.hidden,
+        count: drive.count + ride.count,
+        detail: `직접 운전 ${drive.count} · 합승 ${ride.count}`,
+      });
+      continue;
+    }
+    rows.push({ key: option.optionId, label: option.label, hidden: option.hidden, count: option.count });
+  }
+  return rows;
+}
+
+function ChoiceRows({ title, choice, joinCar = false }: { title: string; choice: SummaryChoice | null; joinCar?: boolean }) {
   return (
     <div className="app-summary__group">
       <h4>{title}</h4>
       {choice ? (
         <ul className="app-summary__rows">
-          {visibleOptions(choice).map((option) => (
-            <li key={option.optionId}>
+          {rowsOf(choice, joinCar).map((row) => (
+            <li key={row.key}>
               <span>
-                {option.label}
-                {option.hidden ? <span className="app-summary__off"> (꺼짐)</span> : null}
+                {row.detail ? <span>{row.label}</span> : row.label}
+                {row.hidden ? <span className="app-summary__off"> (꺼짐)</span> : null}
+                {row.detail ? <small className="app-summary__row-detail">{row.detail}</small> : null}
               </span>
-              <Count value={option.count} />
+              <Count value={row.count} />
             </li>
           ))}
           {choice.noAnswer > 0 ? (
@@ -359,6 +392,35 @@ function ChoiceRows({ title, choice }: { title: string; choice: SummaryChoice | 
   );
 }
 
+/** Church vehicles first and large: the counts the operators book seats with. */
+function ChurchVehicles({ transport }: { transport: NonNullable<ApplicationSummary["transport"]> }) {
+  const tiles = CHURCH_VEHICLES.flatMap((optionId) => {
+    const there = transport.in.options.find((option) => option.optionId === optionId);
+    const back = transport.out.options.find((option) => option.optionId === optionId);
+    if (!there && !back) return [];
+    if ((there?.hidden ?? true) && (back?.hidden ?? true) && !there?.count && !back?.count) return [];
+    return [{ optionId, label: there?.label ?? back?.label ?? "", there: there?.count ?? 0, back: back?.count ?? 0 }];
+  });
+  if (tiles.length === 0) return null;
+  return (
+    <ul className="app-summary__tiles app-summary__vehicles" aria-label="교회 차량 탑승 인원">
+      {tiles.map((tile) => (
+        <li key={tile.optionId} className="app-summary__tile">
+          <span>{tile.label}</span>
+          <span className="app-summary__vehicle-counts">
+            <span>
+              가는 길 <Count value={tile.there} />
+            </span>
+            <span>
+              오는 길 <Count value={tile.back} />
+            </span>
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function Transport({
   transport,
   shuttle,
@@ -366,17 +428,25 @@ function Transport({
   transport: ApplicationSummary["transport"];
   shuttle: ApplicationSummary["shuttle"];
 }) {
+  const riding = transport?.in.options.some((option) => option.optionId === RIDE && (!option.hidden || option.count > 0));
   return (
     <Card id="summary-transport" title="차량">
+      {transport ? <ChurchVehicles transport={transport} /> : null}
       {transport ? (
         <div className="app-summary__pair">
-          <ChoiceRows title="가는 길" choice={transport.in} />
-          <ChoiceRows title="오는 길" choice={transport.out} />
+          <ChoiceRows title="가는 길" choice={transport.in} joinCar />
+          <ChoiceRows title="오는 길" choice={transport.out} joinCar />
         </div>
       ) : (
         <NotAsked />
       )}
-      {transport ? <p className="app-summary__hint">가는 길에 자차를 고른 사람은 오는 길도 자차로 셌어요.</p> : null}
+      {transport ? (
+        <p className="app-summary__hint">
+          {riding
+            ? "가는 길에 자차(직접 운전·합승)를 고른 사람은 오는 길도 같은 방법으로 셌어요."
+            : "가는 길에 자차를 고른 사람은 오는 길도 자차로 셌어요."}
+        </p>
+      ) : null}
       {shuttle ? (
         <>
           <h4 className="app-summary__subhead">집회 차량 회차</h4>
