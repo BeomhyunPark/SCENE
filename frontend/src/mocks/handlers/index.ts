@@ -1,4 +1,5 @@
 import { applicationHandlers } from "./applications";
+import { checkInHandlers } from "./checkIns";
 import { eventHandlers } from "./events";
 import { formHandlers } from "./forms";
 import { invitationHandlers } from "./invitations";
@@ -22,4 +23,5 @@ export const handlers = [
   ...applicationHandlers,
   ...lifecycleHandlers,
   ...retrospectiveHandlers,
+  ...checkInHandlers,
 ];

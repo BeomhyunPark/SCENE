@@ -23,7 +23,7 @@ describe("event sidebar pending menus", () => {
     );
   });
 
-  it("opens 현장 운영 inside the event", async () => {
+  it("opens the 현장 운영 check-in screen inside the event", async () => {
     render(
       <MemoryRouter initialEntries={["/login"]}>
         <App />
@@ -32,7 +32,7 @@ describe("event sidebar pending menus", () => {
     fireEvent.click(await screen.findByRole("button", { name: "들어가기" }));
     fireEvent.click(await screen.findByRole("button", { name: /Local event/ }));
     fireEvent.click(await screen.findByRole("link", { name: "현장 운영" }));
-    expect(await screen.findByText("참가자 도착 체크인 화면은 아직 만들고 있어요.")).toBeInTheDocument();
+    expect(await screen.findByLabelText("이름 또는 전화 끝 4자리")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "현장 운영" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("link", { name: "현장 운영" })).toHaveAttribute(
       "href",

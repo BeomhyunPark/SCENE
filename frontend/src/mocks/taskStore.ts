@@ -46,10 +46,18 @@ const ROLES: Record<string, Role> = {
 
 let operators: OperatorRow[] = seedOperators();
 let tasks: TaskRow[] = [seedChecklistTask()];
+/** Per-operator revokes, keyed `eventId|userId`. Test seam for an OWNER removing a default key. */
+let revokes = new Map<string, string[]>();
 
 export function resetTaskStore(): void {
   operators = seedOperators();
   tasks = [seedChecklistTask()];
+  revokes = new Map();
+}
+
+/** Test seam: removes default keys from one operator's effective permissions. */
+export function revokePermissions(eventId: string, userId: string, keys: string[]): void {
+  revokes.set(`${eventId}|${userId}`, keys);
 }
 
 export function tasksFor(eventId: string, actorId: string): TaskListItem[] | TaskFailure {
@@ -240,13 +248,14 @@ export function permissionsFor(
   if (!row) return { status: 404, code: "RESOURCE_NOT_FOUND" };
   const actor = operators.find((operator) => operator.eventId === eventId && operator.userId === actorId);
   if (actorId !== userId && actor?.role === "STAFF") return { status: 403, code: "FORBIDDEN" };
-  const effective = defaultsFor(row.role);
+  const roleDefaults = defaultsFor(row.role);
+  const removed = revokes.get(`${eventId}|${userId}`) ?? [];
   return {
     userId,
     role: row.role,
-    roleDefaults: effective,
-    overrides: { grants: [], revokes: [] },
-    effective,
+    roleDefaults,
+    overrides: { grants: [], revokes: removed },
+    effective: roleDefaults.filter((key) => !removed.includes(key)),
   };
 }
 
@@ -363,9 +372,10 @@ function operatorOn(eventId: string, userId: string): boolean {
 
 function defaultsFor(role: Role): string[] {
   // The server gives an event OWNER every event key. The mock lists the keys these screens read.
-  if (role === "OWNER") return ["EVENT_READ", "EVENT_UPDATE", "TASK_WRITE", "FORM_WRITE"];
-  if (role === "MANAGER") return ["EVENT_READ", "TASK_WRITE"];
-  return ["EVENT_READ"];
+  // DEC-071: OWNER, MANAGER and STAFF all check in by default.
+  if (role === "OWNER") return ["EVENT_READ", "EVENT_UPDATE", "TASK_WRITE", "FORM_WRITE", "CHECKIN_WRITE"];
+  if (role === "MANAGER") return ["EVENT_READ", "TASK_WRITE", "CHECKIN_WRITE"];
+  return ["EVENT_READ", "CHECKIN_WRITE"];
 }
 
 function countsOf(task: TaskRow): { done: number; total: number } {

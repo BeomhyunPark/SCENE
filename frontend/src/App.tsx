@@ -5,6 +5,7 @@ import { createQueryClient } from "./api/queryClient";
 import { MockBanner } from "./components/MockBanner";
 import { EventCreate } from "./components/EventCreate";
 import { EventEnd } from "./components/EventEnd";
+import { EventField } from "./components/EventField";
 import { EventHome } from "./components/EventHome";
 import { EventRetrospective } from "./components/EventRetrospective";
 import { EventSettings } from "./components/EventSettings";
@@ -85,10 +86,7 @@ export function App() {
             path="/events/:eventId/areas"
             element={<EventMenuPending title="다른 운영 시작" message="이 행사에서 쓸 운영을 고르는 화면은 아직 만들고 있어요." />}
           />
-          <Route
-            path="/events/:eventId/field"
-            element={<EventMenuPending title="현장 운영" message="참가자 도착 체크인 화면은 아직 만들고 있어요." />}
-          />
+          <Route path="/events/:eventId/field" element={<EventField />} />
           <Route path="/events/:eventId/end" element={<EventEnd />} />
           <Route path="/events/:eventId/retrospective" element={<EventRetrospective />} />
           <Route path="/events/:eventId/tasks/:taskId" element={<TaskDetail />} />

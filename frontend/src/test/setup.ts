@@ -9,6 +9,7 @@ import { resetOperatorStore } from "../mocks/operatorStore";
 import { resetParticipantStore } from "../mocks/participantStore";
 import { resetRetrospectiveStore } from "../mocks/retrospectiveStore";
 import { resetAccessKeyCapture } from "../accessKey";
+import { resetCheckInStore } from "../mocks/checkInStore";
 import { resetTaskStore } from "../mocks/taskStore";
 
 beforeAll(() => {
@@ -22,6 +23,7 @@ afterEach(() => {
   resetOperatorStore();
   resetTaskStore();
   resetRetrospectiveStore();
+  resetCheckInStore();
   resetParticipantStore();
   resetAccessKeyCapture();
   resetFormStore();

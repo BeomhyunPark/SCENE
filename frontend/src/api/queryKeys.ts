@@ -12,6 +12,10 @@ export const queryKeys = {
   invitations: (eventId: string) => ["events", eventId, "invitations"] as const,
   permissions: (eventId: string, userId: string) =>
     ["events", eventId, "operators", userId, "permissions"] as const,
+  checkInSummary: (eventId: string) => ["events", eventId, "check-ins", "summary"] as const,
+  checkIns: (eventId: string) => ["events", eventId, "check-ins"] as const,
+  checkInRoster: (eventId: string, query: { q: string; checkedIn: boolean | null }) =>
+    ["events", eventId, "check-ins", "roster", query] as const,
   forms: (eventId: string, page: number) => ["events", eventId, "forms", page] as const,
   form: (eventId: string, formId: string) => ["events", eventId, "forms", formId] as const,
   applications: (eventId: string, page: number) => ["events", eventId, "applications", page] as const,

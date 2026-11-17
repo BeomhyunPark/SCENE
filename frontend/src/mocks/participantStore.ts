@@ -129,6 +129,27 @@ export function submittedApplication(
   };
 }
 
+/** Check-in roster rows for participants who applied through the mock form. Phone keeps only the last 4 digits. */
+export function checkInCandidates(eventId: string): {
+  participantId: string;
+  name: string;
+  cohort: string | null;
+  phoneLast4: string;
+}[] {
+  return issued
+    .filter((row) => row.eventId === eventId)
+    .map((row) => {
+      const fields = formFields(row.eventId, row.formId);
+      const phone = answerFor(fields, row.answers, "PHONE") ?? "";
+      return {
+        participantId: row.participantId,
+        name: row.name,
+        cohort: answerFor(fields, row.answers, "COHORT"),
+        phoneLast4: phone.replace(/\D/g, "").slice(-4),
+      };
+    });
+}
+
 /** Test seam for an application stored without a NAME answer. */
 export function seedApplicationWithoutName(eventId: string, formId: string, submittedAt: string): string {
   const event = eventById(eventId);

@@ -1,0 +1,272 @@
+/* 현장 운영 (#285). Phone first: one column, 48px touch targets. Follows OM01 Field Home. */
+.event-field {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 760px;
+  padding: 20px 16px 40px;
+  word-break: keep-all;
+}
+
+.event-field__event {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font: var(--scene-body-m);
+}
+
+.event-field__summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.event-field__count {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 12px;
+  background: var(--color-bg-surface);
+}
+
+.event-field__count:first-child {
+  border-color: var(--color-border-selected);
+  background: var(--color-bg-brand-subtle);
+}
+
+.event-field__count-label {
+  color: var(--color-text-secondary);
+  font: var(--scene-label-m);
+}
+
+.event-field__count strong {
+  color: var(--color-text-primary);
+  font: var(--scene-heading-m);
+}
+
+.event-field__blocked {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--color-warning-bg);
+  color: var(--color-warning-fg);
+  font: var(--scene-body-m);
+}
+
+.event-field__search {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.event-field__search-label {
+  font: var(--scene-label-m);
+  color: var(--color-text-primary);
+}
+
+.event-field__search-input {
+  box-sizing: border-box;
+  width: 100%;
+  height: 52px;
+  padding: 0 16px;
+  border: 1px solid var(--color-border-control);
+  border-radius: 12px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  /* 16px keeps iOS Safari from zooming in on focus. */
+  font: var(--scene-body-l);
+  font-size: 16px;
+}
+
+.event-field__search-input:focus {
+  outline: none;
+}
+
+.event-field__search-input:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.event-field__filters {
+  display: flex;
+  gap: 8px;
+}
+
+.event-field__filter {
+  min-width: 72px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--color-chip-default-border);
+  border-radius: 999px;
+  background: var(--color-chip-default-bg);
+  color: var(--color-chip-default-text);
+  font: var(--scene-label-m);
+  cursor: pointer;
+}
+
+.event-field__filter[aria-pressed="true"] {
+  border-color: var(--color-chip-selected-border);
+  background: var(--color-chip-selected-bg);
+  color: var(--color-chip-selected-text);
+}
+
+.event-field__filter:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.event-field__notice-slot:empty {
+  display: none;
+}
+
+.event-field__notice {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  font: var(--scene-body-m);
+}
+
+.event-field__notice--success {
+  background: var(--color-success-bg);
+  color: var(--color-success-fg);
+}
+
+.event-field__notice--info {
+  background: var(--color-info-bg);
+  color: var(--color-info-fg);
+}
+
+.event-field__notice--error {
+  background: var(--color-danger-bg);
+  color: var(--color-danger-fg);
+}
+
+.event-field__muted {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font: var(--scene-body-m);
+}
+
+.event-field__inline-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  grid-column: 1 / -1;
+}
+
+.event-field__inline-error p {
+  margin: 0;
+  color: var(--color-danger-fg);
+  font: var(--scene-body-m);
+}
+
+.event-field__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.event-field__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "main badge"
+    "action action";
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 12px;
+  background: var(--color-bg-surface);
+}
+
+.event-field__row-main {
+  grid-area: main;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.event-field__name {
+  margin: 0;
+  color: var(--color-text-primary);
+  font: var(--scene-heading-s);
+  overflow-wrap: anywhere;
+}
+
+.event-field__meta {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font: var(--scene-body-s);
+}
+
+.event-field__badge {
+  grid-area: badge;
+  align-self: start;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--color-bg-subtle);
+  color: var(--color-text-secondary);
+  font: var(--scene-body-s);
+  white-space: nowrap;
+}
+
+.event-field__badge--done {
+  background: var(--color-success-bg);
+  color: var(--color-success-fg);
+}
+
+.event-field__row-action {
+  grid-area: action;
+  display: flex;
+}
+
+.event-field__row-action .scene-button,
+.event-field__more {
+  width: 100%;
+}
+
+.event-field__reason-label {
+  display: block;
+  margin-top: 12px;
+  color: var(--color-text-primary);
+  font: var(--scene-label-m);
+}
+
+.event-field__reason {
+  box-sizing: border-box;
+  width: 100%;
+  margin-top: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border-control);
+  border-radius: 8px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font: var(--scene-body-m);
+  font-size: 16px;
+  resize: vertical;
+}
+
+@media (min-width: 640px) {
+  .event-field {
+    padding: 28px 32px 40px;
+  }
+
+  .event-field__row {
+    grid-template-columns: minmax(0, 1fr) auto 160px;
+    grid-template-areas: "main badge action";
+    align-items: center;
+  }
+
+  .event-field__badge {
+    align-self: center;
+  }
+}
