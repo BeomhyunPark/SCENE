@@ -4,7 +4,14 @@ import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "../App";
 import { login } from "../api/session";
-import { checkInCodeFor, seedCheckIn, seededParticipants, withdrawParticipant } from "../mocks/checkInStore";
+import {
+  checkIn as operatorCheckIn,
+  checkInCodeFor,
+  checkInLogsOf,
+  seedCheckIn,
+  seededParticipants,
+  withdrawParticipant,
+} from "../mocks/checkInStore";
 import { localEvent, localUsers } from "../mocks/fixtures/seed";
 import { setLifecycle } from "../mocks/operatorStore";
 import { server } from "../mocks/server";
@@ -98,7 +105,15 @@ afterEach(() => {
 });
 
 describe("field QR scan", () => {
-  it("checks in by QR with a fresh key and shows the name and 또래 large", async () => {
+  it("shows the name alone when the participant has no 또래", async () => {
+    await openField();
+    await openScanner();
+    read(codeOf("정민호"));
+    await within(scanRegion()).findByText("체크인됨", {}, WAIT);
+    expect(within(scanRegion()).getByText("정민호")).toHaveClass("event-field__scan-name");
+  });
+
+  it("checks in by QR with a fresh key and shows 또래 and name large as one line", async () => {
     const keys = postKeys();
     await openField();
     await openScanner();
@@ -106,15 +121,14 @@ describe("field QR scan", () => {
     read(codeOf("김하늘"));
     await within(scanRegion()).findByText("체크인됨", {}, WAIT);
     const result = within(scanRegion()).getByRole("status");
-    expect(within(scanRegion()).getByText("김하늘")).toHaveClass("event-field__scan-name");
-    expect(within(scanRegion()).getByText("또래 94")).toBeInTheDocument();
+    expect(within(scanRegion()).getByText("94 김하늘")).toHaveClass("event-field__scan-name");
+    expect(within(scanRegion()).queryByText(/^또래 \d+$/)).not.toBeInTheDocument();
     expect(result).toHaveTextContent("체크인됨");
     await waitFor(() => expect(screen.getByRole("button", { name: "다음 스캔" })).toHaveFocus(), WAIT);
 
     fireEvent.click(screen.getByRole("button", { name: "다음 스캔" }));
     read(codeOf("박서준"));
-    await within(scanRegion()).findByText("박서준", {}, WAIT);
-    expect(within(scanRegion()).getByText("또래 96")).toBeInTheDocument();
+    await within(scanRegion()).findByText("96 박서준", {}, WAIT);
 
     expect(keys).toHaveLength(2);
     expect(keys[0]).not.toBe("");
@@ -146,7 +160,7 @@ describe("field QR scan", () => {
     expect(keys).toHaveLength(1);
 
     read(codeOf("박서준"));
-    await within(scanRegion()).findByText("박서준", {}, WAIT);
+    await within(scanRegion()).findByText("96 박서준", {}, WAIT);
     expect(keys).toHaveLength(2);
   });
 
@@ -156,7 +170,7 @@ describe("field QR scan", () => {
     await openScanner();
     read(codeOf("이수아"));
     await within(scanRegion()).findByText("이미 체크인됨", {}, WAIT);
-    expect(within(scanRegion()).getByText("이수아")).toBeInTheDocument();
+    expect(within(scanRegion()).getByText("94 이수아")).toBeInTheDocument();
     expect(within(scanRegion()).getByText(/처음 체크인 .* · Local staff/)).toBeInTheDocument();
   });
 
@@ -174,7 +188,7 @@ describe("field QR scan", () => {
     await openScanner();
     read(checkInCodeFor("00000000-0000-4000-8000-000000000099", participant("김하늘").participantId));
     expect(await within(scanRegion()).findByRole("alert", {}, WAIT)).toHaveTextContent("이 행사의 QR이 아니에요");
-    expect(screen.queryByText("김하늘", { selector: ".event-field__scan-name" })).not.toBeInTheDocument();
+    expect(screen.queryByText("94 김하늘", { selector: ".event-field__scan-name" })).not.toBeInTheDocument();
   });
 
   it("says the application was withdrawn", async () => {
@@ -185,25 +199,53 @@ describe("field QR scan", () => {
     expect(await within(scanRegion()).findByRole("alert", {}, WAIT)).toHaveTextContent("신청이 철회됐어요");
   });
 
-  it("lets the same QR be scanned again after a server or network error", async () => {
+  it("resends the same QR with the same key after 확인 안 됨 and checks in once (#287)", async () => {
     const keys = postKeys();
     server.use(http.post("/api/v1/operator/events/:eventId/check-ins", () => HttpResponse.json({}, { status: 500 })));
     await openField();
     await openScanner();
     read(codeOf("한지우"));
-    expect(await within(scanRegion()).findByRole("alert", {}, WAIT)).toHaveTextContent("처리하지 못했어요");
+    const unknown = await within(scanRegion()).findByRole("alert", {}, WAIT);
+    expect(unknown).toHaveTextContent("확인 안 됨");
+    expect(within(scanRegion()).queryByText("체크인됨")).not.toBeInTheDocument();
+    expect(keys).toHaveLength(4);
+    expect(await screen.findByText("QR 스캔 체크인")).toBeInTheDocument();
 
     server.use(http.post("/api/v1/operator/events/:eventId/check-ins", () => HttpResponse.error()));
     fireEvent.click(screen.getByRole("button", { name: "다음 스캔" }));
     read(codeOf("한지우"));
-    expect(await within(scanRegion()).findByRole("alert", {}, WAIT)).toHaveTextContent("연결이 불안정해요");
+    expect(await within(scanRegion()).findByRole("alert", {}, WAIT)).toHaveTextContent("확인 안 됨");
 
     server.resetHandlers();
     fireEvent.click(screen.getByRole("button", { name: "다음 스캔" }));
     read(codeOf("한지우"));
     await within(scanRegion()).findByText("체크인됨", {}, WAIT);
-    expect(keys).toHaveLength(3);
-    expect(new Set(keys).size).toBe(3);
+    expect(keys).toHaveLength(9);
+    expect(new Set(keys).size).toBe(1);
+    expect(checkInLogsOf(EVENT)).toHaveLength(1);
+    await waitFor(() => expect(screen.queryByText("QR 스캔 체크인")).not.toBeInTheDocument(), WAIT);
+  });
+
+  it("checks in once when the scan answer was lost (#287)", async () => {
+    const keys = postKeys();
+    server.use(
+      http.post(
+        "/api/v1/operator/events/:eventId/check-ins",
+        async ({ request }) => {
+          operatorCheckIn(EVENT, localUsers[2].userId, request.headers.get("Idempotency-Key"), await request.json());
+          return HttpResponse.error();
+        },
+        { once: true },
+      ),
+    );
+    await openField();
+    await openScanner();
+    read(codeOf("김하람"));
+    await within(scanRegion()).findByText("체크인됨", {}, WAIT);
+    expect(within(scanRegion()).getByText("95 김하람")).toBeInTheDocument();
+    expect(keys).toHaveLength(2);
+    expect(keys[0]).toBe(keys[1]);
+    expect(checkInLogsOf(EVENT)).toHaveLength(1);
   });
 
   it("closes the scanner and says why when the event ended meanwhile", async () => {
