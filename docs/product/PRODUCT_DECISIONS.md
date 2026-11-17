@@ -1606,6 +1606,18 @@ Export·보존·삭제·복구를 검토했다.
 [사용자 #9 답변](https://github.com/BeomhyunPark/SCENE/issues/9#issuecomment-5904121761), [검토 결과](data-retention-export-review.md).
 
 
+
+### Follow-up (2026-11-17): 참가 현황 표는 조회이고, 연락처 열은 연락처 권한에만 (#308)
+
+사용자 위임(2026-11-17), 추천안 채택. 질문·선택지·이유는 [#308](https://github.com/BeomhyunPark/SCENE/issues/308)에 있다.
+
+- 신청자 목록(#220)은 "이름만"이었다. 이제 참가 현황 표(`GET …/applications/table`)가 신청자 전원의 답을 한 화면에 보인다. 권한은 목록·상세와 같은 `EVENT_READ` 또는 활성 공간 `OWNER`·`ADMIN`이다. 같은 사람이 상세에서 이미 한 건씩 모든 답을 보고, 표는 파일을 만들지 않으므로 이 DEC의 반출이 아니다. CSV는 그대로 `DATA_EXPORT`다. #220의 "목록에는 이름만"은 이 표로 대체한다.
+- 전화 질문(SYSTEM `PHONE`, `format: PHONE`)은 effective `PARTICIPANT_CONTACT_READ`가 있을 때만 열로 보낸다(security-privacy §5, DEC-060의 연락처 경계). 없으면 서버가 열과 값을 빼고, 화면은 연락처 열을 숨긴다. 행사 OWNER는 기본으로 갖고, 다른 운영자는 개인별 GRANT로 받는다.
+- `CONTACT_VIEW` privacy log는 아직 없다. 그동안 전화 열을 보낸 응답마다 audit `APPLICANT_CONTACTS_VIEWED`(`{count}`만)를 남긴다. privacy log가 생기면 그쪽으로 옮긴다.
+- 조 열은 작업본이라 DEC-072 §7대로 `GROUP_WRITE` 또는 공간 `OWNER`·`ADMIN`에게만 보낸다. 체크인 여부는 명단 조회와 같은 권한이다(DEC-071).
+- 버린 안: 표를 `DATA_EXPORT`에만(MANAGER·STAFF가 명단을 거를 수 없어 시트를 대신하지 못한다), 끝 4자리만 모두에게(사용자 디자인 P03-01이 연락처 열을 둔다), 전체 번호를 기록 없이 `EVENT_READ`에(연락처 경계가 빈 껍데기가 된다).
+- 남은 차이: 신청 상세(`GET …/applications/{id}`)는 지금도 `EVENT_READ`로 전체 전화번호를 보인다. 표와 맞출지는 따로 정한다.
+
 ---
 
 ## DEC-055 — Export 생성과 다운로드를 구분하고 반출 범위를 기록한다
