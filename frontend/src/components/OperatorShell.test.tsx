@@ -97,4 +97,17 @@ describe("operator shell", () => {
       cleanup();
     }
   });
+
+  it("links the event sidebar's 다른 운영 시작 and 설정 to this event", () => {
+    renderAt("/events/e1");
+    expect(screen.getByRole("link", { name: "다른 운영 시작" })).toHaveAttribute("href", "/events/e1/areas");
+    expect(screen.getByRole("link", { name: "설정" })).toHaveAttribute("href", "/events/e1/settings");
+    cleanup();
+    renderAt("/events/e1/settings");
+    expect(screen.getByRole("link", { name: "설정" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "Local event" })).not.toHaveAttribute("aria-current");
+    cleanup();
+    renderAt("/events/e1/areas");
+    expect(screen.getByRole("link", { name: "다른 운영 시작" })).toHaveAttribute("aria-current", "page");
+  });
 });

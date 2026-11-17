@@ -72,6 +72,8 @@ export function OperatorShell({
   const onTasks = matchesPath(pathname, tasksHref);
   const operatorsHref = eventHref ? `${eventHref}/operators` : undefined;
   const onOperators = matchesPath(pathname, operatorsHref);
+  const areasHref = eventHref ? `${eventHref}/areas` : undefined;
+  const settingsHref = eventHref ? `${eventHref}/settings` : undefined;
   return (
     <div className="operator-shell">
       <aside className="operator-shell__sidebar">
@@ -130,10 +132,14 @@ export function OperatorShell({
               ) : null}
               <ul className="operator-shell__group">
                 <li>
-                  <NavItem item={{ label: "다른 운영 시작", icon: squares, current: false }} />
+                  <NavItem
+                    item={{ label: "다른 운영 시작", icon: squares, current: matchesPath(pathname, areasHref), to: areasHref }}
+                  />
                 </li>
                 <li>
-                  <NavItem item={{ label: "설정", icon: gear, current: false }} />
+                  <NavItem
+                    item={{ label: "설정", icon: gear, current: matchesPath(pathname, settingsHref), to: settingsHref }}
+                  />
                 </li>
               </ul>
             </>

@@ -10,6 +10,7 @@ import { EventRetrospective } from "./components/EventRetrospective";
 import { EventSettings } from "./components/EventSettings";
 import { EventList } from "./components/EventList";
 import { EventApplication } from "./components/EventApplication";
+import { EventAreasPending } from "./components/EventAreasPending";
 import { EventOperators } from "./components/EventOperators";
 import { EventParticipation } from "./components/EventParticipation";
 import { EventRegistrationSetup } from "./components/EventRegistrationSetup";
@@ -80,6 +81,7 @@ export function App() {
           <Route path="/spaces/:spaceId/leave" element={<SpaceLeave />} />
           <Route path="/events/new" element={<EventCreate />} />
           <Route path="/events/:eventId/settings" element={<EventSettings />} />
+          <Route path="/events/:eventId/areas" element={<EventAreasPending />} />
           <Route path="/events/:eventId/end" element={<EventEnd />} />
           <Route path="/events/:eventId/retrospective" element={<EventRetrospective />} />
           <Route path="/events/:eventId/tasks/:taskId" element={<TaskDetail />} />
