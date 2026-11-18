@@ -21,9 +21,9 @@
   color: var(--color-text-primary);
   font-family: "Noto Sans KR", sans-serif;
   font-size: 46px;
-  font-weight: 500;
-  line-height: normal;
-  letter-spacing: 0;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
   text-align: center;
 }
 
@@ -69,14 +69,97 @@
   text-decoration: none;
 }
 
-.marketing-preview {
+.public-home {
+  position: relative;
+  isolation: isolate;
+}
+
+.public-home::before {
+  position: absolute;
+  z-index: -1;
+  top: -120px;
+  left: 50%;
+  width: min(1100px, 140vw);
+  height: 720px;
+  background:
+    radial-gradient(closest-side at 35% 45%, color-mix(in srgb, var(--color-accent) 10%, transparent), transparent),
+    radial-gradient(closest-side at 70% 60%, color-mix(in srgb, var(--color-success-fg) 6%, transparent), transparent);
+  content: "";
+  filter: blur(40px);
+  transform: translateX(-50%);
+  animation: public-home-glow 14s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+.public-home__symbol {
   display: block;
+  fill: none;
+  stroke: var(--color-text-primary);
+  stroke-width: 4.032;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.public-home__symbol path {
+  stroke-dasharray: 40;
+  stroke-dashoffset: 40;
+  animation: public-home-draw 700ms cubic-bezier(0.65, 0, 0.35, 1) forwards;
+}
+
+.public-home__symbol path + path {
+  animation-delay: 180ms;
+}
+
+.public-home__title-line {
+  display: inline;
+}
+
+.public-home__word,
+.public-home__enter {
+  animation: public-home-rise 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.public-home__word {
+  display: inline-block;
+}
+
+.public-home__scene {
   width: 100%;
-  height: auto;
-  border-radius: 10px;
-  box-shadow:
-    0 1px 3px var(--color-shadow-raised-sm),
-    0 4px 16px var(--color-shadow-popover);
+  margin-top: 28px;
+  animation-duration: 900ms;
+}
+
+@keyframes public-home-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes public-home-rise {
+  from {
+    opacity: 0;
+    filter: blur(6px);
+    transform: translateY(18px);
+  }
+}
+
+@keyframes public-home-glow {
+  to {
+    transform: translateX(-46%) translateY(30px) scale(1.06);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .public-home::before,
+  .public-home__symbol path,
+  .public-home__word,
+  .public-home__enter {
+    animation: none;
+  }
+
+  .public-home__symbol path {
+    stroke-dashoffset: 0;
+  }
 }
 
 html {
@@ -248,7 +331,7 @@ html {
     font: var(--scene-label-l);
   }
 
-  .marketing-preview {
+  .public-home__scene {
     width: calc(100% - 40px);
   }
 

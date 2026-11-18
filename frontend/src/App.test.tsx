@@ -45,14 +45,12 @@ describe("public shell", () => {
     expect(document.querySelector('a[href="/signup"]')).toBeNull();
 
     const images = [...document.querySelectorAll("img")];
-    expect(images).toHaveLength(2);
+    expect(images).toHaveLength(1);
     const logo = document.querySelector(".public-header__brand img");
     expect(logo).toHaveAttribute("aria-hidden", "true");
     expect(logo).toHaveAttribute("alt", "");
     expect(logo).toHaveAttribute("width", "35.712");
-    const preview = images.find((image) => image !== logo);
-    expect(preview).toHaveAttribute("aria-hidden", "true");
-    expect(preview).toHaveAttribute("alt", "");
+    expect(document.querySelector(".op-scene")).toHaveAttribute("aria-hidden", "true");
     expect(document.body.textContent).not.toContain("2026 가을 공동체 행사");
     expect(document.body.textContent).not.toContain("2026년 10월 24일");
     expect(document.body.textContent).not.toContain("드림공동체");

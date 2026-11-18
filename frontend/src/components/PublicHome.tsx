@@ -2,9 +2,11 @@ import { useState } from "react";
 import { Link } from "react-router";
 import "./Button.css";
 import "./PublicHome.css";
-import { MarketingPreview } from "./MarketingPreview";
+import { OperationScene } from "./OperationScene";
 import { ScrollTopButton } from "./ScrollTopButton";
 import { startGoogleSignIn } from "../api/googleSignIn";
+
+const TITLE = ["행사 준비에 필요한 일을", "SCENE이 알려드려요."];
 
 const SERVICE = [
   {
@@ -80,13 +82,30 @@ export function PublicHome() {
     <main className="public-home">
       <div className="public-home__stack">
         <div className="public-home__copy">
-          <h1 className="public-home__title">
-            행사 준비에 필요한 일을
-            <br />
-            SCENE이 알려드려요.
+          <svg className="public-home__symbol" viewBox="0 0 35.712 35.712" width="48" height="48" aria-hidden="true">
+            <path d="M7.2 24.2784V13.2672C7.2 11.184 8.3904 9.9936 10.4736 9.3984L26.8416 3.744" />
+            <path d="M28.3296 12.0768V22.4928C28.3296 24.576 27.1392 25.7664 25.3536 26.3616L9.5808 31.7184" />
+          </svg>
+          <h1 className="public-home__title" aria-label={TITLE.join(" ")}>
+            {TITLE.map((line, lineIndex) => (
+              <span key={line} className="public-home__title-line">
+                {line.split(" ").map((word, wordIndex, words) => (
+                  <span key={word}>
+                    <span
+                      className="public-home__word"
+                      style={{ animationDelay: `${450 + (lineIndex * 3 + wordIndex) * 70}ms` }}
+                    >
+                      {word}
+                    </span>
+                    {wordIndex < words.length - 1 ? " " : null}
+                  </span>
+                ))}
+                {lineIndex < TITLE.length - 1 ? <br /> : null}
+              </span>
+            ))}
           </h1>
-          <p className="public-home__support">SCENE은 교회 공동체의 행사 준비와 운영을 돕는 서비스예요.</p>
-          <div className="public-home__actions">
+          <p className="public-home__support public-home__enter" style={{ animationDelay: "850ms" }}>SCENE은 교회 공동체의 행사 준비와 운영을 돕는 서비스예요.</p>
+          <div className="public-home__actions public-home__enter" style={{ animationDelay: "950ms" }}>
             <Link className="scene-button scene-button--primary scene-button--size-40" to="/login">
               <span className="scene-button__label">로그인</span>
             </Link>
@@ -101,7 +120,9 @@ export function PublicHome() {
             </p>
           </div>
         </div>
-        <MarketingPreview />
+        <div className="public-home__scene public-home__enter" style={{ animationDelay: "1100ms" }}>
+          <OperationScene />
+        </div>
       </div>
 
       <section id="service" className="public-home__section" aria-labelledby="service-title">
