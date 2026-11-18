@@ -72,6 +72,8 @@ main에 병합하면 서버가 5분 안에 스스로 반영한다. 서버가 밖
 - 바뀌었으면: DB 덤프(`~/scene-backups/pre-deploy-*.sql.gz`, 최근 10개 보관) → `docker compose up -d --build --wait` → 공개 주소 스모크 테스트(`/` 200, `/api/v1/operator/me` 401).
 - 실패하면 이전 커밋으로 되돌려 다시 띄우고, 같은 커밋은 다시 시도하지 않는다. **DB 변경(Flyway)은 되돌려지지 않는다.** 그때는 배포 전 덤프로 직접 복구한다.
 - 기록: `~/.local/state/scene-deploy/auto-deploy.log`. 실패해도 알림은 오지 않으므로, 실행 코드를 병합한 뒤에는 이 기록이나 사이트를 한 번 본다.
+- 이미지를 먼저 빌드하고, 빌드가 실패하면 돌고 있는 컨테이너는 건드리지 않는다.
+- cron에는 Windows PATH가 없어 `~/.docker/config.json`의 Docker Desktop 인증 도우미(`desktop.exe`)를 못 찾는다. 그래서 스크립트는 빈 설정(`~/.local/state/scene-deploy/docker-config`)을 쓴다. 공개 이미지만 쓰므로 인증이 필요 없다.
 - `.env`를 바꿨거나 지금 바로 다시 띄우려면: `~/scene/deploy/home/auto-deploy.sh --force`
 - 잠시 멈추려면 `crontab -e`에서 `# scene-auto-deploy` 줄 앞에 `#`을 붙인다. 손으로 배포할 때는 `cd ~/scene && git pull && cd deploy/home && docker compose up -d --build`.
 - 배포 전 덤프는 같은 디스크에 있는 임시 안전망이다. 집 밖 백업(4절)을 대신하지 않는다.
@@ -138,5 +140,6 @@ age -d -i scene-backup.key scene-YYYYMMDD-HHMMSS.sql.gz.age | gunzip | docker co
 - **실제 클릭 (2026-11-17, 사용자):** 첫 관리자 Google 로그인 성공. 서버 DB에서 조직 1개·사용자 1명·멤버 1명·Google 계정 연결 1건 생성 확인.
 - **아직 확인하지 않은 것:** 행사 만들기와 운영진 초대, 휴대폰 신청, 백업·복구(4절), Windows 재부팅 뒤 자동 기동.
 - 자동 배포 확인 (2026-11-17, 서버 검증): 변경 없음 실행, `--force` 배포 1회(덤프 → 빌드 → 스모크 통과), 스모크 주소를 틀리게 주어 실패·되돌림 경로 1회 실행. 되돌린 뒤 스모크가 통과하는 경우와 실제 DB 변경이 있는 배포는 아직 겪지 않았다. cron을 통한 실제 병합 반영 결과는 #257에 남긴다.
+- **장애 기록 (2026-11-17 15:00 ~ 11-18 22:00):** cron에서 실행된 코드 배포 9건이 모두 이미지 pull 단계에서 실패했다(위 `desktop.exe` 문제). 손으로 실행한 시험은 Windows PATH가 있는 셸이라 통과해서 놓쳤다. 빌드 전에 실패해 사이트는 이전 버전(8f64cdb)으로 계속 떠 있었다. 수정 뒤 cron과 같은 환경(`env -i`, 짧은 PATH)으로 main `b5075b1`을 배포해 V16까지 Flyway 적용과 스모크 통과를 확인했다(서버 검증). 빌드 실패 시 컨테이너를 건드리지 않는 경로는 아직 실행해 보지 않았다.
 - 배포 실패 알림이 없다.
 - 서버 모니터링·알림: Cloudflare Tunnel 상태 알림(Zero Trust → Notifications)을 켜 두는 것을 권장한다.
