@@ -1,16 +1,16 @@
-import { lazy, Suspense, useState, type FormEvent } from "react";
-import { Link, useSearchParams } from "react-router";
-import visual from "../assets/p01-02-auth-visual.svg";
-import symbol from "../assets/scene-symbol-login.svg";
-import eye from "../assets/icon-eye.svg";
-import eyeOff from "../assets/icon-eye-off.svg";
-import { Button } from "./Button";
+import { lazy, Suspense, useEffect, useState } from "react";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
+import { getMe } from "../api/session";
+import { rememberLoginNext, startGoogleSignIn } from "../api/googleSignIn";
+import { LaunchStage } from "./LaunchStage";
 import "./PublicLogin.css";
-import { startGoogleSignIn } from "../api/googleSignIn";
 
 const DevLoginPanel = import.meta.env.DEV
   ? lazy(() => import("./DevLoginPanel").then((module) => ({ default: module.DevLoginPanel })))
   : null;
+
+/** How long "Google로 이동하는 중이에요" shows before the browser leaves. */
+const LEAVE_MS = 700;
 
 function googleErrorCopy(code: string | null): string | null {
   if (code === "google_unverified") return "Google에서 이메일이 확인된 계정만 로그인할 수 있어요.";
@@ -18,152 +18,98 @@ function googleErrorCopy(code: string | null): string | null {
   return null;
 }
 
-function isEmailAddress(value: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-}
-
 export function PublicLogin() {
   const [params] = useSearchParams();
-  const [notReady, setNotReady] = useState(false);
-  const [googleMock, setGoogleMock] = useState(false);
-  const [email, setEmail] = useState("");
-  const [passwordVisible, setPasswordVisible] = useState(false);
-  const [remember, setRemember] = useState(false);
-  const emailValue = email.trim();
-  const emailInvalid = emailValue !== "" && !isEmailAddress(emailValue);
-
+  const navigate = useNavigate();
+  const location = useLocation();
+  const launched = (location.state as { launched?: boolean } | null)?.launched === true;
+  const [going, setGoing] = useState(false);
+  const next = params.get("next");
   const googleError = googleErrorCopy(params.get("error"));
 
-  // DEC-069: an account is made on the first Google sign-in, so 계정 만들기 starts the same sign-in.
-  function signInWithGoogle() {
-    if (import.meta.env.VITE_API_MOCK === "1") setGoogleMock(true);
-    else startGoogleSignIn(params.get("next"));
-  }
+  // Coming from 시작하기, someone already signed in skips the card and starts up straight away.
+  // A direct visit (an invitation or a sign-in link) stays a public page and does not call the server.
+  useEffect(() => {
+    if (!launched) return;
+    let live = true;
+    getMe().then(
+      () => {
+        if (!live) return;
+        rememberLoginNext(next);
+        navigate("/login/done", { replace: true });
+      },
+      () => undefined,
+    );
+    return () => {
+      live = false;
+    };
+  }, [launched, navigate, next]);
 
-  // Email login has no server yet. Going to /events from here only looked like a
-  // login while a dev session was alive; without one the operator guard sends the
-  // browser straight back to /login.
-  function hold(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setNotReady(!emailInvalid);
+  // DEC-069: an account is made on the first Google sign-in, so one button covers both.
+  function continueWithGoogle() {
+    setGoing(true);
+    window.setTimeout(async () => {
+      if (import.meta.env.VITE_API_MOCK === "1") {
+        const { mockGoogleSignIn } = await import("../mocks/mockGoogleSignIn");
+        await mockGoogleSignIn();
+        rememberLoginNext(next);
+        navigate("/login/done", { replace: true });
+      } else {
+        startGoogleSignIn(next);
+      }
+    }, LEAVE_MS);
   }
 
   return (
-    <main className="public-login">
-      <img
-        className="public-login__visual"
-        src={visual}
-        alt=""
-        width={720}
-        height={960}
-        aria-hidden="true"
-      />
-      <div className="public-login__pane">
-        <div className="public-login__column">
-          <div className="public-login__brand">
-            <img src={symbol} alt="" width={40.3023} height={40.3023} aria-hidden="true" />
-            <span className="public-login__wordmark">SCENE</span>
-          </div>
-          <h1 className="public-login__title">다시 만나서 반가워요</h1>
-          <p className="public-login__support">로그인하고 운영을 이어가요</p>
-          <form className="public-login__form" onSubmit={hold}>
-            <div className="public-login__field">
-              <label className="public-login__label" htmlFor="login-email">
-                이메일
-              </label>
-              <span
-                className={`public-login__control${emailInvalid ? " public-login__control--invalid" : ""}`}
-              >
-                <input
-                  id="login-email"
-                  type="email"
-                  name="email"
-                  autoComplete="email"
-                  placeholder="이메일을 입력해 주세요"
-                  aria-invalid={emailInvalid || undefined}
-                  aria-describedby={emailInvalid ? "login-email-invalid" : undefined}
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                />
-              </span>
-              {emailInvalid ? (
-                <p id="login-email-invalid" className="public-login__error" role="alert">
-                  이메일 형식을 확인해 주세요.
-                </p>
-              ) : null}
-            </div>
-            <div className="public-login__field">
-              <label className="public-login__label" htmlFor="login-password">
-                비밀번호
-              </label>
-              <span className="public-login__control">
-                <input
-                  id="login-password"
-                  type={passwordVisible ? "text" : "password"}
-                  name="password"
-                  autoComplete="current-password"
-                  placeholder="비밀번호를 입력해 주세요"
-                />
-                <button
-                  className="public-login__eye"
-                  type="button"
-                  tabIndex={-1}
-                  aria-pressed={passwordVisible}
-                  aria-label={passwordVisible ? "비밀번호 숨기기" : "비밀번호 보기"}
-                  onClick={() => setPasswordVisible((visible) => !visible)}
-                >
-                  <img src={passwordVisible ? eyeOff : eye} alt="" width={20} height={20} />
-                </button>
-              </span>
-            </div>
-            <div className="public-login__options">
-              <label className="public-login__remember">
-                <input
-                  type="checkbox"
-                  name="remember"
-                  checked={remember}
-                  onChange={(event) => setRemember(event.target.checked)}
-                />
-                로그인 유지
-              </label>
-              <Link className="public-login__recover" to="/forgot-password">
-                비밀번호 찾기
-              </Link>
-            </div>
-            <Button type="submit" variant="primary" size={40} className="public-login__submit">
-              로그인
-            </Button>
-            <Button type="button" variant="secondary" size={40} className="public-login__submit" onClick={signInWithGoogle}>
-              Google로 로그인
-            </Button>
-            <p className="public-login__switch">
-              계정이 없으신가요?{" "}
-              <button type="button" className="public-login__create" onClick={signInWithGoogle}>
-                계정 만들기
-              </button>
-            </p>
-          </form>
-          <div className="public-login__status" role="status">
-            {notReady ? (
-              <p className="public-login__notice">이메일 로그인은 아직 준비 중이에요. Google로 로그인해 주세요.</p>
-            ) : null}
-            {googleMock ? <p className="public-login__notice">목업 화면에서는 Google 로그인을 쓸 수 없어요.</p> : null}
-            {googleError && !notReady && !googleMock ? <p className="public-login__notice">{googleError}</p> : null}
-          </div>
-          {DevLoginPanel ? (
-            <>
-              <div className="public-login__status" role="status">
-                {notReady || googleMock || params.get("next") ? (
-                  <p className="public-login__dev-hint">개발 중에는 아래 개발용 로그인으로 들어가요.</p>
-                ) : null}
-              </div>
-              <Suspense fallback={null}>
-                <DevLoginPanel />
-              </Suspense>
-            </>
-          ) : null}
+    <LaunchStage>
+      {going ? (
+        <div className="launch-card launch-card__swap public-login__going" role="status">
+          <span className="public-login__orbit" aria-hidden="true" />
+          <p className="public-login__going-text">Google로 이동하는 중이에요</p>
         </div>
-      </div>
-    </main>
+      ) : (
+        <div className="launch-card">
+          <h1 className="launch-card__title">SCENE 시작하기</h1>
+          <p className="launch-card__support">Google 계정으로 로그인해요. 처음이면 이때 계정이 만들어져요.</p>
+          <button type="button" className="public-login__google" onClick={continueWithGoogle}>
+            <svg viewBox="0 0 48 48" width="20" height="20" aria-hidden="true">
+              <path
+                fill="#FFC107"
+                d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.2-.1-2.4-.4-3.5z"
+              />
+              <path
+                fill="#FF3D00"
+                d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"
+              />
+              <path
+                fill="#4CAF50"
+                d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"
+              />
+              <path
+                fill="#1976D2"
+                d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.2-.1-2.4-.4-3.5z"
+              />
+            </svg>
+            Google 계정으로 계속하기
+          </button>
+          <div className="public-login__status" role="status">
+            {googleError ? <p className="public-login__notice">{googleError}</p> : null}
+          </div>
+          <Link className="public-login__back" to="/">
+            처음 화면으로
+          </Link>
+        </div>
+      )}
+      {DevLoginPanel && !going ? (
+        <div className="public-login__dev">
+          <div className="public-login__status" role="status">
+            {next ? <p className="public-login__dev-hint">개발 중에는 아래 개발용 로그인으로 들어가요.</p> : null}
+          </div>
+          <Suspense fallback={null}>
+            <DevLoginPanel />
+          </Suspense>
+        </div>
+      ) : null}
+    </LaunchStage>
   );
 }

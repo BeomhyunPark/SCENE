@@ -282,3 +282,54 @@ a.operator-shell__item {
     padding-right: 20px;
   }
 }
+
+/* Start-up from /login/done: the launch stage's dark fades away while the shell settles in. */
+.operator-shell__curtain {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  background: #0a171b;
+  pointer-events: none;
+  animation: operator-shell-curtain 700ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.operator-shell--boot .operator-shell__sidebar {
+  animation: operator-shell-slide 800ms cubic-bezier(0.22, 1, 0.36, 1) 150ms both;
+}
+
+.operator-shell--boot .operator-shell__main {
+  animation: operator-shell-rise 800ms cubic-bezier(0.22, 1, 0.36, 1) 300ms both;
+}
+
+@keyframes operator-shell-curtain {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+@keyframes operator-shell-slide {
+  from {
+    opacity: 0;
+    transform: translateX(-24px);
+  }
+}
+
+@keyframes operator-shell-rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.99);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .operator-shell__curtain,
+  .operator-shell--boot .operator-shell__sidebar,
+  .operator-shell--boot .operator-shell__main {
+    animation: none;
+  }
+
+  .operator-shell__curtain {
+    display: none;
+  }
+}

@@ -1,10 +1,9 @@
-import { useState } from "react";
-import { Link } from "react-router";
+import { useEffect, useRef, useState, type CSSProperties, type MouseEvent } from "react";
+import { useNavigate } from "react-router";
 import "./Button.css";
 import "./PublicHome.css";
 import { OperationScene } from "./OperationScene";
 import { ScrollTopButton } from "./ScrollTopButton";
-import { startGoogleSignIn } from "../api/googleSignIn";
 
 const TITLE = ["행사 준비에 필요한 일을", "SCENE이 알려드려요."];
 
@@ -70,12 +69,31 @@ const FAQ = [
 ];
 
 export function PublicHome() {
-  const [googleMock, setGoogleMock] = useState(false);
+  const navigate = useNavigate();
+  const [launch, setLaunch] = useState<{ x: number; y: number } | null>(null);
+  const launched = useRef(false);
 
-  // DEC-069: an account is made on the first Google sign-in.
-  function createAccount() {
-    if (import.meta.env.VITE_API_MOCK === "1") setGoogleMock(true);
-    else startGoogleSignIn(null);
+  function toLogin() {
+    if (launched.current) return;
+    launched.current = true;
+    navigate("/login", { state: { launched: true } });
+  }
+
+  // The curtain's animationend moves on; the timer covers browsers that skip the animation.
+  useEffect(() => {
+    if (!launch) return;
+    const id = window.setTimeout(toLogin, 750);
+    return () => window.clearTimeout(id);
+  });
+
+  // 시작하기 covers both: a new operator gets an account on the first Google sign-in (DEC-069).
+  function start(event: MouseEvent<HTMLButtonElement>) {
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      navigate("/login", { state: { launched: true } });
+      return;
+    }
+    const box = event.currentTarget.getBoundingClientRect();
+    setLaunch({ x: box.left + box.width / 2, y: box.top + box.height / 2 });
   }
 
   return (
@@ -106,18 +124,12 @@ export function PublicHome() {
           </h1>
           <p className="public-home__support public-home__enter" style={{ animationDelay: "850ms" }}>SCENE은 교회 공동체의 행사 준비와 운영을 돕는 서비스예요.</p>
           <div className="public-home__actions public-home__enter" style={{ animationDelay: "950ms" }}>
-            <Link className="scene-button scene-button--primary scene-button--size-40" to="/login">
-              <span className="scene-button__label">로그인</span>
-            </Link>
-            <p className="public-home__signup">
-              계정이 없으신가요?{" "}
-              <button type="button" className="public-home__create" onClick={createAccount}>
-                계정 만들기
-              </button>
-            </p>
-            <p className="public-home__notice" role="status">
-              {googleMock ? "목업 화면에서는 Google 로그인을 쓸 수 없어요." : null}
-            </p>
+            <button type="button" className="public-home__start" onClick={start} disabled={launch !== null}>
+              시작하기
+              <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+                <path d="M3 8h9M8.5 4.5L12 8l-3.5 3.5" />
+              </svg>
+            </button>
           </div>
         </div>
         <div className="public-home__scene public-home__enter" style={{ animationDelay: "1100ms" }}>
@@ -190,6 +202,14 @@ export function PublicHome() {
         </dl>
       </section>
       <ScrollTopButton />
+      {launch ? (
+        <div
+          className="public-home__launch"
+          aria-hidden="true"
+          style={{ "--launch-x": `${launch.x}px`, "--launch-y": `${launch.y}px` } as CSSProperties}
+          onAnimationEnd={toLogin}
+        />
+      ) : null}
     </main>
   );
 }
