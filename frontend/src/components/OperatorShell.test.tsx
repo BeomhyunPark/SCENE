@@ -1,22 +1,32 @@
+import type { ReactNode } from "react";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, describe, expect, it } from "vitest";
+import { createQueryClient } from "../api/queryClient";
 import { OperatorShell } from "./OperatorShell";
 
-function renderOrgAt(path: string) {
+function renderRoutes(path: string, routes: ReactNode) {
   return render(
-    <MemoryRouter initialEntries={[path]}>
-      <Routes>
-        <Route
-          path="*"
-          element={
-            <OperatorShell title="조직" spaceName="Local space">
-              <p>본문</p>
-            </OperatorShell>
-          }
-        />
-      </Routes>
-    </MemoryRouter>,
+    <QueryClientProvider client={createQueryClient()}>
+      <MemoryRouter initialEntries={[path]}>{routes}</MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
+
+function renderOrgAt(path: string) {
+  return renderRoutes(
+    path,
+    <Routes>
+      <Route
+        path="*"
+        element={
+          <OperatorShell title="조직" spaceName="Local space">
+            <p>본문</p>
+          </OperatorShell>
+        }
+      />
+    </Routes>,
   );
 }
 
@@ -35,27 +45,26 @@ const orgMenus = [
 ] as const;
 
 function renderAt(path: string) {
-  return render(
-    <MemoryRouter initialEntries={[path]}>
-      <Routes>
-        <Route
-          path="/events/:eventId/*"
-          element={
-            <OperatorShell
-              title="Local event"
-              spaceName="Local space"
-              eventName="Local event"
-              eventHref="/events/e1"
-              eventAreas={["participants", "tasks"]}
-              participantsHref="/events/e1/participants"
-              tasksHref="/events/e1/tasks"
-            >
-              <p>본문</p>
-            </OperatorShell>
-          }
-        />
-      </Routes>
-    </MemoryRouter>,
+  return renderRoutes(
+    path,
+    <Routes>
+      <Route
+        path="/events/:eventId/*"
+        element={
+          <OperatorShell
+            title="Local event"
+            spaceName="Local space"
+            eventName="Local event"
+            eventHref="/events/e1"
+            eventAreas={["participants", "tasks"]}
+            participantsHref="/events/e1/participants"
+            tasksHref="/events/e1/tasks"
+          >
+            <p>본문</p>
+          </OperatorShell>
+        }
+      />
+    </Routes>,
   );
 }
 
@@ -109,6 +118,14 @@ describe("operator shell", () => {
     cleanup();
     renderAt("/events/e1/areas");
     expect(screen.getByRole("link", { name: "다른 기능 시작" })).toHaveAttribute("aria-current", "page");
+  });
+
+  it("offers 로그아웃 in the organization and event sidebars", () => {
+    renderOrgAt("/events");
+    expect(screen.getByRole("button", { name: "로그아웃" })).toHaveAttribute("title", "로그아웃");
+    cleanup();
+    renderAt("/events/e1");
+    expect(screen.getByRole("button", { name: "로그아웃" })).toBeInTheDocument();
   });
 
   it("shows 현장 운영 in the event sidebar", () => {
