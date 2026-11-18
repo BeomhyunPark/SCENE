@@ -179,7 +179,7 @@ export function OperatorShell({
               <ul className="operator-shell__group">
                 <li>
                   <NavItem
-                    item={{ label: "다른 운영 시작", icon: squares, current: matchesPath(pathname, areasHref), to: areasHref }}
+                    item={{ label: "다른 기능 시작", icon: squares, current: matchesPath(pathname, areasHref), to: areasHref }}
                   />
                 </li>
                 <li>
