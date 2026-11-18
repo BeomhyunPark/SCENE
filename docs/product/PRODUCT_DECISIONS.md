@@ -1,6 +1,6 @@
 # Church Event Operations Platform — Product Decisions
 
-> **2026-09-30 baseline:** DEC-001~027의 기존 본문·Status 보존. 최초 정리 당시에는 새 DEC를 만들지 않았고, 이후 검토에서 DEC-028~059를 추가했다. 2026-10-01 #11·#12 기술 계약으로 DEC-060~061을, 2026-10-02 #31 업무·체크리스트 저장 계약으로 DEC-062를, #30 행사 lifecycle command 계약으로 DEC-063을, 2026-10-06 MVP 참여자 인증 결정으로 DEC-064를, 같은 날 업무 오류 판정 순서·Override 사유 저장 보강으로 DEC-065를, 2026-10-15 AI 기능 포함과 첫 AI 범위(C1·C7) 결정으로 DEC-066을, 2026-10-21 개발용 로그인 profile gate·세션 쿠키 결정으로 DEC-067을, 2026-11-16 신청서 질문 유형·조건부 표시·편집 잠금 결정으로 DEC-068을, 같은 날 운영자 Google 로그인·초대 기반 가입·첫 관리자 지정 결정으로 DEC-069를, 신청서 설정·자동 질문·기본항목(이름·전화·또래) 결정으로 DEC-070을 추가했다(현재 마지막 번호 DEC-070). 최신 요청의 제품명 SCENE 및 Technical Design / implementation 전 상태가 현재 기준이다. DEC-024/027의 단계와 §17 Product Name OPEN은 이전 이력이며 기술 기준은 [Architecture](../architecture/architecture-v0.1.md)를 따른다. 공식 Decision Log 정합화는 검토 필요.
+> **2026-09-30 baseline:** DEC-001~027의 기존 본문·Status 보존. 최초 정리 당시에는 새 DEC를 만들지 않았고, 이후 검토에서 DEC-028~059를 추가했다. 2026-10-01 #11·#12 기술 계약으로 DEC-060~061을, 2026-10-02 #31 업무·체크리스트 저장 계약으로 DEC-062를, #30 행사 lifecycle command 계약으로 DEC-063을, 2026-10-06 MVP 참여자 인증 결정으로 DEC-064를, 같은 날 업무 오류 판정 순서·Override 사유 저장 보강으로 DEC-065를, 2026-10-15 AI 기능 포함과 첫 AI 범위(C1·C7) 결정으로 DEC-066을, 2026-10-21 개발용 로그인 profile gate·세션 쿠키 결정으로 DEC-067을, 2026-11-16 신청서 질문 유형·조건부 표시·편집 잠금 결정으로 DEC-068을, 같은 날 운영자 Google 로그인·초대 기반 가입·첫 관리자 지정 결정으로 DEC-069를, 신청서 설정·자동 질문·기본항목(이름·전화·또래) 결정으로 DEC-070을, 2026-11-17 체크인·조 편성·신청 집계·부분 참석·운영 메모 결정으로 DEC-071~075를, 2026-11-18 조직 역할·조직 초대 결정으로 DEC-076을 추가했다(현재 마지막 번호 DEC-076). 최신 요청의 제품명 SCENE 및 Technical Design / implementation 전 상태가 현재 기준이다. DEC-024/027의 단계와 §17 Product Name OPEN은 이전 이력이며 기술 기준은 [Architecture](../architecture/architecture-v0.1.md)를 따른다. 공식 Decision Log 정합화는 검토 필요.
 >
 > DEC-027은 단계 설명에 한해 DEC-024를 대체한다고 기록하지만 DEC-024의 원래 CONFIRMED 표기는 보존한다. Evidence Type의 HYPOTHESIS 용어 충돌도 [검토 기록](../architecture/architecture-v0.1.md)에 남긴다.
 > [Product Definition](PRODUCT_DEFINITION.md) · [Research](RESEARCH.md)
@@ -2343,6 +2343,8 @@ Google 로그인은 비밀번호 보관과 재설정 메일이 필요 없고, �
 
 현 결정 2026-11-16. 사용자 답변(가입 방식: 초대 기반 + 첫 관리자 지정).
 
+> 2026-11-18: DEC-076으로 초대 기반 조직 가입(조직 OWNER·ADMIN이 보내는 조직 초대)이 범위 안에 들어왔다. 공개 가입·공개 조직 생성·조직 가입 요청은 계속 범위 밖이다.
+
 ---
 
 ## DEC-070 — 운영자는 신청서 설정으로 질문을 자동으로 만들고, 기본항목은 이름·전화·또래다
@@ -2816,3 +2818,58 @@ DEC-070은 부분·집회만 참석자가 `MEALS`에서 식사·집회 칸을 �
 
 메모 여러 개(스레드), MANAGER 기본 쓰기(RoleDefaults 변경), 메모 전용 권한 키, 메모 읽기를 연락처 권한으로 제한, 원본 답을 직접 고치기, 1차에 참석 범위까지 넣기를 버렸다.
 
+---
+
+## DEC-076 — 조직 역할은 OWNER·ADMIN·MEMBER이고, 조직 초대는 행사 초대와 같은 계약으로 MEMBER를 만든다
+
+**Date:** 2026-11-18
+
+**Status:** CONFIRMED (현 결정 2026-11-18)
+
+### Context
+
+2027년 1월 수련회 운영진이 조직 멤버로 들어와 행사를 만들고 Event Owner를 맡아야 한다([#358](https://github.com/BeomhyunPark/SCENE/issues/358)). 운영 서버에서 조직에 들어가는 길은 첫 관리자 지정(DEC-069) 하나뿐이다. 행사 생성과 Event Owner는 활성 조직 멤버만 할 수 있어서(DEC-060) 첫 관리자 한 명이 모든 행사를 만들고 Owner를 맡아야 하며, Owner를 넘겨줄 사람도 없다. `members.role`에는 `ADMIN`이 있지만 부여 방법도 결정 문서의 정의도 없고, 서버 여러 서비스에 "공간 OWNER 또는 ADMIN이면 모든 행사 조회" 판정이 있다. 운영 멤버 화면은 초대 링크 만들기만 있고, 기존 멤버를 바로 추가하는 API(`POST /api/v1/operator/events/{eventId}/operators`)는 화면에서 부르지 않는다.
+
+### Decision
+
+- **조직 역할은 `OWNER` / `ADMIN` / `MEMBER` 세 가지다.** `ADMIN`은 수련회 이후 확장을 위해 지금 정의하지만, 1월에는 아무에게도 부여하지 않는다.
+- **`ADMIN`은 공간의 모든 행사를 조회하고, 조직 초대를 `MEMBER`로 보낼 수 있다.** 조회는 현재 코드의 "OWNER 또는 ADMIN이면 모든 행사 조회" 동작을 그대로 정의로 삼는다. 멤버 역할 변경과 멤버 제거는 `OWNER`만 하며 이번 범위 밖이다.
+- **`ADMIN`으로 초대하는 것은 `OWNER`만 한다.** `ADMIN`이 `ADMIN`을 늘리지 못하게 한다. 1월 화면에는 역할 선택지가 없고 `MEMBER`로만 초대한다.
+- **초대로 `OWNER`를 만들지 않는다.** Owner 추가는 기존 위임·인수인계 흐름(DEC-032, DEC-033)을 따른다.
+- **조직 초대 계약은 행사 초대(DEC-060과 2026-11-16 Follow-up)와 같다.**
+  - 1회용 토큰은 해시만 저장한다. 수락은 세션의 검증된 이메일이 초대 이메일과 같을 때만 된다.
+  - TTL은 7일 서버 상수다. 재전송은 새 행을 만들고 이전 행을 `SUPERSEDED`로 남긴다.
+  - 저장 상태는 `PENDING / ACCEPTED / REVOKED / SUPERSEDED`이고, 같은 공간·이메일의 `PENDING`은 하나만 허용한다.
+  - SMTP가 없는 동안 생성·재전송 응답이 링크(`/operator/invitations#<token>`)를 한 번만 돌려준다.
+- **이미 활성 멤버인 사람이 수락하면 성공으로 보고 `outcome: ALREADY_MEMBER`를 돌려준다.** 행사 초대의 `ALREADY_ACCEPTED`와 같은 방식이다.
+- **탈퇴(`LEFT`)한 사람이 수락하면 같은 Membership을 다시 `ACTIVE`로 바꾼다.** 재가입을 허용한다(DEC-037).
+- **행사 전용 협력자가 조직에 들어와도 기존 `event_users` 행은 그대로 둔다**(DEC-039).
+- **멤버 목록은 활성 멤버 모두가 이름·역할을 본다. 이메일은 `OWNER`·`ADMIN`만 본다.** DEC-060의 연락처 숨김과 맞춘다.
+- **행사에 조직 멤버를 넣을 때는 Event Owner가 멤버 목록에서 골라 바로 추가한다**(기존 `POST /api/v1/operator/events/{eventId}/operators`). 외부인은 계속 행사 초대로 들어온다. 행사 초대는 Event Owner만 보낸다(DEC-060 그대로).
+- DEC-037의 "초기 승인권은 조직 Owner에게만"은 가입 요청 승인에 대한 규칙으로 남는다. 조직 초대를 보내는 권한만 `ADMIN`까지 넓힌다.
+
+### 범위 밖
+
+- 멤버 역할 변경, 멤버 제거, `ADMIN` 부여 화면
+- 공개 가입, 누구나 조직을 만드는 공개 조직 생성, 조직 가입 요청(DEC-069 범위 밖 유지)
+- 초대 메일 발송(SMTP)
+
+### Alternatives
+
+- `ADMIN`을 지금 만들지 않고 `OWNER`·`MEMBER`만 두기: 코드에 이미 `ADMIN` 판정이 퍼져 있어 정의 없이 남게 된다. 수련회 이후 다시 정해야 해서 채택하지 않았다.
+- `ADMIN`도 `ADMIN`으로 초대하기: 관리자가 통제 없이 늘어나 채택하지 않았다.
+- 초대로 `OWNER` 만들기: 위임·인수인계(DEC-033)를 건너뛰게 돼 채택하지 않았다.
+- 조직 초대만의 새 토큰·상태 규칙: 검증된 행사 초대 흐름을 다시 만들 이유가 없어 채택하지 않았다.
+- 조직 멤버도 행사 초대 링크로 넣기: 이미 신원이 확인된 멤버에게 링크 전달을 요구해 번거롭다.
+
+### Reason
+
+조직 멤버를 늘릴 길이 생겨야 1월 운영진이 행사를 만들고 Owner를 나눠 맡을 수 있다. 역할은 코드에 이미 있는 세 가지로 정의하고, 초대는 검증된 행사 초대 계약을 그대로 써서 새 위험을 줄인다. 조직 멤버는 바로 추가하고 외부인만 초대해 조직 소속과 행사 접근의 두 층(DEC-039, DEC-060)을 유지한다.
+
+### Consequence
+
+서버는 조직 역할 판정을 한 곳으로 모은 뒤(동작 변화 없음) 조직 초대 생성·재전송·취소·목록·미리보기·수락을 만든다. 화면은 조직 설정의 멤버 목록·초대, 조직 초대도 처리하는 초대 수락 화면, 운영 멤버 화면의 조직 멤버 바로 추가를 만든다. 하위 작업은 [#358](https://github.com/BeomhyunPark/SCENE/issues/358)에 있다. 이 결정은 DEC-069의 "범위 밖" 중 초대 기반 조직 가입을 범위 안으로 가져온다. [organization-entry-review](organization-entry-review.md) "현재 범위 (2026-11-18)"에 적었다.
+
+### Evidence
+
+현 결정 2026-11-18. [#358](https://github.com/BeomhyunPark/SCENE/issues/358) 사용자 결정, [#359](https://github.com/BeomhyunPark/SCENE/issues/359) 추천 기본값 모두 확인. 근거 결정은 DEC-032, DEC-033, DEC-037, DEC-039, DEC-060, DEC-069이다.
