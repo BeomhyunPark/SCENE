@@ -14,7 +14,7 @@ const SERVICE = [
   },
   {
     tag: "골라 쓰기",
-    title: "필요한 운영만 골라 써요",
+    title: "필요한 기능만 골라 써요",
     body: "작은 모임은 준비 업무만 써도 충분해요. 규모가 커지면 참가자 받기나 일정 정리를 그때 더하면 돼요.",
   },
   {
@@ -49,7 +49,7 @@ const SIZES = [
 
 const STEPS = [
   { title: "행사 만들기", body: "행사 종류와 날짜만 정하면 시작할 수 있어요." },
-  { title: "필요한 운영 고르기", body: "행사 크기에 맞춰 필요한 것만 골라 시작하고, 나머지는 필요해질 때 더해요." },
+  { title: "필요한 기능 고르기", body: "행사 크기에 맞춰 필요한 것만 골라 시작하고, 나머지는 필요해질 때 더해요." },
   { title: "추천대로 준비하기", body: "추천받은 업무를 담당자와 나누고, 체크리스트로 빠진 일이 없는지 확인해요." },
   { title: "회고 남기기", body: "잘된 점과 아쉬운 점을 적어 두고 다음 행사 때 다시 꺼내 봐요." },
 ];
@@ -61,7 +61,7 @@ const FAQ = [
   },
   {
     q: "작은 모임에도 쓸 만한가요?",
-    a: "네. 작은 행사는 준비 업무만 써도 돼요. 다른 운영은 필요할 때 켜면 돼요.",
+    a: "네. 작은 행사는 준비 업무만 써도 돼요. 다른 기능은 필요할 때 켜면 돼요.",
   },
   { q: "참여자도 가입해야 하나요?", a: "아니요. 운영자가 공유한 신청 링크에서 바로 신청할 수 있어요." },
   { q: "운영자 계정은 어떻게 만드나요?", a: "Google 계정으로 처음 로그인하면 SCENE 계정이 만들어져요." },
@@ -132,7 +132,7 @@ export function PublicHome() {
             <li key={size.title} className="public-home__size">
               <h3 className="public-home__card-title">{size.title}</h3>
               <p className="public-home__card-body">{size.example}</p>
-              <ul className="public-home__uses" aria-label={`${size.title}에서 쓰는 운영`}>
+              <ul className="public-home__uses" aria-label={`${size.title}에서 쓰는 기능`}>
                 {size.uses.map((use) => (
                   <li key={use} className="public-home__tag">
                     {use}
