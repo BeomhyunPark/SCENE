@@ -35,10 +35,10 @@ describe("public shell", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /함께하는 순간에,\s*더 집중할 수 있도록\./,
+        name: /행사 준비에 필요한 일을\s*SCENE이 알려드려요\./,
       }),
     ).toBeInTheDocument();
-    expect(screen.getByText("교회 공동체를 위한 행사 운영 플랫폼, SCENE.")).toBeInTheDocument();
+    expect(screen.getByText("SCENE은 교회 공동체의 행사 준비와 운영을 돕는 서비스예요.")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "시작하기" })).toBeNull();
     expect(screen.getByText(/계정이 없으신가요\?/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "계정 만들기" })).toHaveAttribute("type", "button");
@@ -61,8 +61,8 @@ describe("public shell", () => {
     expect(document.querySelector("[data-theme]")).toBeNull();
 
     for (const [id, name] of [
-      ["service", "행사를 처음 맡아도, 운영할 수 있도록"],
-      ["how", "행사 크기만큼만, 필요한 운영만"],
+      ["service", "행사를 처음 운영해도 어려움 없이"],
+      ["how", "행사 규모만큼 필요한 기능만"],
       ["help", "자주 묻는 질문"],
     ]) {
       expect(screen.getByRole("heading", { level: 2, name })).toBeInTheDocument();
