@@ -1,5 +1,8 @@
 import { useState, type ReactNode } from "react";
-import { Link, useLocation } from "react-router";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Link, useLocation, useNavigate } from "react-router";
+import { isApiError } from "../api/errors";
+import { logout } from "../api/session";
 import symbol from "../assets/scene-symbol-header.svg";
 import events from "../assets/event-nav/events.svg";
 import bell from "../assets/event-nav/bell.svg";
@@ -15,6 +18,7 @@ import briefcase from "../assets/event-nav/briefcase.svg";
 import squares from "../assets/event-nav/squares.svg";
 import gear from "../assets/event-nav/gear.svg";
 import caretVertical from "../assets/event-nav/caret-vertical.svg";
+import signOut from "../assets/event-nav/sign-out.svg";
 import "./OperatorShell.css";
 
 // The start-up from /login/done plays once per history entry, even if the shell mounts again
@@ -237,6 +241,7 @@ export function OperatorShell({
             </>
           )}
         </nav>
+        <SignOut />
         <div className="operator-shell__org">
           <span className="operator-shell__org-main">
             <span className="operator-shell__avatar" aria-hidden="true">
@@ -257,6 +262,49 @@ export function OperatorShell({
         </header>
         {children}
       </main>
+    </div>
+  );
+}
+
+/** Ends the operator session, drops every cached answer of this account, and opens the login page. */
+function SignOut() {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [failed, setFailed] = useState(false);
+  const leave = () => {
+    queryClient.clear();
+    navigate("/login", { replace: true });
+  };
+  const signingOut = useMutation({
+    mutationFn: logout,
+    retry: false,
+    onMutate: () => setFailed(false),
+    onSuccess: leave,
+    onError: (error) => {
+      // The session is already gone: same outcome as a sign-out.
+      if (isApiError(error) && error.status === 401) leave();
+      else setFailed(true);
+    },
+  });
+  return (
+    <div className="operator-shell__account">
+      {failed ? (
+        <p className="operator-shell__account-error" role="alert">
+          로그아웃하지 못했어요. 다시 시도해 주세요.
+        </p>
+      ) : null}
+      <button
+        className="operator-shell__item"
+        type="button"
+        title="로그아웃"
+        disabled={signingOut.isPending}
+        onClick={() => signingOut.mutate()}
+      >
+        <span className="operator-shell__item-main">
+          <img src={signOut} alt="" />
+          <span className="operator-shell__label">로그아웃</span>
+        </span>
+      </button>
     </div>
   );
 }

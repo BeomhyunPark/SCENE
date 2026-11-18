@@ -3,7 +3,7 @@ import { MemoryRouter } from "react-router";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it, vi } from "vitest";
 import { App } from "../App";
-import { login } from "../api/session";
+import { getMe, login } from "../api/session";
 import { localUsers } from "../mocks/fixtures/seed";
 import { server } from "../mocks/server";
 import { operatorRequests } from "../mocks/operatorStore";
@@ -107,6 +107,33 @@ describe("operator entry", () => {
     fireEvent.click(await screen.findByRole("button", { name: "들어가기" }));
     expect(await screen.findByText("아직 들어간 조직이 없어요")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "조직 찾기" })).toHaveAttribute("href", "/find-organization");
+  });
+
+  it("signs out from the sidebar and asks for login again", async () => {
+    await signIn();
+    fireEvent.click(screen.getByRole("button", { name: "로그아웃" }));
+    expect(await screen.findByRole("heading", { name: "SCENE 시작하기" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Local space의 행사" })).toBeNull();
+    await expect(getMe()).rejects.toMatchObject({ status: 401 });
+  });
+
+  it("stays signed in and says so when sign-out fails", async () => {
+    await signIn();
+    server.use(http.post("/api/v1/operator/auth/logout", () => HttpResponse.error()));
+    fireEvent.click(screen.getByRole("button", { name: "로그아웃" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("로그아웃하지 못했어요. 다시 시도해 주세요.");
+    expect(screen.getByRole("heading", { name: "Local space의 행사" })).toBeInTheDocument();
+  });
+
+  it("treats an already ended session as signed out", async () => {
+    await signIn();
+    server.use(
+      http.post("/api/v1/operator/auth/logout", () =>
+        HttpResponse.json({ status: 401, code: "AUTHENTICATION_REQUIRED" }, { status: 401 }),
+      ),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "로그아웃" }));
+    expect(await screen.findByRole("heading", { name: "SCENE 시작하기" })).toBeInTheDocument();
   });
 
   it("says when the event cannot be found", async () => {

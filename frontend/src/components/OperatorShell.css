@@ -138,11 +138,23 @@ a.operator-shell__item {
   background: var(--color-bg-hover-row);
 }
 
+.operator-shell__account {
+  margin-top: auto;
+  padding: 12px 16px;
+}
+
+.operator-shell__account-error {
+  margin: 0 0 8px;
+  padding: 0 8px;
+  color: var(--color-text-secondary);
+  font: var(--scene-label-s);
+  letter-spacing: 0;
+}
+
 .operator-shell__org {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: auto;
   padding: 20px 16px;
   border-top: 1px solid var(--color-border-default);
 }
@@ -191,6 +203,14 @@ a.operator-shell__item {
 
 .operator-shell--collapsed .operator-shell__group {
   padding: 0 12px;
+}
+
+.operator-shell--collapsed .operator-shell__account {
+  padding: 12px;
+}
+
+.operator-shell--collapsed .operator-shell__account-error {
+  display: none;
 }
 
 .operator-shell--collapsed .operator-shell__item {
