@@ -86,7 +86,7 @@ export function App() {
           <Route path="/events/:eventId/settings" element={<EventSettings />} />
           <Route
             path="/events/:eventId/areas"
-            element={<EventMenuPending title="다른 운영 시작" message="이 행사에서 쓸 운영을 고르는 화면은 아직 만들고 있어요." />}
+            element={<EventMenuPending title="다른 기능 시작" message="이 행사에서 쓸 기능을 고르는 화면은 아직 만들고 있어요." />}
           />
           <Route path="/events/:eventId/field" element={<EventField />} />
           <Route path="/events/:eventId/groups" element={<EventGroups />} />

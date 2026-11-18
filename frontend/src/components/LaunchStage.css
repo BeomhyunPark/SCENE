@@ -1,0 +1,151 @@
+.launch-stage {
+  --launch-bg: #0a171b;
+  --launch-fg: #eef5f6;
+  --launch-muted: #9fb3b7;
+  --launch-line: rgb(255 255 255 / 10%);
+  --launch-card: rgb(255 255 255 / 5%);
+  --launch-accent: #4db3c3;
+
+  position: relative;
+  display: grid;
+  min-height: 100vh;
+  min-height: 100dvh;
+  place-items: center;
+  overflow: hidden;
+  padding: 48px 20px;
+  box-sizing: border-box;
+  background: var(--launch-bg);
+  color: var(--launch-fg);
+  transition:
+    opacity 450ms ease,
+    filter 450ms ease;
+}
+
+.launch-stage--leaving {
+  opacity: 0;
+  filter: blur(8px);
+}
+
+.launch-stage__glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 900px;
+  height: 900px;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgb(77 179 195 / 22%), rgb(77 179 195 / 6%) 55%, transparent);
+  transform: translate(-50%, -58%) scale(0.6);
+  opacity: 0;
+  animation: launch-glow 1.6s cubic-bezier(0.22, 1, 0.36, 1) 200ms forwards;
+  pointer-events: none;
+}
+
+.launch-stage__center {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+  width: min(400px, 100%);
+}
+
+.launch-stage__symbol {
+  display: block;
+  fill: none;
+  stroke: var(--launch-fg);
+  stroke-width: 3.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 10px rgb(77 179 195 / 70%));
+  animation: launch-lift 700ms cubic-bezier(0.22, 1, 0.36, 1) 750ms both;
+}
+
+.launch-stage__symbol path {
+  stroke-dasharray: 40;
+  stroke-dashoffset: 40;
+  animation: launch-draw 750ms cubic-bezier(0.65, 0, 0.35, 1) 150ms forwards;
+}
+
+.launch-stage__symbol path + path {
+  animation-delay: 330ms;
+}
+
+.launch-stage__content {
+  width: 100%;
+  animation: launch-rise 700ms cubic-bezier(0.22, 1, 0.36, 1) 950ms both;
+}
+
+/* Shared card look for what sits on the stage. */
+.launch-card {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 32px 28px 28px;
+  border: 1px solid var(--launch-line);
+  border-radius: 20px;
+  background: var(--launch-card);
+  box-shadow: 0 30px 60px -20px rgb(0 0 0 / 50%);
+  backdrop-filter: blur(16px);
+  text-align: center;
+}
+
+.launch-card__title {
+  margin: 0;
+  font: 700 24px/32px "Noto Sans KR", sans-serif;
+  letter-spacing: -0.01em;
+}
+
+.launch-card__support {
+  margin: -8px 0 0;
+  color: var(--launch-muted);
+  font: var(--scene-body-m);
+}
+
+.launch-card__swap {
+  animation: launch-swap 400ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes launch-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes launch-lift {
+  from {
+    transform: translateY(70px) scale(1.5);
+  }
+}
+
+@keyframes launch-rise {
+  from {
+    opacity: 0;
+    filter: blur(6px);
+    transform: translateY(24px);
+  }
+}
+
+@keyframes launch-glow {
+  to {
+    opacity: 1;
+    transform: translate(-50%, -58%) scale(1);
+  }
+}
+
+@keyframes launch-swap {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .launch-stage *,
+  .launch-stage {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 1ms !important;
+  }
+}

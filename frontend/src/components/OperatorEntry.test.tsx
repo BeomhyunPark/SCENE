@@ -25,7 +25,7 @@ async function signIn() {
 describe("operator entry", () => {
   it("sends an anonymous visit to login", async () => {
     renderAt("/events");
-    expect(await screen.findByRole("heading", { name: "다시 만나서 반가워요" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "SCENE 시작하기" })).toBeInTheDocument();
     expect(screen.getByText("개발 중에는 아래 개발용 로그인으로 들어가요.")).toBeInTheDocument();
   });
 

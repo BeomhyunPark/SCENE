@@ -17,6 +17,21 @@ import gear from "../assets/event-nav/gear.svg";
 import caretVertical from "../assets/event-nav/caret-vertical.svg";
 import "./OperatorShell.css";
 
+// The start-up from /login/done plays once per history entry, even if the shell mounts again
+// (a loading shell first, then the page).
+const bootedKeys = new Set<string>();
+
+function useBootEntrance(): boolean {
+  const location = useLocation();
+  const [boot] = useState(() => {
+    const asked = (location.state as { boot?: boolean } | null)?.boot === true;
+    if (!asked || bootedKeys.has(location.key)) return false;
+    bootedKeys.add(location.key);
+    return true;
+  });
+  return boot;
+}
+
 function matchesPath(pathname: string, href?: string): boolean {
   if (!href) return false;
   return pathname === href || pathname.startsWith(`${href}/`);
@@ -98,6 +113,7 @@ export function OperatorShell({
   const fieldHref = eventHref ? `${eventHref}/field` : undefined;
   const groupsHref = eventHref ? `${eventHref}/groups` : undefined;
   const [collapsed, setCollapsed] = useState(readCollapsed);
+  const boot = useBootEntrance();
   function toggleCollapsed() {
     setCollapsed((value) => {
       writeCollapsed(!value);
@@ -105,7 +121,10 @@ export function OperatorShell({
     });
   }
   return (
-    <div className={collapsed ? "operator-shell operator-shell--collapsed" : "operator-shell"}>
+    <div
+      className={`operator-shell${collapsed ? " operator-shell--collapsed" : ""}${boot ? " operator-shell--boot" : ""}`}
+    >
+      {boot ? <div className="operator-shell__curtain" aria-hidden="true" /> : null}
       <aside className="operator-shell__sidebar">
         <div className="operator-shell__brand">
           <span className="operator-shell__logo">
@@ -179,7 +198,7 @@ export function OperatorShell({
               <ul className="operator-shell__group">
                 <li>
                   <NavItem
-                    item={{ label: "다른 운영 시작", icon: squares, current: matchesPath(pathname, areasHref), to: areasHref }}
+                    item={{ label: "다른 기능 시작", icon: squares, current: matchesPath(pathname, areasHref), to: areasHref }}
                   />
                 </li>
                 <li>

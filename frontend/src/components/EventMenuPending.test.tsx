@@ -13,10 +13,10 @@ describe("event sidebar pending menus", () => {
     );
     fireEvent.click(await screen.findByRole("button", { name: "들어가기" }));
     fireEvent.click(await screen.findByRole("button", { name: /Local event/ }));
-    fireEvent.click(await screen.findByRole("link", { name: "다른 운영 시작" }));
+    fireEvent.click(await screen.findByRole("link", { name: "다른 기능 시작" }));
     expect(await screen.findByRole("heading", { name: "아직 준비 중이에요" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 1, name: "다른 운영 시작" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "다른 운영 시작" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("heading", { level: 1, name: "다른 기능 시작" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "다른 기능 시작" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("link", { name: "행사로 돌아가기" })).toHaveAttribute(
       "href",
       `/events/${localEvent.eventId}`,

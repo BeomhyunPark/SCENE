@@ -1,31 +1,32 @@
-import { useState } from "react";
-import { Link } from "react-router";
+import { useEffect, useRef, useState, type CSSProperties, type MouseEvent } from "react";
+import { useNavigate } from "react-router";
 import "./Button.css";
 import "./PublicHome.css";
-import { MarketingPreview } from "./MarketingPreview";
+import { OperationScene } from "./OperationScene";
 import { ScrollTopButton } from "./ScrollTopButton";
-import { startGoogleSignIn } from "../api/googleSignIn";
+
+const TITLE = ["행사 준비에 필요한 일을", "SCENE이 알려드려요."];
 
 const SERVICE = [
   {
-    tag: "처음이어도",
+    tag: "할 일 추천",
     title: "행사를 잘 몰라도 운영할 수 있어요",
     body: "행사 종류와 기간에 맞춰 준비할 일과 체크리스트를 추천해요. 무엇부터 할지 몰라도 '지금 시작할 일'부터 따라가면 돼요.",
   },
   {
-    tag: "필요한 만큼만",
-    title: "행사 크기에 맞게 골라서 운영해요",
-    body: "작은 모임은 준비 업무만으로 충분해요. 규모가 커지면 참가자 받기, 일정 정리처럼 필요한 운영을 그때 더하면 돼요.",
+    tag: "골라 쓰기",
+    title: "필요한 기능만 골라 써요",
+    body: "작은 모임은 준비 업무만 써도 충분해요. 규모가 커지면 참가자 받기나 일정 정리를 그때 더하면 돼요.",
   },
   {
-    tag: "한곳에",
-    title: "흩어진 정보와 불필요한 문서를 줄여요",
-    body: "명단, 준비 업무, 운영자, 회고가 행사 하나에 모여요. 엑셀과 단체 대화방, 개인 메모를 오가며 맞춰 볼 필요가 없어요.",
+    tag: "명단과 업무",
+    title: "명단과 업무를 SCENE에서 같이 관리해요",
+    body: "명단, 준비 업무, 운영자, 회고를 행사별로 모아 둬요. 엑셀, 단톡방, 개인 메모를 오가며 맞춰 보지 않아도 돼요.",
   },
   {
-    tag: "다음 행사로",
-    title: "매년 반복하는 실수를 남기지 않아요",
-    body: "행사가 끝나면 회고를 함께 남겨요. 담당자가 바뀌어도 올해의 경험이 다음 행사의 출발점이 돼요.",
+    tag: "회고",
+    title: "끝난 행사는 회고로 남겨요",
+    body: "잘된 점과 아쉬운 점을 적어 두면 담당자가 바뀌어도 다음 해에 그대로 참고할 수 있어요.",
   },
 ];
 
@@ -49,9 +50,9 @@ const SIZES = [
 
 const STEPS = [
   { title: "행사 만들기", body: "행사 종류와 날짜만 정하면 시작할 수 있어요." },
-  { title: "필요한 운영 고르기", body: "행사 크기에 맞춰 필요한 것만 골라 시작하고, 나머지는 필요해질 때 더해요." },
+  { title: "필요한 기능 고르기", body: "행사 크기에 맞춰 필요한 것만 골라 시작하고, 나머지는 필요해질 때 더해요." },
   { title: "추천대로 준비하기", body: "추천받은 업무를 담당자와 나누고, 체크리스트로 빠진 일이 없는지 확인해요." },
-  { title: "회고 남기기", body: "잘된 점과 아쉬운 점을 남겨 다음 행사가 같은 실수를 반복하지 않게 해요." },
+  { title: "회고 남기기", body: "잘된 점과 아쉬운 점을 적어 두고 다음 행사 때 다시 꺼내 봐요." },
 ];
 
 const FAQ = [
@@ -61,55 +62,87 @@ const FAQ = [
   },
   {
     q: "작은 모임에도 쓸 만한가요?",
-    a: "작은 행사는 준비 업무만으로 시작해도 괜찮아요. 쓰지 않는 운영은 시작하지 않으면 그만이에요.",
+    a: "네. 작은 행사는 준비 업무만 써도 돼요. 다른 기능은 필요할 때 켜면 돼요.",
   },
   { q: "참여자도 가입해야 하나요?", a: "아니요. 운영자가 공유한 신청 링크에서 바로 신청할 수 있어요." },
   { q: "운영자 계정은 어떻게 만드나요?", a: "Google 계정으로 처음 로그인하면 SCENE 계정이 만들어져요." },
 ];
 
 export function PublicHome() {
-  const [googleMock, setGoogleMock] = useState(false);
+  const navigate = useNavigate();
+  const [launch, setLaunch] = useState<{ x: number; y: number } | null>(null);
+  const launched = useRef(false);
 
-  // DEC-069: an account is made on the first Google sign-in.
-  function createAccount() {
-    if (import.meta.env.VITE_API_MOCK === "1") setGoogleMock(true);
-    else startGoogleSignIn(null);
+  function toLogin() {
+    if (launched.current) return;
+    launched.current = true;
+    navigate("/login", { state: { launched: true } });
+  }
+
+  // The curtain's animationend moves on; the timer covers browsers that skip the animation.
+  useEffect(() => {
+    if (!launch) return;
+    const id = window.setTimeout(toLogin, 750);
+    return () => window.clearTimeout(id);
+  });
+
+  // 시작하기 covers both: a new operator gets an account on the first Google sign-in (DEC-069).
+  function start(event: MouseEvent<HTMLButtonElement>) {
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      navigate("/login", { state: { launched: true } });
+      return;
+    }
+    const box = event.currentTarget.getBoundingClientRect();
+    setLaunch({ x: box.left + box.width / 2, y: box.top + box.height / 2 });
   }
 
   return (
     <main className="public-home">
       <div className="public-home__stack">
         <div className="public-home__copy">
-          <h1 className="public-home__title">
-            함께하는 순간에,
-            <br />
-            더 집중할 수 있도록.
+          <svg className="public-home__symbol" viewBox="0 0 35.712 35.712" width="48" height="48" aria-hidden="true">
+            <path d="M7.2 24.2784V13.2672C7.2 11.184 8.3904 9.9936 10.4736 9.3984L26.8416 3.744" />
+            <path d="M28.3296 12.0768V22.4928C28.3296 24.576 27.1392 25.7664 25.3536 26.3616L9.5808 31.7184" />
+          </svg>
+          <h1 className="public-home__title" aria-label={TITLE.join(" ")}>
+            {TITLE.map((line, lineIndex) => (
+              <span key={line} className="public-home__title-line">
+                {line.split(" ").map((word, wordIndex, words) => (
+                  <span key={word}>
+                    <span
+                      className="public-home__word"
+                      style={{ animationDelay: `${450 + (lineIndex * 3 + wordIndex) * 70}ms` }}
+                    >
+                      {word}
+                    </span>
+                    {wordIndex < words.length - 1 ? " " : null}
+                  </span>
+                ))}
+                {lineIndex < TITLE.length - 1 ? <br /> : null}
+              </span>
+            ))}
           </h1>
-          <p className="public-home__support">교회 공동체를 위한 행사 운영 플랫폼, SCENE.</p>
-          <div className="public-home__actions">
-            <Link className="scene-button scene-button--primary scene-button--size-40" to="/login">
-              <span className="scene-button__label">로그인</span>
-            </Link>
-            <p className="public-home__signup">
-              계정이 없으신가요?{" "}
-              <button type="button" className="public-home__create" onClick={createAccount}>
-                계정 만들기
-              </button>
-            </p>
-            <p className="public-home__notice" role="status">
-              {googleMock ? "목업 화면에서는 Google 로그인을 쓸 수 없어요." : null}
-            </p>
+          <p className="public-home__support public-home__enter" style={{ animationDelay: "850ms" }}>SCENE은 교회 공동체의 행사 준비와 운영을 돕는 서비스예요.</p>
+          <div className="public-home__actions public-home__enter" style={{ animationDelay: "950ms" }}>
+            <button type="button" className="public-home__start" onClick={start} disabled={launch !== null}>
+              시작하기
+              <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+                <path d="M3 8h9M8.5 4.5L12 8l-3.5 3.5" />
+              </svg>
+            </button>
           </div>
         </div>
-        <MarketingPreview />
+        <div className="public-home__scene public-home__enter" style={{ animationDelay: "1100ms" }}>
+          <OperationScene />
+        </div>
       </div>
 
       <section id="service" className="public-home__section" aria-labelledby="service-title">
         <h2 id="service-title" className="public-home__section-title">
-          행사를 처음 맡아도, 운영할 수 있도록
+          행사를 처음 운영해도 어려움 없이
         </h2>
         <p className="public-home__section-lead">
-          불필요한 문서는 줄이고, 흩어진 정보는 한곳에 모으고, 매년 반복되는 실수는 남기지 않아요.
+          무엇부터 해야 할지 SCENE이 알려드려요. 명단과 업무도 SCENE에서 같이 관리해요.
         </p>
         <ul className="public-home__cards">
           {SERVICE.map((item) => (
@@ -124,15 +157,15 @@ export function PublicHome() {
 
       <section id="how" className="public-home__section" aria-labelledby="how-title">
         <h2 id="how-title" className="public-home__section-title">
-          행사 크기만큼만, 필요한 운영만
+          행사 규모만큼 필요한 기능만
         </h2>
-        <p className="public-home__section-lead">모든 기능을 다 쓸 필요는 없어요. 행사에 맞게 골라 시작해요.</p>
+        <p className="public-home__section-lead">모든 기능을 다 쓰지 않아도 돼요. 행사에 필요한 것만 골라 시작하세요.</p>
         <ul className="public-home__sizes">
           {SIZES.map((size) => (
             <li key={size.title} className="public-home__size">
               <h3 className="public-home__card-title">{size.title}</h3>
               <p className="public-home__card-body">{size.example}</p>
-              <ul className="public-home__uses" aria-label={`${size.title}에서 쓰는 운영`}>
+              <ul className="public-home__uses" aria-label={`${size.title}에서 쓰는 기능`}>
                 {size.uses.map((use) => (
                   <li key={use} className="public-home__tag">
                     {use}
@@ -169,6 +202,14 @@ export function PublicHome() {
         </dl>
       </section>
       <ScrollTopButton />
+      {launch ? (
+        <div
+          className="public-home__launch"
+          aria-hidden="true"
+          style={{ "--launch-x": `${launch.x}px`, "--launch-y": `${launch.y}px` } as CSSProperties}
+          onAnimationEnd={toLogin}
+        />
+      ) : null}
     </main>
   );
 }
