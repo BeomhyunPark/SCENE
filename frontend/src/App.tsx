@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { Route, Routes } from "react-router";
+import { Navigate, Route, Routes } from "react-router";
 import { createQueryClient } from "./api/queryClient";
 import { MockBanner } from "./components/MockBanner";
 import { EventCreate } from "./components/EventCreate";
@@ -27,6 +27,7 @@ import { SpaceSettings } from "./components/SpaceSettings";
 import { RequireOperator } from "./components/RequireOperator";
 import { PublicHeader } from "./components/PublicHeader";
 import { PublicHome } from "./components/PublicHome";
+import { PublicInviteOnly } from "./components/PublicInviteOnly";
 import { PublicLogin } from "./components/PublicLogin";
 import { PublicSignup } from "./components/PublicSignup";
 import { PublicFindOrganization } from "./components/PublicFindOrganization";
@@ -38,6 +39,7 @@ import { PublicVerifyEmail } from "./components/PublicVerifyEmail";
 import { LoginDone } from "./components/LoginDone";
 import { MenuEventPicker } from "./components/MenuEventPicker";
 import { MenuPending } from "./components/MenuPending";
+import { prototypeScreensEnabled } from "./prototypeScreens";
 
 function Home() {
   return (
@@ -61,6 +63,8 @@ function NotFound() {
 
 export function App() {
   const [queryClient] = useState(() => createQueryClient());
+  const prototypes = prototypeScreensEnabled();
+  const inviteOnly = <Navigate to="/find-organization" replace />;
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -103,9 +107,12 @@ export function App() {
         </Route>
         <Route path="/signup" element={<PublicSignup />} />
         <Route path="/verify-email" element={<PublicVerifyEmail />} />
-        <Route path="/find-organization" element={<PublicFindOrganization />} />
-        <Route path="/join-pending" element={<PublicJoinPending />} />
-        <Route path="/register-organization" element={<PublicRegisterOrganization />} />
+        <Route path="/find-organization" element={prototypes ? <PublicFindOrganization /> : <PublicInviteOnly />} />
+        <Route path="/join-pending" element={prototypes ? <PublicJoinPending /> : inviteOnly} />
+        <Route
+          path="/register-organization"
+          element={prototypes ? <PublicRegisterOrganization /> : inviteOnly}
+        />
         <Route path="/forgot-password" element={<PublicForgotPassword />} />
         <Route path="/reset-password" element={<PublicResetPassword />} />
         <Route path="/operator/invitations" element={<InvitationAccept />} />

@@ -7,6 +7,7 @@ import { listEvents } from "../api/events";
 import { reloadQuery } from "../api/queryClient";
 import { queryKeys } from "../api/queryKeys";
 import { useCurrentSpace } from "../api/useCurrentSpace";
+import { prototypeScreensEnabled } from "../prototypeScreens";
 import { Button } from "./Button";
 import { eventContext, lifecycleLabel } from "./eventFormat";
 import { OperatorShell } from "./OperatorShell";
@@ -39,7 +40,11 @@ export function EventList() {
         <div className="event-list__body">
           <section className="event-list__empty">
             <h3 className="event-list__empty-title">아직 들어간 조직이 없어요</h3>
-            <Link to="/find-organization">조직 찾기</Link>
+            {prototypeScreensEnabled() ? (
+              <Link to="/find-organization">조직 찾기</Link>
+            ) : (
+              <p className="event-list__empty-copy">운영진에게 받은 초대 링크로 들어와 주세요.</p>
+            )}
           </section>
         </div>
       </OperatorShell>
