@@ -77,7 +77,20 @@ backup() {
     | sort -rn | tail -n +"$((KEEP_BACKUPS + 1))" | cut -d' ' -f2- | xargs -r rm -f --
 }
 
-up() { docker compose up -d --build --wait; }
+# cron has no Windows PATH, so Docker Desktop's credsStore (docker-credential-desktop.exe) in
+# ~/.docker/config.json fails every image pull. All images here are public: use an empty config.
+docker_config() {
+  export DOCKER_CONFIG="$STATE_DIR/docker-config"
+  mkdir -p "$DOCKER_CONFIG"
+  [[ -f "$DOCKER_CONFIG/config.json" ]] || echo '{}' >"$DOCKER_CONFIG/config.json"
+  # Keep the compose and buildx plugins the user installed.
+  if [[ -d "$HOME/.docker/cli-plugins" && ! -e "$DOCKER_CONFIG/cli-plugins" ]]; then
+    ln -s "$HOME/.docker/cli-plugins" "$DOCKER_CONFIG/cli-plugins"
+  fi
+}
+
+build() { docker compose build --pull; }
+up() { docker compose up -d --wait; }
 
 main() {
   local force=false
@@ -131,8 +144,17 @@ main() {
   fi
 
   log "deploying ${current:0:7} -> ${target:0:7}"
+  docker_config
   backup "$current"
   git -C "$REPO_DIR" merge --quiet --ff-only "$target"
+
+  # Build before touching anything: a failed build leaves the running containers as they are.
+  if ! build; then
+    log "ERROR: build of ${target:0:7} failed; the running version ${current:0:7} was not touched"
+    printf '%s\n' "$target" >"$STATE_DIR/failed-sha"
+    git -C "$REPO_DIR" reset --quiet --hard "$current"
+    exit 1
+  fi
 
   if up && smoke; then
     rm -f "$STATE_DIR/failed-sha"
@@ -144,7 +166,7 @@ main() {
   log "ERROR: deploy of ${target:0:7} failed; going back to ${current:0:7}"
   printf '%s\n' "$target" >"$STATE_DIR/failed-sha"
   git -C "$REPO_DIR" reset --quiet --hard "$current"
-  if up && smoke; then
+  if build && up && smoke; then
     log "rolled back to ${current:0:7}. Database changes are NOT rolled back; the pre-deploy dump is in $BACKUP_DIR"
   else
     log "ERROR: rollback to ${current:0:7} also failed. The site may be down."
