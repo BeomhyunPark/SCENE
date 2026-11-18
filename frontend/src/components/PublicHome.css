@@ -303,6 +303,11 @@ html {
     letter-spacing: 0;
   }
 
+  .public-home__start {
+    min-height: 48px;
+    font: var(--scene-label-l);
+  }
+
   .public-home__scene {
     width: calc(100% - 40px);
   }
