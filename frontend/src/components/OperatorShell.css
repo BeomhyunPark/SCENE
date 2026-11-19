@@ -400,6 +400,73 @@ a.operator-shell__item {
   }
 }
 
+/* Bottom bar (#368): frequent screens, 알림 and 전체 메뉴. Below dialogs and drawers (z-index 15+). */
+.operator-bottom-nav {
+  display: none;
+}
+
+.operator-bottom-nav__list {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  margin: 0 auto;
+  padding: 0;
+  max-width: 560px;
+  list-style: none;
+}
+
+.operator-bottom-nav__item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  box-sizing: border-box;
+  width: 100%;
+  height: 60px;
+  padding: 6px 4px;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font: var(--scene-label-s);
+  letter-spacing: 0;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.operator-bottom-nav__label {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.operator-bottom-nav__item--current {
+  color: var(--color-text-brand);
+}
+
+.operator-bottom-nav__item--current::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 25%;
+  right: 25%;
+  height: 2px;
+  border-radius: 0 0 2px 2px;
+  background: var(--color-text-brand);
+}
+
+.operator-bottom-nav__item:focus {
+  outline: none;
+}
+
+.operator-bottom-nav__item:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: -4px;
+  border-radius: 8px;
+}
+
 @media (max-width: 1023px) {
   .operator-shell__sidebar {
     display: none;
@@ -407,6 +474,33 @@ a.operator-shell__item {
 
   .operator-shell__menu-button {
     display: grid;
+  }
+
+  /* Room for the bottom bar plus the iOS home indicator; sticky/fixed bottom UI adds this offset. */
+  .operator-shell {
+    --operator-bottom-nav-space: calc(60px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .operator-shell__main {
+    padding-bottom: var(--operator-bottom-nav-space);
+  }
+
+  .operator-bottom-nav {
+    position: fixed;
+    z-index: 12;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: block;
+    padding: 0 env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+    background: var(--color-bg-surface);
+    /* A shadow line, not a border, so the bar is exactly the 60px the page reserves. */
+    box-shadow: 0 -1px 0 var(--color-border-default);
+  }
+
+  /* While typing, the on-screen keyboard needs the room; the bar returns on blur. */
+  .operator-shell:has(:is(input:not([type]), input[type="text"], input[type="search"], input[type="email"], input[type="tel"], input[type="number"], input[type="url"], textarea):focus) .operator-bottom-nav {
+    display: none;
   }
 
   .operator-shell__heading {
@@ -469,5 +563,16 @@ a.operator-shell__item {
 
   .operator-shell__curtain {
     display: none;
+  }
+}
+
+@media print {
+  .operator-bottom-nav,
+  .operator-shell__menu-button {
+    display: none !important;
+  }
+
+  .operator-shell__main {
+    padding-bottom: 0;
   }
 }

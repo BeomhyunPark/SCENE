@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router";
 import { describe, expect, it } from "vitest";
 import { App } from "../App";
@@ -38,7 +38,8 @@ async function signInAndOpen(menu: string) {
   renderApp();
   fireEvent.click(await screen.findByRole("button", { name: "들어가기" }));
   await screen.findByRole("heading", { name: "Local space의 행사" });
-  fireEvent.click(screen.getByRole("link", { name: menu }));
+  // The sidebar; the phone bottom bar repeats some menus and jsdom shows both.
+  fireEvent.click(within(screen.getByRole("navigation", { name: "운영 메뉴" })).getByRole("link", { name: menu }));
 }
 
 describe("organization menus that live inside an event", () => {

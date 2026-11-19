@@ -44,6 +44,11 @@ const orgMenus = [
   ["설정", "/settings"],
 ] as const;
 
+/** The sidebar menu; the phone bottom bar repeats a few links, and jsdom shows both. */
+function sidebar() {
+  return within(screen.getByRole("navigation", { name: "운영 메뉴" }));
+}
+
 function renderAt(path: string) {
   return renderRoutes(
     path,
@@ -71,34 +76,34 @@ function renderAt(path: string) {
 describe("operator shell", () => {
   it("highlights the participants item on the participants page", () => {
     renderAt("/events/e1/participants");
-    expect(screen.getByRole("link", { name: "참가 현황" })).toHaveAttribute("aria-current", "page");
-    expect(screen.getByRole("link", { name: "Local event" })).not.toHaveAttribute("aria-current");
+    expect(sidebar().getByRole("link", { name: "참가 현황" })).toHaveAttribute("aria-current", "page");
+    expect(sidebar().getByRole("link", { name: "Local event" })).not.toHaveAttribute("aria-current");
   });
 
   it("keeps the participants item current on the setup page", () => {
     renderAt("/events/e1/participants/setup");
-    expect(screen.getByRole("link", { name: "참가 현황" })).toHaveAttribute("aria-current", "page");
+    expect(sidebar().getByRole("link", { name: "참가 현황" })).toHaveAttribute("aria-current", "page");
   });
 
   it("highlights the event on its home and tasks on the task list", () => {
     renderAt("/events/e1");
-    expect(screen.getByRole("link", { name: "Local event" })).toHaveAttribute("aria-current", "page");
+    expect(sidebar().getByRole("link", { name: "Local event" })).toHaveAttribute("aria-current", "page");
     cleanup();
     renderAt("/events/e1/tasks/task-1");
-    expect(screen.getByRole("link", { name: "준비 업무" })).toHaveAttribute("aria-current", "page");
+    expect(sidebar().getByRole("link", { name: "준비 업무" })).toHaveAttribute("aria-current", "page");
   });
 
   it("links every organization menu to its own address", () => {
     renderOrgAt("/events");
     for (const [label, href] of orgMenus) {
-      expect(screen.getByRole("link", { name: label })).toHaveAttribute("href", href);
+      expect(sidebar().getByRole("link", { name: label })).toHaveAttribute("href", href);
     }
   });
 
   it("marks only the menu for the current address", () => {
     for (const [label, href] of orgMenus) {
       renderOrgAt(href);
-      const current = screen
+      const current = sidebar()
         .getAllByRole("link")
         .filter((link) => link.getAttribute("aria-current") === "page")
         .map((link) => link.textContent);
@@ -109,15 +114,15 @@ describe("operator shell", () => {
 
   it("links the event sidebar's 다른 기능 시작 and 설정 to this event", () => {
     renderAt("/events/e1");
-    expect(screen.getByRole("link", { name: "다른 기능 시작" })).toHaveAttribute("href", "/events/e1/areas");
-    expect(screen.getByRole("link", { name: "설정" })).toHaveAttribute("href", "/events/e1/settings");
+    expect(sidebar().getByRole("link", { name: "다른 기능 시작" })).toHaveAttribute("href", "/events/e1/areas");
+    expect(sidebar().getByRole("link", { name: "설정" })).toHaveAttribute("href", "/events/e1/settings");
     cleanup();
     renderAt("/events/e1/settings");
-    expect(screen.getByRole("link", { name: "설정" })).toHaveAttribute("aria-current", "page");
-    expect(screen.getByRole("link", { name: "Local event" })).not.toHaveAttribute("aria-current");
+    expect(sidebar().getByRole("link", { name: "설정" })).toHaveAttribute("aria-current", "page");
+    expect(sidebar().getByRole("link", { name: "Local event" })).not.toHaveAttribute("aria-current");
     cleanup();
     renderAt("/events/e1/areas");
-    expect(screen.getByRole("link", { name: "다른 기능 시작" })).toHaveAttribute("aria-current", "page");
+    expect(sidebar().getByRole("link", { name: "다른 기능 시작" })).toHaveAttribute("aria-current", "page");
   });
 
   it("offers 로그아웃 in the organization and event sidebars", () => {
@@ -130,8 +135,8 @@ describe("operator shell", () => {
 
   it("shows 현장 운영 in the event sidebar", () => {
     renderAt("/events/e1/field");
-    expect(screen.getByRole("link", { name: "현장 운영" })).toHaveAttribute("href", "/events/e1/field");
-    expect(screen.getByRole("link", { name: "현장 운영" })).toHaveAttribute("aria-current", "page");
+    expect(sidebar().getByRole("link", { name: "현장 운영" })).toHaveAttribute("href", "/events/e1/field");
+    expect(sidebar().getByRole("link", { name: "현장 운영" })).toHaveAttribute("aria-current", "page");
   });
 });
 
@@ -145,7 +150,7 @@ describe("sidebar collapse", () => {
     fireEvent.click(toggle);
     expect(screen.getByRole("button", { name: "사이드바 펼치기" })).toHaveAttribute("aria-expanded", "false");
     expect(document.querySelector(".operator-shell")).toHaveClass("operator-shell--collapsed");
-    expect(screen.getByRole("link", { name: "일정" })).toHaveAttribute("title", "일정");
+    expect(sidebar().getByRole("link", { name: "일정" })).toHaveAttribute("title", "일정");
     cleanup();
 
     renderOrgAt("/events");
@@ -297,5 +302,78 @@ describe("phone menu drawer (#368)", () => {
     const dialog = openDrawer();
     expect(dialog.closest(".operator-shell__sidebar")).toBeNull();
     expect(within(dialog).getByRole("link", { name: "일정" })).toBeVisible();
+  });
+});
+
+describe("phone bottom bar (#368)", () => {
+  const bar = () => within(screen.getByRole("navigation", { name: "주요 메뉴" }));
+  const barLinks = () => bar().getAllByRole("link").map((link) => [link.textContent, link.getAttribute("href")]);
+
+  it("offers 행사·현장 운영·참가 현황·알림 and 전체 메뉴 outside an event", () => {
+    renderDrawerAt("/events");
+    expect(barLinks()).toEqual([
+      ["행사", "/events"],
+      ["현장 운영", "/field"],
+      ["참가 현황", "/participants"],
+      ["알림", "/notifications"],
+    ]);
+    expect(bar().getByRole("link", { name: "행사" })).toHaveAttribute("aria-current", "page");
+    expect(bar().getByRole("button", { name: "전체 메뉴" })).toHaveAttribute("aria-expanded", "false");
+    cleanup();
+    renderDrawerAt("/settings");
+    expect(bar().queryAllByRole("link").filter((link) => link.hasAttribute("aria-current"))).toEqual([]);
+  });
+
+  it("offers 홈·현장 운영·참가 현황·알림 inside an event and marks the current one", () => {
+    renderDrawerAt("/events/e1/field", true);
+    expect(barLinks()).toEqual([
+      ["홈", "/events/e1"],
+      ["현장 운영", "/events/e1/field"],
+      ["참가 현황", "/events/e1/participants"],
+      ["알림", "/notifications"],
+    ]);
+    expect(bar().getByRole("link", { name: "현장 운영" })).toHaveAttribute("aria-current", "page");
+    expect(bar().getByRole("link", { name: "홈" })).not.toHaveAttribute("aria-current");
+  });
+
+  it("leaves 조 편성 to 전체 메뉴 and skips 참가 현황 when the event has not turned it on", () => {
+    renderRoutes(
+      "/events/e1/groups",
+      <Routes>
+        <Route
+          path="*"
+          element={
+            <OperatorShell title="조 편성" spaceName="Local space" eventName="Local event" eventHref="/events/e1">
+              <p>본문</p>
+            </OperatorShell>
+          }
+        />
+      </Routes>,
+    );
+    expect(barLinks()).toEqual([
+      ["홈", "/events/e1"],
+      ["현장 운영", "/events/e1/field"],
+      ["알림", "/notifications"],
+    ]);
+    expect(bar().queryAllByRole("link").filter((link) => link.hasAttribute("aria-current"))).toEqual([]);
+  });
+
+  it("marks 알림 on the notifications page", () => {
+    renderDrawerAt("/notifications");
+    expect(bar().getByRole("link", { name: "알림" })).toHaveAttribute("aria-current", "page");
+  });
+
+  it("opens the same drawer from 전체 메뉴 and gives focus back to it", () => {
+    renderDrawerAt("/events");
+    const all = bar().getByRole("button", { name: "전체 메뉴" });
+    fireEvent.click(all);
+    const dialog = screen.getByRole("dialog", { name: "운영 메뉴" });
+    expect(all).toHaveAttribute("aria-expanded", "true");
+    expect(all.getAttribute("aria-controls")).toBe(dialog.id);
+    expect(screen.getByRole("button", { name: "메뉴 열기", hidden: true }).getAttribute("aria-controls")).toBe(dialog.id);
+    expect(document.querySelector(".operator-bottom-nav")).toHaveAttribute("inert");
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(all).toHaveFocus();
   });
 });

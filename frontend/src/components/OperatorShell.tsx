@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { useLocation } from "react-router";
 import symbol from "../assets/scene-symbol-header.svg";
 import caret from "../assets/event-nav/caret.svg";
+import { OperatorBottomNav } from "./OperatorBottomNav";
 import { OperatorMenuDrawer } from "./OperatorMenuDrawer";
 import { OperatorNav } from "./OperatorNav";
 import "./OperatorShell.css";
@@ -71,13 +72,17 @@ export function OperatorShell({
   const boot = useBootEntrance();
   const drawerId = useId();
   const [menuOpen, setMenuOpen] = useState(false);
-  const menuButton = useRef<HTMLButtonElement>(null);
+  const opener = useRef<HTMLElement | null>(null);
   const wasOpen = useRef(false);
   useEffect(() => {
-    // Focus returns to the menu button once the drawer closes (the page is no longer inert).
-    if (wasOpen.current && !menuOpen && menuButton.current?.isConnected) menuButton.current.focus();
+    // Focus returns to the button that opened the drawer (header or bottom bar) once the page is no longer inert.
+    if (wasOpen.current && !menuOpen && opener.current?.isConnected) opener.current.focus();
     wasOpen.current = menuOpen;
   }, [menuOpen]);
+  function openMenu(from: HTMLElement) {
+    opener.current = from;
+    setMenuOpen(true);
+  }
   function toggleCollapsed() {
     setCollapsed((value) => {
       writeCollapsed(!value);
@@ -114,14 +119,13 @@ export function OperatorShell({
         <header className="operator-shell__header">
           <div className="operator-shell__heading">
             <button
-              ref={menuButton}
               className="operator-shell__menu-button"
               type="button"
               aria-label="메뉴 열기"
               aria-haspopup="dialog"
               aria-expanded={menuOpen}
               aria-controls={drawerId}
-              onClick={() => setMenuOpen(true)}
+              onClick={(event) => openMenu(event.currentTarget)}
             >
               <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                 <path d="M4 6.5h16M4 12h16M4 17.5h16" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
@@ -134,6 +138,7 @@ export function OperatorShell({
         </header>
         {children}
       </main>
+      <OperatorBottomNav menu={menu} drawerId={drawerId} menuOpen={menuOpen} onOpenMenu={openMenu} />
       <OperatorMenuDrawer id={drawerId} open={menuOpen} onClose={() => setMenuOpen(false)} menu={menu} />
     </div>
   );
