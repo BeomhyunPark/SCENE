@@ -329,6 +329,95 @@ class EventOperatorIT {
     assertThat(role(fx.eventId, fx.managerId)).isEqualTo("MANAGER");
   }
 
+  /** #374. An event OWNER is not demoted or removed here, including oneself (DEC-033·034·035). */
+  @Test
+  void ownerTargetIsNotDemotedOrRemoved() throws Exception {
+    Fixture fx = seed("ACTIVE");
+    UUID coOwnerId = user("Co");
+    member(fx.spaceId, coOwnerId, "MEMBER");
+    operator(fx, coOwnerId, "OWNER");
+    Cookie owner = login(fx.ownerId);
+    int audits = auditRows(fx.eventId);
+
+    for (UUID target : List.of(coOwnerId, fx.ownerId)) {
+      for (String role : List.of("MANAGER", "STAFF")) {
+        problem(
+            write(
+                patch(one(fx.eventId, target))
+                    .cookie(owner, csrf())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"role\":\"" + role + "\"}"),
+                "req-demote-owner"),
+            409,
+            "OWNER_ROLE_HELD",
+            "req-demote-owner");
+      }
+      problem(
+          write(delete(one(fx.eventId, target)).cookie(owner, csrf()), "req-remove-owner"),
+          409,
+          "OWNER_ROLE_HELD",
+          "req-remove-owner");
+      assertThat(role(fx.eventId, target)).isEqualTo("OWNER");
+    }
+    assertThat(auditRows(fx.eventId)).isEqualTo(audits);
+
+    // The owner guard comes after not found and before EVENT_ARCHIVED.
+    UUID outsiderId = user("Outsider");
+    problem(
+        write(delete(one(fx.eventId, outsiderId)).cookie(owner, csrf()), "req-remove-missing"),
+        404,
+        "RESOURCE_NOT_FOUND",
+        "req-remove-missing");
+    jdbc.update("UPDATE events SET lifecycle_status = 'ARCHIVED' WHERE id = ?", fx.eventId);
+    problem(
+        write(
+            patch(one(fx.eventId, coOwnerId))
+                .cookie(owner, csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"role\":\"STAFF\"}"),
+            "req-archived-owner"),
+        409,
+        "OWNER_ROLE_HELD",
+        "req-archived-owner");
+    assertThat(role(fx.eventId, coOwnerId)).isEqualTo("OWNER");
+  }
+
+  /** #374. MANAGER and STAFF still change role and leave as before. */
+  @Test
+  void managerAndStaffRoleChangeAndRemoveStillWork() throws Exception {
+    Fixture fx = seed("ACTIVE");
+    Cookie owner = login(fx.ownerId);
+
+    mvc.perform(
+            patch(one(fx.eventId, fx.managerId))
+                .cookie(owner, csrf())
+                .header(CSRF_HEADER, CSRF)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"role\":\"STAFF\"}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.role").value("STAFF"));
+    mvc.perform(
+            patch(one(fx.eventId, fx.staffId))
+                .cookie(owner, csrf())
+                .header(CSRF_HEADER, CSRF)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"role\":\"MANAGER\"}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.role").value("MANAGER"));
+    assertThat(role(fx.eventId, fx.managerId)).isEqualTo("STAFF");
+    assertThat(role(fx.eventId, fx.staffId)).isEqualTo("MANAGER");
+    assertThat(auditCount(fx.eventId, AuditActions.EVENT_USER_ROLE_CHANGED)).isEqualTo(2);
+
+    mvc.perform(
+            delete(one(fx.eventId, fx.managerId)).cookie(owner, csrf()).header(CSRF_HEADER, CSRF))
+        .andExpect(status().isOk());
+    mvc.perform(delete(one(fx.eventId, fx.staffId)).cookie(owner, csrf()).header(CSRF_HEADER, CSRF))
+        .andExpect(status().isOk());
+    assertThat(operatorCount(fx.eventId, fx.managerId)).isZero();
+    assertThat(operatorCount(fx.eventId, fx.staffId)).isZero();
+    assertThat(role(fx.eventId, fx.ownerId)).isEqualTo("OWNER");
+  }
+
   @Test
   void leaderIsRejectedAndListStaysNameAndRoleForStaff() throws Exception {
     Fixture fx = seed("ACTIVE");
