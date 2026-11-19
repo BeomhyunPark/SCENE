@@ -297,12 +297,12 @@ describe("operator invitation accept", () => {
     expect(storedInvitationToken()).toBe(TOKEN);
   });
 
-  it("retries a rate limit and then shows the invite", async () => {
+  it("retries a proxy 429 and then shows the invite", async () => {
     let calls = 0;
     server.use(
       http.post("/api/v1/operator/invitations/preview", () => {
         calls += 1;
-        if (calls === 1) return problem(429, "RATE_LIMITED", { detail: SECRET });
+        if (calls === 1) return problem(429, "UNEXPECTED", { detail: SECRET });
         return HttpResponse.json(pendingBody());
       }),
     );
