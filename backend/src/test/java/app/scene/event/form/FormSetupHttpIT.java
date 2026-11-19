@@ -633,8 +633,17 @@ class FormSetupHttpIT {
                 .cookie(csrf())
                 .header(CSRF_HEADER, CSRF)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"answers\":[" + answers + "]}"))
+                .content(
+                    "{\"pin\":\"730914\",\"answers\":["
+                        + answers.replace("010-1234-5678", uniquePhone())
+                        + "]}"))
         .andExpect(status().is(expected));
+  }
+
+  /** One phone is one participant (DEC-078), so each submit here uses its own phone. */
+  private static String uniquePhone() {
+    int n = java.util.concurrent.ThreadLocalRandom.current().nextInt(10_000_000, 99_999_999);
+    return "010-" + (n / 10_000) + "-" + (n % 10_000 + 10_000);
   }
 
   private void open(Held event, String formPath) throws Exception {

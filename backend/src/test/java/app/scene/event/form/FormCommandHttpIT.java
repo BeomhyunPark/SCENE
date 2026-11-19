@@ -74,7 +74,8 @@ class FormCommandHttpIT {
                 .header("Idempotency-Key", "same-key"));
     JsonNode body = json.readTree(created);
     assertThat(body.propertyNames())
-        .containsExactly("formId", "acceptingApplications", "fields", "locked", "setup");
+        .containsExactly(
+            "formId", "acceptingApplications", "acceptingEdits", "fields", "locked", "setup");
     assertThat(body.get("setup").isNull()).isTrue();
     assertThat(body.get("locked").booleanValue()).isFalse();
     UUID formId = UUID.fromString(body.get("formId").asString());
@@ -123,7 +124,7 @@ class FormCommandHttpIT {
     assertThat(list.propertyNames()).containsExactly("items", "page");
     assertThat(list.get("items")).hasSize(1);
     assertThat(list.get("items").get(0).propertyNames())
-        .containsExactly("formId", "acceptingApplications");
+        .containsExactly("formId", "acceptingApplications", "acceptingEdits");
     assertThat(list.get("items").get(0).get("formId").asString()).isEqualTo(formId.toString());
     assertThat(list.get("page").get("size").asInt()).isEqualTo(50);
     assertThat(listed).doesNotContain("이름", "fields");

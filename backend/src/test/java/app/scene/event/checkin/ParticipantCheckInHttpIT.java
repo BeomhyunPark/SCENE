@@ -12,15 +12,13 @@ import app.scene.common.error.ErrorCode;
 import app.scene.common.error.SceneException;
 import app.scene.common.web.RequestIdFilter;
 import app.scene.event.lifecycle.EventRepository;
-import app.scene.event.participant.Digests;
 import app.scene.event.participant.ParticipantSelf;
+import app.scene.support.ParticipantSessions;
 import app.scene.support.PostgresTestcontainer;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import jakarta.servlet.http.Cookie;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,13 +27,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers;
 import org.springframework.session.web.http.SessionRepositoryFilter;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
@@ -98,7 +94,7 @@ class ParticipantCheckInHttpIT {
     assertThat(first).doesNotContain(NAME).doesNotContain(PHONE).doesNotContain(p.accessKey);
 
     assertThat(json.readTree(read(p.session)).get("code").asString()).isEqualTo(code);
-    Cookie again = w.session(p.accessKey);
+    Cookie again = w.session(p.participantId);
     assertThat(again.getValue()).isNotEqualTo(p.token);
     assertThat(json.readTree(read(again)).get("code").asString()).isEqualTo(code);
     assertThat(auditCount(w.eventId)).isEqualTo(audits);
@@ -213,7 +209,7 @@ class ParticipantCheckInHttpIT {
   void blankSecretAnswersNotFoundOnlyWhereAValueWouldBeShown() throws Exception {
     World w = world();
     Held p = w.participant(NAME, PHONE);
-    ParticipantSelf self = new ParticipantSelf(p.participantId, w.eventId, w.spaceId, NAME);
+    ParticipantSelf self = new ParticipantSelf(p.participantId, w.eventId, w.spaceId, NAME, false);
     for (String blank : new String[] {null, "", "   "}) {
       ParticipantCheckInService unsigned =
           new ParticipantCheckInService(
@@ -417,40 +413,13 @@ class ParticipantCheckInHttpIT {
           formId,
           id);
       String accessKey = "access-" + UUID.randomUUID();
-      jdbc.update(
-          """
-          INSERT INTO participant_access (
-            id, space_id, event_id, participant_id, key_hash, created_at)
-          VALUES (?, ?, ?, ?, ?, now())
-          """,
-          UUID.randomUUID(),
-          spaceId,
-          eventId,
-          id,
-          Digests.sha256Hex(accessKey));
-      Cookie session = session(accessKey);
+      Cookie session = session(id);
       return new Held(id, accessKey, session, session.getValue());
     }
 
-    /** Signs in through the public session path and returns the participant cookie. */
-    Cookie session(String accessKey) throws Exception {
-      MockHttpServletRequestBuilder request =
-          post("/api/v1/public/events/" + eventId + "/participant-sessions")
-              .cookie(csrf())
-              .header(CSRF_HEADER, CSRF)
-              .contentType(MediaType.APPLICATION_JSON)
-              .content("{\"accessKey\":\"" + accessKey + "\"}");
-      MvcResult issued = mvc.perform(request).andExpect(status().isNoContent()).andReturn();
-      String prefix = PARTICIPANT_COOKIE + "=";
-      List<String> headers = new ArrayList<>();
-      for (String header : issued.getResponse().getHeaders(HttpHeaders.SET_COOKIE)) {
-        if (header.startsWith(prefix)) {
-          headers.add(header);
-        }
-      }
-      assertThat(headers).hasSize(1);
-      String header = headers.get(0);
-      return new Cookie(PARTICIPANT_COOKIE, header.substring(prefix.length(), header.indexOf(';')));
+    /** Opens a participant session for an inserted participant (DEC-078 sign-in is elsewhere). */
+    Cookie session(UUID participantId) {
+      return ParticipantSessions.open(jdbc, spaceId, eventId, participantId);
     }
   }
 }
