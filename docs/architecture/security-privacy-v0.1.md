@@ -54,19 +54,22 @@
 
 ## 3. Participant Access
 
-- MVP 참여자 인증은 이 링크 접근 키 하나다. 전화번호 OTP와 SMS vendor는 MVP에 없다(DEC-064, 현 결정 2026-10-06).
-- Cryptographically secure random key, 최소 128-bit entropy 수준.
-- 6자리 숫자·생년월일·전화번호 뒤 4자리·사용자 PIN은 credential로 사용하지 않는다. 이름/전화번호 뒤 4자리는 secret이 아니다.
-- DB에는 `key_hash`만 저장. raw key 저장 금지.
-- raw key는 링크의 fragment(`#…`)로만 전달하고 클라이언트가 POST body로 보내 검증한다. fragment는 서버로 전송되지 않아 서버 로그·프록시·Referer에 남지 않는다. URL path·query string, 서버·액세스 로그, analytics에는 넣지 않고 받은 키를 응답·오류 본문에 되돌려 주지 않는다(DEC-064).
-- 클라이언트는 fragment에서 키를 읽은 즉시 `history.replaceState`로 URL에서 fragment를 지운다. 이 처리는 analytics·오류 리포팅 코드가 초기화되기 전에 끝나야 하고, 지우기 전에는 어떤 third-party script도 `location.hash`를 읽을 수 없어야 한다(QA 조건 (#55), DEC-064).
-- 검증 진입 경계: `/api/v1/public/events/{eventId}/participant-sessions`.
-- 성공 후 Participant session으로 자신의 scope에 접근.
-- Rate limit, 실패 monitoring, brute-force 방어 및 server-side revocation 가능해야 함. 정확한 rate limit 숫자는 미정.
-- 틀린·없는·폐기된 키는 모두 같은 401로 응답해 키 존재를 드러내지 않는다. 운영자가 키를 재발급하면 같은 transaction에서 이전 키와 그 키로 연 Participant session을 즉시 폐기하고 audit에 남긴다(DEC-064). 세션 발급 구현은 Phase 3이다.
-- 최초 Application 성공에서 새 Access가 만들어지면 raw key는 그때 1회만 전달하는 기준.
-- 키 복구, TTL, rate limit 숫자, idempotent retry 시 1회 전달 보장 방식은 OPEN(재발급은 DEC-064로 정했다). raw key 재저장을 새 해법으로 정하지 않는다.
-- OPEN (Phase 3, QA 비차단 #55): request body 로그의 `accessKey` 마스킹, 재발급 응답 `Cache-Control: no-store`·로그 제외, 참여자 페이지 `Referrer-Policy: no-referrer`, public 세션 POST의 CSRF 처리. 상세는 [API Architecture DEC-064 절](api-architecture-v0.1.md#2026-10-06-mvp-참여자-인증-dec-064).
+현 기준은 [DEC-078](../product/PRODUCT_DECISIONS.md)(2026-11-19)이다. DEC-064의 링크 접근 키를 바꿨다. 계약은 [backend/docs/api.md](../../backend/docs/api.md)의 참가자 세션 절이다.
+
+- 참가자는 **이름 + 전화번호 + 신청할 때 본인이 정한 숫자 6자리**로 들어온다. 이름과 전화번호는 교회 안에서 서로 아는 정보라 secret이 아니다. 숫자 6자리만 secret이다. 문자 OTP와 SMS vendor는 없다.
+- 행사 안에서 전화번호(숫자만) 하나가 참가자 한 명이다. DB 유일 제약(`participants.phone_key`)으로 지킨다.
+- 숫자 6자리는 bcrypt 해시(`pin_hash`)로만 저장한다. raw 값은 요청 본문 밖으로 나가지 않는다: 응답·오류 본문·로그·audit·CSV·운영자 화면에 없다. 요청 본문 로그는 남기지 않는다.
+- 받지 않는 번호: 숫자 6개가 아닌 값, 같은 숫자 반복, 1씩 오르거나 내리는 숫자, 자기 전화번호 숫자에 들어 있는 6자리.
+- 틀린 조합은 이름·전화번호·번호 중 무엇이 틀렸는지, 그 전화의 신청이 있는지와 상관없이 같은 `401 PARTICIPANT_LOGIN_FAILED`다.
+- Brute-force 방어(잠정 숫자, 설정 `scene.participant.*`): 전화번호별 연속 5회 실패 → 15분 잠금(`429 PARTICIPANT_LOGIN_LOCKED`). 신청이 없는 번호도 같은 방식으로 세서 잠금이 신청 여부를 드러내지 않는다. IP별 실패 10분 30회 초과 → `429 RATE_LIMITED`(성공은 세지 않아 수련회장 와이파이처럼 한 IP 뒤의 많은 사람을 막지 않는다). 공개 신청 POST는 IP별 10분 100회. 같은 전화의 재신청에서 번호가 틀린 것도 실패로 센다. 카운터는 프로세스 메모리이며 재시작하면 0이다(집 서버 한 대, DEC-078 Alternatives). Cloudflare 규칙은 [홈서버 운영](../devops/home-server.md)에 안내한다.
+- 백만 가지라 잠금과 시도 제한이 있어야만 안전하다. 전화번호 하나에 15분마다 5번이면 하루 480번이다.
+- 잊었을 때: 운영자가 `PARTICIPANT_WRITE`로 초기화하면 서버가 만든 임시 번호가 응답에 한 번 나온다(`Cache-Control: no-store`). 같은 transaction에서 그 참가자의 세션을 모두 지우고 audit `PARTICIPANT_PIN_RESET`(번호 없음)을 남긴다. 임시 번호로 연 세션은 새 번호를 정하기 전에는 다른 참가자 경로가 `403 PARTICIPANT_PIN_CHANGE_REQUIRED`다.
+- 검증 진입 경계: `POST /api/v1/public/events/{eventId}/participant-sessions`와 공개 신청 POST(같은 전화의 재신청). 첫 신청 성공도 세션을 연다.
+- 세션 토큰은 CSPRNG 256비트이고 해시만 저장한다. 쿠키는 DEC-067(`SCENE_PSESSION`, HttpOnly, Secure, SameSite=Lax, 경로 `/api/v1/participant`). 세션은 로그아웃, 6자리 초기화·변경(다른 세션), 행사 끝 날짜+8일 0시(Asia/Seoul)에 끝난다.
+- 신청 수정은 revision으로 남는다(이전 답 `SUPERSEDED`, 고친 사람, 바뀐 질문). 번호를 남에게 알려 준 경우는 막지 못하고 수정 이력과 운영자 알림으로 되돌린다.
+- 도착 체크인은 번호와 상관없다(DEC-071).
+- 링크 접근 키(`participant_access`)는 더 만들지 않고 그 키로 세션을 열지 않는다. fragment·`history.replaceState` 규칙(DEC-064, QA #55)은 참가자 화면에서 빠졌다. 운영자 초대 링크(DEC-060)의 fragment 규칙은 그대로다.
+- OPEN: 실패 monitoring(알림), 공개 세션 POST의 CSRF는 다른 변경 요청과 같다.
 
 ## 4. Tenant isolation
 
