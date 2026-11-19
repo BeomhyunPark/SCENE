@@ -50,6 +50,13 @@ describe("invitation notice in a production build", () => {
           page: { number: 0, size: 50, totalItems: 0, totalPages: 0 },
         }),
       ),
+      // No organization and no event either (#387): a collaborator would see 협력 중인 행사 instead.
+      http.get("/api/v1/operator/events", () =>
+        HttpResponse.json({
+          items: [],
+          page: { number: 0, size: 100, totalItems: 0, totalPages: 0 },
+        }),
+      ),
     );
     await login({ userId: localUsers[0].userId });
     renderAt("/events");

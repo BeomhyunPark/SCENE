@@ -13,6 +13,7 @@ import app.scene.event.lifecycle.EventAccessGate;
 import app.scene.event.lifecycle.EventListRow;
 import app.scene.event.lifecycle.EventProfile;
 import app.scene.event.lifecycle.EventRepository;
+import app.scene.event.lifecycle.OperatedEventRow;
 import app.scene.space.EventUserPermissionRepository;
 import app.scene.space.EventUserRepository;
 import java.time.LocalDate;
@@ -28,11 +29,12 @@ import tools.jackson.databind.JsonNode;
 
 /**
  * Create, list, and name patch on the existing {@code events} row. The architecture lists {@code
- * EVENT_CREATE} as a candidate and does not say who may create. Any active member of the space may
- * open an event. The creator is stored as {@code event_users} OWNER in the same transaction. {@code
- * EVENT_CREATE} is not a permission key. {@code Idempotency-Key} is not read. {@code
- * lifecycleStatus} is not writable here. A space owner or admin may read every event in the space
- * and is not given an {@code event_users} row. A name change needs effective {@code EVENT_UPDATE}.
+ * EVENT_CREATE} as a candidate and does not say who may create. An active space owner or admin may
+ * open an event; an active member gets {@code FORBIDDEN} (DEC-077). The creator is stored as {@code
+ * event_users} OWNER in the same transaction. {@code EVENT_CREATE} is not a permission key. {@code
+ * Idempotency-Key} is not read. {@code lifecycleStatus} is not writable here. A space owner or
+ * admin may read every event in the space and is not given an {@code event_users} row. A name
+ * change needs effective {@code EVENT_UPDATE}.
  */
 @Service
 public class OperatorEventCommandService {
@@ -63,7 +65,9 @@ public class OperatorEventCommandService {
 
   @Transactional
   public EventDetail create(UUID actorId, UUID spaceId, JsonNode body) {
-    requireActiveMember(actorId, spaceId);
+    if (!requireActiveMember(actorId, spaceId).mayCreateEvents()) {
+      throw new SceneException(ErrorCode.FORBIDDEN);
+    }
     ParsedCreate parsed = parseCreate(body);
     UUID eventId = UUID.randomUUID();
     if (events.save(
@@ -101,6 +105,36 @@ public class OperatorEventCommandService {
               row.endDate(),
               row.place(),
               eventType(row.eventType())));
+    }
+    return ItemPage.of(items, request, total);
+  }
+
+  /**
+   * Events the caller operates in any space, through an {@code event_users} row (#387). Space
+   * membership is not required: an event-only collaborator (DEC-039, DEC-060) and a member who left
+   * but kept access see their events here. A revoked operator has no row. A space owner's or
+   * admin's read-every-event view stays on the space list and does not add rows here.
+   */
+  public ItemPage<OperatedEventListItem> listOperated(
+      UUID actorId, Integer page, Integer size, List<String> sort) {
+    PageRequest request = PageRequest.of(page, size);
+    Sorts.parse(sort, Set.of());
+    long total = events.countOperated(actorId);
+    List<OperatedEventListItem> items = new ArrayList<>();
+    for (OperatedEventRow row : events.listOperated(actorId, request)) {
+      items.add(
+          new OperatedEventListItem(
+              row.eventId(),
+              row.name(),
+              row.lifecycleStatus(),
+              row.startDate(),
+              row.endDate(),
+              row.place(),
+              eventType(row.eventType()),
+              row.spaceId(),
+              row.spaceName(),
+              row.eventRole(),
+              row.spaceMember()));
     }
     return ItemPage.of(items, request, total);
   }
@@ -187,7 +221,9 @@ public class OperatorEventCommandService {
         profile.startDate(),
         profile.endDate(),
         profile.place(),
-        eventType(profile.eventType()));
+        eventType(profile.eventType()),
+        profile.spaceId(),
+        profile.spaceName());
   }
 
   private static EventType eventType(String raw) {

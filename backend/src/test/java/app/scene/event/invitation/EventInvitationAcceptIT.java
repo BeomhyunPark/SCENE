@@ -121,7 +121,9 @@ class EventInvitationAcceptIT {
     assertThat(second).isEqualTo(first);
     JsonNode tree = json.readTree(first);
     assertThat(tree.propertyNames())
-        .containsExactlyInAnyOrder("eventName", "role", "inviterName", "expiresAt", "outcome");
+        .containsExactlyInAnyOrder(
+            "eventId", "eventName", "role", "inviterName", "expiresAt", "outcome");
+    assertThat(tree.get("eventId").asString()).isEqualTo(fx.eventId.toString());
     assertThat(tree.get("eventName").asString()).isEqualTo("event");
     assertThat(tree.get("role").asString()).isEqualTo("STAFF");
     assertThat(tree.get("inviterName").asString()).isEqualTo("Owner Kim");
@@ -153,7 +155,10 @@ class EventInvitationAcceptIT {
                 .asString())
         .isEqualTo("PENDING");
     String accepted = ok(accept(staffSession, staffInvite.token(), "10.4.1.1"));
-    assertThat(json.readTree(accepted).propertyNames()).containsExactly("outcome");
+    assertThat(json.readTree(accepted).propertyNames())
+        .containsExactly("outcome", "eventId", "role");
+    assertThat(json.readTree(accepted).get("eventId").asString()).isEqualTo(fx.eventId.toString());
+    assertThat(json.readTree(accepted).get("role").asString()).isEqualTo("STAFF");
     assertThat(json.readTree(accepted).get("outcome").asString()).isEqualTo("ACCEPTED");
     assertThat(accepted).doesNotContain(staffInvite.token()).doesNotContain("staffer@example.com");
     assertThat(invitationState(staffInvite.id())).isEqualTo("ACCEPTED");

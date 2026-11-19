@@ -1035,7 +1035,8 @@ body.event-groups--dragging {
 
 .event-groups__bar {
   position: sticky;
-  bottom: 12px;
+  /* Clears the phone bottom menu bar (#368); the variable is unset from 1024px. */
+  bottom: calc(12px + var(--operator-bottom-nav-space, 0px));
   z-index: 5;
   display: flex;
   flex-wrap: wrap;

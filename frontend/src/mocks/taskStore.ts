@@ -232,6 +232,11 @@ export function eventRoleOf(eventId: string, userId: string): Role | null {
 }
 
 /** Invitation accept: adds the user once. An existing operator keeps their role. */
+/** Event rows of one person in every space (#387). */
+export function eventsOperatedBy(userId: string): { eventId: string; role: Role }[] {
+  return operators.filter((row) => row.userId === userId).map((row) => ({ eventId: row.eventId, role: row.role }));
+}
+
 export function addOperator(eventId: string, userId: string, displayName: string, role: Role): void {
   if (operators.some((row) => row.eventId === eventId && row.userId === userId)) return;
   operators.push({ eventId, userId, displayName, role });
@@ -259,6 +264,54 @@ export function addOperatorByOwner(eventId: string, actorId: string, body: unkno
   const row: OperatorRow = { eventId, userId: input.userId, displayName, role };
   operators.push(row);
   return row;
+}
+
+/**
+ * Role change by the event OWNER (#371), in OperatorPermissionService#changeOperatorRole order:
+ * FORBIDDEN, not an operator (RESOURCE_NOT_FOUND), role (MANAGER or STAFF only), then
+ * EVENT_ARCHIVED. Even the same role clears the person's individual permission rows.
+ */
+export function changeRoleByOwner(
+  eventId: string,
+  actorId: string,
+  userId: string,
+  body: unknown,
+): OperatorRow | TaskFailure {
+  const gate = open(eventId, actorId);
+  if (gate) return gate;
+  const actor = operators.find((row) => row.eventId === eventId && row.userId === actorId);
+  if (actor?.role !== "OWNER") return { status: 403, code: "FORBIDDEN" };
+  const row = operators.find((operator) => operator.eventId === eventId && operator.userId === userId);
+  if (!row) return { status: 404, code: "RESOURCE_NOT_FOUND" };
+  const input = typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {};
+  const role = input.role;
+  if (role !== "MANAGER" && role !== "STAFF") return field("role");
+  if (eventById(eventId)?.lifecycleStatus === "ARCHIVED") return { status: 409, code: "EVENT_ARCHIVED" };
+  revokes.delete(`${eventId}|${userId}`);
+  row.role = role;
+  return row;
+}
+
+/**
+ * Removal by the event OWNER (#371), in OperatorPermissionService#remove order: FORBIDDEN, then not
+ * an operator (RESOURCE_NOT_FOUND). Like the server, an archived event does not block it. Tasks the
+ * person was assigned lose the assignee and bump their version; individual permissions go too.
+ */
+export function removeByOwner(eventId: string, actorId: string, userId: string): null | TaskFailure {
+  const gate = open(eventId, actorId);
+  if (gate) return gate;
+  const actor = operators.find((row) => row.eventId === eventId && row.userId === actorId);
+  if (actor?.role !== "OWNER") return { status: 403, code: "FORBIDDEN" };
+  if (!operatorOn(eventId, userId)) return { status: 404, code: "RESOURCE_NOT_FOUND" };
+  for (const task of tasks) {
+    if (task.eventId === eventId && task.assigneeUserId === userId) {
+      task.assigneeUserId = null;
+      task.version += 1;
+    }
+  }
+  revokes.delete(`${eventId}|${userId}`);
+  operators = operators.filter((row) => !(row.eventId === eventId && row.userId === userId));
+  return null;
 }
 
 export function permissionsFor(

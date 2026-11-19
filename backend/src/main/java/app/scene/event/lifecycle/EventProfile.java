@@ -5,7 +5,7 @@ import java.util.UUID;
 
 /**
  * Event detail columns. Period, place, and type stay off {@link EventLocation} so access checks do
- * not take them.
+ * not take them. The space name is the event's organization name (#387).
  */
 public record EventProfile(
     UUID eventId,
@@ -15,4 +15,6 @@ public record EventProfile(
     LocalDate startDate,
     LocalDate endDate,
     String place,
-    String eventType) {}
+    String eventType,
+    UUID spaceId,
+    String spaceName) {}

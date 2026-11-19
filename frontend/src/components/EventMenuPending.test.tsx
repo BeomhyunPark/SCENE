@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { describe, expect, it } from "vitest";
 import { App } from "../App";
@@ -31,10 +31,14 @@ describe("event sidebar pending menus", () => {
     );
     fireEvent.click(await screen.findByRole("button", { name: "들어가기" }));
     fireEvent.click(await screen.findByRole("button", { name: /Local event/ }));
-    fireEvent.click(await screen.findByRole("link", { name: "현장 운영" }));
+    // The sidebar; the phone bottom bar repeats 현장 운영 and jsdom shows both.
+    const sidebar = async () => within(await screen.findByRole("navigation", { name: "운영 메뉴" }));
+    // Only the event sidebar has 현장 운영 (#376), so wait for the event to open.
+    await screen.findAllByRole("link", { name: "현장 운영" });
+    fireEvent.click((await sidebar()).getByRole("link", { name: "현장 운영" }));
     expect(await screen.findByLabelText("이름 또는 전화 끝 4자리")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "현장 운영" })).toHaveAttribute("aria-current", "page");
-    expect(screen.getByRole("link", { name: "현장 운영" })).toHaveAttribute(
+    expect((await sidebar()).getByRole("link", { name: "현장 운영" })).toHaveAttribute("aria-current", "page");
+    expect((await sidebar()).getByRole("link", { name: "현장 운영" })).toHaveAttribute(
       "href",
       `/events/${localEvent.eventId}/field`,
     );

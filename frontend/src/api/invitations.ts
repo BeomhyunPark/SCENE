@@ -3,6 +3,8 @@ import { ApiError } from "./errors";
 import type { ItemPage } from "./types";
 
 export type InvitationPreview = {
+  /** Shown once the session email matches, so the accepted screen can open the event (#387). */
+  eventId?: string;
   eventName: string;
   role: string;
   inviterName: string;
@@ -12,6 +14,12 @@ export type InvitationPreview = {
 
 export type InvitationAcceptance = {
   outcome: string;
+  eventId?: string;
+  /**
+   * My role in the event after accepting. Someone who was already an operator keeps the role they
+   * had, so this can differ from the invited role (#387). Null if the access has since ended.
+   */
+  role?: string | null;
 };
 
 export function previewInvitation(token: string, signal?: AbortSignal): Promise<InvitationPreview> {

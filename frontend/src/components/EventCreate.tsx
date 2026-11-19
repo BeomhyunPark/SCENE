@@ -8,6 +8,7 @@ import { createEvent, type EventType } from "../api/events";
 import { EVENT_TYPE_OPTIONS } from "../api/eventTypes";
 import { isApiError } from "../api/errors";
 import { queryKeys } from "../api/queryKeys";
+import { mayCreateEvents } from "../api/spaces";
 import { useCurrentSpace } from "../api/useCurrentSpace";
 import { Button } from "./Button";
 import { OperatorShell } from "./OperatorShell";
@@ -41,6 +42,19 @@ export function EventCreate() {
   if (!spaces.space) {
     return <OperatorStatus message="아직 들어간 조직이 없어요" />;
   }
+  if (!mayCreateEvents(spaces.space.role)) {
+    return (
+      <OperatorStatus
+        spaceName={spaces.space.name}
+        message="행사는 조직 관리자가 만들어요. 관리자가 만든 행사에 운영자로 추가되면 행사 목록에 보여요."
+        action={
+          <Button type="button" variant="secondary" size={40} onClick={() => navigate("/events")}>
+            행사 목록으로
+          </Button>
+        }
+      />
+    );
+  }
   const space = spaces.space;
 
   async function create(event: FormEvent<HTMLFormElement>) {
@@ -70,6 +84,10 @@ export function EventCreate() {
         const field = caught.errors?.[0]?.field;
         setFieldError(field && fieldMessage[field] ? field : "");
         if (!field || !fieldMessage[field]) setFormError("저장하지 못했어요. 다시 시도해 주세요.");
+        return;
+      }
+      if (isApiError(caught, "FORBIDDEN")) {
+        setFormError("행사는 조직 관리자만 만들 수 있어요.");
         return;
       }
       if (isApiError(caught, "NOT_A_MEMBER") || (isApiError(caught) && caught.status === 404)) {

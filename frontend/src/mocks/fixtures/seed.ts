@@ -21,6 +21,12 @@ export const localUsers = [
     userId: "00000000-0000-4000-8000-000000000005",
     displayName: "Local member",
   },
+  {
+    // Left Local space without keeping its event (#387). No membership and no event row; the event
+    // owner invites them back as an outside collaborator.
+    userId: "00000000-0000-4000-8000-000000000006",
+    displayName: "Local former member",
+  },
 ] as const;
 
 export const localSpace = {

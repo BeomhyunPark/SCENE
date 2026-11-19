@@ -143,7 +143,7 @@ describe("space invitation accept", () => {
 
     seedToken(token);
     renderInvite();
-    expect(await screen.findByRole("heading", { name: "이미 수락한 초대예요" }, { timeout: 4000 })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Local space 조직 초대는 이미 수락했어요" }, { timeout: 4000 })).toBeInTheDocument();
     expect(storedInvitationToken()).toBeNull();
   });
 
@@ -187,12 +187,12 @@ describe("space invitation accept", () => {
     expect(await screen.findByRole("heading", { name: "Local event 초대를 받았어요" }, { timeout: 4000 })).toBeInTheDocument();
     expect(screen.getByText("Local owner님이 Staff로 초대했어요.")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "초대 수락" }));
-    expect(await screen.findByRole("heading", { name: "초대를 수락했어요" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Local event 초대를 수락했어요" })).toBeInTheDocument();
     expect(spaceCalled).toBe(false);
   });
 });
 
-describe("space invitation from settings to events", () => {
+describe("space invitation from the members page to events", () => {
   beforeEach(() => {
     if (!navigator.clipboard) {
       Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: vi.fn() } });
@@ -204,10 +204,10 @@ describe("space invitation from settings to events", () => {
     vi.restoreAllMocks();
   });
 
-  it("owner invites, the guest accepts, and the guest sees the space's events", async () => {
+  it("owner invites, the guest accepts, and the guest sees no create entry as a MEMBER", async () => {
     await login({ userId: OWNER });
     const owner = render(
-      <MemoryRouter initialEntries={["/settings"]}>
+      <MemoryRouter initialEntries={["/members"]}>
         <App />
       </MemoryRouter>,
     );
@@ -229,9 +229,11 @@ describe("space invitation from settings to events", () => {
     fireEvent.click(await screen.findByRole("button", { name: "초대 수락" }, { timeout: 4000 }));
     fireEvent.click(await screen.findByRole("button", { name: "행사 목록" }));
 
-    // A new MEMBER operates no event yet, so the list guides to creating the first one.
-    expect(await screen.findByRole("heading", { name: "아직 만든 행사가 없어요" }, { timeout: 4000 })).toBeInTheDocument();
+    // A new MEMBER operates no event yet and does not create one (DEC-077): the list says an admin adds them.
+    expect(await screen.findByRole("heading", { name: "아직 운영하는 행사가 없어요" }, { timeout: 4000 })).toBeInTheDocument();
+    expect(screen.getByText("관리자가 만든 행사에 운영자로 추가되면 여기에 보여요.")).toBeInTheDocument();
     expect(screen.queryByText("Local event")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "첫 행사 만들기" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "첫 행사 만들기" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "새 행사" })).not.toBeInTheDocument();
   });
 });

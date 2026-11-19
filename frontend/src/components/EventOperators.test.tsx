@@ -116,7 +116,8 @@ describe("event operators and invitations", () => {
     if ("code" in issued) throw new Error(issued.code);
     await logout();
     await login({ userId: localUsers[2].userId, email: "staff@example.com" });
-    expect(await acceptInvitation(issued.link.split("#")[1])).toEqual({ outcome: "ACCEPTED" });
+    // Already a STAFF operator: the invitation is used up and the role stays STAFF (#387).
+    expect(await acceptInvitation(issued.link.split("#")[1])).toEqual({ outcome: "ACCEPTED", eventId: EVENT, role: "STAFF" });
     await logout();
     await login({ userId: OWNER });
     openApp(`/events/${EVENT}/operators`);

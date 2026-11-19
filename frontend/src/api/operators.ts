@@ -39,3 +39,25 @@ export function addOperator(eventId: string, input: { userId: string; role: AddO
     body: { userId: input.userId, role: input.role },
   });
 }
+
+/**
+ * Changes an operator to MANAGER or STAFF (event OWNER only, #371). OWNER is never given here.
+ * The same role still clears that person's individual permission rows. Not an operator is
+ * 404 RESOURCE_NOT_FOUND and an archived event is 409 EVENT_ARCHIVED.
+ */
+export function changeOperatorRole(eventId: string, userId: string, role: AddOperatorRole): Promise<EventOperator> {
+  return apiRequest(`/api/v1/operator/events/${eventId}/operators/${userId}`, {
+    method: "PATCH",
+    body: { role },
+  });
+}
+
+/**
+ * Removes an operator from the event (event OWNER only, #371). Their tasks lose the assignee.
+ * Success is 200 with no body, and not an operator is 404 RESOURCE_NOT_FOUND.
+ */
+export function removeOperator(eventId: string, userId: string): Promise<void> {
+  return apiRequest<unknown>(`/api/v1/operator/events/${eventId}/operators/${userId}`, {
+    method: "DELETE",
+  }).then(() => undefined);
+}
