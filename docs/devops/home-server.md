@@ -125,6 +125,25 @@ age -d -i scene-backup.key scene-YYYYMMDD-HHMMSS.sql.gz.age | gunzip | docker co
 - [ ] 백업 자동 실행 + 복구 리허설 1회
 - [ ] 휴대폰 LTE(집 Wi-Fi 아님)로 신청 페이지 접속 확인
 - [ ] Cloudflare에서 `scene.greengroove.app`이 프록시(주황 구름) 상태인지 확인
+- [ ] Cloudflare 요청 제한 규칙(공개 POST) 추가 — 위 "공개 신청·참가자 들어오기 요청 제한"
+
+### 공개 신청·참가자 들어오기 요청 제한 (#401, DEC-078)
+
+서버가 먼저 막는다(설정 `scene.participant.*`, 숫자는 잠정, 서버 메모리라 재시작하면 0부터).
+
+| 대상 | 서버 제한 |
+|---|---|
+| 공개 신청 POST `/api/v1/public/events/*/forms/*/applications` | 같은 IP 10분 100번 초과 → `429 RATE_LIMITED` |
+| 참가자 들어오기 POST `/api/v1/public/events/*/participant-sessions` | 같은 IP 실패 10분 30번 초과 → `429`. 전화번호별 연속 5번 실패 → 15분 잠금 |
+
+IP는 nginx가 넘기는 `CF-Connecting-IP`(→ `X-Forwarded-For`, `SERVER_FORWARD_HEADERS_STRATEGY=framework`)다. Cloudflare를 거치지 않는 요청은 없으므로 이 값을 믿는다.
+
+**Cloudflare 규칙 (사용자가 대시보드에서 설정한다. 이 저장소에서는 설정하지 않았다):** `scene.greengroove.app` → Security → WAF → Rate limiting rules에 규칙 하나를 더한다. 무료 플랜은 규칙 1개, 10초 단위다.
+
+- 조건: `http.request.method eq "POST" and starts_with(http.request.uri.path, "/api/v1/public/")`
+- 기준: IP, 10초에 20번 초과 → Block 10초(무료 플랜 기본값)
+- 이유: 서버 제한(10분 100번)보다 짧은 폭주만 Cloudflare에서 끊는다. 교회·수련회장 와이파이처럼 한 IP 뒤에 많은 사람이 있어도 사람 손으로 10초에 20번은 넘지 않는다.
+- 확인: 설정 뒤 휴대폰에서 신청 한 번이 되는지 본다. Security → Events에서 막힌 요청을 본다.
 
 ## 6. 수련회 당일 (가장 큰 위험: 집 정전·인터넷 장애)
 
