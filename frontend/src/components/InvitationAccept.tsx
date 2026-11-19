@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, Navigate, useNavigate } from "react-router";
 import { isApiError } from "../api/errors";
@@ -84,12 +84,17 @@ function InvitationSession({ token }: { token: string }) {
   // Space only: the invitation is pending but this account is already an active member.
   const alreadyMember =
     space && (accepted === "ALREADY_MEMBER" || (!accepted && preview.data?.outcome === "ALREADY_MEMBER"));
+  // The preview said ALREADY_MEMBER but the invitation is still PENDING on the inviter's list. Accept
+  // consumes it (the server answers ALREADY_MEMBER again), so it does not linger (#362 follow-up).
+  const consumeAlreadyMember =
+    space && !accepted && acceptFailure == null && preview.data?.outcome === "ALREADY_MEMBER";
+  const consumeStarted = useRef(false);
   const spaceName = space && preview.data && "spaceName" in preview.data ? textOf(preview.data.spaceName) : "";
   const shouldClear =
     accepted === "ACCEPTED" ||
     accepted === "ALREADY_ACCEPTED" ||
     alreadyAccepted ||
-    alreadyMember ||
+    (alreadyMember && !consumeAlreadyMember) ||
     (previewKind != null && TERMINAL_KINDS.has(previewKind)) ||
     (acceptKind != null && TERMINAL_KINDS.has(acceptKind));
   const shouldLogin = previewKind === "login" || acceptKind === "login";
@@ -102,7 +107,13 @@ function InvitationSession({ token }: { token: string }) {
     if (shouldLogin) navigate(LOGIN_NEXT, { replace: true });
   }, [shouldLogin, navigate]);
 
-  if (me.isPending || shouldLogin || (me.isSuccess && preview.isPending) || accept.isPending) {
+  useEffect(() => {
+    if (!consumeAlreadyMember || consumeStarted.current) return;
+    consumeStarted.current = true;
+    accept.mutate();
+  }, [consumeAlreadyMember, accept]);
+
+  if (me.isPending || shouldLogin || (me.isSuccess && preview.isPending) || accept.isPending || consumeAlreadyMember) {
     return <InvitationFrame busy title="불러오는 중이에요." />;
   }
   if (isApiError(me.error) && me.error.status === 401) {

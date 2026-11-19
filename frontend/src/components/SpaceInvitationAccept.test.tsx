@@ -12,7 +12,7 @@ import { createInvitation } from "../mocks/invitationStore";
 import { operatorRequests } from "../mocks/operatorStore";
 import { problem } from "../mocks/problem";
 import { server } from "../mocks/server";
-import { seedSpaceInvitation } from "../mocks/spaceInvitationStore";
+import { pendingSpaceInvitations, seedSpaceInvitation } from "../mocks/spaceInvitationStore";
 import { InvitationAccept } from "./InvitationAccept";
 
 const SPACE = localSpace.spaceId;
@@ -88,6 +88,25 @@ describe("space invitation accept", () => {
     expect(storedInvitationToken()).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "행사 목록" }));
     expect(await screen.findByText("행사 목록 화면")).toBeInTheDocument();
+  });
+
+  it("consumes the invitation when the preview says ALREADY_MEMBER (#362 follow-up)", async () => {
+    const token = seedSpaceInvitation(SPACE, "staff@example.com");
+    expect(pendingSpaceInvitations(SPACE, OWNER)).toHaveLength(1);
+    await login({ userId: STAFF, email: "staff@example.com" });
+    seedToken(token);
+    renderInvite();
+
+    expect(
+      await screen.findByRole("heading", { name: "이미 Local space 조직의 멤버예요" }, { timeout: 4000 }),
+    ).toBeInTheDocument();
+    expect(paths()).toEqual([
+      "/api/v1/operator/space-invitations/preview",
+      "/api/v1/operator/space-invitations/accept",
+    ]);
+    // The server answers ALREADY_MEMBER and marks the invitation ACCEPTED, so it leaves the list.
+    expect(pendingSpaceInvitations(SPACE, OWNER)).toEqual([]);
+    expect(storedInvitationToken()).toBeNull();
   });
 
   it("shows already member when accept reports ALREADY_MEMBER", async () => {
