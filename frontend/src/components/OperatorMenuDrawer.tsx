@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import symbol from "../assets/scene-symbol-header.svg";
-import { OperatorNav, type OperatorMenu } from "./OperatorNav";
+import type { OperatorMenu } from "./operatorMenu";
+import { OperatorNav } from "./OperatorNav";
 
 /** Screens at least this wide show the sidebar instead, so an open drawer closes there. */
 const DESKTOP_QUERY = "(min-width: 1024px)";
