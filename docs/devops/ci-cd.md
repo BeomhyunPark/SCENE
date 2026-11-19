@@ -8,6 +8,7 @@ Status: baseline CI plus pull-based auto deploy on the home server (2026-11-17, 
 |---|---|---|---|
 | docs-ci | `.github/workflows/docs-ci.yml` | `docs-check` | PR to main, push to main, manual |
 | ci | `.github/workflows/ci.yml` | `changes`, `backend`, `frontend`, `ci-ok` | PR to main, push to main, manual |
+| uptime | `.github/workflows/uptime.yml` | `health` | every 15 min (schedule, main only), manual |
 
 - **docs-check**: `scripts/check_docs.py` (all `docs/**/*.json` parse; reaction-check results have passed == total;
   relative Markdown links resolve) + syntax check of `docs/**/*.figma.js` (wrapped in an async function, since they
@@ -39,7 +40,10 @@ The home server polls instead of being pushed to, so no inbound route or self-ho
 [`deploy/home/auto-deploy.sh`](../../deploy/home/auto-deploy.sh) every 5 minutes: it deploys `origin/main` only after
 `ci-ok` and `docs-check` succeeded on that commit, rebuilds only when `backend/`, `frontend/` or
 `deploy/home/compose.yaml` changed, takes a database dump first, smoke-tests the public URL, and goes back to the
-previous commit on failure (Flyway changes are not undone). Details and limits: [home-server.md](home-server.md).
+previous commit on failure (Flyway changes are not undone). It alerts one webhook (`SCENE_ALERT_URL`) on deploys and
+failures, pings a heartbeat on every run, and stops while `deploy/home/FREEZE` is on main (urgent fixes carry
+`Deploy-During-Freeze: yes`). `uptime` is a backup outside check of `/actuator/health`; it is not a required check.
+Details and limits: [home-server.md](home-server.md) §8–§10.
 
 There is no stg: the user decided (2026-11-16) to rehearse on the home server and delete the rehearsal data before
 applications open, so a merge to main is a production deploy. [`cd-skeleton.yml`](cd-skeleton.yml) is an unused
