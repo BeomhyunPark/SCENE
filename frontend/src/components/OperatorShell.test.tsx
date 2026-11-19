@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { MemoryRouter, Route, Routes } from "react-router";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router";
 import { afterEach, describe, expect, it } from "vitest";
 import { createQueryClient } from "../api/queryClient";
 import { OperatorShell } from "./OperatorShell";
@@ -166,5 +166,136 @@ describe("sidebar collapse", () => {
     } finally {
       Storage.prototype.getItem = original;
     }
+  });
+});
+
+function Where() {
+  return <p data-testid="where">{useLocation().pathname}</p>;
+}
+
+function renderDrawerAt(path: string, event = false) {
+  return renderRoutes(
+    path,
+    <Routes>
+      <Route
+        path="*"
+        element={
+          event ? (
+            <OperatorShell
+              title="Local event"
+              spaceName="Local space"
+              eventName="Local event"
+              eventHref="/events/e1"
+              eventAreas={["participants", "tasks"]}
+              participantsHref="/events/e1/participants"
+              tasksHref="/events/e1/tasks"
+            >
+              <Where />
+            </OperatorShell>
+          ) : (
+            <OperatorShell title="조직" spaceName="Local space">
+              <Where />
+            </OperatorShell>
+          )
+        }
+      />
+    </Routes>,
+  );
+}
+
+function openDrawer() {
+  fireEvent.click(screen.getByRole("button", { name: "메뉴 열기" }));
+  return screen.getByRole("dialog", { name: "운영 메뉴" });
+}
+
+describe("phone menu drawer (#368)", () => {
+  afterEach(() => localStorage.clear());
+
+  it("opens from the header button with the sidebar's organization menus and current page", () => {
+    renderDrawerAt("/events");
+    const button = screen.getByRole("button", { name: "메뉴 열기" });
+    expect(button).toHaveAttribute("aria-expanded", "false");
+    expect(button).toHaveAttribute("aria-haspopup", "dialog");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    const dialog = openDrawer();
+    expect(button).toHaveAttribute("aria-expanded", "true");
+    expect(button.getAttribute("aria-controls")).toBe(dialog.id);
+    expect(dialog).toHaveAttribute("aria-modal", "true");
+    for (const [label, href] of orgMenus) {
+      expect(within(dialog).getByRole("link", { name: label })).toHaveAttribute("href", href);
+    }
+    expect(within(dialog).getByRole("link", { name: "행사" })).toHaveAttribute("aria-current", "page");
+    expect(within(dialog).getByRole("button", { name: "로그아웃" })).toBeInTheDocument();
+    expect(within(dialog).getByText("Local space")).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "메뉴 닫기" })).toHaveFocus();
+    expect(document.body.style.overflow).toBe("hidden");
+  });
+
+  it("navigates on a menu tap, closes, and gives focus back to the menu button", () => {
+    renderDrawerAt("/events");
+    fireEvent.click(within(openDrawer()).getByRole("link", { name: "설정" }));
+    expect(screen.getByTestId("where")).toHaveTextContent("/settings");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "메뉴 열기" })).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByRole("button", { name: "메뉴 열기" })).toHaveFocus();
+    expect(document.body.style.overflow).toBe("");
+  });
+
+  it("closes on Esc, the backdrop, and the close button", () => {
+    renderDrawerAt("/events");
+    const button = screen.getByRole("button", { name: "메뉴 열기" });
+
+    openDrawer();
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(button).toHaveFocus();
+
+    openDrawer();
+    fireEvent.click(document.querySelector(".operator-drawer__backdrop")!);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    fireEvent.click(within(openDrawer()).getByRole("button", { name: "메뉴 닫기" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(button).toHaveFocus();
+    expect(screen.getByTestId("where")).toHaveTextContent("/events");
+  });
+
+  it("keeps Tab inside the drawer and makes the page behind inert", () => {
+    renderDrawerAt("/events");
+    const dialog = openDrawer();
+    expect(document.querySelector(".operator-shell__main")).toHaveAttribute("inert");
+    expect(document.querySelector(".operator-shell__sidebar")).toHaveAttribute("inert");
+    const close = within(dialog).getByRole("button", { name: "메뉴 닫기" });
+    const signOutButton = within(dialog).getByRole("button", { name: "로그아웃" });
+    signOutButton.focus();
+    fireEvent.keyDown(document, { key: "Tab" });
+    expect(close).toHaveFocus();
+    fireEvent.keyDown(document, { key: "Tab", shiftKey: true });
+    expect(signOutButton).toHaveFocus();
+  });
+
+  it("shows the event menus inside an event and opens 운영 멤버", () => {
+    renderDrawerAt("/events/e1", true);
+    const dialog = openDrawer();
+    expect(within(dialog).getByRole("link", { name: "Local event" })).toHaveAttribute("aria-current", "page");
+    for (const label of ["준비 업무", "참가 현황", "현장 운영", "조 편성", "운영 멤버", "다른 기능 시작", "설정"]) {
+      expect(within(dialog).getByRole("link", { name: label })).toBeInTheDocument();
+    }
+    fireEvent.click(within(dialog).getByRole("link", { name: "운영 멤버" }));
+    expect(screen.getByTestId("where")).toHaveTextContent("/events/e1/operators");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    const again = openDrawer();
+    expect(within(again).getByRole("link", { name: "운영 멤버" })).toHaveAttribute("aria-current", "page");
+    expect(within(again).getByRole("link", { name: "Local event" })).not.toHaveAttribute("aria-current");
+  });
+
+  it("renders the drawer outside the collapsible sidebar, so collapse never applies to it", () => {
+    localStorage.setItem("scene.operatorSidebar.collapsed", "1");
+    renderDrawerAt("/events");
+    const dialog = openDrawer();
+    expect(dialog.closest(".operator-shell__sidebar")).toBeNull();
+    expect(within(dialog).getByRole("link", { name: "일정" })).toBeVisible();
   });
 });

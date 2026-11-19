@@ -1,7 +1,8 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { useLocation } from "react-router";
 import symbol from "../assets/scene-symbol-header.svg";
 import caret from "../assets/event-nav/caret.svg";
+import { OperatorMenuDrawer } from "./OperatorMenuDrawer";
 import { OperatorNav } from "./OperatorNav";
 import "./OperatorShell.css";
 
@@ -68,6 +69,15 @@ export function OperatorShell({
   const menu = { eventName, eventHref, eventAreas, participantsHref, tasksHref, spaceName };
   const [collapsed, setCollapsed] = useState(readCollapsed);
   const boot = useBootEntrance();
+  const drawerId = useId();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuButton = useRef<HTMLButtonElement>(null);
+  const wasOpen = useRef(false);
+  useEffect(() => {
+    // Focus returns to the menu button once the drawer closes (the page is no longer inert).
+    if (wasOpen.current && !menuOpen && menuButton.current?.isConnected) menuButton.current.focus();
+    wasOpen.current = menuOpen;
+  }, [menuOpen]);
   function toggleCollapsed() {
     setCollapsed((value) => {
       writeCollapsed(!value);
@@ -79,7 +89,7 @@ export function OperatorShell({
       className={`operator-shell${collapsed ? " operator-shell--collapsed" : ""}${boot ? " operator-shell--boot" : ""}`}
     >
       {boot ? <div className="operator-shell__curtain" aria-hidden="true" /> : null}
-      <aside className="operator-shell__sidebar">
+      <aside className="operator-shell__sidebar" inert={menuOpen}>
         <div className="operator-shell__brand">
           <span className="operator-shell__logo">
             <img src={symbol} alt="" width={36} height={36} aria-hidden="true" />
@@ -97,9 +107,26 @@ export function OperatorShell({
         </div>
         <OperatorNav {...menu} />
       </aside>
-      <main className={framed ? "operator-shell__main operator-shell__main--framed" : "operator-shell__main"}>
+      <main
+        className={framed ? "operator-shell__main operator-shell__main--framed" : "operator-shell__main"}
+        inert={menuOpen}
+      >
         <header className="operator-shell__header">
           <div className="operator-shell__heading">
+            <button
+              ref={menuButton}
+              className="operator-shell__menu-button"
+              type="button"
+              aria-label="메뉴 열기"
+              aria-haspopup="dialog"
+              aria-expanded={menuOpen}
+              aria-controls={drawerId}
+              onClick={() => setMenuOpen(true)}
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M4 6.5h16M4 12h16M4 17.5h16" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+              </svg>
+            </button>
             {leading}
             <h1 className="operator-shell__title">{title}</h1>
           </div>
@@ -107,6 +134,7 @@ export function OperatorShell({
         </header>
         {children}
       </main>
+      <OperatorMenuDrawer id={drawerId} open={menuOpen} onClose={() => setMenuOpen(false)} menu={menu} />
     </div>
   );
 }
