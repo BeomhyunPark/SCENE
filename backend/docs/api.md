@@ -114,7 +114,7 @@ operator 경로는 운영자 세션이 필요하다. public 경로는 세션을 
 | `RATE_LIMITED` | 429 | 초대 미리보기·수락이 한도를 넘었다 |
 | `HANDOVER_NOT_ACCEPTED` | 409 | 수락되지 않은 인수인계가 있어 공간 탈퇴가 막힌다 |
 | `LAST_OWNER` | 409 | 마지막 소유자라 공간 탈퇴가 막힌다 |
-| `OWNER_ROLE_HELD` | 409 | 소유 역할을 가진 채 공간 탈퇴가 막힌다 |
+| `OWNER_ROLE_HELD` | 409 | 소유 역할을 가진 채 공간 탈퇴가 막히거나, 운영자 역할 변경·빼기의 대상이 행사 `OWNER`다 |
 | `RESPONSIBILITY` | 409 | 열린 담당 업무가 있어 공간 탈퇴가 막힌다 |
 | `TRANSFER_NOT_PENDING` | 409 | 그 이전을 이 명령으로 진행할 수 없거나, 같은 보내는 사람의 `PENDING`이 이미 있다 |
 | `TRANSFER_COMPLETED` | 409 | 끝난 소유권 이전은 바꿀 수 없다 |
@@ -724,11 +724,13 @@ curl -sS \
 { "role": "MANAGER" }
 ```
 
-`role`은 `MANAGER` 또는 `STAFF`만이다. 이 경로로 `OWNER`를 부여하지 않는다. 요청한 역할이 지금과 같아도 그 사람의 개별 권한 행은 지워지고 역할은 다시 써진다. 보관된 행사는 `409 EVENT_ARCHIVED`다. `200`은 한 명 조회와 같다.
+`role`은 `MANAGER` 또는 `STAFF`만이다. 이 경로로 `OWNER`를 부여하지 않는다. 요청한 역할이 지금과 같아도 그 사람의 개별 권한 행은 지워지고 역할은 다시 써진다. 대상이 행사 `OWNER`면 자기 자신이어도 `409 OWNER_ROLE_HELD`이고 아무것도 바꾸지 않는다. Owner 변경은 위임·인수인계(DEC-033)로만 한다. 보관된 행사는 `409 EVENT_ARCHIVED`다. `200`은 한 명 조회와 같다.
+
+검사 순서는 `FORBIDDEN`, 없는 운영자 `404`, `role` 검증 `400`, 행 잠금 뒤 대상 역할로 `409 OWNER_ROLE_HELD`, `409 EVENT_ARCHIVED`다. Owner 판정은 보관 여부와 관계없는 규칙이라 보관 검사보다 앞에 둔다.
 
 ### `DELETE /api/v1/operator/events/{eventId}/operators/{userId}`
 
-운영자 행을 제거한다. 성공은 `200`이고 본문이 없다. 그 사람이 담당인 업무의 `assigneeUserId`는 비워지고 업무 `version`이 1 증가한다. 없는 운영자는 `404`다.
+운영자 행을 제거한다. 성공은 `200`이고 본문이 없다. 그 사람이 담당인 업무의 `assigneeUserId`는 비워지고 업무 `version`이 1 증가한다. 없는 운영자는 `404`다. 대상이 행사 `OWNER`면 자기 자신이어도 `409 OWNER_ROLE_HELD`이고 행·업무·감사 기록을 바꾸지 않는다. 판정은 행 잠금 뒤 역할로 한다. Owner가 빠지는 길은 위임·인수인계(DEC-033)와 수락된 인수인계 뒤의 공간 탈퇴뿐이다.
 
 ### `GET /api/v1/operator/events/{eventId}/operators/{userId}/permissions`
 
