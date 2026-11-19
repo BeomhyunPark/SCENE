@@ -219,7 +219,7 @@ curl -sS \
 
 ### `POST /api/v1/operator/spaces/{spaceId}/events`
 
-활성 공간 멤버가 행사를 만든다. 만든 사람은 그 행사의 `OWNER`가 된다. `EVENT_CREATE` 권한 키는 없다. `Idempotency-Key`는 읽지 않는다. 멤버 행이 없으면 `404 RESOURCE_NOT_FOUND`다. 멤버십이 `ACTIVE`가 아니면 `403 NOT_A_MEMBER`다.
+활성 공간 `OWNER`·`ADMIN`이 행사를 만든다(DEC-077, #370). 만든 사람은 그 행사의 `OWNER`가 된다. `EVENT_CREATE` 권한 키는 없다. `Idempotency-Key`는 읽지 않는다. 멤버 행이 없으면 `404 RESOURCE_NOT_FOUND`다. 멤버십이 `ACTIVE`가 아니면 `403 NOT_A_MEMBER`다. 활성 `MEMBER`는 `403 FORBIDDEN`이고 행사를 만들지 않는다. 이 판정은 본문 검사보다 먼저다. `MEMBER`는 Event Owner가 운영 멤버로 추가해서 행사에 들어온다(`POST /api/v1/operator/events/{eventId}/operators`).
 
 ```json
 {

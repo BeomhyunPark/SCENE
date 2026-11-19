@@ -48,6 +48,10 @@ export const eventHandlers = [
     if (!operator) return problem(401, "AUTHENTICATION_REQUIRED");
     const body = await readJson(request);
     operatorRequests.push({ method: "POST", url: new URL(request.url).pathname, body });
+    // Only an active space OWNER or ADMIN creates; a MEMBER is FORBIDDEN before the body check (DEC-077).
+    const spaceRole = spacesFor(operator.userId).find((space) => space.spaceId === String(params.spaceId))?.role;
+    if (!spaceRole) return problem(404, "RESOURCE_NOT_FOUND");
+    if (spaceRole !== "OWNER" && spaceRole !== "ADMIN") return problem(403, "FORBIDDEN");
     if (!isRecord(body) || typeof body.name !== "string" || body.name.trim().length === 0) {
       return problem(400, "VALIDATION_FAILED", { errors: [{ field: "name" }] });
     }

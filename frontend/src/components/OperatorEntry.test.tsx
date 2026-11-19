@@ -3,6 +3,8 @@ import { MemoryRouter } from "react-router";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it, vi } from "vitest";
 import { App } from "../App";
+import { createEvent } from "../api/events";
+import { isApiError } from "../api/errors";
 import { getMe, login } from "../api/session";
 import { localUsers } from "../mocks/fixtures/seed";
 import { server } from "../mocks/server";
@@ -179,5 +181,46 @@ describe("operator entry", () => {
     fireEvent.click(screen.getByRole("button", { name: "행사 만들기" }));
     expect(await screen.findByText("행사 유형을 다시 골라 주세요.")).toBeInTheDocument();
     getItem.mockRestore();
+  });
+
+  it("gives a space MEMBER no create entry and a notice on /events/new (DEC-077)", async () => {
+    const member = localUsers[4].userId;
+    await login({ userId: member });
+    const list = renderAt("/events");
+    expect(await screen.findByRole("heading", { name: "아직 운영하는 행사가 없어요" })).toBeInTheDocument();
+    expect(screen.getByText("관리자가 만든 행사에 운영자로 추가되면 여기에 보여요.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "새 행사" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "첫 행사 만들기" })).not.toBeInTheDocument();
+    list.unmount();
+
+    renderAt("/events/new");
+    expect(
+      await screen.findByText("행사는 조직 관리자가 만들어요. 관리자가 만든 행사에 운영자로 추가되면 행사 목록에 보여요."),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "행사명" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "행사 만들기" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "행사 목록으로" }));
+    expect(await screen.findByRole("heading", { name: "아직 운영하는 행사가 없어요" })).toBeInTheDocument();
+
+    // The mock answers like the server: a MEMBER's create is FORBIDDEN and stores nothing.
+    const spaces = await (await fetch("/api/v1/operator/spaces")).json();
+    const refused = await createEvent(spaces.items[0].spaceId, { name: "멤버 행사" }).catch((error: unknown) => error);
+    expect(isApiError(refused, "FORBIDDEN")).toBe(true);
+  });
+
+  it("shows a refusal when the server forbids the create (DEC-077)", async () => {
+    server.use(
+      http.post("/api/v1/operator/spaces/:spaceId/events", () =>
+        HttpResponse.json(
+          { type: "about:blank", title: "Forbidden", status: 403, code: "FORBIDDEN", traceId: "mock-trace" },
+          { status: 403, headers: { "Content-Type": "application/problem+json" } },
+        ),
+      ),
+    );
+    await signIn();
+    fireEvent.click(screen.getByRole("button", { name: "새 행사" }));
+    fireEvent.change(await screen.findByRole("textbox", { name: "행사명" }), { target: { value: "가을 수련회" } });
+    fireEvent.click(screen.getByRole("button", { name: "행사 만들기" }));
+    expect(await screen.findByText("행사는 조직 관리자만 만들 수 있어요.")).toBeInTheDocument();
   });
 });

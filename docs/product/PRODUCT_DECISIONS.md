@@ -1,6 +1,6 @@
 # Church Event Operations Platform — Product Decisions
 
-> **2026-09-30 baseline:** DEC-001~027의 기존 본문·Status 보존. 최초 정리 당시에는 새 DEC를 만들지 않았고, 이후 검토에서 DEC-028~059를 추가했다. 2026-10-01 #11·#12 기술 계약으로 DEC-060~061을, 2026-10-02 #31 업무·체크리스트 저장 계약으로 DEC-062를, #30 행사 lifecycle command 계약으로 DEC-063을, 2026-10-06 MVP 참여자 인증 결정으로 DEC-064를, 같은 날 업무 오류 판정 순서·Override 사유 저장 보강으로 DEC-065를, 2026-10-15 AI 기능 포함과 첫 AI 범위(C1·C7) 결정으로 DEC-066을, 2026-10-21 개발용 로그인 profile gate·세션 쿠키 결정으로 DEC-067을, 2026-11-16 신청서 질문 유형·조건부 표시·편집 잠금 결정으로 DEC-068을, 같은 날 운영자 Google 로그인·초대 기반 가입·첫 관리자 지정 결정으로 DEC-069를, 신청서 설정·자동 질문·기본항목(이름·전화·또래) 결정으로 DEC-070을, 2026-11-17 체크인·조 편성·신청 집계·부분 참석·운영 메모 결정으로 DEC-071~075를, 2026-11-18 조직 역할·조직 초대 결정으로 DEC-076을 추가했다(현재 마지막 번호 DEC-076). 최신 요청의 제품명 SCENE 및 Technical Design / implementation 전 상태가 현재 기준이다. DEC-024/027의 단계와 §17 Product Name OPEN은 이전 이력이며 기술 기준은 [Architecture](../architecture/architecture-v0.1.md)를 따른다. 공식 Decision Log 정합화는 검토 필요.
+> **2026-09-30 baseline:** DEC-001~027의 기존 본문·Status 보존. 최초 정리 당시에는 새 DEC를 만들지 않았고, 이후 검토에서 DEC-028~059를 추가했다. 2026-10-01 #11·#12 기술 계약으로 DEC-060~061을, 2026-10-02 #31 업무·체크리스트 저장 계약으로 DEC-062를, #30 행사 lifecycle command 계약으로 DEC-063을, 2026-10-06 MVP 참여자 인증 결정으로 DEC-064를, 같은 날 업무 오류 판정 순서·Override 사유 저장 보강으로 DEC-065를, 2026-10-15 AI 기능 포함과 첫 AI 범위(C1·C7) 결정으로 DEC-066을, 2026-10-21 개발용 로그인 profile gate·세션 쿠키 결정으로 DEC-067을, 2026-11-16 신청서 질문 유형·조건부 표시·편집 잠금 결정으로 DEC-068을, 같은 날 운영자 Google 로그인·초대 기반 가입·첫 관리자 지정 결정으로 DEC-069를, 신청서 설정·자동 질문·기본항목(이름·전화·또래) 결정으로 DEC-070을, 2026-11-17 체크인·조 편성·신청 집계·부분 참석·운영 메모 결정으로 DEC-071~075를, 2026-11-18 조직 역할·조직 초대 결정으로 DEC-076을, 2026-11-19 행사 생성 권한(조직 OWNER·ADMIN만) 결정으로 DEC-077을 추가했다(현재 마지막 번호 DEC-077). 최신 요청의 제품명 SCENE 및 Technical Design / implementation 전 상태가 현재 기준이다. DEC-024/027의 단계와 §17 Product Name OPEN은 이전 이력이며 기술 기준은 [Architecture](../architecture/architecture-v0.1.md)를 따른다. 공식 Decision Log 정합화는 검토 필요.
 >
 > DEC-027은 단계 설명에 한해 DEC-024를 대체한다고 기록하지만 DEC-024의 원래 CONFIRMED 표기는 보존한다. Evidence Type의 HYPOTHESIS 용어 충돌도 [검토 기록](../architecture/architecture-v0.1.md)에 남긴다.
 > [Product Definition](PRODUCT_DEFINITION.md) · [Research](RESEARCH.md)
@@ -2830,6 +2830,8 @@ DEC-070은 부분·집회만 참석자가 `MEALS`에서 식사·집회 칸을 �
 
 2027년 1월 수련회 운영진이 조직 멤버로 들어와 행사를 만들고 Event Owner를 맡아야 한다([#358](https://github.com/BeomhyunPark/SCENE/issues/358)). 운영 서버에서 조직에 들어가는 길은 첫 관리자 지정(DEC-069) 하나뿐이다. 행사 생성과 Event Owner는 활성 조직 멤버만 할 수 있어서(DEC-060) 첫 관리자 한 명이 모든 행사를 만들고 Owner를 맡아야 하며, Owner를 넘겨줄 사람도 없다. `members.role`에는 `ADMIN`이 있지만 부여 방법도 결정 문서의 정의도 없고, 서버 여러 서비스에 "공간 OWNER 또는 ADMIN이면 모든 행사 조회" 판정이 있다. 운영 멤버 화면은 초대 링크 만들기만 있고, 기존 멤버를 바로 추가하는 API(`POST /api/v1/operator/events/{eventId}/operators`)는 화면에서 부르지 않는다.
 
+> **2026-11-19 메모:** 위 Context의 "조직 멤버가 행사를 만들고 Event Owner를 맡는다" 전제는 DEC-077([#370](https://github.com/BeomhyunPark/SCENE/issues/370))이 좁혔다. 행사는 활성 조직 `OWNER`·`ADMIN`만 만들고, `MEMBER`는 운영자로 추가돼 행사에 들어온다. 아래 본문은 바꾸지 않았다.
+
 ### Decision
 
 - **조직 역할은 `OWNER` / `ADMIN` / `MEMBER` 세 가지다.** `ADMIN`은 수련회 이후 확장을 위해 지금 정의하지만, 1월에는 아무에게도 부여하지 않는다.
@@ -2873,3 +2875,46 @@ DEC-070은 부분·집회만 참석자가 `MEALS`에서 식사·집회 칸을 �
 ### Evidence
 
 현 결정 2026-11-18. [#358](https://github.com/BeomhyunPark/SCENE/issues/358) 사용자 결정, [#359](https://github.com/BeomhyunPark/SCENE/issues/359) 추천 기본값 모두 확인. 근거 결정은 DEC-032, DEC-033, DEC-037, DEC-039, DEC-060, DEC-069이다.
+
+---
+
+## DEC-077 — 행사는 활성 조직 OWNER·ADMIN만 만들고, MEMBER는 운영자로 추가돼 행사에 들어온다
+
+**Date:** 2026-11-19
+
+**Status:** CONFIRMED (현 결정 2026-11-19)
+
+### Context
+
+지금은 활성 조직 멤버라면 누구나 행사를 만들 수 있고, 만든 사람이 그 행사의 Event Owner가 된다(`OperatorEventCommandService#create`, DEC-060). 이 규칙은 결정 문서에 명시된 적이 없고, DEC-076은 "멤버가 행사를 만든다"를 전제로만 썼다. 조직 초대(DEC-076, [#358](https://github.com/BeomhyunPark/SCENE/issues/358))로 `MEMBER`가 생기면서 초대받은 누구나 조직 이름으로 행사를 만들 수 있게 됐다([#370](https://github.com/BeomhyunPark/SCENE/issues/370)).
+
+### Decision
+
+- **행사 생성은 활성 조직 `OWNER`·`ADMIN`만 한다.** 활성 `MEMBER`의 생성 요청은 `403 FORBIDDEN`이고 행사를 만들지 않는다. 멤버 행이 없으면 `404 RESOURCE_NOT_FOUND`, 탈퇴(`LEFT`)면 `403 NOT_A_MEMBER`인 기존 순서는 그대로 두고, 역할 판정은 그 뒤, 본문 검사보다 앞에 둔다.
+- **`MEMBER`는 관리자가 만든 행사에 운영자로 추가돼서 들어온다.** Event Owner가 운영 멤버 화면에서 조직 멤버를 골라 바로 추가한다(DEC-076, `POST /api/v1/operator/events/{eventId}/operators`).
+- **만든 사람이 그 행사의 Event Owner가 되는 규칙은 그대로다.** `ADMIN`이 만든 행사의 Owner도 그 `ADMIN`이다.
+- **화면은 `MEMBER`에게 행사 만들기 진입점을 보이지 않는다.** "새 행사" 버튼과 빈 목록의 행사 만들기 안내를 숨기고, "관리자가 만든 행사에 운영자로 추가되면 여기에 보여요"를 안내한다. `/events/new`로 직접 들어와도 양식 대신 안내를 보인다. 서버 판정이 기준이고 화면은 그와 맞춘다(DEC-031).
+- `EVENT_CREATE` 권한 키는 여전히 없다. 판정은 조직 역할(`SpaceMembership#mayCreateEvents`) 하나다.
+
+### 범위 밖
+
+- `MEMBER`가 행사 생성을 요청하고 관리자가 승인하는 흐름
+- 행사별 생성 권한 위임, `ADMIN` 부여 화면(DEC-076 범위 밖 유지)
+
+### Alternatives
+
+- 지금처럼 활성 멤버 누구나 만들기: 초대받은 운영진 누구나 조직 이름으로 행사를 열 수 있어 채택하지 않았다.
+- `OWNER`만 만들기: 수련회 이후 `ADMIN`에게 맡길 일을 다시 막게 되고, `ADMIN`이 이미 모든 행사를 보는 정의(DEC-076)와 어긋나 채택하지 않았다.
+- 화면에서만 숨기기: 서버와 화면 판정이 달라져(DEC-031) 채택하지 않았다.
+
+### Reason
+
+조직 이름으로 행사를 여는 일은 조직을 관리하는 사람이 정한다. 운영진은 관리자가 만든 행사에 운영자로 들어와 일하면 충분하고, 그 길(조직 멤버 바로 추가)은 DEC-076에서 이미 만들었다.
+
+### Consequence
+
+서버는 `SpaceMembership`에 `mayCreateEvents()`(활성 `OWNER`·`ADMIN`)를 두고 행사 생성에서 검사한다. [backend/docs/api.md](../../backend/docs/api.md)의 행사 생성 계약을 갱신한다. 화면은 조직 역할을 보고 `MEMBER`에게 행사 만들기 진입점을 숨긴다. #358의 완료 조건 "그 MEMBER가 행사를 만들 수 있고 Event Owner를 맡을 수 있다"와 #364의 확인 흐름 "조직 초대 → 수락 → 행사 생성 → 운영자 추가"는 "OWNER가 행사를 만들고 그 MEMBER를 운영자로 추가한다"로 바뀐다.
+
+### Evidence
+
+현 결정 2026-11-19. [#370](https://github.com/BeomhyunPark/SCENE/issues/370) 사용자 결정. 근거 결정은 DEC-031, DEC-060, DEC-076이다.

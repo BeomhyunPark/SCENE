@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import calendarPlus from "../assets/event-nav/calendar-plus.svg";
 import plus from "../assets/event-nav/plus.svg";
 import { listEvents } from "../api/events";
+import { mayCreateEvents } from "../api/spaces";
 import { reloadQuery } from "../api/queryClient";
 import { queryKeys } from "../api/queryKeys";
 import { useCurrentSpace } from "../api/useCurrentSpace";
@@ -51,10 +52,24 @@ export function EventList() {
     );
   }
 
-  return <EventRows spaceId={spaces.space.spaceId} spaceName={spaces.space.name} />;
+  return (
+    <EventRows
+      spaceId={spaces.space.spaceId}
+      spaceName={spaces.space.name}
+      mayCreate={mayCreateEvents(spaces.space.role)}
+    />
+  );
 }
 
-function EventRows({ spaceId, spaceName }: { spaceId: string; spaceName: string }) {
+function EventRows({
+  spaceId,
+  spaceName,
+  mayCreate,
+}: {
+  spaceId: string;
+  spaceName: string;
+  mayCreate: boolean;
+}) {
   const navigate = useNavigate();
   const [page, setPage] = useState(0);
   const events = useQuery({
@@ -68,15 +83,17 @@ function EventRows({ spaceId, spaceName }: { spaceId: string; spaceName: string 
       spaceName={spaceName}
       framed
       action={
-        <Button
-          type="button"
-          variant="secondary"
-          size={40}
-          className="event-list__new"
-          onClick={() => navigate("/events/new")}
-        >
-          <img src={plus} alt="" />새 행사
-        </Button>
+        mayCreate ? (
+          <Button
+            type="button"
+            variant="secondary"
+            size={40}
+            className="event-list__new"
+            onClick={() => navigate("/events/new")}
+          >
+            <img src={plus} alt="" />새 행사
+          </Button>
+        ) : undefined
       }
     >
       <div className="event-list__body">
@@ -98,13 +115,22 @@ function EventRows({ spaceId, spaceName }: { spaceId: string; spaceName: string 
             <span className="event-list__mark" aria-hidden="true">
               <img src={calendarPlus} alt="" />
             </span>
-            <h3 className="event-list__empty-title">아직 만든 행사가 없어요</h3>
-            <p className="event-list__empty-copy">
-              행사를 먼저 만들고 참가자, 준비 업무와 일정은 필요할 때 시작해요.
-            </p>
-            <Button type="button" variant="primary" size={40} onClick={() => navigate("/events/new")}>
-              첫 행사 만들기
-            </Button>
+            {mayCreate ? (
+              <>
+                <h3 className="event-list__empty-title">아직 만든 행사가 없어요</h3>
+                <p className="event-list__empty-copy">
+                  행사를 먼저 만들고 참가자, 준비 업무와 일정은 필요할 때 시작해요.
+                </p>
+                <Button type="button" variant="primary" size={40} onClick={() => navigate("/events/new")}>
+                  첫 행사 만들기
+                </Button>
+              </>
+            ) : (
+              <>
+                <h3 className="event-list__empty-title">아직 운영하는 행사가 없어요</h3>
+                <p className="event-list__empty-copy">관리자가 만든 행사에 운영자로 추가되면 여기에 보여요.</p>
+              </>
+            )}
           </section>
         ) : null}
         {events.data && events.data.items.length > 0 ? (

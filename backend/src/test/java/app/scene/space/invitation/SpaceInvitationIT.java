@@ -293,7 +293,7 @@ class SpaceInvitationIT {
   }
 
   @Test
-  void acceptedMemberCreatesAnEventAndBecomesItsOwner() throws Exception {
+  void acceptedMemberCannotCreateButJoinsAnEventTheOwnerAddsThemTo() throws Exception {
     Fixture fx = seed();
     Cookie owner = login(fx.ownerId, null);
     Issued invite = invite(owner, fx.spaceId, "Staff@Example.com", null);
@@ -351,17 +351,34 @@ class SpaceInvitationIT {
     assertThat(audit).contains("\"outcome\": \"ACCEPTED\"").contains("\"membership\": \"CREATED\"");
     assertThat(audit).doesNotContain(invite.token).doesNotContain("staff@example.com");
 
+    // DEC-077: the new MEMBER does not create events. The space owner creates one and adds them.
+    problem(
+        write(
+            post("/api/v1/operator/spaces/" + fx.spaceId + "/events"),
+            session,
+            "{\"name\":\"Member retreat\"}"),
+        403,
+        "FORBIDDEN");
     MvcResult created =
         write(
                 post("/api/v1/operator/spaces/" + fx.spaceId + "/events"),
-                session,
+                owner,
                 "{\"name\":\"January retreat\"}")
             .andExpect(status().isCreated())
             .andReturn();
     UUID eventId =
         UUID.fromString(
             json.readTree(created.getResponse().getContentAsString()).get("eventId").asString());
-    assertThat(eventRole(eventId, invitee)).isEqualTo("OWNER");
+    assertThat(eventRole(eventId, fx.ownerId)).isEqualTo("OWNER");
+    assertThat(eventRole(eventId, invitee)).isNull();
+    mvc.perform(get("/api/v1/operator/events/" + eventId).cookie(session))
+        .andExpect(status().isForbidden());
+    write(
+            post("/api/v1/operator/events/" + eventId + "/operators"),
+            owner,
+            "{\"userId\":\"" + invitee + "\",\"role\":\"STAFF\"}")
+        .andExpect(status().isOk());
+    assertThat(eventRole(eventId, invitee)).isEqualTo("STAFF");
     mvc.perform(get("/api/v1/operator/events/" + eventId).cookie(session))
         .andExpect(status().isOk());
     assertLogsOmit(invite.token, "staff@example.com");

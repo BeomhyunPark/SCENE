@@ -38,8 +38,9 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * Event create, list, and name patch. An active member opens the event and becomes its owner. The
- * space-path probe stays 404, then NOT_A_MEMBER, then FORBIDDEN.
+ * Event create, list, and name patch. An active space owner or admin opens the event and becomes
+ * its owner; an active member is FORBIDDEN (DEC-077). The space-path probe stays 404, then
+ * NOT_A_MEMBER, then FORBIDDEN.
  */
 @SpringBootTest
 @Import(PostgresTestcontainer.class)
@@ -68,10 +69,10 @@ class EventCommandHttpIT {
   }
 
   @Test
-  void activeMemberCreatesADraftTheyOwn() throws Exception {
+  void activeOwnerCreatesADraftTheyOwn() throws Exception {
     UUID spaceId = space("Home");
-    UUID memberId = user("Member");
-    member(spaceId, memberId, "MEMBER");
+    UUID memberId = user("Owner");
+    member(spaceId, memberId, "OWNER");
     Cookie member = login(memberId);
     assertThat(eventCount(spaceId)).isZero();
 
@@ -154,6 +155,43 @@ class EventCommandHttpIT {
   }
 
   @Test
+  void spaceAdminCreatesButAnActiveMemberIsForbidden() throws Exception {
+    UUID spaceId = space("Home");
+    UUID adminId = user("Space Admin");
+    UUID memberId = user("Member");
+    member(spaceId, adminId, "ADMIN");
+    member(spaceId, memberId, "MEMBER");
+
+    String created =
+        created(write(post(events(spaceId)), login(adminId), "{\"name\":\"관리자 행사\"}", "req-admin"));
+    UUID eventId = UUID.fromString(json.readTree(created).get("eventId").asString());
+    assertThat(eventRole(eventId, adminId)).isEqualTo("OWNER");
+    assertThat(storedStatus(eventId)).isEqualTo("DRAFT");
+    assertThat(eventCount(spaceId)).isEqualTo(1);
+
+    Cookie member = login(memberId);
+    problem(
+        write(post(events(spaceId)), member, "{\"name\":\"멤버 행사\"}", "req-member-create"),
+        403,
+        "FORBIDDEN",
+        "req-member-create");
+    // The role check comes before the body check: a bad body is still FORBIDDEN for a member.
+    problem(
+        write(post(events(spaceId)), member, "{\"name\":\"   \"}", "req-member-blank"),
+        403,
+        "FORBIDDEN",
+        "req-member-blank");
+    assertThat(eventCount(spaceId)).isEqualTo(1);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM event_users WHERE space_id = ? AND user_id = ?",
+                Integer.class,
+                spaceId,
+                memberId))
+        .isZero();
+  }
+
+  @Test
   void memberListsOnlyOperatedEventsAndAnAdminListsBoth() throws Exception {
     UUID spaceId = space("Home");
     UUID ownerId = user("Space Owner");
@@ -166,9 +204,9 @@ class EventCommandHttpIT {
     Cookie admin = login(adminId);
     Cookie owner = login(ownerId);
 
-    String created =
-        created(write(post(events(spaceId)), member, "{\"name\":\"Alpha\"}", "req-alpha"));
-    UUID alpha = UUID.fromString(json.readTree(created).get("eventId").asString());
+    // A member cannot create (DEC-077); the event a space admin made lists the member as its owner.
+    UUID alpha = event(spaceId, "Alpha", "DRAFT", 0);
+    operator(spaceId, alpha, memberId, "OWNER");
     UUID beta = event(spaceId, "Beta", "ACTIVE", 4);
     operator(spaceId, beta, adminId, "STAFF");
     assertThat(eventRole(alpha, ownerId)).isNull();
@@ -261,9 +299,8 @@ class EventCommandHttpIT {
     member(spaceId, staffId, "MEMBER");
     Cookie member = login(memberId);
     Cookie owner = login(ownerId);
-    String created =
-        created(write(post(events(spaceId)), member, "{\"name\":\"Alpha\"}", "req-create"));
-    UUID eventId = UUID.fromString(json.readTree(created).get("eventId").asString());
+    UUID eventId = event(spaceId, "Alpha", "DRAFT", 0);
+    operator(spaceId, eventId, memberId, "OWNER");
     operator(spaceId, eventId, staffId, "STAFF");
 
     problem(
@@ -316,7 +353,7 @@ class EventCommandHttpIT {
   void createStoresPeriodAndPlaceOnDetailAndList() throws Exception {
     UUID spaceId = space("Home");
     UUID memberId = user("Member");
-    member(spaceId, memberId, "MEMBER");
+    member(spaceId, memberId, "OWNER");
     Cookie member = login(memberId);
     String body =
         """
@@ -355,7 +392,7 @@ class EventCommandHttpIT {
   void nameOnlyCreateLeavesPeriodPlaceAndTypeNull() throws Exception {
     UUID spaceId = space("Home");
     UUID memberId = user("Member");
-    member(spaceId, memberId, "MEMBER");
+    member(spaceId, memberId, "OWNER");
     Cookie member = login(memberId);
 
     JsonNode created =
@@ -372,7 +409,7 @@ class EventCommandHttpIT {
   void rejectsBadPeriodAndPlace() throws Exception {
     UUID spaceId = space("Home");
     UUID memberId = user("Member");
-    member(spaceId, memberId, "MEMBER");
+    member(spaceId, memberId, "OWNER");
     Cookie member = login(memberId);
 
     assertRejectedCreate(
@@ -412,7 +449,7 @@ class EventCommandHttpIT {
   void createStoresRetreatAndLeavesOmittedTypeNull() throws Exception {
     UUID spaceId = space("Home");
     UUID memberId = user("Member");
-    member(spaceId, memberId, "MEMBER");
+    member(spaceId, memberId, "OWNER");
     Cookie member = login(memberId);
 
     JsonNode created =
@@ -454,7 +491,7 @@ class EventCommandHttpIT {
   void rejectsEventTypeText(String eventType, String requestId) throws Exception {
     UUID spaceId = space("Home");
     UUID memberId = user("Member");
-    member(spaceId, memberId, "MEMBER");
+    member(spaceId, memberId, "OWNER");
     assertRejectedCreate(
         login(memberId),
         spaceId,
@@ -475,7 +512,7 @@ class EventCommandHttpIT {
   void rejectsNumericEventType() throws Exception {
     UUID spaceId = space("Home");
     UUID memberId = user("Member");
-    member(spaceId, memberId, "MEMBER");
+    member(spaceId, memberId, "OWNER");
     assertRejectedCreate(
         login(memberId),
         spaceId,
@@ -489,7 +526,7 @@ class EventCommandHttpIT {
   void storesEveryEventType(EventType eventType) throws Exception {
     UUID spaceId = space("Home");
     UUID memberId = user("Member");
-    member(spaceId, memberId, "MEMBER");
+    member(spaceId, memberId, "OWNER");
     Cookie member = login(memberId);
 
     JsonNode created =
@@ -536,7 +573,7 @@ class EventCommandHttpIT {
   void rejectsUnknownCreateKey() throws Exception {
     UUID spaceId = space("Home");
     UUID memberId = user("Member");
-    member(spaceId, memberId, "MEMBER");
+    member(spaceId, memberId, "OWNER");
     assertRejectedCreate(
         login(memberId), spaceId, "{\"name\":\"기타\",\"kind\":\"RETREAT\"}", "kind", "req-kind");
   }
@@ -545,7 +582,7 @@ class EventCommandHttpIT {
   void patchKeepsPeriodPlaceAndTypeAndRejectsThoseKeys() throws Exception {
     UUID spaceId = space("Home");
     UUID memberId = user("Member");
-    member(spaceId, memberId, "MEMBER");
+    member(spaceId, memberId, "OWNER");
     Cookie member = login(memberId);
     String created =
         created(

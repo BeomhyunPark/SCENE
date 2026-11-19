@@ -39,6 +39,17 @@ class SpaceMembershipTest {
   }
 
   @Test
+  void onlyActiveOwnerAndAdminMayCreateEvents() {
+    assertThat(OWNER.mayCreateEvents()).isTrue();
+    assertThat(ADMIN.mayCreateEvents()).isTrue();
+    assertThat(MEMBER.mayCreateEvents()).isFalse();
+    assertThat(ENDED.mayCreateEvents()).isFalse();
+    assertThat(ABSENT.mayCreateEvents()).isFalse();
+    assertThat(new SpaceMembership(SpaceMembership.Kind.ENDED, "OWNER").mayCreateEvents())
+        .isFalse();
+  }
+
+  @Test
   void onlyActiveOwnerMayInviteAsAdmin() {
     assertThat(OWNER.mayInviteAsAdmin()).isTrue();
     assertThat(ADMIN.mayInviteAsAdmin()).isFalse();

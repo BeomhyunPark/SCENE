@@ -39,6 +39,11 @@ public record SpaceMembership(Kind kind, String role) {
     return activeOwnerOrAdmin();
   }
 
+  /** Active space owner or admin may create an event; a member may not (DEC-077). */
+  public boolean mayCreateEvents() {
+    return activeOwnerOrAdmin();
+  }
+
   /** Active space owner or admin may send a space invitation (DEC-076). */
   public boolean mayInviteMembers() {
     return activeOwnerOrAdmin();

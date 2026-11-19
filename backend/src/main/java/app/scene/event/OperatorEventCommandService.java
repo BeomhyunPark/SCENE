@@ -28,11 +28,12 @@ import tools.jackson.databind.JsonNode;
 
 /**
  * Create, list, and name patch on the existing {@code events} row. The architecture lists {@code
- * EVENT_CREATE} as a candidate and does not say who may create. Any active member of the space may
- * open an event. The creator is stored as {@code event_users} OWNER in the same transaction. {@code
- * EVENT_CREATE} is not a permission key. {@code Idempotency-Key} is not read. {@code
- * lifecycleStatus} is not writable here. A space owner or admin may read every event in the space
- * and is not given an {@code event_users} row. A name change needs effective {@code EVENT_UPDATE}.
+ * EVENT_CREATE} as a candidate and does not say who may create. An active space owner or admin may
+ * open an event; an active member gets {@code FORBIDDEN} (DEC-077). The creator is stored as {@code
+ * event_users} OWNER in the same transaction. {@code EVENT_CREATE} is not a permission key. {@code
+ * Idempotency-Key} is not read. {@code lifecycleStatus} is not writable here. A space owner or
+ * admin may read every event in the space and is not given an {@code event_users} row. A name
+ * change needs effective {@code EVENT_UPDATE}.
  */
 @Service
 public class OperatorEventCommandService {
@@ -63,7 +64,9 @@ public class OperatorEventCommandService {
 
   @Transactional
   public EventDetail create(UUID actorId, UUID spaceId, JsonNode body) {
-    requireActiveMember(actorId, spaceId);
+    if (!requireActiveMember(actorId, spaceId).mayCreateEvents()) {
+      throw new SceneException(ErrorCode.FORBIDDEN);
+    }
     ParsedCreate parsed = parseCreate(body);
     UUID eventId = UUID.randomUUID();
     if (events.save(
