@@ -23,7 +23,7 @@ async function invite(email: string) {
   fireEvent.click(screen.getByRole("button", { name: "초대 링크 만들기" }));
 }
 
-describe("space settings members and invitations", () => {
+describe("organization members page (#376)", () => {
   let setItem: { mock: { calls: unknown[][] } };
 
   beforeEach(() => {
@@ -40,7 +40,7 @@ describe("space settings members and invitations", () => {
 
   it("shows members with emails to the owner and creates a MEMBER link shown once", async () => {
     await login({ userId: OWNER });
-    openApp("/settings");
+    openApp("/members");
 
     const members = await screen.findByRole("list", { name: "멤버" });
     const rows = await within(members).findAllByRole("listitem");
@@ -79,7 +79,7 @@ describe("space settings members and invitations", () => {
   it("resends with a new link, swaps the id, and revokes", async () => {
     await login({ userId: OWNER });
     const first = seedSpaceInvitation(SPACE, "a@example.com");
-    openApp("/settings");
+    openApp("/members");
 
     fireEvent.click(await screen.findByRole("button", { name: "a@example.com 다시 보내기" }));
     const link = (await screen.findByLabelText("초대 링크")) as HTMLInputElement;
@@ -94,7 +94,7 @@ describe("space settings members and invitations", () => {
 
   it("asks for a valid email", async () => {
     await login({ userId: OWNER });
-    openApp("/settings");
+    openApp("/members");
 
     await invite("not-an-email");
 
@@ -104,7 +104,7 @@ describe("space settings members and invitations", () => {
 
   it("lets an ADMIN invite too", async () => {
     await login({ userId: ADMIN });
-    openApp("/settings");
+    openApp("/members");
 
     expect(await screen.findByRole("heading", { name: "멤버 초대하기" })).toBeInTheDocument();
     const members = await screen.findByRole("list", { name: "멤버" });
@@ -115,13 +115,13 @@ describe("space settings members and invitations", () => {
 
   it("shows a MEMBER names and roles only, without invitations", async () => {
     await login({ userId: MEMBER });
-    openApp("/settings");
+    openApp("/members");
 
     const members = await screen.findByRole("list", { name: "멤버" });
     expect(await within(members).findByText("Local owner")).toBeInTheDocument();
     expect(within(members).getByText("Admin")).toBeInTheDocument();
     expect(members.textContent ?? "").not.toContain("@");
-    expect(screen.getByRole("heading", { name: "조직에서 나가기" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "조직에서 나가기" })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "멤버 초대하기" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "초대 링크 만들기" })).not.toBeInTheDocument();
     await waitFor(() => expect(operatorRequests.some((request) => request.url.includes("/invitations"))).toBe(false));
