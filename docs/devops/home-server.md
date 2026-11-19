@@ -134,7 +134,7 @@ age -d -i scene-backup.key scene-YYYYMMDD-HHMMSS.sql.gz.age | gunzip | docker co
 | 대상 | 서버 제한 |
 |---|---|
 | 공개 신청 POST `/api/v1/public/events/*/forms/*/applications` | 같은 IP 10분 1,000번 초과 → `429 RATE_LIMITED` |
-| 참가자 들어오기 POST `/api/v1/public/events/*/participant-sessions` | 같은 IP 실패 10분 300번 초과 → `429`. 전화번호별 연속 5번 실패 → 5분 잠금(운영자 초기화로도 풀림) |
+| 참가자 들어오기 POST `/api/v1/public/events/*/participant-sessions` | 같은 IP 실패 10분 300번 초과 → `429`. 전화번호별 연속 5번 실패 → 잠금 5분·30분·24시간(24시간 안 단계, 운영자 초기화로 풀림). 마지막 단계·IP 초과는 백엔드 로그 경고(`docker compose logs backend | grep 'over limit\|last stage'`) |
 
 **현장에서 한도 올리기(배포 없이).** 숫자는 `deploy/home/.env`의 `SCENE_PARTICIPANT_*`로 바꾼다(비우면 기본값). 수련회 당일 와이파이에서 여러 사람이 `429`("요청이 너무 많아요", "시도가 너무 많아요")를 보면 `.env`에 예를 들어 `SCENE_PARTICIPANT_IPFAILURELIMIT=1000`, `SCENE_PARTICIPANT_SUBMITIPLIMIT=5000`을 넣고 `cd ~/scene/deploy/home && docker compose up -d backend`를 실행한다. 백엔드만 다시 뜨고(약 1분) 코드는 바뀌지 않으므로 배포 동결 중에도 된다. 카운터와 잠금은 다시 뜨면서 모두 풀린다. 한 사람의 잠금만 풀려면 운영자가 참가 현황에서 6자리를 초기화한다.
 

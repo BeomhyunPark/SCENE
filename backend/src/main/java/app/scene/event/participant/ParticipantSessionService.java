@@ -77,7 +77,7 @@ public class ParticipantSessionService {
     String name = text(body, "name", SIGN_IN_KEYS);
     String phone = text(body, "phone", SIGN_IN_KEYS);
     String pin = text(body, "pin", SIGN_IN_KEYS);
-    guard.requireAddressOpen(address);
+    guard.requireAddressOpen(eventId, address);
     String phoneKey = ParticipantPins.phoneKey(phone);
     guard.requirePhoneOpen(eventId, phoneKey);
     Optional<ParticipantIdentity> found =
@@ -142,7 +142,7 @@ public class ParticipantSessionService {
     String phoneKey = ParticipantPins.phoneKey(participant.phone());
     if (!participant.pinTemporary()) {
       String current = text(body, "currentPin", PIN_KEYS);
-      guard.requireAddressOpen(address);
+      guard.requireAddressOpen(self.eventId(), address);
       guard.requirePhoneOpen(self.eventId(), phoneKey);
       if (!pins.matches(current, participant.pinHash())) {
         guard.failed(self.eventId(), phoneKey, address);

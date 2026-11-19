@@ -8,16 +8,23 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
  * Brute-force limits for the six-digit number (DEC-078 §2, #399, #401). A phone is locked after
  * consecutive failures whether or not it has an application, so the lock does not tell anyone that
  * a phone applied. Address limits count failures only for sign-in, so many people behind one
- * retreat Wi-Fi address are not blocked by their successes, and count every public submit.
+ * retreat Wi-Fi address are not blocked by their successes, and count every public submit. The
+ * phone lock escalates (5m, 30m, 24h inside 24 hours) so one phone gets about fifteen guesses a
+ * day. A phone reaching the last stage and an address over its limit log one warning with the event
+ * id and counts only: no phone, name, number or address.
  */
 @Component
 public class ParticipantGuard {
+
+  private static final Logger log = LoggerFactory.getLogger(ParticipantGuard.class);
 
   private final FailureLockout lockout;
   private final InMemoryRateLimiter limiter;
@@ -31,9 +38,14 @@ public class ParticipantGuard {
   }
 
   /** 429 when the address already failed too often. Records nothing. */
-  public void requireAddressOpen(String address) {
-    if (limiter.count(addressKey(address), properties.ipFailureWindow())
-        >= properties.ipFailureLimit()) {
+  public void requireAddressOpen(UUID eventId, String address) {
+    int failures = limiter.count(addressKey(address), properties.ipFailureWindow());
+    if (failures >= properties.ipFailureLimit()) {
+      log.warn(
+          "participant sign-in address over limit event={} failures={} window={}",
+          eventId,
+          failures,
+          properties.ipFailureWindow());
       throw new SceneException(ErrorCode.RATE_LIMITED);
     }
   }
@@ -48,8 +60,19 @@ public class ParticipantGuard {
 
   /** Records one failed number for the phone and the address. */
   public void failed(UUID eventId, String phoneKey, String address) {
-    lockout.fail(
-        phoneLockKey(eventId, phoneKey), properties.lockFailures(), properties.lockDuration());
+    int stage =
+        lockout.fail(
+            phoneLockKey(eventId, phoneKey),
+            properties.lockFailures(),
+            properties.lockDurations(),
+            properties.lockEscalationWindow());
+    if (stage >= properties.lockDurations().size()) {
+      log.warn(
+          "participant phone locked at the last stage event={} stage={} lock={}",
+          eventId,
+          stage,
+          properties.lockDurations().get(properties.lockDurations().size() - 1));
+    }
     limiter.acquire(addressKey(address), properties.ipFailureWindow());
   }
 
@@ -58,10 +81,15 @@ public class ParticipantGuard {
   }
 
   /** Records one public submit and answers 429 past the address limit (#401). */
-  public void submitted(String address) {
+  public void submitted(UUID eventId, String address) {
     int hits =
         limiter.acquire("participant-submit-ip:" + normalize(address), properties.submitIpWindow());
     if (hits > properties.submitIpLimit()) {
+      log.warn(
+          "public submit address over limit event={} submits={} window={}",
+          eventId,
+          hits,
+          properties.submitIpWindow());
       throw new SceneException(ErrorCode.RATE_LIMITED);
     }
   }

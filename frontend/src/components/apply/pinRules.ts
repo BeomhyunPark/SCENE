@@ -15,3 +15,14 @@ export function pinProblem(pin: string, phone: string): string | null {
 export function pinInput(value: string): string {
   return value.replace(/\D/g, "").slice(0, 6);
 }
+
+/**
+ * How long a phone lock still lasts (DEC-078 §2: 5 minutes, 30 minutes, then 24 hours), from the
+ * problem's `retryAfterSeconds`. Minutes below an hour, hours above.
+ */
+export function lockWait(retryAfterSeconds: unknown): string {
+  const seconds = Number(retryAfterSeconds);
+  if (!Number.isFinite(seconds) || seconds <= 0) return "잠시";
+  if (seconds < 3600) return `${Math.ceil(seconds / 60)}분`;
+  return `${Math.ceil(seconds / 3600)}시간`;
+}

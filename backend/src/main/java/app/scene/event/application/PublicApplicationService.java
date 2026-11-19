@@ -86,7 +86,7 @@ public class PublicApplicationService {
 
   @Transactional
   public Submission submit(UUID eventId, UUID formId, JsonNode body, String address) {
-    guard.submitted(address);
+    guard.submitted(eventId, address);
     EventLocation location =
         events
             .findLocation(eventId)

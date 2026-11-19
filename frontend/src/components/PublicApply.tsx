@@ -14,7 +14,7 @@ import { RangeSummary } from "./apply/RangeSummary";
 import { optionView } from "./apply/optionView";
 import { ARRIVAL, DEPARTURE, REVERSED_COPY, departureFieldId, rangeProblem } from "./apply/attendanceRange";
 import { PinFields } from "./apply/PinFields";
-import { pinProblem } from "./apply/pinRules";
+import { lockWait, pinProblem } from "./apply/pinRules";
 import {
   problemFor,
   prune,
@@ -231,7 +231,9 @@ function submitFailure(error: unknown): string {
     return "이 전화번호로 이미 신청했어요. 처음 신청할 때 정한 숫자 6자리를 넣으면 신청이 고쳐져요. 잊었다면 운영진에게 초기화를 부탁해 주세요.";
   }
   if (isApiError(error, "EDITS_CLOSED")) return "이 전화번호로 이미 신청했어요. 지금은 신청을 고칠 수 없어요.";
-  if (isApiError(error, "PARTICIPANT_LOGIN_LOCKED")) return "여러 번 틀려서 잠시 신청할 수 없어요. 5분쯤 뒤에 다시 해 주세요.";
+  if (isApiError(error, "PARTICIPANT_LOGIN_LOCKED")) {
+    return `여러 번 틀려서 잠겼어요. ${lockWait(error.extensions.retryAfterSeconds)} 뒤에 다시 해 주세요. 번호를 잊었다면 운영진에게 초기화를 부탁해 주세요.`;
+  }
   if (isApiError(error, "RATE_LIMITED")) return "요청이 너무 많아요. 잠시 후 다시 시도해 주세요.";
   if (isApiError(error, "FORM_NOT_FOUND") || isApiError(error, "RESOURCE_NOT_FOUND")) return "신청서를 찾을 수 없어요.";
   return "신청하지 못했어요. 잠시 후 다시 시도해 주세요.";

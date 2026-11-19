@@ -10,7 +10,7 @@ import { ParticipantCheckIn } from "./ParticipantCheckIn";
 import { ParticipantFrame } from "./ParticipantFrame";
 import { ParticipantGroup } from "./ParticipantGroup";
 import { PinFields } from "./apply/PinFields";
-import { pinInput, pinProblem } from "./apply/pinRules";
+import { lockWait, pinInput, pinProblem } from "./apply/pinRules";
 
 /**
  * The event's one participant address (DEC-078 §8). Without a session the person signs in with
@@ -233,9 +233,7 @@ function NewPin({ name, onDone }: { name: string; onDone: () => void }) {
 function signInFailure(error: unknown): string {
   if (isApiError(error, "PARTICIPANT_LOGIN_FAILED")) return "이름, 전화번호, 숫자 6자리를 다시 확인해 주세요.";
   if (isApiError(error, "PARTICIPANT_LOGIN_LOCKED")) {
-    const seconds = Number(error.extensions.retryAfterSeconds);
-    const minutes = Number.isFinite(seconds) && seconds > 0 ? Math.ceil(seconds / 60) : 5;
-    return `여러 번 틀려서 잠겼어요. ${minutes}분 뒤에 다시 해 주세요. 번호를 잊었다면 운영진에게 초기화를 부탁해 주세요.`;
+    return `여러 번 틀려서 잠겼어요. ${lockWait(error.extensions.retryAfterSeconds)} 뒤에 다시 해 주세요. 번호를 잊었다면 운영진에게 초기화를 부탁해 주세요.`;
   }
   if (isApiError(error, "RATE_LIMITED")) return "시도가 너무 많아요. 잠시 후 다시 해 주세요.";
   if (isApiError(error, "RESOURCE_NOT_FOUND")) return "행사를 찾을 수 없어요. 주소를 다시 확인해 주세요.";
