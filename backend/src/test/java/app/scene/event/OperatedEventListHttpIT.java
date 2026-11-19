@@ -8,7 +8,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import app.scene.common.ratelimit.InMemoryRateLimiter;
 import app.scene.common.web.RequestIdFilter;
 import app.scene.event.invitation.CapturingInvitationMailer;
 import app.scene.event.invitation.InvitationMail;
@@ -53,14 +52,12 @@ class OperatedEventListHttpIT {
   @Autowired JdbcTemplate jdbc;
   @Autowired JsonMapper json;
   @Autowired CapturingInvitationMailer mailer;
-  @Autowired InMemoryRateLimiter attempts;
 
   MockMvc mvc;
 
   @BeforeEach
   void mockMvc() {
     mailer.clear();
-    attempts.clear();
     mvc =
         MockMvcBuilders.webAppContextSetup(context)
             .addFilters(

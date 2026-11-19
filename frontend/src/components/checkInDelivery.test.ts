@@ -119,7 +119,7 @@ describe("check-in delivery (#287)", () => {
     expect(isUnanswered(fail(0, "NETWORK_ERROR"))).toBe(true);
     expect(isUnanswered(fail(200, "UNEXPECTED"))).toBe(true);
     expect(isUnanswered(fail(502, "UNEXPECTED"))).toBe(true);
-    expect(isUnanswered(fail(429, "RATE_LIMITED"))).toBe(true);
+    expect(isUnanswered(fail(429, "UNEXPECTED"))).toBe(true);
     expect(isUnanswered(new TypeError("boom"))).toBe(true);
     expect(isUnanswered(fail(409, "CONFLICT"))).toBe(false);
     expect(isUnanswered(fail(409, "EVENT_ENDED"))).toBe(false);

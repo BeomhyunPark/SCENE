@@ -1,7 +1,7 @@
 # 운영자 사이드바 메뉴 목적지 정리
 
 - 정리일: 2026-11-17
-- 상태: 하위 이슈 결정 완료(2026-11-17). 현장 운영의 실제 화면은 #235를 기다린다.
+- 상태: 하위 이슈 결정 완료(2026-11-17). 2026-11-19 [#376](https://github.com/BeomhyunPark/SCENE/issues/376)으로 행사 밖 메뉴를 조직 메뉴만으로 바꿨다(#267·#268의 행사 고르기는 없앴다).
 - 상위 이슈: [#263 사이드바의 모든 메뉴가 화면으로 이어진다](https://github.com/BeomhyunPark/SCENE/issues/263)
 - 근거: [OperatorShell.tsx](../../frontend/src/components/OperatorShell.tsx), [App.tsx](../../frontend/src/App.tsx), [인수인계 2026-10-20 "눌러도 아직 안 가는 곳"](../handover/2026-10-20.md), 백엔드 `@*Mapping` 목록, Figma `RreFdEVMiwgHrV7teaCEOm`
 
@@ -18,6 +18,7 @@
 - 2026-11-17 [#270](https://github.com/BeomhyunPark/SCENE/issues/270): 안내는 참가자 행사 안내 페이지 편집과 공지 발송 둘 다를 방향으로 하되, 하위 메뉴는 정해질 때까지 만들지 않는다. 펼침 화살표를 떼고 `/guides`는 "준비 중"을 유지한다.
 - 2026-11-17 [#271](https://github.com/BeomhyunPark/SCENE/issues/271): 알림은 운영자가 직접 확인할 요청(Owner 넘기기, 초대 수락)만 먼저([#279](https://github.com/BeomhyunPark/SCENE/issues/279)), 기록은 행사 안 변경 내역([#280](https://github.com/BeomhyunPark/SCENE/issues/280)), 연동은 1차 범위 밖으로 두고 CSV 내려받기([#233](https://github.com/BeomhyunPark/SCENE/issues/233)) 사용 뒤 다시 본다. 세 메뉴 모두 그때까지 "준비 중"을 유지한다.
 - 2026-11-17 [#301](https://github.com/BeomhyunPark/SCENE/issues/301): 조 편성은 행사 안 사이드바 "행사 운영"(현장 운영 아래)에 두고 `/events/:eventId/groups`로 간다. Figma `O3.01 · 조 편성`(134:8836)도 행사 안 사이드바에 둔다. 조직 사이드바에는 메뉴를 더하지 않는다(Figma 조직 사이드바에 없고, #267의 행사 고르기 메뉴는 이미 있는 세 개만이다). 조직 사이드바에서 들어갈 길이 필요하면 `/groups`를 행사 고르기로 더한다.
+- 2026-11-19 [#376](https://github.com/BeomhyunPark/SCENE/issues/376): **행사 밖에는 조직 메뉴만, 행사 운영 메뉴는 행사 안에만 둔다.** 행사 밖 사이드바·서랍은 행사 · 알림 · 멤버 · 기록 · 안내 · 일정 / 연동 · 설정이다. "행사 운영" 묶음(현장 운영 · 참가 현황 · 운영 멤버)과 준비 업무를 뺐고, 행사 고르기(`MenuEventPicker`)는 지웠다. 예전 주소 `/field` `/participants` `/operators` `/tasks`는 `/events`로 바꿔 보낸다(replace). 조직 멤버 목록·초대는 설정에서 `/members`로 옮겼고 설정에는 조직에서 나가기가 남는다. 휴대폰 하단 막대는 행사 밖 행사 · 알림 · 멤버 · 전체 메뉴, 행사 안 홈 · 현장 운영 · 참가 현황 · 알림이다. 아래 #267·#268의 행사 고르기 결정은 이것으로 대체된다.
 - 2026-11-17 [#302](https://github.com/BeomhyunPark/SCENE/issues/302): 사이드바 메뉴 이름 "참가자"를 Figma 행사 안 사이드바(1325:5059)대로 "참가 현황"으로 바꾼다. 조직 사이드바와 행사 고르기 화면 제목도 같다. 주소(`/participants`)는 그대로다.
 
 ## 확인 방법
@@ -28,6 +29,8 @@
 - 실제 화면 클릭은 하지 않았다.
 
 ## 조직 사이드바 (`/events`, 행사 고르기 전)
+
+아래 표는 2026-11-17 정리 그대로다. 2026-11-19 #376 이후 준비 업무·현장 운영·참가 현황·운영 멤버 줄은 행사 밖에 없고(예전 주소는 `/events`로 간다), 멤버(`/members`, `SpaceMembers`)가 알림 아래에 더해졌다.
 
 | 메뉴 | 지금 | 목적지 주소 (제안) | Figma 화면 | 프론트 화면 | 서버 API | 필요한 결정 | 이슈 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
