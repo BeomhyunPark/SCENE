@@ -13,6 +13,7 @@ import app.scene.event.lifecycle.EventAccessGate;
 import app.scene.event.lifecycle.EventListRow;
 import app.scene.event.lifecycle.EventProfile;
 import app.scene.event.lifecycle.EventRepository;
+import app.scene.event.lifecycle.OperatedEventRow;
 import app.scene.space.EventUserPermissionRepository;
 import app.scene.space.EventUserRepository;
 import java.time.LocalDate;
@@ -108,6 +109,36 @@ public class OperatorEventCommandService {
     return ItemPage.of(items, request, total);
   }
 
+  /**
+   * Events the caller operates in any space, through an {@code event_users} row (#387). Space
+   * membership is not required: an event-only collaborator (DEC-039, DEC-060) and a member who left
+   * but kept access see their events here. A revoked operator has no row. A space owner's or
+   * admin's read-every-event view stays on the space list and does not add rows here.
+   */
+  public ItemPage<OperatedEventListItem> listOperated(
+      UUID actorId, Integer page, Integer size, List<String> sort) {
+    PageRequest request = PageRequest.of(page, size);
+    Sorts.parse(sort, Set.of());
+    long total = events.countOperated(actorId);
+    List<OperatedEventListItem> items = new ArrayList<>();
+    for (OperatedEventRow row : events.listOperated(actorId, request)) {
+      items.add(
+          new OperatedEventListItem(
+              row.eventId(),
+              row.name(),
+              row.lifecycleStatus(),
+              row.startDate(),
+              row.endDate(),
+              row.place(),
+              eventType(row.eventType()),
+              row.spaceId(),
+              row.spaceName(),
+              row.eventRole(),
+              row.spaceMember()));
+    }
+    return ItemPage.of(items, request, total);
+  }
+
   public EventDetail read(UUID actorId, UUID eventId) {
     EventAccessGate.Opened opened = gate.open(actorId, eventId);
     if (!mayRead(opened, actorId)) {
@@ -190,7 +221,9 @@ public class OperatorEventCommandService {
         profile.startDate(),
         profile.endDate(),
         profile.place(),
-        eventType(profile.eventType()));
+        eventType(profile.eventType()),
+        profile.spaceId(),
+        profile.spaceName());
   }
 
   private static EventType eventType(String raw) {

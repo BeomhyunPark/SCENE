@@ -1,10 +1,12 @@
 import type { ReactNode } from "react";
+import { Link } from "react-router";
 import type { SpaceRole } from "../api/spaces";
 import { reloadQuery } from "../api/queryClient";
 import { useCurrentSpace } from "../api/useCurrentSpace";
 import { Button } from "./Button";
 import { OperatorShell } from "./OperatorShell";
 import { OperatorStatus } from "./RequireOperator";
+import "./MenuPending.css";
 import "./SpaceSettings.css";
 
 export type CurrentSpace = { spaceId: string; spaceName: string; role: SpaceRole };
@@ -32,10 +34,20 @@ export function SpacePage({ title, children }: { title: string; children: (space
     );
   }
   if (!spaces.space) {
+    // An event-only collaborator, or someone who left, has no organization page (#387). Their
+    // events stay on the event list under 협력 중인 행사.
     return (
       <OperatorShell title={title} framed>
         <div className="space-settings">
-          <p className="space-settings__body">아직 들어간 조직이 없어요.</p>
+          <section className="space-settings__card">
+            <h2 className="space-settings__title">들어간 조직이 없어요</h2>
+            <p className="space-settings__body">
+              {title} 화면은 조직 멤버만 써요. 운영자로 함께하는 행사는 행사 목록의 협력 중인 행사에서 열 수 있어요.
+            </p>
+            <Link className="menu-pending__link" to="/events">
+              행사 목록으로
+            </Link>
+          </section>
         </div>
       </OperatorShell>
     );

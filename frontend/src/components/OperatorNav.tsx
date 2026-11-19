@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation, useNavigate } from "react-router";
 import { isApiError } from "../api/errors";
 import { logout } from "../api/session";
+import { clearInvitationToken } from "../invitationToken";
 import caret from "../assets/event-nav/caret.svg";
 import caretVertical from "../assets/event-nav/caret-vertical.svg";
 import signOut from "../assets/event-nav/sign-out.svg";
@@ -60,6 +61,9 @@ function SignOut() {
   const [failed, setFailed] = useState(false);
   const leave = () => {
     queryClient.clear();
+    // DEC-060: a sign-out other than 계정 바꾸기 drops a stored invitation token, so a later visit
+    // cannot pick up an old invitation (#387).
+    clearInvitationToken();
     navigate("/login", { replace: true });
   };
   const signingOut = useMutation({

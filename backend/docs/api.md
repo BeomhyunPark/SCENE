@@ -263,11 +263,13 @@ curl -sS \
   "startDate": "2026-11-06",
   "endDate": "2026-11-08",
   "place": "양평 수양관",
-  "eventType": "RETREAT"
+  "eventType": "RETREAT",
+  "spaceId": "…",
+  "spaceName": "Local space"
 }
 ```
 
-없는 기간·장소·유형은 `null`이다. 감사 로그와 권한 override는 만들지 않는다.
+없는 기간·장소·유형은 `null`이다. `spaceId`·`spaceName`은 그 행사를 운영하는 조직이다(#387). 조직 멤버가 아닌 협력자도 어느 조직 행사인지 알 수 있게 둔다. 멤버·다른 행사·연락처는 없다(DEC-060). 감사 로그와 권한 override는 만들지 않는다.
 
 ### `GET /api/v1/operator/spaces/{spaceId}/events`
 
@@ -275,11 +277,44 @@ curl -sS \
 
 항목은 `{ "eventId", "name", "lifecycleStatus", "startDate", "endDate", "place", "eventType" }`다. `lifecycleVersion`은 없다.
 
+### `GET /api/v1/operator/events`
+
+내가 운영자로 있는 행사 목록이다(#387). 공간 멤버십과 관계없이 호출자의 `event_users` 행으로 고른다. 조직 멤버십 없이 행사만 운영하는 협력자(DEC-039, DEC-060), 조직에서 나가며 행사 접근을 유지한 사람, 다른 조직 행사에 협력자로 들어간 멤버가 자기 행사를 여기서 본다. 세션이 없으면 `401 AUTHENTICATION_REQUIRED`다. 행사가 없으면 `200`이고 `items`는 `[]`다.
+
+- 접근이 취소된 사람(탈퇴할 때 끊긴 행사, 운영자 빼기)은 `event_users` 행이 없으므로 나오지 않는다.
+- 공간 `OWNER`·`ADMIN`이 운영자 행 없이 읽을 수 있는 행사는 여기 나오지 않는다. 그 목록은 `GET /spaces/{spaceId}/events`다.
+- `sort` 허용 필드는 없다. 순서는 행사 이름, 그다음 `eventId`다. `page`는 0부터, `size`는 기본 50, 최대 100이다.
+
+`200`
+
+```json
+{
+  "items": [
+    {
+      "eventId": "…",
+      "name": "2027 겨울 수련회",
+      "lifecycleStatus": "DRAFT",
+      "startDate": null,
+      "endDate": null,
+      "place": null,
+      "eventType": null,
+      "spaceId": "…",
+      "spaceName": "Local space",
+      "eventRole": "STAFF",
+      "spaceMember": false
+    }
+  ],
+  "page": { "number": 0, "size": 50, "totalItems": 1, "totalPages": 1 }
+}
+```
+
+`eventRole`은 그 행사에서 호출자의 역할(`OWNER`, `MANAGER`, `STAFF`)이다. `spaceMember`는 호출자가 그 공간의 활성 멤버인지다. `false`면 행사 전용 협력자다. 다른 운영자, 조직 멤버, 연락처는 없다(DEC-060).
+
 ### `GET /api/v1/operator/events/{eventId}`
 
 행사 상세다. 읽기는 유효한 `EVENT_READ`, 또는 활성 공간 `OWNER`·`ADMIN`이다. 공간 소유자·관리자는 이 읽기 때문에 `event_users` 행이 생기지 않는다.
 
-`200` 필드는 만들기 응답과 같다. 행사가 없으면 `404 RESOURCE_NOT_FOUND`다. 접근이 제거되었거나 공간 멤버십이 끝났으면 `403 NOT_A_MEMBER`다. 보여 주지만 읽기 권한이 없으면 `403 FORBIDDEN`이다.
+`200` 필드는 만들기 응답과 같다(`spaceId`·`spaceName` 포함). 행사 운영자 행이 있으면 공간 멤버십이 끝났어도 열린다. 행사가 없으면 `404 RESOURCE_NOT_FOUND`다. 접근이 제거되었거나 공간 멤버십이 끝났으면 `403 NOT_A_MEMBER`다. 보여 주지만 읽기 권한이 없으면 `403 FORBIDDEN`이다.
 
 ### `PATCH /api/v1/operator/events/{eventId}`
 
@@ -592,6 +627,7 @@ curl -sS \
 
 ```json
 {
+  "eventId": "…",
   "eventName": "Local event",
   "role": "STAFF",
   "inviterName": "Local owner",
@@ -600,7 +636,9 @@ curl -sS \
 }
 ```
 
-수락 `200`은 `{ "outcome": "ACCEPTED" }`다. 같은 사람이 다시 수락하면 `{ "outcome": "ALREADY_ACCEPTED" }`다. 수락은 그 사용자를 초대의 `role`로 `event_users`에 넣는다. 이미 운영자면 역할을 바꾸지 않는다.
+수락 `200`은 `{ "outcome": "ACCEPTED", "eventId": "…", "role": "STAFF" }`다. 같은 사람이 다시 수락하면 `outcome`이 `ALREADY_ACCEPTED`다. 수락은 그 사용자를 초대의 `role`로 `event_users`에 넣는다. 공간 멤버십은 보지 않는다. 조직에서 나간 사람도 일반 수락이다(#387).
+
+이미 그 행사의 운영자면(예: 조직에서 나가며 이 행사 접근을 유지한 사람) 초대는 `ACCEPTED`로 소비되지만 역할은 바꾸지 않는다. 응답 `role`은 수락 뒤 실제 역할이라 초대의 `role`과 다를 수 있다. 역할 변경은 행사 `OWNER`가 `PATCH /operators/{userId}`로 한다. 다시 수락할 때 그 사이 운영자에서 빠졌으면 `role`은 `null`이다. 미리보기의 `eventId`는 이메일이 맞을 때만 나온다. 수락한 뒤 화면이 그 행사를 바로 열 때 쓴다.
 
 미리보기는 행을 바꾸지 않는다. 수락과 미리보기는 계정마다, 그리고 요청 주소마다 한 시간에 5회다. 두 경로가 한 한도를 같이 쓰고, [조직 초대](#조직-초대)의 미리보기·수락도 같은 한도를 쓴다. 한도는 이 프로세스 메모리에만 있다. 넘으면 `429 RATE_LIMITED`다. 한도 숫자는 잠정값이다.
 
