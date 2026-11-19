@@ -47,6 +47,8 @@ describe("space settings members and invitations", () => {
     expect(rows.map((row) => row.textContent)).toEqual([
       "Local ownerowner@example.comOwner",
       "Local managermanager@example.comAdmin",
+      // Seed member who is not an operator of the seed event (#363).
+      "Local memberMember",
       "Local staffMember",
     ]);
     expect(await screen.findByText("대기 중인 초대가 없어요.")).toBeInTheDocument();

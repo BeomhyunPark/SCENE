@@ -20,6 +20,7 @@ function seedMemberships(): Membership[] {
     { ...localSpace, role: "OWNER", userId: localUsers[0].userId },
     { ...localSpace, role: "ADMIN", userId: localUsers[1].userId },
     { ...localSpace, role: "MEMBER", userId: localUsers[2].userId },
+    { ...localSpace, role: "MEMBER", userId: localUsers[4].userId },
   ];
 }
 
@@ -42,6 +43,11 @@ export function resetOperatorStore(): void {
   events = [seedEvent()];
   memberships = seedMemberships();
   operatorRequests.length = 0;
+}
+
+/** Whether the user is an active member of the space. */
+export function isMemberOf(spaceId: string, userId: string): boolean {
+  return memberships.some((membership) => membership.spaceId === spaceId && membership.userId === userId);
 }
 
 /** Active members of one space, in no particular order. */

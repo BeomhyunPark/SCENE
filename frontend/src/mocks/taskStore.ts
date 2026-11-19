@@ -1,5 +1,5 @@
 import type { ChecklistItem, TaskActions, TaskDetail, TaskListItem, TaskOutcome, TaskProgress, TaskStatus } from "../api/tasks";
-import { eventById } from "./operatorStore";
+import { eventById, isMemberOf } from "./operatorStore";
 import { localEvent, localUsers } from "./fixtures/seed";
 
 type Role = "OWNER" | "MANAGER" | "STAFF";
@@ -235,6 +235,30 @@ export function eventRoleOf(eventId: string, userId: string): Role | null {
 export function addOperator(eventId: string, userId: string, displayName: string, role: Role): void {
   if (operators.some((row) => row.eventId === eventId && row.userId === userId)) return;
   operators.push({ eventId, userId, displayName, role });
+}
+
+/**
+ * Direct add by the event OWNER, in OperatorPermissionService#add order: FORBIDDEN, role,
+ * EVENT_ARCHIVED, already an operator (VALIDATION_FAILED userId), then not an active member
+ * (RESOURCE_NOT_FOUND).
+ */
+export function addOperatorByOwner(eventId: string, actorId: string, body: unknown): OperatorRow | TaskFailure {
+  const gate = open(eventId, actorId);
+  if (gate) return gate;
+  const actor = operators.find((row) => row.eventId === eventId && row.userId === actorId);
+  if (actor?.role !== "OWNER") return { status: 403, code: "FORBIDDEN" };
+  const input = typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {};
+  if (typeof input.userId !== "string" || input.userId.length === 0) return field("userId");
+  const role = input.role;
+  if (role !== "OWNER" && role !== "MANAGER" && role !== "STAFF") return field("role");
+  const event = eventById(eventId)!;
+  if (event.lifecycleStatus === "ARCHIVED") return { status: 409, code: "EVENT_ARCHIVED" };
+  if (operatorOn(eventId, input.userId)) return field("userId");
+  if (!isMemberOf(event.spaceId, input.userId)) return { status: 404, code: "RESOURCE_NOT_FOUND" };
+  const displayName = localUsers.find((user) => user.userId === input.userId)?.displayName ?? "";
+  const row: OperatorRow = { eventId, userId: input.userId, displayName, role };
+  operators.push(row);
+  return row;
 }
 
 export function permissionsFor(
