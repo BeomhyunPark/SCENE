@@ -94,6 +94,14 @@ public class OperatorFormController {
     return forms.putSetup(actor(), eventId, formId, body);
   }
 
+  @PutMapping("/api/v1/operator/events/{eventId}/forms/{formId}/completion-notice")
+  FormDetail putCompletionNotice(
+      @PathVariable UUID eventId,
+      @PathVariable UUID formId,
+      @RequestBody(required = false) JsonNode body) {
+    return forms.putCompletionNotice(actor(), eventId, formId, body);
+  }
+
   @DeleteMapping("/api/v1/operator/events/{eventId}/forms/{formId}/fields/{fieldId}")
   ResponseEntity<Void> deleteField(
       @PathVariable UUID eventId, @PathVariable UUID formId, @PathVariable UUID fieldId) {

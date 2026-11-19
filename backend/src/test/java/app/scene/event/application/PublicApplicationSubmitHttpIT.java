@@ -113,7 +113,8 @@ class PublicApplicationSubmitHttpIT {
     String created = created(publicSubmit(form.eventId, form.formId, body, "req-submit"));
     JsonNode response = json.readTree(created);
     assertThat(response.propertyNames())
-        .containsExactly("applicationId", "participantId", "accessKey");
+        .containsExactly("applicationId", "participantId", "accessKey", "completionNotice");
+    assertThat(response.get("completionNotice").isNull()).isTrue();
     UUID applicationId = UUID.fromString(response.get("applicationId").asString());
     UUID participantId = UUID.fromString(response.get("participantId").asString());
     String accessKey = response.get("accessKey").asString();
@@ -417,6 +418,106 @@ class PublicApplicationSubmitHttpIT {
         .andExpect(jsonPath("$.type").value("urn:scene:problem:resource-not-found"));
   }
 
+  @Test
+  void completionNoticeIsPlainTextReturnedOnSubmitAndStaysEditableAfterSubmit() throws Exception {
+    Held event = openEvent("Notice owner");
+    Opened form = createForm(event);
+    String formPath = "/api/v1/operator/events/" + form.eventId + "/forms/" + form.formId;
+    String noticePath = formPath + "/completion-notice";
+    ok(
+        write(
+            post("/api/v1/operator/events/" + form.eventId + "/activate"),
+            event.owner,
+            "{\"expectedLifecycleVersion\":0}",
+            "req-notice-activate"));
+    ok(write(patch(formPath), event.owner, "{\"acceptingApplications\":true}", "req-notice-open"));
+
+    String saved =
+        ok(
+            write(
+                put(noticePath),
+                event.owner,
+                "{\"completionNotice\":\"  참가비 3만원\\r\\n신한 110-000 <b>홍길동</b>\\r\\n"
+                    + "https://example.com/a?b=1&c=2  \"}",
+                "req-notice-put"));
+    String expected = "참가비 3만원\n신한 110-000 <b>홍길동</b>\nhttps://example.com/a?b=1&c=2";
+    assertThat(json.readTree(saved).get("completionNotice").asString()).isEqualTo(expected);
+    assertThat(storedNotice(form.formId)).isEqualTo(expected);
+    assertThat(
+            json.readTree(ok(get(formPath).cookie(event.owner))).get("completionNotice").asString())
+        .isEqualTo(expected);
+
+    String publicForm = ok(get("/api/v1/public/events/" + form.eventId + "/forms/" + form.formId));
+    assertThat(json.readTree(publicForm).propertyNames()).containsExactly("formId", "fields");
+
+    String body = answers(form.nameId, "김", form.phoneId, "010-2222-3333");
+    JsonNode submitted =
+        json.readTree(created(publicSubmit(form.eventId, form.formId, body, "req-notice-submit")));
+    assertThat(submitted.get("completionNotice").asString()).isEqualTo(expected);
+
+    // Submitted applications lock questions, not the notice.
+    String edited =
+        ok(
+            write(
+                put(noticePath),
+                event.owner,
+                "{\"completionNotice\":\"문의 010-0000-0000\"}",
+                "req-notice-edit"));
+    assertThat(json.readTree(edited).get("locked").booleanValue()).isTrue();
+    assertThat(json.readTree(edited).get("completionNotice").asString())
+        .isEqualTo("문의 010-0000-0000");
+
+    String tooLong = "가".repeat(1001);
+    mvc.perform(
+            write(
+                put(noticePath),
+                event.owner,
+                "{\"completionNotice\":\"" + tooLong + "\"}",
+                "req-notice-long"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"))
+        .andExpect(jsonPath("$.errors[0].field").value("completionNotice"));
+    problem(
+        write(put(noticePath), event.owner, "{\"notice\":\"x\"}", "req-notice-key"),
+        400,
+        "VALIDATION_FAILED");
+    problem(
+        write(put(noticePath), event.owner, "{}", "req-notice-empty-body"),
+        400,
+        "VALIDATION_FAILED");
+    problem(
+        write(put(noticePath), event.owner, "{\"completionNotice\":3}", "req-notice-type"),
+        400,
+        "VALIDATION_FAILED");
+    assertThat(storedNotice(form.formId)).isEqualTo("문의 010-0000-0000");
+    ok(
+        write(
+            put(noticePath),
+            event.owner,
+            "{\"completionNotice\":\"" + "가".repeat(1000) + "\"}",
+            "req-notice-max"));
+
+    String cleared =
+        ok(write(put(noticePath), event.owner, "{\"completionNotice\":\"  \\n \"}", "req-clear"));
+    assertThat(json.readTree(cleared).get("completionNotice").isNull()).isTrue();
+    assertThat(storedNotice(form.formId)).isNull();
+    ok(write(put(noticePath), event.owner, "{\"completionNotice\":null}", "req-null"));
+    assertThat(storedNotice(form.formId)).isNull();
+    problem(
+        write(
+            put(
+                "/api/v1/operator/events/"
+                    + form.eventId
+                    + "/forms/"
+                    + UUID.randomUUID()
+                    + "/completion-notice"),
+            event.owner,
+            "{\"completionNotice\":null}",
+            "req-notice-missing"),
+        404,
+        "RESOURCE_NOT_FOUND");
+  }
+
   private String answers(UUID nameId, String name, UUID phoneId, String phone) {
     return "{\"answers\":["
         + "{\"fieldId\":\""
@@ -552,6 +653,11 @@ class PublicApplicationSubmitHttpIT {
 
   private static Cookie csrf() {
     return new Cookie(CSRF_COOKIE, CSRF);
+  }
+
+  private String storedNotice(UUID formId) {
+    return jdbc.queryForObject(
+        "SELECT completion_notice FROM forms WHERE id = ?", String.class, formId);
   }
 
   private int applicationCount(UUID eventId) {

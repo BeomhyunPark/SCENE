@@ -14,6 +14,7 @@ import app.scene.event.form.param.FieldPresetStateUpdate;
 import app.scene.event.form.param.FieldUpdate;
 import app.scene.event.form.param.FieldValues;
 import app.scene.event.form.param.FormAcceptingUpdate;
+import app.scene.event.form.param.FormCompletionNoticeUpdate;
 import app.scene.event.form.param.FormInsert;
 import app.scene.event.form.param.FormKey;
 import app.scene.event.form.param.FormListQuery;
@@ -140,6 +141,14 @@ public class FormRepository {
   @Transactional
   public int updateSetup(UUID spaceId, UUID eventId, UUID formId, String setup) {
     return forms.updateSetup(FormSetupUpdate.of(spaceId, eventId, formId, setup));
+  }
+
+  /** Stores or clears the completion notice. It is not locked by submitted applications. */
+  @Transactional
+  public int updateCompletionNotice(
+      UUID spaceId, UUID eventId, UUID formId, String completionNotice) {
+    return forms.updateCompletionNotice(
+        FormCompletionNoticeUpdate.of(spaceId, eventId, formId, completionNotice));
   }
 
   @Transactional
