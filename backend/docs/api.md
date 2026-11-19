@@ -1975,6 +1975,7 @@ audit `GROUPS_PUBLISHED`: detail은 `publicationId`, `boardVersion`, `assignedCo
 | 영역 | 정책 | 계약 초안 | 경로 |
 |---|---|---|---|
 | 참가자 홈·갱신 확인·알림 | DEC-080 | [participant-home-contract](../../docs/architecture/participant-home-contract.md) | `GET /participant/home`, `GET /participant/updates`, `GET·POST /participant/notifications…`, `GET·POST /operator/events/{eventId}/notifications…`, `GET /operator/events/{eventId}/updates` |
+| 일정표 | DEC-081 | [schedule-contract](../../docs/architecture/schedule-contract.md) | `GET /operator/events/{eventId}/schedule`, `POST·PATCH·DELETE …/schedule/items…`, `POST …/schedule/publish`, `GET …/schedule/published`, `GET /participant/schedule` |
 
 ## 결정 문서와 다른 점
 
