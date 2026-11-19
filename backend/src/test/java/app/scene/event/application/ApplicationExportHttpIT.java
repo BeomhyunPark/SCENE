@@ -478,7 +478,7 @@ class ApplicationExportHttpIT {
   private Held openEvent(String memberName) throws Exception {
     UUID spaceId = space("Home " + memberName);
     UUID memberId = user(memberName);
-    member(spaceId, memberId, "MEMBER");
+    member(spaceId, memberId, "OWNER");
     Cookie owner = login(memberId);
     String created =
         mvc.perform(

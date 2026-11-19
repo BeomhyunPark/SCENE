@@ -688,7 +688,7 @@ class AttendanceRangeHttpIT {
     UUID memberId = UUID.randomUUID();
     jdbc.update("INSERT INTO users (id, display_name) VALUES (?, ?)", memberId, memberName);
     jdbc.update(
-        "INSERT INTO members (space_id, user_id, role) VALUES (?, ?, 'MEMBER')", spaceId, memberId);
+        "INSERT INTO members (space_id, user_id, role) VALUES (?, ?, 'OWNER')", spaceId, memberId);
     Cookie owner = login(memberId);
     String created =
         created(

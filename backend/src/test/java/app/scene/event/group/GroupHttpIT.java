@@ -1121,7 +1121,7 @@ class GroupHttpIT {
     UUID spaceId = UUID.randomUUID();
     jdbc.update("INSERT INTO spaces (id, name) VALUES (?, 'Home')", spaceId);
     UUID ownerId = user("Owner");
-    member(spaceId, ownerId, "MEMBER");
+    member(spaceId, ownerId, "OWNER");
     Cookie owner = login(ownerId);
     String created =
         mvc.perform(

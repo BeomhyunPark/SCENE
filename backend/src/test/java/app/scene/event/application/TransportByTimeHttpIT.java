@@ -496,7 +496,7 @@ class TransportByTimeHttpIT {
         "INSERT INTO members (space_id, user_id, role) VALUES (?, ?, ?)",
         spaceId,
         memberId,
-        "MEMBER");
+        "OWNER");
     Cookie owner = login(memberId);
     String created =
         created(
