@@ -49,6 +49,11 @@ public record SpaceMembership(Kind kind, String role) {
     return activeOwner();
   }
 
+  /** Active space owner or admin sees member email addresses on the member list (DEC-076). */
+  public boolean maySeeMemberEmails() {
+    return activeOwnerOrAdmin();
+  }
+
   public boolean mayChangeEventOperators() {
     return false;
   }
