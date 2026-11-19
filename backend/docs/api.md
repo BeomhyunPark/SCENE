@@ -1519,7 +1519,7 @@ CSRF가 필요하다. `Idempotency-Key`는 읽지 않는다.
 
 두 경우 모두 `Set-Cookie`로 참가자 세션(`SCENE_PSESSION`)이 열린다. 신청 직후 화면은 바로 들어간 상태다. 접근 키는 더 만들지 않는다.
 
-**요청 제한(#401).** 같은 IP의 신청 POST가 10분에 100번을 넘으면 `429 RATE_LIMITED`다. 성공·실패를 모두 센다. IP는 nginx가 넘기는 `X-Forwarded-For`(Cloudflare의 `CF-Connecting-IP`)다. 숫자는 `scene.participant.*` 설정이다.
+**요청 제한(#401).** 같은 IP의 신청 POST가 10분에 1,000번을 넘으면 `429 RATE_LIMITED`다. 성공·실패를 모두 센다. 한 IP 뒤에 200명이 있어도 걸리지 않는 남용 방지선이다. IP는 nginx가 넘기는 `X-Forwarded-For`(Cloudflare의 `CF-Connecting-IP`)다. 숫자는 `scene.participant.*` 설정이다.
 
 ## 참가자 세션
 
@@ -1537,8 +1537,8 @@ CSRF가 필요하다.
 | --- | --- |
 | 세 값이 맞고 그 참가자에게 `SUBMITTED` 신청이 있다 | `204`. `Set-Cookie` `SCENE_PSESSION` |
 | 이름·전화번호·번호 중 하나라도 틀리거나, 그 전화의 신청이 없다 | `401 PARTICIPANT_LOGIN_FAILED`. 무엇이 틀렸는지 구분하지 않는다 |
-| 그 전화번호로 연속 5번 틀렸다(신청이 없는 번호도 똑같이 센다) | 15분 동안 `429 PARTICIPANT_LOGIN_LOCKED`. 본문 `retryAfterSeconds`. 맞히면 0으로 돌아간다 |
-| 같은 IP의 실패가 10분에 30번을 넘었다 | `429 RATE_LIMITED` |
+| 그 전화번호로 연속 5번 틀렸다(신청이 없는 번호도 똑같이 센다) | 5분 동안 `429 PARTICIPANT_LOGIN_LOCKED`. 본문 `retryAfterSeconds`. 운영자가 6자리를 초기화해도 풀린다. 맞히면 0으로 돌아간다 |
+| 같은 IP의 실패가 10분에 300번을 넘었다 | `429 RATE_LIMITED` |
 
 쿠키는 `HttpOnly`, `Secure`, `SameSite=Lax`, 경로 `/api/v1/participant`다. 값은 세션 토큰이고 서버는 해시만 저장한다. 세션은 로그아웃, 6자리 초기화, 또는 **행사 끝 날짜+8일 0시(Asia/Seoul)**에 끝난다. 끝 날짜가 없는 행사는 로그아웃까지다. 끝난 세션은 `401 AUTHENTICATION_REQUIRED`다.
 

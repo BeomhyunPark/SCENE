@@ -29,7 +29,7 @@ let session: { participantId: string; eventId: string } | null = null;
 const failures = new Map<string, number>();
 const lockedUntil = new Map<string, number>();
 const LOCK_FAILURES = 5;
-const LOCK_MS = 15 * 60 * 1000;
+const LOCK_MS = 5 * 60 * 1000;
 
 export function resetParticipantStore(): void {
   issued = [];

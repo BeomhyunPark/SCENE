@@ -212,7 +212,7 @@ class ParticipantSessionHttpIT {
             issueRequest(form.eventId, signIn("박", "010-1111-2222", PIN), "req-locked"),
             429,
             "PARTICIPANT_LOGIN_LOCKED");
-    assertThat(locked.get("retryAfterSeconds").asLong()).isBetween(1L, 900L);
+    assertThat(locked.get("retryAfterSeconds").asLong()).isBetween(1L, 300L);
 
     // A phone without an application locks the same way, so the lock says nothing about it.
     for (int i = 0; i < 4; i++) {
