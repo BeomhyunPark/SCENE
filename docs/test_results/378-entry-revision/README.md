@@ -6,9 +6,9 @@
 | 구분 | 무엇 | 결과 |
 |---|---|---|
 | 문서 작성 | DEC-078, security-privacy §3, api.md, home-server.md | 작성. 사용자 검토 대기 |
-| 서버 검증 | `./gradlew check` (Testcontainers PostgreSQL 17) | 429개 테스트 통과, 실패 0 |
-| 화면 검증 | `pnpm lint`·`typecheck`·`test`·`build` | 테스트 439개 통과, 빌드 성공 |
-| 실제 클릭 | 로컬 서버(local 프로필, PostgreSQL 17, Flyway V17) + Vite `VITE_API_MOCK=0`, Playwright | 아래 단계 모두 통과. 기록은 `click-log.txt` |
+| 서버 검증 | `./gradlew check` (Testcontainers PostgreSQL 17) | origin/main 병합 뒤 461개 통과, 실패 0 |
+| 화면 검증 | `pnpm lint`·`typecheck`·`test`·`build` | origin/main 병합 뒤 테스트 539개 통과, 빌드 성공 |
+| 실제 클릭 | 로컬 서버(local 프로필, PostgreSQL 17, 새 DB에 Flyway V1~V19) + Vite `VITE_API_MOCK=0`, Playwright | 아래 단계 모두 통과. 기록은 `click-log.txt` |
 | 운영 서버 | 하지 않았다 | 사용자 확인 필요 |
 
 ## 실제 클릭 단계 (서로 다른 브라우저 컨텍스트 3개 + 운영자 1개)
@@ -22,3 +22,5 @@
 7. `12`~`13` 휴대폰 B: 임시 번호로 들어오면 새 번호를 정해야 홈으로 감
 8. `14`~`15` 휴대폰 C: 같은 전화로 다시 신청 — 옛 번호는 "이미 신청", 지금 번호는 "신청을 고쳤어요"
 9. `16` 표는 1명, revision 2. revisions API: `2:SUBMITTED:또래/식사, 1:SUPERSEDED`
+
+병합 뒤 다시 돌린 결과(새 DB, 마이그레이션 V19)도 같다. 캡처는 두 번째 실행 것이다.

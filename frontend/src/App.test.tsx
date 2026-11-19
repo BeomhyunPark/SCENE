@@ -12,7 +12,7 @@ function renderAt(path: string) {
 }
 
 describe("public shell", () => {
-  it("renders the wordmark, center text, and a login link on /", () => {
+  it("renders the wordmark, center text, and 시작하기 on /", () => {
     renderAt("/");
 
     const wordmark = screen.getByText("SCENE");
@@ -28,31 +28,27 @@ describe("public shell", () => {
       expect(within(nav).getByRole("link", { name: label })).toHaveAttribute("href", href);
     }
 
-    const login = screen.getByRole("link", { name: "로그인" });
-    expect(login).toHaveAttribute("href", "/login");
-    expect(login).toHaveClass("scene-button--primary");
-    expect(login.closest("header")).toBeNull();
+    expect(screen.queryByRole("link", { name: "로그인" })).toBeNull();
+    const start = screen.getByRole("button", { name: "시작하기" });
+    expect(start).toHaveAttribute("type", "button");
+    expect(start.closest("header")).toBeNull();
 
     expect(
       screen.getByRole("heading", {
-        name: /함께하는 순간에,\s*더 집중할 수 있도록\./,
+        name: /행사 준비에 필요한 일을\s*SCENE이 알려드려요\./,
       }),
     ).toBeInTheDocument();
-    expect(screen.getByText("교회 공동체를 위한 행사 운영 플랫폼, SCENE.")).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "시작하기" })).toBeNull();
-    expect(screen.getByText(/계정이 없으신가요\?/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "계정 만들기" })).toHaveAttribute("type", "button");
+    expect(screen.getByText("SCENE은 교회 공동체의 행사 준비와 운영을 돕는 서비스예요.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "계정 만들기" })).toBeNull();
     expect(document.querySelector('a[href="/signup"]')).toBeNull();
 
     const images = [...document.querySelectorAll("img")];
-    expect(images).toHaveLength(2);
+    expect(images).toHaveLength(1);
     const logo = document.querySelector(".public-header__brand img");
     expect(logo).toHaveAttribute("aria-hidden", "true");
     expect(logo).toHaveAttribute("alt", "");
     expect(logo).toHaveAttribute("width", "35.712");
-    const preview = images.find((image) => image !== logo);
-    expect(preview).toHaveAttribute("aria-hidden", "true");
-    expect(preview).toHaveAttribute("alt", "");
+    expect(document.querySelector(".op-scene")).toHaveAttribute("aria-hidden", "true");
     expect(document.body.textContent).not.toContain("2026 가을 공동체 행사");
     expect(document.body.textContent).not.toContain("2026년 10월 24일");
     expect(document.body.textContent).not.toContain("드림공동체");
@@ -61,8 +57,8 @@ describe("public shell", () => {
     expect(document.querySelector("[data-theme]")).toBeNull();
 
     for (const [id, name] of [
-      ["service", "행사를 처음 맡아도, 운영할 수 있도록"],
-      ["how", "행사 크기만큼만, 필요한 운영만"],
+      ["service", "행사를 처음 운영해도 어려움 없이"],
+      ["how", "행사 규모만큼 필요한 기능만"],
       ["help", "자주 묻는 질문"],
     ]) {
       expect(screen.getByRole("heading", { level: 2, name })).toBeInTheDocument();
@@ -70,78 +66,25 @@ describe("public shell", () => {
     }
   });
 
-  it("starts Google sign-in from 계정 만들기 on /", async () => {
-    const google = await import("./api/googleSignIn");
-    const start = vi.spyOn(google, "startGoogleSignIn").mockImplementation(() => undefined);
+  it("starts up from 시작하기 into the login card", async () => {
     renderAt("/");
-    fireEvent.click(screen.getByRole("button", { name: "계정 만들기" }));
-    expect(start).toHaveBeenCalledWith(null);
-    start.mockRestore();
+    fireEvent.click(screen.getByRole("button", { name: "시작하기" }));
+    expect(document.querySelector(".public-home__launch")).not.toBeNull();
+    expect(await screen.findByRole("heading", { name: "SCENE 시작하기" }, { timeout: 2000 })).toBeInTheDocument();
   });
 
-  it("says Google sign-in is not available on the mock API from /", async () => {
-    vi.stubEnv("VITE_API_MOCK", "1");
-    const google = await import("./api/googleSignIn");
-    const start = vi.spyOn(google, "startGoogleSignIn").mockImplementation(() => undefined);
-    renderAt("/");
-    fireEvent.click(screen.getByRole("button", { name: "계정 만들기" }));
-    expect(document.querySelector(".public-home__notice")).toHaveTextContent(
-      "목업 화면에서는 Google 로그인을 쓸 수 없어요.",
-    );
-    expect(start).not.toHaveBeenCalled();
-    start.mockRestore();
-    vi.unstubAllEnvs();
-  });
-
-  it("renders the public login form on /login without calling the server", () => {
+  it("renders the public login card on /login without calling the server", () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch");
     renderAt("/login");
 
-    expect(screen.getByRole("heading", { name: "다시 만나서 반가워요" })).toBeInTheDocument();
-    expect(screen.getByText("로그인하고 운영을 이어가요")).toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: "이메일" })).toHaveAttribute(
-      "placeholder",
-      "이메일을 입력해 주세요",
-    );
-    const password = screen.getByLabelText("비밀번호");
-    expect(password).toHaveAttribute("type", "password");
-    expect(password).toHaveAttribute("placeholder", "비밀번호를 입력해 주세요");
-
-    expect(screen.getByRole("checkbox", { name: "로그인 유지" })).not.toBeChecked();
-    const recover = screen.getByRole("link", { name: "비밀번호 찾기" });
-    expect(recover).toHaveAttribute("href", "/forgot-password");
-
-    expect(screen.getByRole("button", { name: "로그인" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "비밀번호 보기" })).toHaveAttribute("tabindex", "-1");
-    expect(screen.getByRole("button", { name: "Google로 로그인" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "계정 만들기" })).toHaveAttribute("type", "button");
+    expect(screen.getByRole("heading", { name: "SCENE 시작하기" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Google 계정으로 계속하기" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "처음 화면으로" })).toHaveAttribute("href", "/");
+    expect(screen.queryByRole("textbox", { name: "이메일" })).toBeNull();
     expect(document.querySelector('a[href="/signup"]')).toBeNull();
-
     expect(screen.queryByText("서비스")).toBeNull();
     expect(screen.queryByRole("link", { name: "로그인" })).toBeNull();
-    expect(document.body.textContent).not.toContain("운영은 더 단순하게");
-    expect(document.body.textContent).not.toContain("Search");
-    expect(document.body.textContent).not.toContain("Notes");
-
-    const showPassword = screen.getByRole("button", { name: "비밀번호 보기" });
-    const hiddenEye = showPassword.querySelector("img")?.getAttribute("src");
-    fireEvent.click(showPassword);
-    expect(screen.getByLabelText("비밀번호")).toHaveAttribute("type", "text");
-    expect(screen.getByRole("button", { name: "비밀번호 숨기기" }).querySelector("img")).not.toHaveAttribute(
-      "src",
-      hiddenEye,
-    );
-    fireEvent.click(screen.getByRole("checkbox", { name: "로그인 유지" }));
-    expect(screen.getByRole("checkbox", { name: "로그인 유지" })).toBeChecked();
-    fireEvent.change(screen.getByRole("textbox", { name: "이메일" }), {
-      target: { value: "not-email" },
-    });
-    expect(screen.getByRole("alert")).toHaveTextContent("이메일 형식을 확인해 주세요.");
-    fireEvent.click(screen.getByRole("button", { name: "로그인" }));
-    expect(screen.getByRole("heading", { name: "다시 만나서 반가워요" })).toBeInTheDocument();
-    fireEvent.click(recover);
     expect(fetchSpy).not.toHaveBeenCalled();
-    expect(screen.getByRole("heading", { name: "비밀번호를 잊으셨나요?" })).toBeInTheDocument();
     fetchSpy.mockRestore();
   });
 
@@ -508,7 +451,7 @@ describe("public shell", () => {
     expect(submit).toBeEnabled();
     fireEvent.click(back);
     expect(fetchSpy).not.toHaveBeenCalled();
-    expect(screen.getByRole("heading", { name: "다시 만나서 반가워요" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "SCENE 시작하기" })).toBeInTheDocument();
     fetchSpy.mockRestore();
   });
 
@@ -566,7 +509,7 @@ describe("public shell", () => {
     );
     fireEvent.click(submit);
     expect(fetchSpy).not.toHaveBeenCalled();
-    expect(screen.getByRole("heading", { name: "다시 만나서 반가워요" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "SCENE 시작하기" })).toBeInTheDocument();
     fetchSpy.mockRestore();
   });
 });

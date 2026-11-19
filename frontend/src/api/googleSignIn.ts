@@ -9,7 +9,8 @@ export function safeNext(next: string | null | undefined): string | null {
   return next && next.startsWith("/") && !next.startsWith("//") ? next : null;
 }
 
-export function startGoogleSignIn(next: string | null): void {
+/** Keeps the page to continue to once `/login/done` runs. */
+export function rememberLoginNext(next: string | null): void {
   try {
     const kept = safeNext(next);
     if (kept) sessionStorage.setItem(NEXT_KEY, kept);
@@ -17,6 +18,10 @@ export function startGoogleSignIn(next: string | null): void {
   } catch {
     // Private mode: continue to the event list after sign-in.
   }
+}
+
+export function startGoogleSignIn(next: string | null): void {
+  rememberLoginNext(next);
   window.location.assign(GOOGLE_SIGN_IN_PATH);
 }
 

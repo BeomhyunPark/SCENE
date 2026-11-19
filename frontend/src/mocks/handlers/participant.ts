@@ -1,6 +1,6 @@
 import { http, HttpResponse } from "msw";
 import { csrfMatches } from "../csrf";
-import { markSubmitted, publicForm } from "../formStore";
+import { completionNoticeOf, markSubmitted, publicForm } from "../formStore";
 import { eventById } from "../operatorStore";
 import {
   changeParticipantPin,
@@ -24,7 +24,10 @@ export const participantHandlers = [
     const submitted = submitPublicApplication(String(params.eventId), String(params.formId), await readJson(request));
     if ("code" in submitted) return failure(submitted);
     if (!submitted.revised) markSubmitted(String(params.eventId), String(params.formId));
-    return HttpResponse.json(submitted, { status: submitted.revised ? 200 : 201 });
+    return HttpResponse.json(
+      { ...submitted, completionNotice: completionNoticeOf(String(params.eventId), String(params.formId)) },
+      { status: submitted.revised ? 200 : 201 },
+    );
   }),
   http.post("/api/v1/public/events/:eventId/participant-sessions", async ({ request, params, cookies }) => {
     if (!csrfMatches(request, cookies)) return problem(403, "FORBIDDEN", { detail: "hidden" });

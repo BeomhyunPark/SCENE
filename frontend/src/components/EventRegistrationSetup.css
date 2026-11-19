@@ -324,3 +324,57 @@
   font: var(--scene-label-s);
   letter-spacing: 0;
 }
+
+.completion-notice-editor textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border-control);
+  border-radius: 8px;
+  font: var(--scene-body-m);
+  letter-spacing: 0;
+  resize: vertical;
+}
+
+.completion-notice-editor__footer {
+  justify-content: space-between;
+  width: 100%;
+}
+
+.completion-notice-editor__count {
+  color: var(--color-text-secondary);
+  font: var(--scene-label-s);
+  letter-spacing: 0;
+}
+
+.completion-notice-editor__count--over,
+.registration-setup__inert .completion-notice-editor__error {
+  color: var(--color-danger-fg);
+}
+
+.registration-setup__inert .completion-notice-editor__readonly {
+  color: var(--color-text-primary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.form-preview__done {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.form-preview__done h4 {
+  margin: 0;
+  font: var(--scene-label-m);
+  letter-spacing: 0;
+}
+
+/* The sticky preview owns the right column, so the cards below the question list do not slide under it. */
+@media (min-width: 1024px) {
+  .form-preview {
+    grid-column: 2;
+    grid-row: 1 / span 3;
+  }
+}

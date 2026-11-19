@@ -167,7 +167,7 @@ describe("operator invitation accept", () => {
     expect(await screen.findByRole("heading", { name: "가을 수련회 초대를 받았어요" }, { timeout: 4000 })).toBeInTheDocument();
     expect(screen.getByText("김운영님이 Manager로 초대했어요.")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "초대 수락" }));
-    expect(await screen.findByRole("heading", { name: "초대를 수락했어요" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "가을 수련회 초대를 수락했어요" })).toBeInTheDocument();
     expect(storedInvitationToken()).toBeNull();
     expect(previewBody).toEqual({ token: TOKEN });
     expect(acceptBody).toEqual({ token: TOKEN });
@@ -185,7 +185,7 @@ describe("operator invitation accept", () => {
     seedToken();
     renderInvite();
     fireEvent.click(await screen.findByRole("button", { name: "초대 수락" }, { timeout: 4000 }));
-    expect(await screen.findByRole("heading", { name: "이미 수락한 초대예요" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "가을 수련회 초대는 이미 수락했어요" })).toBeInTheDocument();
     expect(screen.getByText("행사 목록에서 이어서 볼 수 있어요.")).toBeInTheDocument();
     expect(storedInvitationToken()).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "행사 목록" }));
@@ -201,7 +201,7 @@ describe("operator invitation accept", () => {
     await signIn();
     seedToken();
     renderInvite();
-    expect(await screen.findByRole("heading", { name: "이미 수락한 초대예요" }, { timeout: 4000 })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "가을 수련회 초대는 이미 수락했어요" }, { timeout: 4000 })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "초대 수락" })).not.toBeInTheDocument();
     expect(storedInvitationToken()).toBeNull();
   });
@@ -297,12 +297,12 @@ describe("operator invitation accept", () => {
     expect(storedInvitationToken()).toBe(TOKEN);
   });
 
-  it("retries a rate limit and then shows the invite", async () => {
+  it("retries a proxy 429 and then shows the invite", async () => {
     let calls = 0;
     server.use(
       http.post("/api/v1/operator/invitations/preview", () => {
         calls += 1;
-        if (calls === 1) return problem(429, "RATE_LIMITED", { detail: SECRET });
+        if (calls === 1) return problem(429, "UNEXPECTED", { detail: SECRET });
         return HttpResponse.json(pendingBody());
       }),
     );

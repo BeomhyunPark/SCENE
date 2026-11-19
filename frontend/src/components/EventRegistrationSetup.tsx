@@ -26,6 +26,7 @@ import { Button } from "./Button";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { EventScreen } from "./EventScreen";
 import { OperatorShell } from "./OperatorShell";
+import { CompletionNoticeEditor } from "./formBuilder/CompletionNoticeEditor";
 import { FormPreview } from "./formBuilder/FormPreview";
 import { QuestionEditor } from "./formBuilder/QuestionEditor";
 import { SetupCard } from "./formBuilder/SetupCard";
@@ -89,6 +90,9 @@ function SetupBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
   const [setupError, setSetupError] = useState("");
   const [pending, setPending] = useState(false);
   const [dialog, setDialog] = useState<null | "open" | { remove: FormField }>(null);
+  // Unsaved completion notice text, so the preview follows the editor. Null until it is edited.
+  const [noticeDraft, setNoticeDraft] = useState<string | null>(null);
+  const notice = noticeDraft ?? form.data?.completionNotice ?? "";
   const draftStatus = event.lifecycleStatus === "DRAFT";
   const context = eventContext(event);
 
@@ -578,15 +582,26 @@ function SetupBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
               </div>
             ) : null}
           </section>
-          {form.data ? <FormPreview fields={fields} /> : null}
+          {form.data ? <FormPreview fields={fields} completionNotice={notice} /> : null}
           <article className="registration-setup__inert">
             <h3>신청 기간</h3>
             <p>준비 중</p>
           </article>
-          <article className="registration-setup__inert">
-            <h3>완료 안내</h3>
-            <p>준비 중</p>
-          </article>
+          {form.data ? (
+            <CompletionNoticeEditor
+              eventId={eventId}
+              form={form.data}
+              canWrite={canWrite}
+              draft={notice}
+              onDraft={setNoticeDraft}
+              onSaved={remember}
+            />
+          ) : (
+            <article className="registration-setup__inert">
+              <h3>완료 안내</h3>
+              <p>신청서를 만들면 쓸 수 있어요.</p>
+            </article>
+          )}
         </div>
       </div>
       {dialog === "open" ? (

@@ -389,6 +389,16 @@ describe("group publish (#302)", () => {
     return screen.getByRole("dialog");
   }
 
+  /** The dialog button by name once it is no longer busy; a busy button ignores clicks. */
+  async function settledDialogButton(name: string) {
+    let button: HTMLElement | undefined;
+    await waitFor(() => {
+      button = within(dialog()).getByRole("button", { name });
+      expect(button).not.toHaveAttribute("aria-busy");
+    }, WAIT);
+    return button!;
+  }
+
   it("publishes after confirming the unassigned, then the participant sees the group; a resend is ALREADY_PUBLISHED", async () => {
     const one = seedGroup(EVENT, "1조");
     const leader = person("94 김하늘").participantId;
@@ -408,7 +418,7 @@ describe("group publish (#302)", () => {
     fireEvent.click(within(dialog()).getByRole("button", { name: "공개" }));
     expect(await screen.findByText("미배정 8명을 두고 공개할까요?", {}, WAIT)).toBeInTheDocument();
     expect(readParticipantGroup(EVENT, leader)).toMatchObject({ status: "NOT_PUBLISHED" });
-    fireEvent.click(within(dialog()).getByRole("button", { name: "미배정 두고 공개" }));
+    fireEvent.click(await settledDialogButton("미배정 두고 공개"));
 
     expect(await screen.findByText("참가자에게 공개했어요. 조가 바뀐 사람 2명 · 미배정 8명", {}, WAIT)).toBeInTheDocument();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -447,8 +457,10 @@ describe("group publish (#302)", () => {
     await waitFor(() => expect(within(dialog()).getByText("미배정 1명")).toBeInTheDocument(), WAIT);
     expect(readParticipantGroup(EVENT, person("정민호").participantId)).toMatchObject({ status: "NOT_PUBLISHED" });
 
-    fireEvent.click(within(dialog()).getByRole("button", { name: "공개" }));
-    fireEvent.click(await within(dialog()).findByRole("button", { name: "미배정 두고 공개" }, WAIT));
+    // The dialog's button relabels as soon as the server answers but stays busy until the board is read
+    // again, and a busy button ignores clicks. Wait for it to settle before each click, or a slow run drops one.
+    fireEvent.click(await settledDialogButton("공개"));
+    fireEvent.click(await settledDialogButton("미배정 두고 공개"));
     expect(await screen.findByText("참가자에게 공개했어요. 조가 바뀐 사람 9명 · 미배정 1명", {}, WAIT)).toBeInTheDocument();
     expect(readParticipantGroup(EVENT, person("정민호").participantId)).toMatchObject({ status: "UNASSIGNED" });
   });

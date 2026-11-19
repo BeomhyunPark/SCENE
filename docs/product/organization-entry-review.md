@@ -4,6 +4,17 @@
 - 상태: 제품 정책 반영. 초대 기간·기술 계약과 실제 화면 검토는 후속.
 - 소스: [이슈 #5 사용자 답변](https://github.com/BeomhyunPark/SCENE/issues/5#issuecomment-5902896850)
 
+## 현재 범위 (2026-11-18)
+
+이 문서는 2026-09-30 검토 결과다. 지금 만드는 범위는 [DEC-076](PRODUCT_DECISIONS.md)을 따른다([#358](https://github.com/BeomhyunPark/SCENE/issues/358)).
+
+- 조직 역할은 OWNER / ADMIN / MEMBER다. ADMIN은 정의만 하고 1월에는 부여하지 않는다.
+- 조직 초대는 OWNER와 ADMIN이 MEMBER로 보낸다. ADMIN으로 초대하는 것은 OWNER만 하고, 초대로 OWNER를 만들지 않는다.
+- 초대 계약은 행사 초대와 같다. 아래 "초대 만료"의 7일 제안값은 DEC-060과 DEC-076에서 서버 상수로 확정됐다.
+- 행사에는 조직 멤버를 바로 추가하고, 외부인만 행사 초대로 들어온다.
+- 행사는 활성 조직 OWNER·ADMIN만 만든다. MEMBER는 관리자가 만든 행사에 운영자로 추가돼 들어온다([DEC-077](PRODUCT_DECISIONS.md), [#370](https://github.com/BeomhyunPark/SCENE/issues/370), 2026-11-19).
+- 조직 검색·가입 요청, 공개 조직 생성, 공개 가입은 아직 만들지 않는다(DEC-069).
+
 ## 조직 생성
 
 SCENE 운영계정 가입·이메일 인증 → 조직 검색 → 기존 조직이 없거나 중복 후보가 다른 조직임을 확인 → 조직 생성 → 생성자가 최초 조직 Owner가 된다. 생성 시 조직을 생성·운영할 권한이 있음을 확인받는다. 초기 흐름에 별도 SCENE 승인·교회 증명서·사업자등록증 제출을 추가하지 않는다.

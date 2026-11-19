@@ -7,6 +7,7 @@ import type { FormField } from "../api/forms";
 import { reloadQuery } from "../api/queryClient";
 import { queryKeys } from "../api/queryKeys";
 import { Button } from "./Button";
+import { CompletionNotice } from "./CompletionNotice";
 import { ParticipantFrame } from "./ParticipantFrame";
 import { AnswerInput } from "./apply/AnswerInput";
 import { RangeSummary } from "./apply/RangeSummary";
@@ -190,6 +191,7 @@ function ApplyDone({ eventId, submitted }: { eventId: string; submitted: Submitt
   const address = `${window.location.origin}/participate/${eventId}`;
   return (
     <ParticipantFrame title={submitted.revised ? "신청을 고쳤어요" : "신청했어요"}>
+      <CompletionNotice text={submitted.completionNotice} />
       <p className="participant-gate__body">
         다음에 다시 볼 때는 아래 주소에서 이름, 전화번호, 방금 정한 숫자 6자리를 넣고 들어와요. 다른 휴대폰에서도 돼요.
       </p>

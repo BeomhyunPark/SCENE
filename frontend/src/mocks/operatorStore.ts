@@ -15,13 +15,31 @@ export const EVENT_TYPES: readonly EventType[] = [
 
 type Membership = { spaceId: string; name: string; role: SpaceRole; userId: string };
 
-const memberships: Membership[] = [
-  { ...localSpace, role: "OWNER", userId: localUsers[0].userId },
-  { ...localSpace, role: "ADMIN", userId: localUsers[1].userId },
-  { ...localSpace, role: "MEMBER", userId: localUsers[2].userId },
-];
+function seedMemberships(): Membership[] {
+  return [
+    { ...localSpace, role: "OWNER", userId: localUsers[0].userId },
+    { ...localSpace, role: "ADMIN", userId: localUsers[1].userId },
+    { ...localSpace, role: "MEMBER", userId: localUsers[2].userId },
+    { ...localSpace, role: "MEMBER", userId: localUsers[4].userId },
+  ];
+}
 
-export type StoredEvent = EventDetail & { spaceId: string };
+let memberships: Membership[] = seedMemberships();
+
+/** The organization name is looked up from the space, like the server's join (#387). */
+export type StoredEvent = Omit<EventDetail, "spaceName"> & { spaceId: string };
+
+const spaceNames = new Map<string, string>([[localSpace.spaceId, localSpace.name]]);
+
+/** Organization name of a space, members or not (#387). */
+export function spaceNameOf(spaceId: string): string {
+  return spaceNames.get(spaceId) ?? "";
+}
+
+/** A space this mock user is not a member of, so its events reach them only as a collaborator. */
+export function addSpace(spaceId: string, name: string): void {
+  spaceNames.set(spaceId, name);
+}
 
 let events: StoredEvent[] = [seedEvent()];
 
@@ -36,7 +54,33 @@ export const operatorRequests: LoggedRequest[] = [];
 
 export function resetOperatorStore(): void {
   events = [seedEvent()];
+  spaceNames.clear();
+  spaceNames.set(localSpace.spaceId, localSpace.name);
+  memberships = seedMemberships();
   operatorRequests.length = 0;
+}
+
+/** Whether the user is an active member of the space. */
+export function isMemberOf(spaceId: string, userId: string): boolean {
+  return memberships.some((membership) => membership.spaceId === spaceId && membership.userId === userId);
+}
+
+/** Active members of one space, in no particular order. */
+export function membersOf(spaceId: string): Membership[] {
+  return memberships.filter((membership) => membership.spaceId === spaceId);
+}
+
+/** Adds an active membership. A mock space invitation accept calls this (#362). */
+export function addMembership(spaceId: string, userId: string, role: SpaceRole): void {
+  if (memberships.some((membership) => membership.spaceId === spaceId && membership.userId === userId)) return;
+  const name =
+    memberships.find((membership) => membership.spaceId === spaceId)?.name ?? spaceNames.get(spaceId) ?? localSpace.name;
+  memberships.push({ spaceId, name, role, userId });
+}
+
+/** Leaves a space, like a member's leave without kept events (#387). */
+export function removeMembership(spaceId: string, userId: string): void {
+  memberships = memberships.filter((membership) => !(membership.spaceId === spaceId && membership.userId === userId));
 }
 
 export function spacesFor(userId: string): Membership[] {

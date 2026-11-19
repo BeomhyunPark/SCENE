@@ -1,6 +1,6 @@
-event ab249208-c00b-4cbf-bac0-e4f909c29dc7 form 370045ff-f205-44eb-9360-d1e1f74d39f1 open
+event 10d77f0a-1c58-4b22-ad9d-b1aa081cda8f form 06342511-e34d-42f8-9b5a-dfa9d6ab2fd1 open
 01 weak number named before sending
-03 submitted; done screen has participant address, no link key: http://localhost:5173/participate/ab249208-c00b-4cbf-bac0-e4f909c29dc7
+03 submitted; done screen has participant address, no link key: http://localhost:5173/participate/10d77f0a-1c58-4b22-ad9d-b1aa081cda8f
 04 already signed in right after applying
 06 other context signed in with name + phone digits + number
    attempt 1: 401
@@ -10,7 +10,7 @@ event ab249208-c00b-4cbf-bac0-e4f909c29dc7 form 370045ff-f205-44eb-9360-d1e1f74d
    attempt 4: 401
    attempt 5: 401
 08 right number after five failures is locked: 여러 번 틀려서 잠겼어요. 15분 뒤에 다시 해 주세요. 번호를 잊었다면 운영진에게 초기화를 부탁해 주세요.
-09 operator sees participant address http://localhost:5173/participate/ab249208-c00b-4cbf-bac0-e4f909c29dc7
+09 operator sees participant address http://localhost:5173/participate/10d77f0a-1c58-4b22-ad9d-b1aa081cda8f
 11 temporary number shown once (6 digits): true
 11b phone A session ended by the reset
 13 new number set, participant home

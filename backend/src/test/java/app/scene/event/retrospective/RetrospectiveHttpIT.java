@@ -263,7 +263,7 @@ class RetrospectiveHttpIT {
     UUID spaceId = UUID.randomUUID();
     jdbc.update("INSERT INTO spaces (id, name) VALUES (?, 'Home')", spaceId);
     UUID memberId = user(memberName);
-    member(spaceId, memberId, "MEMBER");
+    member(spaceId, memberId, "OWNER");
     Cookie owner = login(memberId);
     String created =
         mvc.perform(

@@ -23,4 +23,10 @@
     WHERE id = #{formId} AND space_id = #{spaceId} AND event_id = #{eventId}
   </update>
 
+  <update id="updateCompletionNotice">
+    UPDATE forms
+    SET completion_notice = #{completionNotice}
+    WHERE id = #{formId} AND space_id = #{spaceId} AND event_id = #{eventId}
+  </update>
+
 </mapper>

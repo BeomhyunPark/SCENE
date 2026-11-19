@@ -328,7 +328,7 @@ class ParticipantCheckInHttpIT {
     UUID ownerId = UUID.randomUUID();
     jdbc.update("INSERT INTO users (id, display_name) VALUES (?, 'Owner')", ownerId);
     jdbc.update(
-        "INSERT INTO members (space_id, user_id, role) VALUES (?, ?, 'MEMBER')", spaceId, ownerId);
+        "INSERT INTO members (space_id, user_id, role) VALUES (?, ?, 'OWNER')", spaceId, ownerId);
     Cookie owner = login(ownerId);
     String created =
         mvc.perform(

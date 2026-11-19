@@ -6,7 +6,6 @@ import app.scene.common.error.ErrorCode;
 import app.scene.common.error.SceneException;
 import app.scene.common.permission.Permission;
 import app.scene.common.permission.PermissionEvaluator;
-import app.scene.common.tenant.SpaceMembership;
 import app.scene.event.application.mapper.ApplicationTableMapper;
 import app.scene.event.application.param.EventApplicationKey;
 import app.scene.event.form.FormFieldRow;
@@ -86,7 +85,7 @@ public class ApplicationTableService {
   @Transactional
   public ApplicationTable read(UUID actorId, UUID eventId) {
     EventAccessGate.Opened opened = gate.open(actorId, eventId);
-    boolean spaceAdmin = spaceAdmin(opened.membership());
+    boolean spaceAdmin = opened.membership().seesEveryEvent();
     if (!allows(opened, actorId, Permission.EVENT_READ) && !spaceAdmin) {
       throw new SceneException(ErrorCode.FORBIDDEN);
     }
@@ -212,11 +211,6 @@ public class ApplicationTableService {
         && config != null
         && config.path("format").isString()
         && "PHONE".equals(config.get("format").asString());
-  }
-
-  private static boolean spaceAdmin(SpaceMembership membership) {
-    return membership.kind() == SpaceMembership.Kind.ACTIVE
-        && ("OWNER".equals(membership.role()) || "ADMIN".equals(membership.role()));
   }
 
   private boolean allows(EventAccessGate.Opened opened, UUID actorId, Permission permission) {

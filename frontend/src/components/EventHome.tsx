@@ -116,7 +116,7 @@ function EventHomeBody({
                 <p>작은 행사는 이대로 시작해도 괜찮아요.</p>
               </div>
               <Button type="button" variant="primary" size={40}>
-                다른 운영 시작
+                다른 기능 시작
               </Button>
             </section>
             <div className="event-home__work-intro">
@@ -153,7 +153,7 @@ function EventHomeBody({
                 </button>
               ))}
             </div>
-            <p className="event-home__note">필요해지면 다른 운영을 시작할 수 있어요.</p>
+            <p className="event-home__note">필요해지면 다른 기능을 시작할 수 있어요.</p>
           </>
         )}
       </div>

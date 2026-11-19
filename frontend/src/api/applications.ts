@@ -21,6 +21,8 @@ export type SubmittedApplication = {
   participantId: string;
   revision: number;
   revised: boolean;
+  /** The form's completion notice at submit time, plain text, or null (#406). */
+  completionNotice: string | null;
 };
 
 /** Operator list item. Name is the SYSTEM NAME answer, or null. Phone stays on the detail only. */
@@ -255,6 +257,7 @@ function parseSubmitted(value: unknown): SubmittedApplication {
     participantId: value.participantId,
     revision: value.revision,
     revised: value.revised,
+    completionNotice: typeof value.completionNotice === "string" ? value.completionNotice : null,
   };
 }
 

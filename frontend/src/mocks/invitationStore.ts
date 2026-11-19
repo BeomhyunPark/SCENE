@@ -84,16 +84,29 @@ export function judgeInvitation(
   actorId: string,
   sessionEmail: string | null,
   accept: boolean,
-): { eventName: string; role: string; inviterName: string; expiresAt: string; outcome: string } | InvitationFailure {
+):
+  | {
+      eventId: string;
+      eventName: string;
+      role: string;
+      inviterName: string;
+      expiresAt: string;
+      outcome: string;
+      /** Accept only: the caller's role after accepting (#387). */
+      operatorRole?: string | null;
+    }
+  | InvitationFailure {
   const row = typeof token === "string" ? invitations.find((item) => item.token === token) : undefined;
   if (!row) return { status: 404, code: "INVITATION_NOT_FOUND" };
   if (!sessionEmail) return { status: 403, code: "EMAIL_NOT_VERIFIED" };
   if (sessionEmail !== row.email) return { status: 403, code: "INVITATION_EMAIL_MISMATCH" };
   const event = eventById(row.eventId);
   const inviterName = localUsers.find((user) => user.userId === row.invitedBy)?.displayName ?? "";
-  const base = { eventName: event?.name ?? "", role: row.role, inviterName, expiresAt: row.expiresAt };
+  const base = { eventId: row.eventId, eventName: event?.name ?? "", role: row.role, inviterName, expiresAt: row.expiresAt };
   if (row.status === "ACCEPTED") {
-    if (row.acceptedUserId === actorId) return { ...base, outcome: "ALREADY_ACCEPTED" };
+    if (row.acceptedUserId === actorId) {
+      return { ...base, outcome: "ALREADY_ACCEPTED", operatorRole: eventRoleOf(row.eventId, actorId) };
+    }
     return { status: 409, code: "INVITATION_ALREADY_ACCEPTED" };
   }
   if (row.status === "REVOKED") return { status: 410, code: "INVITATION_REVOKED" };
@@ -104,8 +117,9 @@ export function judgeInvitation(
   row.status = "ACCEPTED";
   row.acceptedUserId = actorId;
   const user = localUsers.find((item) => item.userId === actorId);
+  // An operator who is already on the event keeps their role, like the server (#387).
   addOperator(row.eventId, actorId, user?.displayName ?? "", row.role);
-  return { ...base, outcome: "ACCEPTED" };
+  return { ...base, outcome: "ACCEPTED", operatorRole: eventRoleOf(row.eventId, actorId) };
 }
 
 type Issued = { id: string; role: string; status: string; expiresAt: string; link: string };

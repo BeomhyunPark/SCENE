@@ -5,6 +5,7 @@ import { server } from "../mocks/server";
 import { resetOperatorSession } from "../mocks/handlers/session";
 import { resetFormStore } from "../mocks/formStore";
 import { resetInvitationStore } from "../mocks/invitationStore";
+import { resetSpaceInvitationStore } from "../mocks/spaceInvitationStore";
 import { resetOperatorStore } from "../mocks/operatorStore";
 import { resetParticipantStore } from "../mocks/participantStore";
 import { resetParticipantCheckInStore } from "../mocks/participantCheckInStore";
@@ -37,6 +38,7 @@ afterEach(() => {
   resetParticipantCheckInStore();
   resetFormStore();
   resetInvitationStore();
+  resetSpaceInvitationStore();
   deliveryTiming.retryDelaysMs = TEST_RETRY_DELAYS_MS;
   window.history.replaceState(null, "", window.location.pathname);
   document.cookie = "XSRF-TOKEN=; Path=/; Max-Age=0";

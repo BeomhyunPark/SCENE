@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { FormField } from "../../api/forms";
 import { Button } from "../Button";
+import { CompletionNotice } from "../CompletionNotice";
 import { AnswerInput } from "../apply/AnswerInput";
 import { RangeSummary } from "../apply/RangeSummary";
 import { departureFieldId, rangeProblem } from "../apply/attendanceRange";
@@ -12,7 +13,7 @@ import "../ParticipantGate.css";
  * The form as a participant sees it right now. Answers stay in this component and are never
  * sent, so the operator can click through each branch.
  */
-export function FormPreview({ fields }: { fields: FormField[] }) {
+export function FormPreview({ fields, completionNotice = null }: { fields: FormField[]; completionNotice?: string | null }) {
   // Same view the public form gets: hidden questions and hidden options are left out.
   const shownFields = fields
     .filter((field) => !field.hidden)
@@ -55,6 +56,14 @@ export function FormPreview({ fields }: { fields: FormField[] }) {
             extra={field.fieldId === departureId ? <RangeSummary fields={shownFields} values={pruned} /> : null}
           />
         ))}
+      </div>
+      <div className="form-preview__done">
+        <h4>신청을 마친 화면</h4>
+        {completionNotice?.trim() ? (
+          <CompletionNotice text={completionNotice.replace(/\r\n?/g, "\n").trim()} />
+        ) : (
+          <p className="registration-setup__note">완료 안내를 쓰면 여기에 보여요.</p>
+        )}
       </div>
     </section>
   );

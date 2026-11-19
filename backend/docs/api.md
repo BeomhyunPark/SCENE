@@ -116,10 +116,10 @@ operator 경로는 운영자 세션이 필요하다. public 경로는 세션을 
 | `PERMISSION_OWNER_NOT_OVERRIDABLE` | 422 | 소유자의 권한은 개별 설정할 수 없다 |
 | `PERMISSION_OWNER_ONLY` | 422 | `EVENT_LIFECYCLE`, `EVENT_USER_MANAGE`는 소유자만 가진다 |
 | `PERMISSION_NOT_OVERRIDABLE` | 422 | `EVENT_READ`는 개별 설정으로 뺄 수 없다 |
-| `RATE_LIMITED` | 429 | 초대 미리보기·수락, 공개 신청, 참가자 들어오기 실패가 IP별 한도를 넘었다 |
+| `RATE_LIMITED` | 429 | 공개 신청, 참가자 들어오기 실패가 IP별 한도를 넘었다 (DEC-078) |
 | `HANDOVER_NOT_ACCEPTED` | 409 | 수락되지 않은 인수인계가 있어 공간 탈퇴가 막힌다 |
 | `LAST_OWNER` | 409 | 마지막 소유자라 공간 탈퇴가 막힌다 |
-| `OWNER_ROLE_HELD` | 409 | 소유 역할을 가진 채 공간 탈퇴가 막힌다 |
+| `OWNER_ROLE_HELD` | 409 | 소유 역할을 가진 채 공간 탈퇴가 막히거나, 운영자 역할 변경·빼기의 대상이 행사 `OWNER`다 |
 | `RESPONSIBILITY` | 409 | 열린 담당 업무가 있어 공간 탈퇴가 막힌다 |
 | `TRANSFER_NOT_PENDING` | 409 | 그 이전을 이 명령으로 진행할 수 없거나, 같은 보내는 사람의 `PENDING`이 이미 있다 |
 | `TRANSFER_COMPLETED` | 409 | 끝난 소유권 이전은 바꿀 수 없다 |
@@ -224,7 +224,7 @@ curl -sS \
 
 ### `POST /api/v1/operator/spaces/{spaceId}/events`
 
-활성 공간 멤버가 행사를 만든다. 만든 사람은 그 행사의 `OWNER`가 된다. `EVENT_CREATE` 권한 키는 없다. `Idempotency-Key`는 읽지 않는다. 멤버 행이 없으면 `404 RESOURCE_NOT_FOUND`다. 멤버십이 `ACTIVE`가 아니면 `403 NOT_A_MEMBER`다.
+활성 공간 `OWNER`·`ADMIN`이 행사를 만든다(DEC-077, #370). 만든 사람은 그 행사의 `OWNER`가 된다. `EVENT_CREATE` 권한 키는 없다. `Idempotency-Key`는 읽지 않는다. 멤버 행이 없으면 `404 RESOURCE_NOT_FOUND`다. 멤버십이 `ACTIVE`가 아니면 `403 NOT_A_MEMBER`다. 활성 `MEMBER`는 `403 FORBIDDEN`이고 행사를 만들지 않는다. 이 판정은 본문 검사보다 먼저다. `MEMBER`는 Event Owner가 운영 멤버로 추가해서 행사에 들어온다(`POST /api/v1/operator/events/{eventId}/operators`).
 
 ```json
 {
@@ -268,11 +268,13 @@ curl -sS \
   "startDate": "2026-11-06",
   "endDate": "2026-11-08",
   "place": "양평 수양관",
-  "eventType": "RETREAT"
+  "eventType": "RETREAT",
+  "spaceId": "…",
+  "spaceName": "Local space"
 }
 ```
 
-없는 기간·장소·유형은 `null`이다. 감사 로그와 권한 override는 만들지 않는다.
+없는 기간·장소·유형은 `null`이다. `spaceId`·`spaceName`은 그 행사를 운영하는 조직이다(#387). 조직 멤버가 아닌 협력자도 어느 조직 행사인지 알 수 있게 둔다. 멤버·다른 행사·연락처는 없다(DEC-060). 감사 로그와 권한 override는 만들지 않는다.
 
 ### `GET /api/v1/operator/spaces/{spaceId}/events`
 
@@ -280,11 +282,44 @@ curl -sS \
 
 항목은 `{ "eventId", "name", "lifecycleStatus", "startDate", "endDate", "place", "eventType" }`다. `lifecycleVersion`은 없다.
 
+### `GET /api/v1/operator/events`
+
+내가 운영자로 있는 행사 목록이다(#387). 공간 멤버십과 관계없이 호출자의 `event_users` 행으로 고른다. 조직 멤버십 없이 행사만 운영하는 협력자(DEC-039, DEC-060), 조직에서 나가며 행사 접근을 유지한 사람, 다른 조직 행사에 협력자로 들어간 멤버가 자기 행사를 여기서 본다. 세션이 없으면 `401 AUTHENTICATION_REQUIRED`다. 행사가 없으면 `200`이고 `items`는 `[]`다.
+
+- 접근이 취소된 사람(탈퇴할 때 끊긴 행사, 운영자 빼기)은 `event_users` 행이 없으므로 나오지 않는다.
+- 공간 `OWNER`·`ADMIN`이 운영자 행 없이 읽을 수 있는 행사는 여기 나오지 않는다. 그 목록은 `GET /spaces/{spaceId}/events`다.
+- `sort` 허용 필드는 없다. 순서는 행사 이름, 그다음 `eventId`다. `page`는 0부터, `size`는 기본 50, 최대 100이다.
+
+`200`
+
+```json
+{
+  "items": [
+    {
+      "eventId": "…",
+      "name": "2027 겨울 수련회",
+      "lifecycleStatus": "DRAFT",
+      "startDate": null,
+      "endDate": null,
+      "place": null,
+      "eventType": null,
+      "spaceId": "…",
+      "spaceName": "Local space",
+      "eventRole": "STAFF",
+      "spaceMember": false
+    }
+  ],
+  "page": { "number": 0, "size": 50, "totalItems": 1, "totalPages": 1 }
+}
+```
+
+`eventRole`은 그 행사에서 호출자의 역할(`OWNER`, `MANAGER`, `STAFF`)이다. `spaceMember`는 호출자가 그 공간의 활성 멤버인지다. `false`면 행사 전용 협력자다. 다른 운영자, 조직 멤버, 연락처는 없다(DEC-060).
+
 ### `GET /api/v1/operator/events/{eventId}`
 
 행사 상세다. 읽기는 유효한 `EVENT_READ`, 또는 활성 공간 `OWNER`·`ADMIN`이다. 공간 소유자·관리자는 이 읽기 때문에 `event_users` 행이 생기지 않는다.
 
-`200` 필드는 만들기 응답과 같다. 행사가 없으면 `404 RESOURCE_NOT_FOUND`다. 접근이 제거되었거나 공간 멤버십이 끝났으면 `403 NOT_A_MEMBER`다. 보여 주지만 읽기 권한이 없으면 `403 FORBIDDEN`이다.
+`200` 필드는 만들기 응답과 같다(`spaceId`·`spaceName` 포함). 행사 운영자 행이 있으면 공간 멤버십이 끝났어도 열린다. 행사가 없으면 `404 RESOURCE_NOT_FOUND`다. 접근이 제거되었거나 공간 멤버십이 끝났으면 `403 NOT_A_MEMBER`다. 보여 주지만 읽기 권한이 없으면 `403 FORBIDDEN`이다.
 
 ### `PATCH /api/v1/operator/events/{eventId}`
 
@@ -597,6 +632,7 @@ curl -sS \
 
 ```json
 {
+  "eventId": "…",
   "eventName": "Local event",
   "role": "STAFF",
   "inviterName": "Local owner",
@@ -605,11 +641,93 @@ curl -sS \
 }
 ```
 
-수락 `200`은 `{ "outcome": "ACCEPTED" }`다. 같은 사람이 다시 수락하면 `{ "outcome": "ALREADY_ACCEPTED" }`다. 수락은 그 사용자를 초대의 `role`로 `event_users`에 넣는다. 이미 운영자면 역할을 바꾸지 않는다.
+수락 `200`은 `{ "outcome": "ACCEPTED", "eventId": "…", "role": "STAFF" }`다. 같은 사람이 다시 수락하면 `outcome`이 `ALREADY_ACCEPTED`다. 수락은 그 사용자를 초대의 `role`로 `event_users`에 넣는다. 공간 멤버십은 보지 않는다. 조직에서 나간 사람도 일반 수락이다(#387).
 
-미리보기는 행을 바꾸지 않는다. 수락과 미리보기는 계정마다, 그리고 요청 주소마다 한 시간에 5회다. 두 경로가 한 한도를 같이 쓴다. 한도는 이 프로세스 메모리에만 있다. 넘으면 `429 RATE_LIMITED`다. 한도 숫자는 잠정값이다.
+이미 그 행사의 운영자면(예: 조직에서 나가며 이 행사 접근을 유지한 사람) 초대는 `ACCEPTED`로 소비되지만 역할은 바꾸지 않는다. 응답 `role`은 수락 뒤 실제 역할이라 초대의 `role`과 다를 수 있다. 역할 변경은 행사 `OWNER`가 `PATCH /operators/{userId}`로 한다. 다시 수락할 때 그 사이 운영자에서 빠졌으면 `role`은 `null`이다. 미리보기의 `eventId`는 이메일이 맞을 때만 나온다. 수락한 뒤 화면이 그 행사를 바로 열 때 쓴다.
+
+미리보기는 행을 바꾸지 않는다. 미리보기·수락에는 시도 한도가 없다([조직 초대](#조직-초대)도 같다). 토큰이 256비트 난수라 추측으로 맞힐 수 없고, 두 경로 모두 로그인과 CSRF 검사를 먼저 받는다. 같은 회선을 쓰는 운영진이 서로 막히지 않게 하려고 한도를 뺐다(DEC-060 Follow-up 2026-11-19, #391).
 
 토큰이 없으면 `404 INVITATION_NOT_FOUND`다. 이 코드는 초대가 있는지 알려 주지 않는다. 세션에 검증된 이메일이 없으면 `403 EMAIL_NOT_VERIFIED`다. 있고 다르면 `403 INVITATION_EMAIL_MISMATCH`다. 다른 사람이 이미 수락했으면 `409 INVITATION_ALREADY_ACCEPTED`다. 취소는 `410 INVITATION_REVOKED`, 만료는 `410 INVITATION_EXPIRED`, 다시 보낸 이전 토큰은 `410 INVITATION_SUPERSEDED`다. 행사가 보관되었으면 `409 EVENT_ARCHIVED`다.
+
+## 조직 초대
+
+조직(공간) 초대다(DEC-076, #361). 계약은 [행사 초대](#초대)와 같다. 토큰 해시만 저장하고, 유효 시간은 7일이며, 같은 공간·이메일의 `PENDING`은 하나다. 새 초대나 다시 보내기는 이전 `PENDING`을 `SUPERSEDED`로 둔다. 생성과 다시 보내기의 `200` 본문만 `link`를 **한 번** 준다. 링크·토큰은 DB·audit·로그에 남지 않는다. 메일 포트는 부르지 않는다(SMTP는 범위 밖). 클래스는 `space/invitation/SpaceInvitationController`다.
+
+**링크 구분.** 수락 화면은 행사 초대와 같은 `/operator/invitations#<token>`이다. 조직 초대 토큰은 `s.`로 시작한다(`/operator/invitations#s.…`). `.`은 base64url 문자가 아니라서 접두어 없는 행사 토큰과 겹치지 않는다. 화면은 토큰이 `s.`로 시작하면 아래 `space-invitations` 경로를, 아니면 기존 `invitations` 경로를 부른다. 기존 행사 초대 링크는 그대로다. 해시는 접두어를 포함한 토큰 전체의 SHA-256이다. `s.`로 시작하지 않는 토큰을 조직 경로에 보내거나 조직 토큰을 행사 경로에 보내면 `404 INVITATION_NOT_FOUND`다.
+
+**권한.** 판정 순서는 공간 경로와 같다. 멤버 행이 없으면 `404 RESOURCE_NOT_FOUND`, `LEFT`면 `403 NOT_A_MEMBER`, 활성 멤버인데 `OWNER`·`ADMIN`이 아니면 `403 FORBIDDEN`이다(`SpaceMembership.mayInviteMembers()`). 필드 검증은 그다음이다. `ADMIN`으로 초대하는 것과 `ADMIN` 초대를 다시 보내거나 취소하는 것은 공간 `OWNER`만 한다(`mayInviteAsAdmin()`). 아니면 `403 FORBIDDEN`이다. 목록 권한은 초대 변경과 같다.
+
+**audit.** 행사 초대와 달리 명령마다 `audit_logs` 행을 남긴다. `space_id`가 있고 `event_id`는 없다. 액션은 `SPACE_INVITATION_CREATED`·`SPACE_INVITATION_RESENT`·`SPACE_INVITATION_REVOKED`·`SPACE_INVITATION_ACCEPTED`다. 상세는 `invitationId`, `role`이고, 다시 보내기는 `previousInvitationId`, 수락은 `outcome`(`ACCEPTED`·`ALREADY_MEMBER`)과 `membership`(`CREATED`·`REACTIVATED`·`UNCHANGED`)을 더한다. 이메일·토큰·해시·링크는 없다. 이미 취소된 초대를 다시 취소하거나 `ALREADY_ACCEPTED`일 때는 남기지 않는다.
+
+### `GET /api/v1/operator/spaces/{spaceId}/invitations`
+
+대기(`PENDING`) 조직 초대 목록이다. `page`·`size`·순서는 행사 초대 목록과 같다(최신 순, `sort` 없음). 만료가 지난 `PENDING`도 나온다. 항목은 `{ "id", "email", "role", "status", "expiresAt" }`다. 토큰, 해시, 링크는 없다.
+
+### `POST /api/v1/operator/spaces/{spaceId}/invitations`
+
+```json
+{ "email": "Person@Example.com", "role": "MEMBER" }
+```
+
+`email` 규칙은 행사 초대와 같다. `role`은 `MEMBER` 또는 `ADMIN`이고, 없거나 `null`이면 `MEMBER`다(1월 화면에는 역할 선택이 없다). 그 밖의 값(`OWNER`, 소문자 포함)은 `400 VALIDATION_FAILED`이고 필드는 `role`이다. 초대로 `OWNER`를 만들지 않는다.
+
+`200`
+
+```json
+{
+  "id": "…",
+  "role": "MEMBER",
+  "status": "PENDING",
+  "expiresAt": "2026-11-26T00:00:00Z",
+  "link": "/operator/invitations#s.…"
+}
+```
+
+### `POST /api/v1/operator/spaces/{spaceId}/invitations/{invitationId}/resend`
+
+본문이 없다. 행사 초대와 같다. 그 `PENDING`을 `SUPERSEDED`로 두고 같은 이메일·역할로 새 `PENDING`과 새 `link`를 준다. 초대가 그 공간에 없으면 `404 RESOURCE_NOT_FOUND`, `PENDING`이 아니면 `400 VALIDATION_FAILED`(필드 `invitationId`)다.
+
+### `DELETE /api/v1/operator/spaces/{spaceId}/invitations/{invitationId}`
+
+행사 초대와 같다. `PENDING`을 `REVOKED`로 바꾸고 `{ "id", "role", "status", "expiresAt" }`를 준다. 이미 `REVOKED`이면 같은 본문으로 `200`, `ACCEPTED`·`SUPERSEDED`는 `400 VALIDATION_FAILED`다.
+
+### `POST /api/v1/operator/space-invitations/preview`
+
+### `POST /api/v1/operator/space-invitations/accept`
+
+본문은 `{ "token": "s.…" }`다. 세션의 검증된 이메일과 비교하는 것, 오류 코드, 판정 순서는 [행사 초대](#post-apiv1operatorinvitationsaccept)와 같다. 시도 한도는 없다. 판정 순서: 토큰 없음 `404 INVITATION_NOT_FOUND` → 세션 이메일 없음 `403 EMAIL_NOT_VERIFIED` → 이메일 다름 `403 INVITATION_EMAIL_MISMATCH` → 다른 사람이 수락함 `409 INVITATION_ALREADY_ACCEPTED`(같은 사람이면 `ALREADY_ACCEPTED`) → 취소 `410 INVITATION_REVOKED` → 다시 보냄 `410 INVITATION_SUPERSEDED` → 만료 `410 INVITATION_EXPIRED`. 행사 보관 단계는 없다.
+
+미리보기 `200`. 행을 바꾸지 않는다.
+
+```json
+{
+  "spaceName": "Local space",
+  "role": "MEMBER",
+  "inviterName": "Local owner",
+  "expiresAt": "2026-11-26T00:00:00Z",
+  "outcome": "PENDING"
+}
+```
+
+`outcome`은 `PENDING`, `ALREADY_ACCEPTED`(이 사람이 이미 수락), `ALREADY_MEMBER`(대기 중인데 이미 활성 멤버)다.
+
+수락 `200`은 `{ "outcome": "ACCEPTED", "spaceId": "…" }`다. `spaceId`는 화면이 들어간 공간을 열 수 있게 행사 초대와 달리 더 준다.
+
+- 멤버 행이 없으면 초대의 `role`로 `ACTIVE` 행을 만든다.
+- `LEFT` 행이면 같은 행을 `ACTIVE`로 바꾸고 역할을 초대의 `role`로 둔다(재가입, DEC-037).
+- 이미 `ACTIVE`이면 `outcome`이 `ALREADY_MEMBER`이고 역할을 바꾸지 않는다. 초대는 `ACCEPTED`로 소비된다(역할 변경은 범위 밖).
+- 같은 사람이 다시 수락하면 `ALREADY_ACCEPTED`이고 아무것도 바꾸지 않는다.
+- 기존 `event_users` 행은 건드리지 않는다(DEC-039).
+
+수락한 사람은 바로 [행사 생성](#post-apiv1operatorspacesspaceidevents)을 할 수 있고 그 행사의 `OWNER`가 된다.
+
+## 조직 멤버
+
+### `GET /api/v1/operator/spaces/{spaceId}/members`
+
+활성(`ACTIVE`) 멤버 목록이다(DEC-076). 활성 멤버면 누구나 읽는다. 멤버 행이 없으면 `404 RESOURCE_NOT_FOUND`, `LEFT`면 `403 NOT_A_MEMBER`다. `page`·`size`는 공통 목록 규칙이고 `sort`는 받지 않는다. 순서는 `OWNER`·`ADMIN`·`MEMBER`, 그다음 이름(코드 포인트), 그다음 id다.
+
+항목은 `{ "userId", "displayName", "role" }`다. 보는 사람이 활성 `OWNER`·`ADMIN`이면 `email`을 더한다. 값은 그 멤버의 마지막 Google 로그인에서 받은 검증된 이메일이다. Google 로그인이 없는 계정은 `email` 키가 없다. `MEMBER`가 보면 어떤 항목에도 `email` 키가 없다(`SpaceMembership.maySeeMemberEmails()`).
 
 ## 운영자
 
@@ -621,7 +739,7 @@ curl -sS \
 
 `EVENT_UPDATE`, `EVENT_USER_READ`, `PARTICIPANT_READ`, `PARTICIPANT_CONTACT_READ`, `PARTICIPANT_WRITE`, `FORM_WRITE`, `APPLICATION_READ`, `APPLICATION_MANAGE`, `TASK_WRITE`, `SCHEDULE_WRITE`, `NOTICE_WRITE`, `FINANCE_READ`, `FINANCE_WRITE`, `GROUP_WRITE`, `ROOM_WRITE`, `RIDE_WRITE`, `CLASS_WRITE`, `CHECKIN_WRITE`, `MISSION_WRITE`, `GUARDIAN_WRITE`, `GUARDIAN_CONTACT_READ`, `PRIVACY_LOG_READ`, `AUDIT_LOG_READ`, `DATA_EXPORT`, `EVENT_READ`, `EVENT_LIFECYCLE`, `EVENT_USER_MANAGE`.
 
-`OWNER`는 이 키를 모두 기본으로 가진다. `MANAGER`의 기본은 `EVENT_READ`, `TASK_WRITE`, `CHECKIN_WRITE`다. `STAFF`의 기본은 `EVENT_READ`, `CHECKIN_WRITE`다(DEC-071). 키가 있다고 그 업무의 API가 열려 있는 것은 아니다. 지금 HTTP가 `PermissionEvaluator`로 보는 키는 `EVENT_READ`, `EVENT_UPDATE`, `FORM_WRITE`, `TASK_WRITE`, `CHECKIN_WRITE`, `DATA_EXPORT`, `EVENT_USER_MANAGE`다. 신청자 CSV는 `DATA_EXPORT`다. 행사 이름 변경은 `EVENT_UPDATE`다. 신청서 쓰기는 `FORM_WRITE`다. 신청 읽기는 `APPLICATION_READ`가 아니라 `EVENT_READ`다. 행사 상태 변경은 그 키 대신 행사 역할 `OWNER`와 공간 역할 `OWNER`를 본다. `EVENT_LIFECYCLE`은 소유자 전용이라 다른 역할에 `GRANT`되지 않는다.
+`OWNER`는 이 키를 모두 기본으로 가진다. `MANAGER`의 기본은 `EVENT_READ`, `TASK_WRITE`, `CHECKIN_WRITE`, `SCHEDULE_WRITE`, `NOTICE_WRITE`다. `STAFF`의 기본은 `EVENT_READ`, `CHECKIN_WRITE`다(DEC-071, DEC-079). 그 밖의 키는 행사 `OWNER`가 사람별 `GRANT`로 준다. 기본값은 계산값이라 바뀌면 모든 행사의 기존 운영자에게 바로 적용된다. 일정·공지 API는 아직 없어서 `SCHEDULE_WRITE`·`NOTICE_WRITE`로 열리는 경로는 지금 없다. 키가 있다고 그 업무의 API가 열려 있는 것은 아니다. 지금 HTTP가 `PermissionEvaluator`로 보는 키는 `EVENT_READ`, `EVENT_UPDATE`, `FORM_WRITE`, `TASK_WRITE`, `CHECKIN_WRITE`, `DATA_EXPORT`, `EVENT_USER_MANAGE`다. 신청자 CSV는 `DATA_EXPORT`다. 행사 이름 변경은 `EVENT_UPDATE`다. 신청서 쓰기는 `FORM_WRITE`다. 신청 읽기는 `APPLICATION_READ`가 아니라 `EVENT_READ`다. 행사 상태 변경은 그 키 대신 행사 역할 `OWNER`와 공간 역할 `OWNER`를 본다. `EVENT_LIFECYCLE`은 소유자 전용이라 다른 역할에 `GRANT`되지 않는다.
 
 ### `GET /api/v1/operator/events/{eventId}/operators`
 
@@ -649,11 +767,13 @@ curl -sS \
 { "role": "MANAGER" }
 ```
 
-`role`은 `MANAGER` 또는 `STAFF`만이다. 이 경로로 `OWNER`를 부여하지 않는다. 요청한 역할이 지금과 같아도 그 사람의 개별 권한 행은 지워지고 역할은 다시 써진다. 보관된 행사는 `409 EVENT_ARCHIVED`다. `200`은 한 명 조회와 같다.
+`role`은 `MANAGER` 또는 `STAFF`만이다. 이 경로로 `OWNER`를 부여하지 않는다. 요청한 역할이 지금과 같아도 그 사람의 개별 권한 행은 지워지고 역할은 다시 써진다. 대상이 행사 `OWNER`면 자기 자신이어도 `409 OWNER_ROLE_HELD`이고 아무것도 바꾸지 않는다. Owner 변경은 위임·인수인계(DEC-033)로만 한다. 보관된 행사는 `409 EVENT_ARCHIVED`다. `200`은 한 명 조회와 같다.
+
+검사 순서는 `FORBIDDEN`, 없는 운영자 `404`, `role` 검증 `400`, 행 잠금 뒤 대상 역할로 `409 OWNER_ROLE_HELD`, `409 EVENT_ARCHIVED`다. Owner 판정은 보관 여부와 관계없는 규칙이라 보관 검사보다 앞에 둔다.
 
 ### `DELETE /api/v1/operator/events/{eventId}/operators/{userId}`
 
-운영자 행을 제거한다. 성공은 `200`이고 본문이 없다. 그 사람이 담당인 업무의 `assigneeUserId`는 비워지고 업무 `version`이 1 증가한다. 없는 운영자는 `404`다.
+운영자 행을 제거한다. 성공은 `200`이고 본문이 없다. 그 사람이 담당인 업무의 `assigneeUserId`는 비워지고 업무 `version`이 1 증가한다. 없는 운영자는 `404`다. 대상이 행사 `OWNER`면 자기 자신이어도 `409 OWNER_ROLE_HELD`이고 행·업무·감사 기록을 바꾸지 않는다. 판정은 행 잠금 뒤 역할로 한다. Owner가 빠지는 길은 위임·인수인계(DEC-033)와 수락된 인수인계 뒤의 공간 탈퇴뿐이다.
 
 ### `GET /api/v1/operator/events/{eventId}/operators/{userId}/permissions`
 
@@ -665,9 +785,9 @@ curl -sS \
 {
   "userId": "…",
   "role": "MANAGER",
-  "roleDefaults": ["CHECKIN_WRITE", "EVENT_READ", "TASK_WRITE"],
+  "roleDefaults": ["CHECKIN_WRITE", "EVENT_READ", "NOTICE_WRITE", "SCHEDULE_WRITE", "TASK_WRITE"],
   "overrides": { "grants": [], "revokes": [] },
-  "effective": ["CHECKIN_WRITE", "EVENT_READ", "TASK_WRITE"]
+  "effective": ["CHECKIN_WRITE", "EVENT_READ", "NOTICE_WRITE", "SCHEDULE_WRITE", "TASK_WRITE"]
 }
 ```
 
@@ -684,7 +804,7 @@ curl -sS \
 }
 ```
 
-`grants`와 `revokes`는 둘 다 필수 배열이다. 빈 배열도 된다. 모르는 키는 `UNKNOWN_PERMISSION`, 같은 요청 안의 중복은 `DUPLICATE_PERMISSION`이다. 이 둘은 `errors[]`의 `code`다.
+`grants`와 `revokes`는 둘 다 필수 배열이다. 빈 배열도 된다. 역할 기본값에 이미 있는 키의 `GRANT`와 기본값에 없는 키의 `REVOKE`는 저장하지 않는다. 화면(운영 멤버의 "권한", DEC-079)은 지금 `overrides`를 바탕으로 보이는 키만 바꿔 보낸다. 모르는 키는 `UNKNOWN_PERMISSION`, 같은 요청 안의 중복은 `DUPLICATE_PERMISSION`이다. 이 둘은 `errors[]`의 `code`다.
 
 소유자에게 override를 주면 `422 PERMISSION_OWNER_NOT_OVERRIDABLE`이다. 소유자 전용 키를 `GRANT`하면 `422 PERMISSION_OWNER_ONLY`다. `EVENT_READ`를 `REVOKE`하면 `422 PERMISSION_NOT_OVERRIDABLE`다. 보관된 행사에서 권한이 넓어지면 `409 EVENT_ARCHIVED`다. 같은 내용이면 저장하지 않고 현재 본문을 `200`으로 돌려준다.
 
@@ -912,9 +1032,12 @@ curl -sS \
     }
   ],
   "locked": false,
-  "setup": null
+  "setup": null,
+  "completionNotice": null
 }
 ```
+
+`completionNotice`는 신청을 마친 사람에게 보이는 완료 안내다(참가비 계좌, 문의처, 다음에 할 일). 없으면 `null`이다. 아래 `PUT …/completion-notice`로 쓴다.
 
 `setup`은 마지막으로 저장한 신청서 설정이다(아래 `PUT …/setup`의 본문 모양에 `generatedFor`가 붙는다). 저장한 적이 없으면 `null`이다.
 
@@ -969,6 +1092,20 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
 ### `DELETE /api/v1/operator/events/{eventId}/forms/{formId}/fields/{fieldId}`
 
 운영자가 직접 만든 CUSTOM 필드를 지운다. `204`이고 본문이 없다. SYSTEM 필드와 자동 질문 삭제는 `409 CONFLICT`다. 자동 질문은 `hidden`으로 끄거나 설정에서 뺀다. 다른 질문이나 보기의 `showWhen`이 가리키는 필드도 `409 CONFLICT`다. 신청이 들어온 신청서는 `409 FIELD_LOCKED`이고, 대신 `hidden: true`로 숨긴다. 없는 필드는 `404 RESOURCE_NOT_FOUND`다.
+
+### `PUT /api/v1/operator/events/{eventId}/forms/{formId}/completion-notice`
+
+완료 안내를 쓰거나 지운다([#406](https://github.com/BeomhyunPark/SCENE/issues/406), DEC-070 Follow-up 2026-11-19). 유효한 `FORM_WRITE`가 필요하다. 그 행사의 신청서가 아니면, 권한보다 먼저 `404 RESOURCE_NOT_FOUND`다.
+
+```json
+{ "completionNotice": "참가비 3만원은 12월 31일까지 보내 주세요.\n신한 110-000-000000 (예금주 홍길동)\n문의: 010-0000-0000" }
+```
+
+- `completionNotice`만 받는다. 키가 꼭 있어야 하고 값은 문자열이나 `null`이다. 다른 키, 빠진 키, 다른 타입은 `400 VALIDATION_FAILED`(`errors[0].field`가 그 키)다.
+- **글자 그대로의 텍스트다.** CRLF와 CR은 LF로 바꾸고, 앞뒤 공백·빈 줄은 자른다. 안의 줄바꿈·탭·HTML 태그·링크는 그대로 저장하고 그대로 돌려준다. 서버는 HTML을 해석하거나 지우지 않고, 화면도 HTML로 그리지 않는다(링크도 누르는 링크로 바꾸지 않는다).
+- 자른 뒤 1000자(유니코드 코드 포인트)까지다. 넘거나, 줄바꿈·탭이 아닌 제어 문자가 있으면 `400 VALIDATION_FAILED`(`completionNotice`)다. 자른 뒤 비면 `null`로 저장한다(안내 없음).
+- **잠기지 않는다.** `SUBMITTED` 신청이 있어도(`locked`가 `true`여도) 고칠 수 있다. 행사 상태와 신청 받기 여부와도 상관없다. 이미 신청한 사람은 다음에 읽을 때 새 문구를 본다(아래 참가자 홈).
+- `200`은 신청서 상세다. `Idempotency-Key`는 읽지 않는다. audit은 남기지 않는다.
 
 ### `PUT /api/v1/operator/events/{eventId}/forms/{formId}/setup`
 
@@ -1373,8 +1510,10 @@ CSRF가 필요하다. `Idempotency-Key`는 읽지 않는다.
 **처음 신청**이면 `201`이다. `Location` 헤더는 없다.
 
 ```json
-{ "applicationId": "…", "participantId": "…", "revision": 1, "revised": false }
+{ "applicationId": "…", "participantId": "…", "revision": 1, "revised": false, "completionNotice": "참가비 3만원은 …" }
 ```
+
+`completionNotice`는 제출한 순간의 완료 안내다(없으면 `null`). 신청 완료 화면이 글자 그대로 보인다. **공개 신청서 `GET`에는 싣지 않는다.** 신청을 마친 사람만 보게 하려는 것이다(#406). 재신청(수정) 응답에도 같은 값이 있다.
 
 **같은 전화번호의 신청이 이미 있으면**(전화번호의 숫자만 비교한다) 번호가 맞을 때만 그 신청의 수정이 된다(새 revision, [참가자 신청](#참가자-신청)과 같은 저장). `200`이고 `revised: true`다. 이름이 달라도 수정이다. 수정이 닫혀 있으면 `409 EDITS_CLOSED`다. 번호가 틀리면 `409 APPLICATION_ALREADY_EXISTS`이고 이전 답은 본문에 없다. 이 실패는 그 전화의 [잠금](#post-apiv1publiceventseventidparticipant-sessions) 횟수에 들어가고, 잠겨 있으면 `429 PARTICIPANT_LOGIN_LOCKED`다. 바뀐 답이 없으면 revision을 만들지 않고 지금 신청을 돌려준다.
 
@@ -1428,6 +1567,10 @@ CSRF가 필요하다. 새 번호를 정한다.
 ```
 
 임시 번호로 들어온 세션(`pinChangeRequired: true`)은 `currentPin`을 생략한다. 그 밖에는 필수이고, 틀리면 `401 PARTICIPANT_LOGIN_FAILED`이며 잠금 횟수에 들어간다. `newPin`은 신청 때와 같은 규칙이다(`400 PARTICIPANT_PIN_WEAK`). 성공은 `204`다. 그 참가자의 다른 세션은 끊고 이 세션은 남긴다.
+
+### 참가자 세션으로 완료 안내 읽기 (계약만, B2)
+
+참가자 홈 `GET /api/v1/participant/home`(트랙 B의 B2, [#379](https://github.com/BeomhyunPark/SCENE/issues/379))의 본문에 `completionNotice`(문자열 또는 `null`)를 둔다. 값은 세션의 행사에 있는 신청서의 **지금** 완료 안내다(제출 때 받은 값이 아니다). 그래서 운영자가 고치면 이미 신청한 사람도 새 문구를 본다. 모양과 처리는 위 `PUT …/completion-notice`와 같고 글자 그대로 그린다. 서버는 `forms.completion_notice`를 `space_id`·`event_id`로 읽는다(`FormRepository.findByEvent(...).completionNotice()`). 이 경로는 아직 없다. 만들 때 이 절을 그 경로 설명으로 옮긴다.
 
 ### `POST /api/v1/participant/auth/logout`
 
@@ -1959,6 +2102,17 @@ audit `GROUPS_PUBLISHED`: detail은 `publicationId`, `boardVersion`, `assignedCo
 - 공간 소유권 이전의 전용 URL
 
 `Permission` enum에 키가 있는 것은 그 업무의 API가 열렸다는 뜻이 아니다.
+
+## 계약 초안 (아직 서버에 없다)
+
+아래 경로는 **아직 서버에 없다.** 이 문서는 지금 서버가 받는 계약만 적으므로, 2주차(11/26~) 이후에 만들 경로의 계약 초안은 `docs/architecture`에 따로 둔다. 서버가 경로를 열면 그 절을 이 문서로 옮기고 초안에서 지운다. 그 전까지 이 문서의 다른 절과 초안이 다르면 이 문서(지금 서버)를 따른다.
+
+| 영역 | 정책 | 계약 초안 | 경로 |
+|---|---|---|---|
+| 참가자 홈·갱신 확인·알림 | DEC-080 | [participant-home-contract](../../docs/architecture/participant-home-contract.md) | `GET /participant/home`, `GET /participant/updates`, `GET·POST /participant/notifications…`, `GET·POST /operator/events/{eventId}/notifications…`, `GET /operator/events/{eventId}/updates` |
+| 일정표 | DEC-081 | [schedule-contract](../../docs/architecture/schedule-contract.md) | `GET /operator/events/{eventId}/schedule`, `POST·PATCH·DELETE …/schedule/items…`, `POST …/schedule/publish`, `GET …/schedule/published`, `GET /participant/schedule` |
+| 공지 | DEC-082 | [notice-contract](../../docs/architecture/notice-contract.md) | `GET·POST /operator/events/{eventId}/notices`, `GET·PATCH·DELETE …/notices/{noticeId}`, `POST …/notices/{noticeId}/publish·archive·unarchive`, `GET /participant/notices`, `GET /participant/notices/{noticeId}` |
+| 내 조(조원·조장이 보는 범위) | DEC-083 | [participant-group-contract](../../docs/architecture/participant-group-contract.md) | `GET /participant/group`의 새 응답(지금 응답은 위 [조 편성](#get-apiv1participantgroup)), `GET /participant/group/members/{participantId}`, `GET·PUT /operator/events/{eventId}/participant-settings` |
 
 ## 결정 문서와 다른 점
 

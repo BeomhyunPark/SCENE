@@ -1,9 +1,20 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, Navigate, useNavigate } from "react-router";
 import { isApiError } from "../api/errors";
-import { acceptInvitation, previewInvitation, type InvitationPreview } from "../api/invitations";
+import {
+  acceptInvitation,
+  previewInvitation,
+  type InvitationAcceptance,
+  type InvitationPreview,
+} from "../api/invitations";
 import { reloadQuery } from "../api/queryClient";
+import {
+  acceptSpaceInvitation,
+  isSpaceInvitationToken,
+  previewSpaceInvitation,
+  type SpaceInvitationPreview,
+} from "../api/spaceInvitations";
 import { queryKeys } from "../api/queryKeys";
 import { getMe, logout } from "../api/session";
 import {
@@ -31,35 +42,64 @@ type ErrorKind =
 
 const TERMINAL_KINDS = new Set<ErrorKind>(["expired", "revoked", "superseded", "unusable"]);
 
+/**
+ * The token in the link's fragment always wins over a stored one. A new link opened in a tab that
+ * is already on this page only changes the hash, so the page does not mount again: read the
+ * fragment again on every navigation and start a fresh session for the new token. Without this,
+ * the old token stayed on screen and "초대 수락" accepted the previous (organization) invitation,
+ * which answered "이미 수락한 초대예요" while the new event invitation stayed pending (#387).
+ */
 export function InvitationAccept() {
-  const [capture] = useState<InvitationCapture>(() => captureInvitationToken());
+  const [capture, setCapture] = useState<InvitationCapture>(() => captureInvitationToken());
+  useEffect(() => {
+    // The router does not see an address-bar fragment change. A new fragment replaces the token,
+    // the stored one included.
+    const onHash = () => {
+      if (window.location.hash.length > 1) setCapture(captureInvitationToken());
+    };
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
   if (capture.status === "absent") return <Navigate to="/" replace />;
   if (capture.status === "unusable") return <UnusableLink />;
-  return <InvitationSession token={capture.token} />;
+  return <InvitationSession key={capture.token} token={capture.token} />;
 }
 
+/**
+ * One screen for event and space invitations. A token that starts with "s." is a space
+ * (organization) invitation (DEC-076, #361) and uses the space-invitations paths. Any other token
+ * keeps the event invitation flow. Token handling (DEC-060) is the same for both.
+ */
 function InvitationSession({ token }: { token: string }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const space = isSpaceInvitationToken(token);
   const [attempt, setAttempt] = useState(0);
   const [accepted, setAccepted] = useState<string | null>(null);
+  const [acceptance, setAcceptance] = useState<InvitationAcceptance | null>(null);
   const [acceptFailure, setAcceptFailure] = useState<unknown>(null);
   const [switching, setSwitching] = useState(false);
 
   const me = useQuery({ queryKey: queryKeys.me, queryFn: getMe });
-  const preview = useQuery({
-    queryKey: ["operator", "invitation-preview", attempt],
-    queryFn: ({ signal }) => previewInvitation(token, signal),
+  const preview = useQuery<InvitationPreview | SpaceInvitationPreview>({
+    // The token is part of the key (memory only) so one invitation's answer never shows for another.
+    queryKey: ["operator", space ? "space-invitation-preview" : "invitation-preview", token, attempt],
+    queryFn: ({ signal }) => (space ? previewSpaceInvitation(token, signal) : previewInvitation(token, signal)),
     enabled: me.isSuccess && accepted == null && acceptFailure == null,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   });
 
   const accept = useMutation({
-    mutationFn: () => acceptInvitation(token),
+    mutationFn: (): Promise<InvitationAcceptance> => (space ? acceptSpaceInvitation(token) : acceptInvitation(token)),
     onSuccess: (result) => {
       setAcceptFailure(null);
       setAccepted(result.outcome);
+      setAcceptance(result);
+      // The new membership changes the space list that /events and /settings read.
+      if (space) void queryClient.invalidateQueries({ queryKey: queryKeys.spaces });
+      // The event now appears under 협력 중인 행사 on /events (#387).
+      else void queryClient.invalidateQueries({ queryKey: queryKeys.allOperatedEvents });
     },
     onError: (error) => setAcceptFailure(error),
   });
@@ -67,10 +107,20 @@ function InvitationSession({ token }: { token: string }) {
   const previewKind = preview.isError ? errorKind(preview.error) : null;
   const acceptKind = acceptFailure == null ? null : errorKind(acceptFailure);
   const alreadyAccepted = !accepted && preview.data?.outcome === "ALREADY_ACCEPTED";
+  // Space only: the invitation is pending but this account is already an active member.
+  const alreadyMember =
+    space && (accepted === "ALREADY_MEMBER" || (!accepted && preview.data?.outcome === "ALREADY_MEMBER"));
+  // The preview said ALREADY_MEMBER but the invitation is still PENDING on the inviter's list. Accept
+  // consumes it (the server answers ALREADY_MEMBER again), so it does not linger (#362 follow-up).
+  const consumeAlreadyMember =
+    space && !accepted && acceptFailure == null && preview.data?.outcome === "ALREADY_MEMBER";
+  const consumeStarted = useRef(false);
+  const spaceName = space && preview.data && "spaceName" in preview.data ? textOf(preview.data.spaceName) : "";
   const shouldClear =
     accepted === "ACCEPTED" ||
     accepted === "ALREADY_ACCEPTED" ||
     alreadyAccepted ||
+    (alreadyMember && !consumeAlreadyMember) ||
     (previewKind != null && TERMINAL_KINDS.has(previewKind)) ||
     (acceptKind != null && TERMINAL_KINDS.has(acceptKind));
   const shouldLogin = previewKind === "login" || acceptKind === "login";
@@ -83,7 +133,13 @@ function InvitationSession({ token }: { token: string }) {
     if (shouldLogin) navigate(LOGIN_NEXT, { replace: true });
   }, [shouldLogin, navigate]);
 
-  if (me.isPending || shouldLogin || (me.isSuccess && preview.isPending) || accept.isPending) {
+  useEffect(() => {
+    if (!consumeAlreadyMember || consumeStarted.current) return;
+    consumeStarted.current = true;
+    accept.mutate();
+  }, [consumeAlreadyMember, accept]);
+
+  if (me.isPending || shouldLogin || (me.isSuccess && preview.isPending) || accept.isPending || consumeAlreadyMember) {
     return <InvitationFrame busy title="불러오는 중이에요." />;
   }
   if (isApiError(me.error) && me.error.status === 401) {
@@ -112,8 +168,27 @@ function InvitationSession({ token }: { token: string }) {
     );
   }
 
-  if (accepted === "ACCEPTED") return <Accepted />;
-  if (accepted === "ALREADY_ACCEPTED" || alreadyAccepted) return <AlreadyAccepted />;
+  if (space) {
+    if (accepted === "ACCEPTED") return <SpaceAccepted spaceName={spaceName} />;
+    if (accepted === "ALREADY_ACCEPTED" || alreadyAccepted) return <SpaceAlreadyAccepted spaceName={spaceName} />;
+    if (alreadyMember) return <SpaceAlreadyMember spaceName={spaceName} />;
+  } else {
+    const eventPreview = preview.data as InvitationPreview | undefined;
+    const eventId = textOf(acceptance?.eventId) || textOf(eventPreview?.eventId);
+    if (accepted === "ACCEPTED") {
+      return (
+        <Accepted
+          eventId={eventId}
+          eventName={textOf(eventPreview?.eventName)}
+          invitedRole={textOf(eventPreview?.role)}
+          role={textOf(acceptance?.role)}
+        />
+      );
+    }
+    if (accepted === "ALREADY_ACCEPTED" || alreadyAccepted) {
+      return <AlreadyAccepted eventId={eventId} eventName={textOf(eventPreview?.eventName)} />;
+    }
+  }
   if (accepted != null) {
     return (
       <InvitationFrame
@@ -243,7 +318,22 @@ function InvitationSession({ token }: { token: string }) {
   }
 
   if (preview.data?.outcome === "PENDING") {
-    return <PendingInvite preview={preview.data} loading={accept.isPending} onAccept={() => accept.mutate()} />;
+    if (space) {
+      return (
+        <PendingSpaceInvite
+          preview={preview.data as SpaceInvitationPreview}
+          loading={accept.isPending}
+          onAccept={() => accept.mutate()}
+        />
+      );
+    }
+    return (
+      <PendingInvite
+        preview={preview.data as InvitationPreview}
+        loading={accept.isPending}
+        onAccept={() => accept.mutate()}
+      />
+    );
   }
   return <InvitationFrame busy title="불러오는 중이에요." />;
 }
@@ -273,12 +363,36 @@ function PendingInvite({
   );
 }
 
-function Accepted() {
+function PendingSpaceInvite({
+  preview,
+  loading,
+  onAccept,
+}: {
+  preview: SpaceInvitationPreview;
+  loading: boolean;
+  onAccept: () => void;
+}) {
+  const spaceName = textOf(preview.spaceName);
+  const inviterName = textOf(preview.inviterName);
+  return (
+    <InvitationFrame
+      title={`${spaceName} 조직 초대를 받았어요`}
+      body={`${inviterName}님이 ${spaceName} 조직의 멤버로 초대했어요. 수락하면 이 조직에서 행사를 만들고 운영할 수 있어요.`}
+      actions={
+        <Button type="button" variant="primary" size={40} loading={loading} onClick={onAccept}>
+          초대 수락
+        </Button>
+      }
+    />
+  );
+}
+
+function SpaceAccepted({ spaceName }: { spaceName: string }) {
   const navigate = useNavigate();
   return (
     <InvitationFrame
-      title="초대를 수락했어요"
-      body="이제 이 행사를 운영할 수 있어요."
+      title={spaceName ? `${spaceName} 조직의 멤버가 됐어요` : "조직의 멤버가 됐어요"}
+      body="행사 목록에서 행사를 만들거나 이어서 볼 수 있어요."
       actions={
         <Button type="button" variant="primary" size={40} onClick={() => navigate("/events")}>
           행사 목록
@@ -288,11 +402,27 @@ function Accepted() {
   );
 }
 
-function AlreadyAccepted() {
+/** Names the organization, so it cannot be mistaken for an event invitation (#387). */
+function SpaceAlreadyAccepted({ spaceName }: { spaceName: string }) {
   const navigate = useNavigate();
   return (
     <InvitationFrame
-      title="이미 수락한 초대예요"
+      title={spaceName ? `${spaceName} 조직 초대는 이미 수락했어요` : "이미 수락한 조직 초대예요"}
+      body="이 링크는 한 번만 쓰여요. 행사 목록에서 이어서 볼 수 있어요."
+      actions={
+        <Button type="button" variant="primary" size={40} onClick={() => navigate("/events")}>
+          행사 목록
+        </Button>
+      }
+    />
+  );
+}
+
+function SpaceAlreadyMember({ spaceName }: { spaceName: string }) {
+  const navigate = useNavigate();
+  return (
+    <InvitationFrame
+      title={spaceName ? `이미 ${spaceName} 조직의 멤버예요` : "이미 이 조직의 멤버예요"}
       body="행사 목록에서 이어서 볼 수 있어요."
       actions={
         <Button type="button" variant="primary" size={40} onClick={() => navigate("/events")}>
@@ -300,6 +430,75 @@ function AlreadyAccepted() {
         </Button>
       }
     />
+  );
+}
+
+function textOf(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
+/**
+ * Event invitation accepted. Opens the event right away; the event list shows it under 협력 중인
+ * 행사 even without an organization membership (#387). Someone who was already an operator, for
+ * example after leaving the organization with this event kept, keeps their role: the server does
+ * not change it, so the screen says which role applies.
+ */
+function Accepted({
+  eventId,
+  eventName,
+  invitedRole,
+  role,
+}: {
+  eventId: string;
+  eventName: string;
+  invitedRole: string;
+  role: string;
+}) {
+  const navigate = useNavigate();
+  const kept = role.length > 0 && invitedRole.length > 0 && role !== invitedRole;
+  const body = kept
+    ? `이미 이 행사에서 ${operatorRoleLabel(role)}로 운영하고 있어서 역할은 그대로예요. 역할을 바꾸려면 행사 Owner에게 요청해 주세요.`
+    : role
+      ? `이제 ${operatorRoleLabel(role)}로 이 행사를 운영할 수 있어요.`
+      : "이제 이 행사를 운영할 수 있어요.";
+  return (
+    <InvitationFrame
+      title={eventName ? `${eventName} 초대를 수락했어요` : "초대를 수락했어요"}
+      body={body}
+      actions={<EventActions eventId={eventId} navigate={navigate} />}
+    />
+  );
+}
+
+/** Names the event, so it cannot be mistaken for an organization invitation (#387). */
+function AlreadyAccepted({ eventId, eventName }: { eventId: string; eventName: string }) {
+  const navigate = useNavigate();
+  return (
+    <InvitationFrame
+      title={eventName ? `${eventName} 초대는 이미 수락했어요` : "이미 수락한 행사 초대예요"}
+      body={eventId ? "이 링크는 한 번만 쓰여요. 행사는 바로 열 수 있어요." : "행사 목록에서 이어서 볼 수 있어요."}
+      actions={<EventActions eventId={eventId} navigate={navigate} />}
+    />
+  );
+}
+
+function EventActions({ eventId, navigate }: { eventId: string; navigate: ReturnType<typeof useNavigate> }) {
+  if (!eventId) {
+    return (
+      <Button type="button" variant="primary" size={40} onClick={() => navigate("/events")}>
+        행사 목록
+      </Button>
+    );
+  }
+  return (
+    <>
+      <Button type="button" variant="secondary" size={40} onClick={() => navigate("/events")}>
+        행사 목록
+      </Button>
+      <Button type="button" variant="primary" size={40} onClick={() => navigate(`/events/${eventId}`)}>
+        행사 열기
+      </Button>
+    </>
   );
 }
 

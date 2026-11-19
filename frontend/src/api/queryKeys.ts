@@ -2,10 +2,17 @@ export const queryKeys = {
   me: ["operator", "me"] as const,
   spaces: ["operator", "spaces"] as const,
   events: (spaceId: string, page: number) => ["spaces", spaceId, "events", page] as const,
+  /** Events I operate in any organization (#387). Under "operator" so a login clear resets it. */
+  operatedEvents: (page: number) => ["operator", "operated-events", page] as const,
+  allOperatedEvents: ["operator", "operated-events"] as const,
   eventNames: (spaceId: string) => ["spaces", spaceId, "event-names"] as const,
   leavePreview: (spaceId: string) => ["spaces", spaceId, "leave-preview"] as const,
+  spaceMembers: (spaceId: string) => ["spaces", spaceId, "members"] as const,
+  spaceInvitations: (spaceId: string) => ["spaces", spaceId, "invitations"] as const,
   event: (eventId: string) => ["events", eventId] as const,
   retrospective: (eventId: string) => ["events", eventId, "retrospective"] as const,
+  /** Every task list and detail of an event, e.g. after an operator removal clears assignees. */
+  allTasks: (eventId: string) => ["events", eventId, "tasks"] as const,
   tasks: (eventId: string, page: number) => ["events", eventId, "tasks", page] as const,
   task: (eventId: string, taskId: string) => ["events", eventId, "tasks", taskId] as const,
   operators: (eventId: string) => ["events", eventId, "operators"] as const,

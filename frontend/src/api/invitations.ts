@@ -3,6 +3,8 @@ import { ApiError } from "./errors";
 import type { ItemPage } from "./types";
 
 export type InvitationPreview = {
+  /** Shown once the session email matches, so the accepted screen can open the event (#387). */
+  eventId?: string;
   eventName: string;
   role: string;
   inviterName: string;
@@ -12,6 +14,12 @@ export type InvitationPreview = {
 
 export type InvitationAcceptance = {
   outcome: string;
+  eventId?: string;
+  /**
+   * My role in the event after accepting. Someone who was already an operator keeps the role they
+   * had, so this can differ from the invited role (#387). Null if the access has since ended.
+   */
+  role?: string | null;
 };
 
 export function previewInvitation(token: string, signal?: AbortSignal): Promise<InvitationPreview> {
@@ -78,7 +86,7 @@ export function revokeInvitation(eventId: string, invitationId: string): Promise
   }).then(() => undefined);
 }
 
-function parseIssued(value: unknown): IssuedInvitation {
+export function parseIssued(value: unknown): IssuedInvitation {
   if (
     !isRecord(value) ||
     typeof value.id !== "string" ||
@@ -95,7 +103,7 @@ function parseIssued(value: unknown): IssuedInvitation {
   return { id: value.id, role: value.role, status: value.status, expiresAt: value.expiresAt, link: value.link };
 }
 
-function parsePendingPage(value: unknown): ItemPage<PendingInvitation> {
+export function parsePendingPage(value: unknown): ItemPage<PendingInvitation> {
   if (!isRecord(value) || !Array.isArray(value.items) || !isRecord(value.page)) {
     throw new ApiError({ status: 200, code: "UNEXPECTED" });
   }
@@ -128,6 +136,6 @@ function parsePendingPage(value: unknown): ItemPage<PendingInvitation> {
   };
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }

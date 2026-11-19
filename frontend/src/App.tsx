@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { Route, Routes } from "react-router";
+import { Navigate, Route, Routes } from "react-router";
 import { createQueryClient } from "./api/queryClient";
 import { MockBanner } from "./components/MockBanner";
 import { EventCreate } from "./components/EventCreate";
@@ -23,10 +23,12 @@ import { InvitationAccept } from "./components/InvitationAccept";
 import { ParticipantEnter } from "./components/ParticipantEnter";
 import { PublicApply } from "./components/PublicApply";
 import { SpaceLeave } from "./components/SpaceLeave";
+import { SpaceMembers } from "./components/SpaceMembers";
 import { SpaceSettings } from "./components/SpaceSettings";
 import { RequireOperator } from "./components/RequireOperator";
 import { PublicHeader } from "./components/PublicHeader";
 import { PublicHome } from "./components/PublicHome";
+import { PublicInviteOnly } from "./components/PublicInviteOnly";
 import { PublicLogin } from "./components/PublicLogin";
 import { PublicSignup } from "./components/PublicSignup";
 import { PublicFindOrganization } from "./components/PublicFindOrganization";
@@ -36,8 +38,8 @@ import { PublicRegisterOrganization } from "./components/PublicRegisterOrganizat
 import { PublicResetPassword } from "./components/PublicResetPassword";
 import { PublicVerifyEmail } from "./components/PublicVerifyEmail";
 import { LoginDone } from "./components/LoginDone";
-import { MenuEventPicker } from "./components/MenuEventPicker";
 import { MenuPending } from "./components/MenuPending";
+import { prototypeScreensEnabled } from "./prototypeScreens";
 
 function Home() {
   return (
@@ -61,6 +63,8 @@ function NotFound() {
 
 export function App() {
   const [queryClient] = useState(() => createQueryClient());
+  const prototypes = prototypeScreensEnabled();
+  const inviteOnly = <Navigate to="/find-organization" replace />;
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -71,22 +75,23 @@ export function App() {
         <Route path="/login/done" element={<LoginDone />} />
         <Route element={<RequireOperator />}>
           <Route path="/events" element={<EventList />} />
+          <Route path="/members" element={<SpaceMembers />} />
           <Route path="/settings" element={<SpaceSettings />} />
           <Route path="/notifications" element={<MenuPending title="알림" />} />
           <Route path="/history" element={<MenuPending title="기록" />} />
           <Route path="/guides" element={<MenuPending title="안내" />} />
           <Route path="/schedule" element={<MenuPending title="일정" />} />
-          <Route path="/field" element={<MenuEventPicker title="현장 운영" area="field" />} />
           <Route path="/integrations" element={<MenuPending title="연동" />} />
-          <Route path="/tasks" element={<MenuEventPicker title="준비 업무" area="tasks" />} />
-          <Route path="/participants" element={<MenuEventPicker title="참가 현황" area="participants" />} />
-          <Route path="/operators" element={<MenuEventPicker title="운영 멤버" area="operators" />} />
+          {/* Event operation menus live only inside an event (#376); old organization links open the event list. */}
+          {["/field", "/tasks", "/participants", "/operators"].map((path) => (
+            <Route key={path} path={path} element={<Navigate to="/events" replace />} />
+          ))}
           <Route path="/spaces/:spaceId/leave" element={<SpaceLeave />} />
           <Route path="/events/new" element={<EventCreate />} />
           <Route path="/events/:eventId/settings" element={<EventSettings />} />
           <Route
             path="/events/:eventId/areas"
-            element={<EventMenuPending title="다른 운영 시작" message="이 행사에서 쓸 운영을 고르는 화면은 아직 만들고 있어요." />}
+            element={<EventMenuPending title="다른 기능 시작" message="이 행사에서 쓸 기능을 고르는 화면은 아직 만들고 있어요." />}
           />
           <Route path="/events/:eventId/field" element={<EventField />} />
           <Route path="/events/:eventId/groups" element={<EventGroups />} />
@@ -103,9 +108,12 @@ export function App() {
         </Route>
         <Route path="/signup" element={<PublicSignup />} />
         <Route path="/verify-email" element={<PublicVerifyEmail />} />
-        <Route path="/find-organization" element={<PublicFindOrganization />} />
-        <Route path="/join-pending" element={<PublicJoinPending />} />
-        <Route path="/register-organization" element={<PublicRegisterOrganization />} />
+        <Route path="/find-organization" element={prototypes ? <PublicFindOrganization /> : <PublicInviteOnly />} />
+        <Route path="/join-pending" element={prototypes ? <PublicJoinPending /> : inviteOnly} />
+        <Route
+          path="/register-organization"
+          element={prototypes ? <PublicRegisterOrganization /> : inviteOnly}
+        />
         <Route path="/forgot-password" element={<PublicForgotPassword />} />
         <Route path="/reset-password" element={<PublicResetPassword />} />
         <Route path="/operator/invitations" element={<InvitationAccept />} />

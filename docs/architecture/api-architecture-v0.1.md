@@ -190,7 +190,7 @@ DELETE /api/v1/operator/spaces/{spaceId}/members/{memberId}
 - 후보 Permission: `EVENT_READ`, `EVENT_UPDATE`, `EVENT_LIFECYCLE`, `EVENT_USER_READ`, `EVENT_USER_MANAGE`.
 - Event role: `OWNER / MANAGER / STAFF`.
 - Event lifecycle 제품 전이는 #8/DEC-049~053을 따른다. 활성화·종료·ENDED 재개·ENDED 보관·ARCHIVED 해제를 구분한다. ACTIVE 직접 보관과 ARCHIVED 직접 재개는 허용하지 않는다. command·Owner 이전·본인 이탈 계약은 [2026-10-02 절](#2026-10-02-행사-lifecycle-command-30-dec-063)을 따른다.
-- Event OWNER cardinality / transfer, Space role과 Event role의 상세 Permission mapping은 OPEN 또는 원문 대조 필요. (2026-10-02 현 결정: Event 권한은 role 기본 집합 + 사람별 `event_user_permissions` GRANT/REVOKE. MANAGER/STAFF 기본 집합은 미확정, 백엔드 리드 초안 대기(현 결정 10/2: Backend Lead 초안, 현 승인). 예외: `TASK_WRITE` 기본값은 2026-10-02 DEC-062로 확정([§8](#2026-10-02-업무-체크리스트-저장-계약-31-dec-062)). [아래 절](#2026-10-02-개인별-권한-현-결정-dec-029-정합))
+- Event OWNER cardinality / transfer, Space role과 Event role의 상세 Permission mapping은 OPEN 또는 원문 대조 필요. (2026-10-02 현 결정: Event 권한은 role 기본 집합 + 사람별 `event_user_permissions` GRANT/REVOKE. MANAGER/STAFF 기본 집합은 2026-11-19 DEC-079로 확정. 그 전 기록: 미확정, 백엔드 리드 초안 대기(현 결정 10/2: Backend Lead 초안, 현 승인). 예외: `TASK_WRITE` 기본값은 2026-10-02 DEC-062로 확정([§8](#2026-10-02-업무-체크리스트-저장-계약-31-dec-062)). [아래 절](#2026-10-02-개인별-권한-현-결정-dec-029-정합))
 
 ```http
 POST   /api/v1/operator/spaces/{spaceId}/events
@@ -957,7 +957,7 @@ POST   /api/v1/operator/invitations/accept                              # {token
 
 - 수락 200 응답에 `outcome: ACCEPTED | ALREADY_ACCEPTED`를 둔다. 같은 사용자의 재수락은 상태를 바꾸지 않고 `ALREADY_ACCEPTED`를 돌려준다.
 - 미리보기는 수락과 같은 판정 순서·같은 오류 코드를 쓴다. 성공 시 200 `{eventName, role, inviterName, expiresAt, outcome: PENDING | ALREADY_ACCEPTED}`. 상태를 바꾸지 않으며 반복 호출해도 결과가 같다. 수락은 미리보기 통과 여부와 무관하게 다시 판정한다.
-- 미리보기·수락 모두 계정별·IP별 rate limit, 초과 시 429 `RATE_LIMITED`. 로그인 안 됨은 401이며 클라이언트는 토큰을 유지한다.
+- 미리보기·수락 모두 계정별·IP별 rate limit, 초과 시 429 `RATE_LIMITED`. 로그인 안 됨은 401이며 클라이언트는 토큰을 유지한다. (2026-11-19 DEC-060 Follow-up(#391)에서 rate limit과 `RATE_LIMITED`를 없앴다. 프록시 등에서 오는 429는 그대로 토큰을 유지한다.)
 - 클라이언트 토큰 정리: 종결 결과(404, 410 3종, 409, 200 `outcome: ALREADY_ACCEPTED`)를 받으면 저장된 토큰을 즉시 지운다. 401·429·403 `INVITATION_EMAIL_MISMATCH`와 그 밖의 응답(5xx, 네트워크 오류·시간 초과, 목록에 없는 4xx)에서는 유지한다(계정 바꾸기는 최초 30분 안에서만). 수락 성공(200 `outcome: ACCEPTED`)이면 지운다.
 - 화면 매핑: `INVITATION_EMAIL_MISMATCH` → 15, `INVITATION_EXPIRED` → 16, `INVITATION_NOT_FOUND` → 17, `INVITATION_REVOKED` → 35(취소 후 새 초대를 받은 사용자가 예전 링크로 들어온 경우 포함), `INVITATION_SUPERSEDED` → 36, `outcome: ALREADY_ACCEPTED` → 37, `INVITATION_ALREADY_ACCEPTED`(409, 다른 사용자가 이미 수락) → 17(누가 수락했는지 드러내지 않음), PENDING → 14.
 
@@ -973,7 +973,7 @@ POST   /api/v1/operator/invitations/accept                              # {token
 | 6 | 대상이 아닌 계정으로 미리보기·수락 | `INVITATION_NOT_FOUND` 또는 `INVITATION_EMAIL_MISMATCH`만, 이메일 마스킹 |
 | 7 | 로그아웃 상태에서 미리보기 | 401, 토큰 유지 |
 | 8 | 같은 사용자가 수락 후 다시 수락 | 200 `outcome: ALREADY_ACCEPTED` |
-| 9 | 한도 초과 호출 | 429 `RATE_LIMITED` (한도 숫자 미정, 서버 미검증) |
+| 9 | 미리보기 여러 번(6회 이상) 후 수락 | 200 `outcome: ACCEPTED` (2026-11-19 #391, 한도 없음) |
 | 10 | 재전송 후 예전 링크로 미리보기·수락 | 410 `INVITATION_SUPERSEDED` → 36 |
 | 11 | 초대 취소 후 새 초대, 예전 링크로 미리보기·수락 | 410 `INVITATION_REVOKED` → 35 |
 | 12 | `expiresAt` 경과 후 미리보기·수락 | 410 `INVITATION_EXPIRED` → 16 |
@@ -1088,7 +1088,7 @@ Permission 키 목록 (초안)
 | 대상 아님 (Space 범위) | `SPACE_READ`, `SPACE_UPDATE`, `MEMBER_READ`, `MEMBER_MANAGE`, `EVENT_CREATE` | Membership·Space role로 판정. override 시 400 `UNKNOWN_PERMISSION` |
 
 - OWNER 기본 집합은 Event 범위 키 전체다.
-- MANAGER/STAFF 기본 집합 (현 결정 10/2): Backend Lead가 초안을 쓰고 현이 승인한다. `DATA_EXPORT`와 OWNER 전용 키는 넣지 않는다. **미확정, 백엔드 리드 초안 대기.** 예외로 `TASK_WRITE`만 2026-10-02 #31 DEC-062로 확정한다. OWNER·MANAGER 포함, STAFF 미포함([§8](#2026-10-02-업무-체크리스트-저장-계약-31-dec-062)). 그 외 기본 집합의 구체 키에 기대는 회귀 행은 아래 표에 보류(pending)로 표시했다.
+- MANAGER/STAFF 기본 집합 (현 결정 10/2): Backend Lead가 초안을 쓰고 현이 승인한다. `DATA_EXPORT`와 OWNER 전용 키는 넣지 않는다. **미확정, 백엔드 리드 초안 대기.** 예외로 `TASK_WRITE`만 2026-10-02 #31 DEC-062로 확정한다. OWNER·MANAGER 포함, STAFF 미포함([§8](#2026-10-02-업무-체크리스트-저장-계약-31-dec-062)). 그 외 기본 집합의 구체 키에 기대는 회귀 행은 아래 표에 보류(pending)로 표시했다. (2026-11-19 [DEC-079](../product/PRODUCT_DECISIONS.md)로 확정: MANAGER는 `EVENT_READ`·`TASK_WRITE`·`CHECKIN_WRITE`·`SCHEDULE_WRITE`·`NOTICE_WRITE`, STAFF는 `EVENT_READ`·`CHECKIN_WRITE`. 보류 행 3·21의 K는 MANAGER `SCHEDULE_WRITE`, STAFF `CHECKIN_WRITE`로 읽는다.)
 - Space OWNER의 조직 관리·복구 권한(DEC-028·DEC-035·DEC-049·DEC-061)은 이 테이블과 별개이며 override 대상이 아니다.
 
 회귀 테스트

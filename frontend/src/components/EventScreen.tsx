@@ -29,7 +29,9 @@ export function EventScreen({
   const navigate = useNavigate();
   const spaces = useCurrentSpace();
   const event = useOperatorEvent(eventId);
-  const spaceName = spaces.space?.name;
+  // The event's own organization (#387): an event-only collaborator has no space list, and a
+  // member may operate an event in another organization than the first one in the list.
+  const spaceName = event.data?.spaceName ?? spaces.space?.name;
 
   if (event.isPending) {
     return <OperatorStatus busy message="불러오는 중이에요." spaceName={spaceName} />;

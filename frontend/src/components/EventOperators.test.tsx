@@ -97,7 +97,7 @@ describe("event operators and invitations", () => {
     openApp(`/events/${EVENT}/operators`);
 
     expect(await screen.findByText("Local owner")).toBeInTheDocument();
-    await waitFor(() => expect(screen.queryByRole("heading", { name: "초대하기" })).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole("heading", { name: "외부 협력자 초대" })).not.toBeInTheDocument());
     expect(screen.queryByLabelText("이메일")).not.toBeInTheDocument();
   });
 
@@ -116,7 +116,8 @@ describe("event operators and invitations", () => {
     if ("code" in issued) throw new Error(issued.code);
     await logout();
     await login({ userId: localUsers[2].userId, email: "staff@example.com" });
-    expect(await acceptInvitation(issued.link.split("#")[1])).toEqual({ outcome: "ACCEPTED" });
+    // Already a STAFF operator: the invitation is used up and the role stays STAFF (#387).
+    expect(await acceptInvitation(issued.link.split("#")[1])).toEqual({ outcome: "ACCEPTED", eventId: EVENT, role: "STAFF" });
     await logout();
     await login({ userId: OWNER });
     openApp(`/events/${EVENT}/operators`);

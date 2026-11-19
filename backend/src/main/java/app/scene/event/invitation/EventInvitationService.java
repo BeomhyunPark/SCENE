@@ -2,7 +2,7 @@ package app.scene.event.invitation;
 
 import app.scene.common.error.ErrorCode;
 import app.scene.common.error.SceneException;
-import app.scene.common.ratelimit.InMemoryRateLimiter;
+import app.scene.common.invitation.InvitationTokens;
 import app.scene.common.web.ItemPage;
 import app.scene.common.web.PageRequest;
 import app.scene.event.lifecycle.EventInvitationRepository;
@@ -13,12 +13,10 @@ import app.scene.event.lifecycle.InvitationRow;
 import app.scene.event.permission.OperatorPermissionService;
 import app.scene.identity.OperatorAccountRepository;
 import app.scene.space.EventUserRepository;
-import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -36,17 +34,8 @@ import tools.jackson.databind.JsonNode;
 public class EventInvitationService {
 
   /** One server constant. There is no per-space setting. */
-  public static final Duration INVITATION_TTL = Duration.ofDays(7);
+  public static final Duration INVITATION_TTL = InvitationTokens.TTL;
 
-  /**
-   * Provisional preview and accept limit. The document leaves the number undecided. One bucket is
-   * shared by both commands, per account and per direct client address.
-   */
-  public static final int INVITATION_ATTEMPT_LIMIT = 5;
-
-  public static final Duration INVITATION_ATTEMPT_WINDOW = Duration.ofHours(1);
-
-  private static final String LINK_PREFIX = "/operator/invitations#";
   private static final String ARCHIVED = "ARCHIVED";
   private static final String PENDING = "PENDING";
   private static final String REVOKED = "REVOKED";
@@ -58,9 +47,7 @@ public class EventInvitationService {
   private final OperatorAccountRepository accounts;
   private final OperatorPermissionService permissions;
   private final InvitationMailer mailer;
-  private final InMemoryRateLimiter attempts;
   private final Clock clock;
-  private final SecureRandom random = new SecureRandom();
 
   public EventInvitationService(
       EventRepository events,
@@ -69,7 +56,6 @@ public class EventInvitationService {
       OperatorAccountRepository accounts,
       OperatorPermissionService permissions,
       InvitationMailer mailer,
-      InMemoryRateLimiter attempts,
       Clock clock) {
     this.events = events;
     this.invitations = invitations;
@@ -77,7 +63,6 @@ public class EventInvitationService {
     this.accounts = accounts;
     this.permissions = permissions;
     this.mailer = mailer;
-    this.attempts = attempts;
     this.clock = clock;
   }
 
@@ -153,21 +138,22 @@ public class EventInvitationService {
   }
 
   @Transactional(readOnly = true)
-  public InvitationPreview preview(
-      UUID actorId, String sessionEmail, String token, String remoteAddress) {
-    limit(actorId, remoteAddress);
+  public InvitationPreview preview(UUID actorId, String sessionEmail, String token) {
     InvitationRow row = byToken(token);
     requireSameEmail(sessionEmail, row);
     EventLocation event = location(row.eventId());
     String outcome = judged(row, event.lifecycleStatus(), actorId, clock.instant());
     return new InvitationPreview(
-        event.name(), row.role(), inviterName(row.invitedBy()), row.expiresAt(), outcome);
+        row.eventId(),
+        event.name(),
+        row.role(),
+        inviterName(row.invitedBy()),
+        row.expiresAt(),
+        outcome);
   }
 
   @Transactional
-  public InvitationAcceptance accept(
-      UUID actorId, String sessionEmail, String token, String remoteAddress) {
-    limit(actorId, remoteAddress);
+  public InvitationAcceptance accept(UUID actorId, String sessionEmail, String token) {
     InvitationRow seen = byToken(token);
     requireSameEmail(sessionEmail, seen);
     EventRow locked = events.getForUpdate(seen.spaceId(), seen.eventId());
@@ -179,7 +165,7 @@ public class EventInvitationService {
     Instant now = clock.instant();
     String outcome = judged(row, locked.lifecycleStatus(), actorId, now);
     if (ALREADY_ACCEPTED.equals(outcome)) {
-      return new InvitationAcceptance(ALREADY_ACCEPTED);
+      return acceptance(ALREADY_ACCEPTED, row, actorId);
     }
     int updated = invitations.acceptPending(row.spaceId(), row.eventId(), row.id(), actorId, now);
     if (updated != 1) {
@@ -189,49 +175,35 @@ public class EventInvitationService {
               .orElseThrow(() -> new SceneException(ErrorCode.INVITATION_NOT_FOUND));
       String retry = judged(again, locked.lifecycleStatus(), actorId, clock.instant());
       if (ALREADY_ACCEPTED.equals(retry)) {
-        return new InvitationAcceptance(ALREADY_ACCEPTED);
+        return acceptance(ALREADY_ACCEPTED, again, actorId);
       }
       throw new IllegalStateException("invitation was not accepted");
     }
+    // An operator who is already on the event, such as a member who left the space but kept this
+    // event (DEC-060), keeps the role they have. Role changes stay with the event owner (#387).
     if (eventUsers.findRole(row.spaceId(), row.eventId(), actorId).isEmpty()
         && eventUsers.save(row.spaceId(), row.eventId(), actorId, row.role()) != 1) {
       throw new IllegalStateException("operator was not added");
     }
-    return new InvitationAcceptance("ACCEPTED");
+    return acceptance("ACCEPTED", row, actorId);
+  }
+
+  /** The accepting user is the caller for both outcomes; ALREADY_ACCEPTED is the same person. */
+  private InvitationAcceptance acceptance(String outcome, InvitationRow row, UUID actorId) {
+    String role = eventUsers.findRole(row.spaceId(), row.eventId(), actorId).orElse(null);
+    return new InvitationAcceptance(outcome, row.eventId(), role);
   }
 
   private IssuedInvitation issue(EventLocation location, UUID actorId, String email, String role) {
     Instant now = clock.instant();
     invitations.supersedePending(location.spaceId(), location.id(), email, now);
-    Issued issued = issueToken();
+    InvitationTokens.Issued issued = InvitationTokens.issue("");
     UUID id = UUID.randomUUID();
     Instant expiresAt = now.plus(INVITATION_TTL);
     invitations.savePending(
         id, location.spaceId(), location.id(), email, role, issued.hash(), expiresAt, actorId, now);
     mailer.send(new InvitationMail(email, role, location.name(), issued.link()));
     return new IssuedInvitation(id, role, PENDING, expiresAt, issued.link());
-  }
-
-  private Issued issueToken() {
-    byte[] bytes = new byte[32];
-    random.nextBytes(bytes);
-    String token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
-    String link = LINK_PREFIX + token;
-    if (link.indexOf('#') < 0
-        || link.indexOf('?') >= 0
-        || link.indexOf('#') != LINK_PREFIX.length() - 1) {
-      throw new IllegalStateException("invitation link must keep the token in the fragment");
-    }
-    return new Issued(InvitationTokens.hash(token), link);
-  }
-
-  private void limit(UUID actorId, String remoteAddress) {
-    String address = remoteAddress == null || remoteAddress.isBlank() ? "unknown" : remoteAddress;
-    int byAccount = attempts.acquire("invitation-account:" + actorId, INVITATION_ATTEMPT_WINDOW);
-    int byAddress = attempts.acquire("invitation-ip:" + address, INVITATION_ATTEMPT_WINDOW);
-    if (byAccount > INVITATION_ATTEMPT_LIMIT || byAddress > INVITATION_ATTEMPT_LIMIT) {
-      throw new SceneException(ErrorCode.RATE_LIMITED);
-    }
   }
 
   private InvitationRow byToken(String token) {
@@ -331,7 +303,4 @@ public class EventInvitationService {
     }
     return role;
   }
-
-  /** Hash and fragment link. The raw token is not retained. */
-  private record Issued(String hash, String link) {}
 }

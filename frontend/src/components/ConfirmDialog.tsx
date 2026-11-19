@@ -12,11 +12,14 @@ export function ConfirmDialog({
   children,
   footer,
   onClose,
+  scroll = false,
 }: {
   title: string;
   children: ReactNode;
   footer: ReactNode;
   onClose: () => void;
+  /** Long bodies scroll inside the panel so the footer stays reachable on a phone. */
+  scroll?: boolean;
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
@@ -65,7 +68,7 @@ export function ConfirmDialog({
     <div className="confirm-dialog">
       <div
         ref={dialogRef}
-        className="confirm-dialog__panel"
+        className={scroll ? "confirm-dialog__panel confirm-dialog__panel--scroll" : "confirm-dialog__panel"}
         role="dialog"
         aria-modal="true"
         aria-labelledby="confirm-dialog-title"

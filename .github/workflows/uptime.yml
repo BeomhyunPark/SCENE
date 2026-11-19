@@ -1,0 +1,67 @@
+# Outside uptime check for the home server (docs/devops/home-server.md §알림, #409).
+# A backup to the main uptime monitor: GitHub runs schedules late and sometimes skips them,
+# so this is not the 5-minute alarm. It alerts once when the site goes down and once when it is back.
+name: uptime
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: uptime
+  cancel-in-progress: false
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      HEALTH_URL: https://scene.greengroove.app/actuator/health
+      # Repository secret (Settings > Secrets and variables > Actions). Empty: only this run fails.
+      SCENE_ALERT_URL: ${{ secrets.SCENE_ALERT_URL }}
+      SCENE_ALERT_LABEL: SCENE uptime
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: deploy/home/notify.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Check readiness
+        id: check
+        run: |
+          ok=false
+          for try in 1 2 3; do
+            body="$(curl -sS -m 20 "$HEALTH_URL" 2>/dev/null || true)"
+            if [[ "$body" == *'"status":"UP"'* ]]; then ok=true; break; fi
+            echo "try $try: not UP"
+            sleep 20
+          done
+          echo "ok=$ok" >>"$GITHUB_OUTPUT"
+
+      - name: Previous run
+        id: previous
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          prev="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow uptime.yml --status completed \
+            --limit 1 --json conclusion -q '.[0].conclusion' 2>/dev/null || true)"
+          echo "conclusion=${prev:-unknown}" >>"$GITHUB_OUTPUT"
+
+      - name: Alert on change
+        run: |
+          source deploy/home/notify.sh
+          if [[ "${{ steps.check.outputs.ok }}" != true ]]; then
+            if [[ "${{ steps.previous.outputs.conclusion }}" != failure ]]; then
+              scene_notify "" "scene.greengroove.app 준비 확인이 1분 동안 UP이 아닙니다. 서버·집 인터넷을 확인하세요."
+            fi
+            echo "::error::$HEALTH_URL is not UP"
+            exit 1
+          fi
+          if [[ "${{ steps.previous.outputs.conclusion }}" == failure ]]; then
+            scene_notify "" "scene.greengroove.app 다시 UP입니다."
+          fi

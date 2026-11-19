@@ -8,9 +8,13 @@ import {
   eventById,
   eventsFor,
   isEventType,
+  isMemberOf,
   operatorRequests,
+  spaceNameOf,
+  spacesFor,
   type StoredEvent,
 } from "../operatorStore";
+import { addOperator, eventRoleOf, eventsOperatedBy } from "../taskStore";
 
 const PAGE_SIZE = 50;
 
@@ -24,7 +28,13 @@ export const eventHandlers = [
       return problem(400, "VALIDATION_FAILED", { errors: [{ field: "sort" }] });
     }
     const page = numberParam(url, "page");
-    const items = eventsFor(String(params.spaceId)).map(toListItem);
+    // Space OWNER and ADMIN see every event. Others see only events they operate (api.md).
+    const spaceId = String(params.spaceId);
+    const spaceRole = spacesFor(operator.userId).find((space) => space.spaceId === spaceId)?.role;
+    const seesEvery = spaceRole === "OWNER" || spaceRole === "ADMIN";
+    const items = eventsFor(spaceId)
+      .filter((event) => seesEvery || eventRoleOf(event.eventId, operator.userId) != null)
+      .map(toListItem);
     const start = page * PAGE_SIZE;
     const slice = items.slice(start, start + PAGE_SIZE);
     const totalPages = items.length === 0 ? 0 : Math.ceil(items.length / PAGE_SIZE);
@@ -34,12 +44,50 @@ export const eventHandlers = [
     });
   }),
 
+  // #387: events I operate in any space, with no membership needed. Revoked access has no row.
+  http.get("/api/v1/operator/events", ({ request }) => {
+    const operator = currentOperator();
+    if (!operator) return problem(401, "AUTHENTICATION_REQUIRED");
+    const url = new URL(request.url);
+    operatorRequests.push({ method: "GET", url: url.pathname + url.search });
+    if (url.searchParams.has("sort")) {
+      return problem(400, "VALIDATION_FAILED", { errors: [{ field: "sort" }] });
+    }
+    const page = numberParam(url, "page");
+    const size = numberParam(url, "size") || PAGE_SIZE;
+    if (size > 100) return problem(400, "PAGE_SIZE_EXCEEDED");
+    const items = eventsOperatedBy(operator.userId)
+      .flatMap(({ eventId, role }) => {
+        const event = eventById(eventId);
+        if (!event) return [];
+        return [
+          {
+            ...toListItem(event),
+            spaceId: event.spaceId,
+            spaceName: spaceNameOf(event.spaceId),
+            eventRole: role,
+            spaceMember: isMemberOf(event.spaceId, operator.userId),
+          },
+        ];
+      })
+      .sort((left, right) => left.name.localeCompare(right.name) || left.eventId.localeCompare(right.eventId));
+    const slice = items.slice(page * size, page * size + size);
+    return HttpResponse.json({
+      items: slice,
+      page: { number: page, size, totalItems: items.length, totalPages: items.length === 0 ? 0 : Math.ceil(items.length / size) },
+    });
+  }),
+
   http.post("/api/v1/operator/spaces/:spaceId/events", async ({ request, params, cookies }) => {
     if (!csrfMatches(request, cookies)) return problem(403, "FORBIDDEN");
     const operator = currentOperator();
     if (!operator) return problem(401, "AUTHENTICATION_REQUIRED");
     const body = await readJson(request);
     operatorRequests.push({ method: "POST", url: new URL(request.url).pathname, body });
+    // Only an active space OWNER or ADMIN creates; a MEMBER is FORBIDDEN before the body check (DEC-077).
+    const spaceRole = spacesFor(operator.userId).find((space) => space.spaceId === String(params.spaceId))?.role;
+    if (!spaceRole) return problem(404, "RESOURCE_NOT_FOUND");
+    if (spaceRole !== "OWNER" && spaceRole !== "ADMIN") return problem(403, "FORBIDDEN");
     if (!isRecord(body) || typeof body.name !== "string" || body.name.trim().length === 0) {
       return problem(400, "VALIDATION_FAILED", { errors: [{ field: "name" }] });
     }
@@ -58,6 +106,8 @@ export const eventHandlers = [
       eventType: isEventType(body.eventType) ? body.eventType : null,
     };
     addEvent(event);
+    // The creator becomes the event OWNER, like OperatorEventCommandService#create.
+    addOperator(event.eventId, operator.userId, operator.displayName, "OWNER");
     const detail = toDetail(event);
     operatorRequests[operatorRequests.length - 1].response = detail;
     return HttpResponse.json(detail, { status: 201 });
@@ -90,7 +140,12 @@ function toListItem(event: StoredEvent): EventListItem {
 }
 
 function toDetail(event: StoredEvent) {
-  return { ...toListItem(event), lifecycleVersion: event.lifecycleVersion };
+  return {
+    ...toListItem(event),
+    lifecycleVersion: event.lifecycleVersion,
+    spaceId: event.spaceId,
+    spaceName: spaceNameOf(event.spaceId),
+  };
 }
 
 function numberParam(url: URL, name: string): number {

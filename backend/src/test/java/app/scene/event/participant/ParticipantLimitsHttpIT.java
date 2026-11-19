@@ -143,7 +143,7 @@ class ParticipantLimitsHttpIT {
     jdbc.update("INSERT INTO spaces (id, name) VALUES (?, ?)", spaceId, "Home");
     jdbc.update("INSERT INTO users (id, display_name) VALUES (?, ?)", memberId, "Limit owner");
     jdbc.update(
-        "INSERT INTO members (space_id, user_id, role) VALUES (?, ?, 'MEMBER')", spaceId, memberId);
+        "INSERT INTO members (space_id, user_id, role) VALUES (?, ?, 'OWNER')", spaceId, memberId);
     Cookie owner =
         mvc.perform(
                 post("/api/v1/operator/auth/login")

@@ -1,5 +1,5 @@
 import type { ChecklistItem, TaskActions, TaskDetail, TaskListItem, TaskOutcome, TaskProgress, TaskStatus } from "../api/tasks";
-import { eventById } from "./operatorStore";
+import { eventById, isMemberOf } from "./operatorStore";
 import { localEvent, localUsers } from "./fixtures/seed";
 
 type Role = "OWNER" | "MANAGER" | "STAFF";
@@ -46,18 +46,80 @@ const ROLES: Record<string, Role> = {
 
 let operators: OperatorRow[] = seedOperators();
 let tasks: TaskRow[] = [seedChecklistTask()];
-/** Per-operator revokes, keyed `eventId|userId`. Test seam for an OWNER removing a default key. */
-let revokes = new Map<string, string[]>();
+/** Per-operator overrides, keyed `eventId|userId`, as the event OWNER stored them (DEC-029, DEC-079). */
+type Overrides = { grants: string[]; revokes: string[] };
+let overrides = new Map<string, Overrides>();
+
+/** Keys the server registers (Permission enum). Anything else is UNKNOWN_PERMISSION. */
+const KNOWN_KEYS = [
+  "EVENT_UPDATE", "EVENT_USER_READ", "PARTICIPANT_READ", "PARTICIPANT_CONTACT_READ", "PARTICIPANT_WRITE",
+  "FORM_WRITE", "APPLICATION_READ", "APPLICATION_MANAGE", "TASK_WRITE", "SCHEDULE_WRITE", "NOTICE_WRITE",
+  "FINANCE_READ", "FINANCE_WRITE", "GROUP_WRITE", "ROOM_WRITE", "RIDE_WRITE", "CLASS_WRITE", "CHECKIN_WRITE",
+  "MISSION_WRITE", "GUARDIAN_WRITE", "GUARDIAN_CONTACT_READ", "PRIVACY_LOG_READ", "AUDIT_LOG_READ",
+  "DATA_EXPORT", "EVENT_READ", "EVENT_LIFECYCLE", "EVENT_USER_MANAGE",
+];
+const OWNER_ONLY = ["EVENT_LIFECYCLE", "EVENT_USER_MANAGE"];
 
 export function resetTaskStore(): void {
   operators = seedOperators();
   tasks = [seedChecklistTask()];
-  revokes = new Map();
+  overrides = new Map();
 }
 
 /** Test seam: removes default keys from one operator's effective permissions. */
 export function revokePermissions(eventId: string, userId: string, keys: string[]): void {
-  revokes.set(`${eventId}|${userId}`, keys);
+  const current = overrides.get(`${eventId}|${userId}`) ?? { grants: [], revokes: [] };
+  overrides.set(`${eventId}|${userId}`, { grants: current.grants, revokes: keys });
+}
+
+/** Test seam: adds personal GRANTs to one operator. */
+export function grantPermissions(eventId: string, userId: string, keys: string[]): void {
+  const current = overrides.get(`${eventId}|${userId}`) ?? { grants: [], revokes: [] };
+  overrides.set(`${eventId}|${userId}`, { grants: keys, revokes: current.revokes });
+}
+
+/**
+ * PUT …/operators/{userId}/permissions in OperatorPermissionService#replace order: FORBIDDEN (not
+ * the event OWNER), not an operator (404), body (400, UNKNOWN_PERMISSION / DUPLICATE_PERMISSION),
+ * archived widening (409), then the 422 rules. A GRANT of a default key and a REVOKE of a key the
+ * role does not have are dropped, like the server's normalize.
+ */
+export function replacePermissions(
+  eventId: string,
+  actorId: string,
+  userId: string,
+  body: unknown,
+): ReturnType<typeof permissionsFor> {
+  const gate = open(eventId, actorId);
+  if (gate) return gate;
+  const actor = operators.find((row) => row.eventId === eventId && row.userId === actorId);
+  if (actor?.role !== "OWNER") return { status: 403, code: "FORBIDDEN" };
+  const target = operators.find((row) => row.eventId === eventId && row.userId === userId);
+  if (!target) return { status: 404, code: "RESOURCE_NOT_FOUND" };
+  const input = body as { grants?: unknown; revokes?: unknown } | null;
+  const grants = input?.grants;
+  const revokeKeys = input?.revokes;
+  if (!Array.isArray(grants)) return { status: 400, code: "VALIDATION_FAILED", errors: [{ field: "grants" }] };
+  if (!Array.isArray(revokeKeys)) return { status: 400, code: "VALIDATION_FAILED", errors: [{ field: "revokes" }] };
+  const all = [...grants, ...revokeKeys];
+  if (all.some((key) => typeof key !== "string" || !KNOWN_KEYS.includes(key))) {
+    return { status: 400, code: "VALIDATION_FAILED", errors: [{ field: "grants" }] };
+  }
+  if (new Set(all).size !== all.length) return { status: 400, code: "VALIDATION_FAILED", errors: [{ field: "grants" }] };
+  const stored = overrides.get(`${eventId}|${userId}`) ?? { grants: [], revokes: [] };
+  const widens =
+    (grants as string[]).some((key) => !stored.grants.includes(key)) ||
+    stored.revokes.some((key) => !(revokeKeys as string[]).includes(key));
+  if (eventById(eventId)?.lifecycleStatus === "ARCHIVED" && widens) return { status: 409, code: "EVENT_ARCHIVED" };
+  if (target.role === "OWNER") return { status: 422, code: "PERMISSION_OWNER_NOT_OVERRIDABLE" };
+  if ((grants as string[]).some((key) => OWNER_ONLY.includes(key))) return { status: 422, code: "PERMISSION_OWNER_ONLY" };
+  if ((revokeKeys as string[]).includes("EVENT_READ")) return { status: 422, code: "PERMISSION_NOT_OVERRIDABLE" };
+  const defaults = defaultsFor(target.role);
+  overrides.set(`${eventId}|${userId}`, {
+    grants: (grants as string[]).filter((key) => !defaults.includes(key)).sort(),
+    revokes: (revokeKeys as string[]).filter((key) => defaults.includes(key)).sort(),
+  });
+  return permissionsFor(eventId, actorId, userId);
 }
 
 export function tasksFor(eventId: string, actorId: string): TaskListItem[] | TaskFailure {
@@ -232,9 +294,86 @@ export function eventRoleOf(eventId: string, userId: string): Role | null {
 }
 
 /** Invitation accept: adds the user once. An existing operator keeps their role. */
+/** Event rows of one person in every space (#387). */
+export function eventsOperatedBy(userId: string): { eventId: string; role: Role }[] {
+  return operators.filter((row) => row.userId === userId).map((row) => ({ eventId: row.eventId, role: row.role }));
+}
+
 export function addOperator(eventId: string, userId: string, displayName: string, role: Role): void {
   if (operators.some((row) => row.eventId === eventId && row.userId === userId)) return;
   operators.push({ eventId, userId, displayName, role });
+}
+
+/**
+ * Direct add by the event OWNER, in OperatorPermissionService#add order: FORBIDDEN, role,
+ * EVENT_ARCHIVED, already an operator (VALIDATION_FAILED userId), then not an active member
+ * (RESOURCE_NOT_FOUND).
+ */
+export function addOperatorByOwner(eventId: string, actorId: string, body: unknown): OperatorRow | TaskFailure {
+  const gate = open(eventId, actorId);
+  if (gate) return gate;
+  const actor = operators.find((row) => row.eventId === eventId && row.userId === actorId);
+  if (actor?.role !== "OWNER") return { status: 403, code: "FORBIDDEN" };
+  const input = typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {};
+  if (typeof input.userId !== "string" || input.userId.length === 0) return field("userId");
+  const role = input.role;
+  if (role !== "OWNER" && role !== "MANAGER" && role !== "STAFF") return field("role");
+  const event = eventById(eventId)!;
+  if (event.lifecycleStatus === "ARCHIVED") return { status: 409, code: "EVENT_ARCHIVED" };
+  if (operatorOn(eventId, input.userId)) return field("userId");
+  if (!isMemberOf(event.spaceId, input.userId)) return { status: 404, code: "RESOURCE_NOT_FOUND" };
+  const displayName = localUsers.find((user) => user.userId === input.userId)?.displayName ?? "";
+  const row: OperatorRow = { eventId, userId: input.userId, displayName, role };
+  operators.push(row);
+  return row;
+}
+
+/**
+ * Role change by the event OWNER (#371), in OperatorPermissionService#changeOperatorRole order:
+ * FORBIDDEN, not an operator (RESOURCE_NOT_FOUND), role (MANAGER or STAFF only), then
+ * EVENT_ARCHIVED. Even the same role clears the person's individual permission rows.
+ */
+export function changeRoleByOwner(
+  eventId: string,
+  actorId: string,
+  userId: string,
+  body: unknown,
+): OperatorRow | TaskFailure {
+  const gate = open(eventId, actorId);
+  if (gate) return gate;
+  const actor = operators.find((row) => row.eventId === eventId && row.userId === actorId);
+  if (actor?.role !== "OWNER") return { status: 403, code: "FORBIDDEN" };
+  const row = operators.find((operator) => operator.eventId === eventId && operator.userId === userId);
+  if (!row) return { status: 404, code: "RESOURCE_NOT_FOUND" };
+  const input = typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {};
+  const role = input.role;
+  if (role !== "MANAGER" && role !== "STAFF") return field("role");
+  if (eventById(eventId)?.lifecycleStatus === "ARCHIVED") return { status: 409, code: "EVENT_ARCHIVED" };
+  overrides.delete(`${eventId}|${userId}`);
+  row.role = role;
+  return row;
+}
+
+/**
+ * Removal by the event OWNER (#371), in OperatorPermissionService#remove order: FORBIDDEN, then not
+ * an operator (RESOURCE_NOT_FOUND). Like the server, an archived event does not block it. Tasks the
+ * person was assigned lose the assignee and bump their version; individual permissions go too.
+ */
+export function removeByOwner(eventId: string, actorId: string, userId: string): null | TaskFailure {
+  const gate = open(eventId, actorId);
+  if (gate) return gate;
+  const actor = operators.find((row) => row.eventId === eventId && row.userId === actorId);
+  if (actor?.role !== "OWNER") return { status: 403, code: "FORBIDDEN" };
+  if (!operatorOn(eventId, userId)) return { status: 404, code: "RESOURCE_NOT_FOUND" };
+  for (const task of tasks) {
+    if (task.eventId === eventId && task.assigneeUserId === userId) {
+      task.assigneeUserId = null;
+      task.version += 1;
+    }
+  }
+  overrides.delete(`${eventId}|${userId}`);
+  operators = operators.filter((row) => !(row.eventId === eventId && row.userId === userId));
+  return null;
 }
 
 export function permissionsFor(
@@ -249,13 +388,14 @@ export function permissionsFor(
   const actor = operators.find((operator) => operator.eventId === eventId && operator.userId === actorId);
   if (actorId !== userId && actor?.role === "STAFF") return { status: 403, code: "FORBIDDEN" };
   const roleDefaults = defaultsFor(row.role);
-  const removed = revokes.get(`${eventId}|${userId}`) ?? [];
+  const stored = overrides.get(`${eventId}|${userId}`) ?? { grants: [], revokes: [] };
+  const granted = row.role === "OWNER" ? [] : stored.grants.filter((key) => !OWNER_ONLY.includes(key));
   return {
     userId,
     role: row.role,
     roleDefaults,
-    overrides: { grants: [], revokes: removed },
-    effective: roleDefaults.filter((key) => !removed.includes(key)),
+    overrides: { grants: [...stored.grants], revokes: [...stored.revokes] },
+    effective: [...roleDefaults.filter((key) => !stored.revokes.includes(key)), ...granted].sort(),
   };
 }
 
@@ -323,13 +463,13 @@ function ensureCreator(eventId: string, actorId: string): void {
 
 function requireWrite(eventId: string, actorId: string): TaskFailure | null {
   const row = operators.find((operator) => operator.eventId === eventId && operator.userId === actorId);
-  if (!row || !defaultsFor(row.role).includes("TASK_WRITE")) return { status: 403, code: "FORBIDDEN" };
+  if (!row || !hasKey(row, "TASK_WRITE")) return { status: 403, code: "FORBIDDEN" };
   return null;
 }
 
 function requireProgress(eventId: string, actorId: string, task: TaskRow): TaskFailure | null {
   const row = operators.find((operator) => operator.eventId === eventId && operator.userId === actorId);
-  const can = Boolean(row && (defaultsFor(row.role).includes("TASK_WRITE") || task.assigneeUserId === actorId));
+  const can = Boolean(row && (hasKey(row, "TASK_WRITE") || task.assigneeUserId === actorId));
   if (!can) return { status: 403, code: "FORBIDDEN" };
   return null;
 }
@@ -370,6 +510,11 @@ function operatorOn(eventId: string, userId: string): boolean {
   return operators.some((row) => row.eventId === eventId && row.userId === userId);
 }
 
+function hasKey(row: OperatorRow, key: string): boolean {
+  const effective = permissionsFor(row.eventId, row.userId, row.userId);
+  return "effective" in effective && effective.effective.includes(key);
+}
+
 function defaultsFor(role: Role): string[] {
   // The server gives an event OWNER every event key. The mock lists the keys these screens read.
   // DEC-071: OWNER, MANAGER and STAFF all check in by default. DEC-072: only OWNER has GROUP_WRITE.
@@ -387,7 +532,8 @@ function defaultsFor(role: Role): string[] {
       "PARTICIPANT_WRITE",
     ];
   }
-  if (role === "MANAGER") return ["EVENT_READ", "TASK_WRITE", "CHECKIN_WRITE"];
+  // DEC-079: MANAGER also writes the schedule and notices by default.
+  if (role === "MANAGER") return ["EVENT_READ", "TASK_WRITE", "CHECKIN_WRITE", "SCHEDULE_WRITE", "NOTICE_WRITE"];
   return ["EVENT_READ", "CHECKIN_WRITE"];
 }
 
@@ -398,7 +544,7 @@ function countsOf(task: TaskRow): { done: number; total: number } {
 function actionsFor(task: TaskRow, actorId: string): TaskActions {
   const event = eventById(task.eventId);
   const row = operators.find((operator) => operator.eventId === task.eventId && operator.userId === actorId);
-  const canWrite = Boolean(row && (defaultsFor(row.role).includes("TASK_WRITE") || task.assigneeUserId === actorId));
+  const canWrite = Boolean(row && (hasKey(row, "TASK_WRITE") || task.assigneeUserId === actorId));
   const archived = event?.lifecycleStatus === "ARCHIVED";
   const cancelled = task.status === "CANCELLED";
   const done = task.status === "DONE";

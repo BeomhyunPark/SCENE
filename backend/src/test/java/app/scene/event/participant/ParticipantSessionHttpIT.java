@@ -87,7 +87,8 @@ class ParticipantSessionHttpIT {
     MvcResult submitted = submitResult(form, "김 하늘", "010-1234-5678", PIN, 201);
     JsonNode created = json.readTree(submitted.getResponse().getContentAsString());
     assertThat(created.propertyNames())
-        .containsExactly("applicationId", "participantId", "revision", "revised");
+        .containsExactly(
+            "applicationId", "participantId", "revision", "revised", "completionNotice");
     assertThat(created.get("revision").asInt()).isEqualTo(1);
     assertThat(created.get("revised").asBoolean()).isFalse();
     assertThat(submitted.getResponse().getContentAsString()).doesNotContain(PIN);
@@ -662,7 +663,7 @@ class ParticipantSessionHttpIT {
     jdbc.update("INSERT INTO spaces (id, name) VALUES (?, ?)", spaceId, "Home");
     jdbc.update("INSERT INTO users (id, display_name) VALUES (?, ?)", memberId, memberName);
     jdbc.update(
-        "INSERT INTO members (space_id, user_id, role) VALUES (?, ?, 'MEMBER')", spaceId, memberId);
+        "INSERT INTO members (space_id, user_id, role) VALUES (?, ?, 'OWNER')", spaceId, memberId);
     Cookie owner =
         mvc.perform(
                 post("/api/v1/operator/auth/login")

@@ -75,7 +75,7 @@ describe("participant apply", () => {
       http.get("/api/v1/public/events/:eventId/forms/:formId", () => HttpResponse.json(formResponse())),
       http.post("/api/v1/public/events/:eventId/forms/:formId/applications", async ({ request }) => {
         posted.push(await request.json());
-        return HttpResponse.json({ applicationId: "app-1", participantId: "person-1", revision: 1, revised: false }, { status: 201 });
+        return HttpResponse.json({ applicationId: "app-1", participantId: "person-1", revision: 1, revised: false, completionNotice: null }, { status: 201 });
       }),
       http.get("/api/v1/participant/me", () => signedIn()),
     );
@@ -99,6 +99,7 @@ describe("participant apply", () => {
     enterPin(PIN);
     fireEvent.click(screen.getByRole("button", { name: "신청하기" }));
     expect(await screen.findByRole("heading", { name: "신청했어요" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "안내" })).not.toBeInTheDocument();
     const address = screen.getByRole("textbox", { name: "참가자 주소" });
     expect(address).toHaveValue(`${window.location.origin}/participate/${EVENT}`);
     expect(posted).toEqual([{ pin: PIN, answers: [{ fieldId: NAME, text: "김" }, { fieldId: PHONE, text: "010-1234-5678" }] }]);
@@ -108,6 +109,28 @@ describe("participant apply", () => {
     // The submit response opened the session, so the participant page is already signed in.
     fireEvent.click(screen.getByRole("link", { name: "내 신청 보기" }));
     expect(await screen.findByRole("heading", { name: "김님, 참가 신청이 됐어요." })).toBeInTheDocument();
+  });
+
+  it("shows the completion notice from the submit response as plain text", async () => {
+    const notice = "참가비 3만원\n<a href=\"https://evil.example\">신한 110-000</a>\nhttps://example.com/pay";
+    server.use(
+      http.get("/api/v1/public/events/:eventId/forms/:formId", () => HttpResponse.json(formResponse())),
+      http.post("/api/v1/public/events/:eventId/forms/:formId/applications", () =>
+        HttpResponse.json(
+          { applicationId: "app-1", participantId: "person-1", revision: 1, revised: false, completionNotice: notice },
+          { status: 201 },
+        ),
+      ),
+    );
+    await openApp(`/apply/${EVENT}/${FORM}`);
+    fireEvent.change(await screen.findByLabelText(/^이름/), { target: { value: "김" } });
+    fireEvent.change(screen.getByLabelText(/^전화/), { target: { value: "010-1234-5678" } });
+    enterPin(PIN);
+    fireEvent.click(screen.getByRole("button", { name: "신청하기" }));
+    const region = await screen.findByRole("region", { name: "안내" });
+    const text = region.querySelector("p");
+    expect(text?.textContent).toBe(notice);
+    expect(region.querySelector("a")).toBeNull();
   });
 
   it("answers typed and conditional questions and sends typed values", async () => {
@@ -173,7 +196,7 @@ describe("participant apply", () => {
       ),
       http.post("/api/v1/public/events/:eventId/forms/:formId/applications", async ({ request }) => {
         posted.push(await request.json());
-        return HttpResponse.json({ applicationId: "app-1", participantId: "person-1", revision: 1, revised: false }, { status: 201 });
+        return HttpResponse.json({ applicationId: "app-1", participantId: "person-1", revision: 1, revised: false, completionNotice: null }, { status: 201 });
       }),
     );
     await openApp(`/apply/${EVENT}/${FORM}`);
@@ -227,7 +250,7 @@ describe("participant apply", () => {
     server.use(
       http.get("/api/v1/public/events/:eventId/forms/:formId", () => HttpResponse.json(formResponse())),
       http.post("/api/v1/public/events/:eventId/forms/:formId/applications", () =>
-        HttpResponse.json({ applicationId: "app-2", participantId: "person-1", revision: 2, revised: true }),
+        HttpResponse.json({ applicationId: "app-2", participantId: "person-1", revision: 2, revised: true, completionNotice: null }),
       ),
     );
     await openApp(`/apply/${EVENT}/${FORM}`);

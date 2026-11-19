@@ -17,9 +17,9 @@ import org.springframework.web.bind.annotation.RestController;
 import tools.jackson.databind.JsonNode;
 
 /**
- * Event create, list, and name patch. Create is 201 with no {@code Location} header. These routes
- * do not read {@code Idempotency-Key}. The space-path access probe stays on {@link
- * OperatorEventController}.
+ * Event create, space list, own cross-space list (#387), and name patch. Create is 201 with no
+ * {@code Location} header. These routes do not read {@code Idempotency-Key}. The space-path access
+ * probe stays on {@link OperatorEventController}.
  */
 @RestController
 public class OperatorEventCommandController {
@@ -43,6 +43,14 @@ public class OperatorEventCommandController {
       @RequestParam(required = false) Integer size,
       @RequestParam(required = false) List<String> sort) {
     return events.list(actor(), spaceId, page, size, sort);
+  }
+
+  @GetMapping("/api/v1/operator/events")
+  ItemPage<OperatedEventListItem> listOperated(
+      @RequestParam(required = false) Integer page,
+      @RequestParam(required = false) Integer size,
+      @RequestParam(required = false) List<String> sort) {
+    return events.listOperated(actor(), page, size, sort);
   }
 
   @GetMapping("/api/v1/operator/events/{eventId}")

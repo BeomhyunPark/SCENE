@@ -1,9 +1,13 @@
 .space-settings {
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
   padding: 28px 32px 32px;
   word-break: keep-all;
 }
 
+.space-settings__card,
 .space-settings__leave {
   display: flex;
   flex-direction: column;
@@ -35,7 +39,19 @@
     padding: 24px 20px 32px;
   }
 
+  .space-settings__card,
   .space-settings__leave {
     padding: 20px;
   }
+}
+
+/* Member and invitation cards reuse the operator screen rows (EventHome.css). */
+.space-settings__card {
+  align-items: stretch;
+}
+
+.space-settings__card .event-home__applicant-time {
+  overflow-wrap: anywhere;
+  color: var(--color-text-secondary);
+  font: var(--scene-body-s);
 }

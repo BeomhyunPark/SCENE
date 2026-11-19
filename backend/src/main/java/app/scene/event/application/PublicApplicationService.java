@@ -148,7 +148,9 @@ public class PublicApplicationService {
         rows);
     String token = sessions.open(spaceId, eventId, participantId);
     return new Submission(
-        new SubmittedApplication(applicationId, participantId, 1, false), token, true);
+        new SubmittedApplication(applicationId, participantId, 1, false, form.completionNotice()),
+        token,
+        true);
   }
 
   private Submission resubmit(
@@ -184,7 +186,12 @@ public class PublicApplicationService {
             null);
     String token = sessions.open(location.spaceId(), eventId, participant.id());
     return new Submission(
-        new SubmittedApplication(result.applicationId(), participant.id(), result.revision(), true),
+        new SubmittedApplication(
+            result.applicationId(),
+            participant.id(),
+            result.revision(),
+            true,
+            form.completionNotice()),
         token,
         false);
   }

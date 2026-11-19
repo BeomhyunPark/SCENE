@@ -8,7 +8,8 @@ import tools.jackson.databind.JsonNode;
  * Form read. Fields are included. Answers and contact stay off. {@code locked} is true once a
  * submitted application exists, so type changes, option removal, condition changes, and deletes
  * answer {@code FIELD_LOCKED} (DEC-068). {@code setup} is the operator's form setup, or null before
- * the first one is saved (DEC-070).
+ * the first one is saved (DEC-070). {@code completionNotice} is the plain-text notice shown after
+ * submit, or null (#406). It is never locked.
  */
 public record FormDetail(
     UUID formId,
@@ -16,7 +17,8 @@ public record FormDetail(
     boolean acceptingEdits,
     List<FormFieldView> fields,
     boolean locked,
-    JsonNode setup) {
+    JsonNode setup,
+    String completionNotice) {
 
   public FormDetail {
     fields = List.copyOf(fields);

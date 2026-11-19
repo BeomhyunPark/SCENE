@@ -37,6 +37,7 @@ type StoredForm = {
   /** Submitted applications. One or more locks type changes (DEC-068). */
   submitted: number;
   setup: FormSetup | null;
+  completionNotice: string | null;
 };
 
 const FIELD_KEYS = ["label", "answerType", "required", "description", "config", "showWhen", "hidden"];
@@ -90,6 +91,7 @@ export function createForm(eventId: string, actorId: string, body: unknown): For
     fields: [systemField("NAME", "이름", 0), systemField("PHONE", "전화", 1), systemField("COHORT", "또래", 2)],
     submitted: 0,
     setup: null,
+    completionNotice: null,
   };
   if (typeof customLabel === "string") {
     form.fields.push(customField(customLabel, 3, "SHORT_TEXT", defaultConfig("SHORT_TEXT"), false, null, null, false));
@@ -537,6 +539,33 @@ export function deleteField(eventId: string, formId: string, fieldId: string, ac
   return null;
 }
 
+/** Mock of PUT /completion-notice (#406). Not locked by submitted applications. */
+export function putCompletionNotice(
+  eventId: string,
+  formId: string,
+  actorId: string,
+  body: unknown,
+): FormDetail | FormFailure {
+  const found = forms.find((form) => form.eventId === eventId && form.formId === formId);
+  if (!found) return { status: 404, code: "RESOURCE_NOT_FOUND" };
+  const gate = requireWrite(eventId, actorId);
+  if (gate) return gate;
+  if (!isRecord(body) || !("completionNotice" in body)) return invalid("completionNotice");
+  const extra = Object.keys(body).find((key) => key !== "completionNotice");
+  if (extra) return invalid(extra);
+  const value = body.completionNotice;
+  if (value !== null && typeof value !== "string") return invalid("completionNotice");
+  const text = value === null ? "" : value.replace(/\r\n?/g, "\n").trim();
+  if ([...text].length > 1000) return invalid("completionNotice");
+  found.completionNotice = text === "" ? null : text;
+  return toDetail(found);
+}
+
+/** The completion notice the public submit mock returns. */
+export function completionNoticeOf(eventId: string, formId: string): string | null {
+  return forms.find((form) => form.eventId === eventId && form.formId === formId)?.completionNotice ?? null;
+}
+
 /** The public submit mock calls this so the operator form reads as locked. */
 export function markSubmitted(eventId: string, formId: string): void {
   const found = forms.find((form) => form.eventId === eventId && form.formId === formId);
@@ -704,6 +733,7 @@ function toDetail(form: StoredForm): FormDetail {
     }),
     locked: form.submitted > 0,
     setup: structuredClone(form.setup),
+    completionNotice: form.completionNotice,
   };
 }
 

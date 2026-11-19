@@ -75,8 +75,15 @@ class FormCommandHttpIT {
     JsonNode body = json.readTree(created);
     assertThat(body.propertyNames())
         .containsExactly(
-            "formId", "acceptingApplications", "acceptingEdits", "fields", "locked", "setup");
+            "formId",
+            "acceptingApplications",
+            "acceptingEdits",
+            "fields",
+            "locked",
+            "setup",
+            "completionNotice");
     assertThat(body.get("setup").isNull()).isTrue();
+    assertThat(body.get("completionNotice").isNull()).isTrue();
     assertThat(body.get("locked").booleanValue()).isFalse();
     UUID formId = UUID.fromString(body.get("formId").asString());
     assertThat(body.get("acceptingApplications").asBoolean()).isFalse();
@@ -472,7 +479,7 @@ class FormCommandHttpIT {
   private Held openEvent(String memberName) throws Exception {
     UUID spaceId = space("Home");
     UUID memberId = user(memberName);
-    member(spaceId, memberId, "MEMBER");
+    member(spaceId, memberId, "OWNER");
     Cookie owner = login(memberId);
     String created =
         created(write(post(events(spaceId)), owner, "{\"name\":\"행사\"}", "req-" + memberName));

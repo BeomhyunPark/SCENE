@@ -4,7 +4,6 @@ import app.scene.common.error.ErrorCode;
 import app.scene.common.error.SceneException;
 import app.scene.common.permission.Permission;
 import app.scene.common.permission.PermissionEvaluator;
-import app.scene.common.tenant.SpaceMembership;
 import app.scene.common.web.ItemPage;
 import app.scene.common.web.PageRequest;
 import app.scene.common.web.Sorts;
@@ -485,6 +484,25 @@ public class OperatorFormService {
     return detail(spaceId, eventId, formId);
   }
 
+  /**
+   * Saves or clears the completion notice (#406, DEC-070 follow-up). {@code FORM_WRITE}. Submitted
+   * applications do not lock it, and the event lifecycle does not gate it.
+   */
+  @Transactional
+  public FormDetail putCompletionNotice(UUID actorId, UUID eventId, UUID formId, JsonNode body) {
+    EventAccessGate.Opened opened = gate.open(actorId, eventId);
+    UUID spaceId = opened.location().spaceId();
+    if (forms.find(spaceId, eventId, formId).isEmpty()) {
+      throw new SceneException(ErrorCode.RESOURCE_NOT_FOUND);
+    }
+    requireFormWrite(opened, actorId);
+    String notice = CompletionNotice.parse(body);
+    if (forms.updateCompletionNotice(spaceId, eventId, formId, notice) != 1) {
+      throw new IllegalStateException("completion notice was not stored");
+    }
+    return detail(spaceId, eventId, formId);
+  }
+
   private void saveSystem(
       UUID spaceId,
       UUID eventId,
@@ -590,7 +608,8 @@ public class OperatorFormService {
         form.acceptingEdits(),
         fields,
         forms.countSubmitted(spaceId, eventId, formId) > 0,
-        form.setup() == null ? null : json.readTree(form.setup()));
+        form.setup() == null ? null : json.readTree(form.setup()),
+        form.completionNotice());
   }
 
   /**
@@ -601,9 +620,7 @@ public class OperatorFormService {
     if (allows(opened, actorId, Permission.EVENT_READ)) {
       return true;
     }
-    SpaceMembership membership = opened.membership();
-    return membership.kind() == SpaceMembership.Kind.ACTIVE
-        && ("OWNER".equals(membership.role()) || "ADMIN".equals(membership.role()));
+    return opened.membership().seesEveryEvent();
   }
 
   private void requireFormWrite(EventAccessGate.Opened opened, UUID actorId) {
