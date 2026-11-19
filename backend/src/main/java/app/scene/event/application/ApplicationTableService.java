@@ -160,7 +160,8 @@ public class ApplicationTableService {
               group,
               state == null ? null : state.checkedInAt(),
               attended.of(all.getOrDefault(row.applicationId(), Map.of())),
-              stored.getOrDefault(row.applicationId(), ApplicationOperation.empty())));
+              stored.getOrDefault(row.applicationId(), ApplicationOperation.empty()),
+              state == null ? 1 : state.revision()));
     }
 
     if (anyContact && !rows.isEmpty()) {

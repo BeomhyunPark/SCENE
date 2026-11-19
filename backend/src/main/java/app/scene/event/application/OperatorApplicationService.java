@@ -46,6 +46,7 @@ public class OperatorApplicationService {
   private final AuditLogRepository auditLogs;
   private final JsonMapper json;
   private final Clock clock;
+  private final ApplicationRevisions revisions;
 
   public OperatorApplicationService(
       EventAccessGate gate,
@@ -54,7 +55,9 @@ public class OperatorApplicationService {
       ApplicationOperationRepository operations,
       AuditLogRepository auditLogs,
       JsonMapper json,
-      Clock clock) {
+      Clock clock,
+      ApplicationRevisions revisions) {
+    this.revisions = revisions;
     this.gate = gate;
     this.applications = applications;
     this.permissions = permissions;
@@ -102,6 +105,7 @@ public class OperatorApplicationService {
         applications
             .find(spaceId, eventId, applicationId)
             .orElseThrow(() -> new SceneException(ErrorCode.RESOURCE_NOT_FOUND));
+    ApplicationRevisionRow revision = revisions.find(spaceId, eventId, applicationId);
     List<ApplicationAnswer> answers = new ArrayList<>();
     boolean contactSent = false;
     for (ApplicationAnswerRow answer : applications.findAnswers(spaceId, eventId, applicationId)) {
@@ -139,7 +143,38 @@ public class OperatorApplicationService {
         row.submittedAt(),
         contactVisible,
         answers,
-        operations.find(spaceId, eventId, applicationId));
+        operations.find(spaceId, eventId, applicationId),
+        revision.participantId(),
+        revision.revision());
+  }
+
+  /**
+   * Every revision of the application's participant, newest first (DEC-078 §4). Same access as the
+   * detail. {@code changes} name the changed questions with the label of that time; no values.
+   */
+  public ApplicationRevisionList revisions(UUID actorId, UUID eventId, UUID applicationId) {
+    EventAccessGate.Opened opened = gate.open(actorId, eventId);
+    UUID spaceId = opened.location().spaceId();
+    if (applications.find(spaceId, eventId, applicationId).isEmpty()) {
+      throw new SceneException(ErrorCode.RESOURCE_NOT_FOUND);
+    }
+    if (!mayRead(opened, actorId)) {
+      throw new SceneException(ErrorCode.FORBIDDEN);
+    }
+    List<ApplicationRevisionList.Item> items = new ArrayList<>();
+    for (ApplicationRevisionRow row :
+        revisions.listByApplication(spaceId, eventId, applicationId)) {
+      items.add(
+          new ApplicationRevisionList.Item(
+              row.applicationId(),
+              row.revision(),
+              row.status(),
+              row.submittedAt(),
+              row.revisedBy(),
+              row.revisedByUserId(),
+              json.readTree(row.changes())));
+    }
+    return new ApplicationRevisionList(items);
   }
 
   /**

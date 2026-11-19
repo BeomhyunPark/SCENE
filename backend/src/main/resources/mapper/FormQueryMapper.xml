@@ -4,13 +4,13 @@
 <mapper namespace="app.scene.event.form.mapper.FormQueryMapper">
 
   <select id="findByEvent" resultType="app.scene.event.form.FormRow">
-    SELECT id, space_id, event_id, accepting_applications, setup::text AS setup
+    SELECT id, space_id, event_id, accepting_applications, accepting_edits, setup::text AS setup
     FROM forms
     WHERE space_id = #{spaceId} AND event_id = #{eventId}
   </select>
 
   <select id="find" resultType="app.scene.event.form.FormRow">
-    SELECT id, space_id, event_id, accepting_applications, setup::text AS setup
+    SELECT id, space_id, event_id, accepting_applications, accepting_edits, setup::text AS setup
     FROM forms
     WHERE id = #{formId} AND space_id = #{spaceId} AND event_id = #{eventId}
   </select>
@@ -22,7 +22,7 @@
   </select>
 
   <select id="findPage" resultType="app.scene.event.form.FormListRow">
-    SELECT id AS form_id, accepting_applications
+    SELECT id AS form_id, accepting_applications, accepting_edits
     FROM forms
     WHERE space_id = #{spaceId} AND event_id = #{eventId}
     <include refid="app.scene.common.mybatis.CommonMapper.orderByAndPage"/>

@@ -67,6 +67,12 @@ public class OperatorApplicationController {
     return applications.read(actor(), eventId, applicationId);
   }
 
+  /** Revisions of the application's participant, newest first (DEC-078 §4). */
+  @GetMapping("/api/v1/operator/events/{eventId}/applications/{applicationId}/revisions")
+  ApplicationRevisionList revisions(@PathVariable UUID eventId, @PathVariable UUID applicationId) {
+    return applications.revisions(actor(), eventId, applicationId);
+  }
+
   /**
    * Operator values of one application (#335, DEC-075): the operator memo in the first round. The
    * participant's answers do not change. CSRF applies; {@code Idempotency-Key} is not read.

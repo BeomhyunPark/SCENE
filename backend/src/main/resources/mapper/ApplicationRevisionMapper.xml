@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="app.scene.event.application.mapper.ApplicationRevisionMapper">
+
+  <select id="lockParticipant" resultType="java.util.UUID">
+    SELECT id FROM participants
+    WHERE space_id = #{spaceId} AND event_id = #{eventId} AND id = #{participantId}
+    FOR UPDATE
+  </select>
+
+  <sql id="columns">
+    SELECT id AS application_id, form_id, participant_id, revision, status, submitted_at,
+           revised_by, revised_by_user_id, changes::text AS changes
+    FROM applications
+  </sql>
+
+  <select id="findCurrent" resultType="app.scene.event.application.ApplicationRevisionRow">
+    <include refid="columns"/>
+    WHERE space_id = #{spaceId} AND event_id = #{eventId} AND participant_id = #{participantId}
+      AND status = 'SUBMITTED'
+  </select>
+
+  <select id="find" resultType="app.scene.event.application.ApplicationRevisionRow">
+    <include refid="columns"/>
+    WHERE space_id = #{spaceId} AND event_id = #{eventId} AND id = #{applicationId}
+  </select>
+
+  <select id="findParticipantOf" resultType="java.util.UUID">
+    SELECT participant_id FROM applications
+    WHERE space_id = #{spaceId} AND event_id = #{eventId} AND id = #{applicationId}
+  </select>
+
+  <select id="listByParticipant" resultType="app.scene.event.application.ApplicationRevisionRow">
+    <include refid="columns"/>
+    WHERE space_id = #{spaceId} AND event_id = #{eventId} AND participant_id = #{participantId}
+    ORDER BY revision DESC
+  </select>
+
+  <update id="supersede">
+    UPDATE applications SET status = 'SUPERSEDED'
+    WHERE space_id = #{spaceId} AND event_id = #{eventId} AND id = #{applicationId}
+      AND status = 'SUBMITTED'
+  </update>
+
+  <insert id="insertRevision">
+    INSERT INTO applications (
+      id, space_id, event_id, form_id, participant_id, status, submitted_at, revision,
+      previous_application_id, revised_by, revised_by_user_id, changes)
+    VALUES (
+      #{id}, #{spaceId}, #{eventId}, #{formId}, #{participantId}, 'SUBMITTED', #{submittedAt},
+      #{revision}, #{previousId}, #{revisedBy}, #{revisedByUserId}, CAST(#{changes} AS jsonb))
+  </insert>
+
+  <update id="moveOperation">
+    UPDATE application_operations SET application_id = #{toId}
+    WHERE space_id = #{spaceId} AND event_id = #{eventId} AND application_id = #{fromId}
+  </update>
+
+</mapper>

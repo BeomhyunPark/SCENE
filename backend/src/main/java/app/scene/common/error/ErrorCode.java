@@ -9,7 +9,12 @@ import java.util.Locale;
  */
 public enum ErrorCode {
   AUTHENTICATION_REQUIRED(401, "Authentication required", "로그인이 필요합니다."),
-  PARTICIPANT_ACCESS_INVALID(401, "Participant access invalid", "참여자 접근 키가 올바르지 않습니다."),
+  PARTICIPANT_LOGIN_FAILED(401, "Participant login failed", "이름, 전화번호, 숫자 6자리를 다시 확인해 주세요."),
+  PARTICIPANT_LOGIN_LOCKED(429, "Participant login locked", "여러 번 틀려서 잠시 들어올 수 없습니다."),
+  PARTICIPANT_PIN_WEAK(400, "Participant PIN weak", "쓸 수 없는 숫자 6자리입니다."),
+  PARTICIPANT_PIN_CHANGE_REQUIRED(403, "Participant PIN change required", "새 숫자 6자리를 먼저 정해야 합니다."),
+  APPLICATION_ALREADY_EXISTS(409, "Application already exists", "이 전화번호로 이미 신청이 있습니다."),
+  EDITS_CLOSED(409, "Edits closed", "지금은 신청을 고칠 수 없습니다."),
   FORBIDDEN(403, "Forbidden", "이 작업을 할 수 없습니다."),
   NOT_A_MEMBER(403, "Not a member", "이 공간 또는 행사의 접근이 없습니다."),
   OVERRIDE_REQUIRED(403, "Override required", "대신 실행하려면 사유가 필요합니다."),

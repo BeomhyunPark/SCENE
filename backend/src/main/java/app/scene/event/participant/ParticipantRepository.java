@@ -1,25 +1,21 @@
 package app.scene.event.participant;
 
-import app.scene.event.participant.mapper.ParticipantAccessMapper;
 import app.scene.event.participant.mapper.ParticipantMapper;
-import app.scene.event.participant.param.ParticipantAccessInsert;
-import app.scene.event.participant.param.ParticipantAccessKey;
 import app.scene.event.participant.param.ParticipantInsert;
-import java.util.List;
+import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Participant identity and access-key hashes. Sessions are stored separately. */
+/** Participant identity rows. Access keys are no longer issued (DEC-078 §7). */
 @Component
 public class ParticipantRepository {
 
   private final ParticipantMapper participants;
-  private final ParticipantAccessMapper access;
 
-  public ParticipantRepository(ParticipantMapper participants, ParticipantAccessMapper access) {
+  public ParticipantRepository(ParticipantMapper participants) {
     this.participants = participants;
-    this.access = access;
   }
 
   @Transactional
@@ -29,14 +25,31 @@ public class ParticipantRepository {
     }
   }
 
+  public Optional<ParticipantIdentity> findByPhoneKey(UUID spaceId, UUID eventId, String phoneKey) {
+    return Optional.ofNullable(participants.findByPhoneKey(spaceId, eventId, phoneKey));
+  }
+
+  public Optional<ParticipantIdentity> findById(UUID spaceId, UUID eventId, UUID participantId) {
+    return Optional.ofNullable(participants.findById(spaceId, eventId, participantId));
+  }
+
   @Transactional
-  public void saveAccess(ParticipantAccessInsert insert) {
-    if (access.save(insert) != 1) {
-      throw new IllegalStateException("participant access was not stored");
+  public void updatePin(
+      UUID spaceId,
+      UUID eventId,
+      UUID participantId,
+      String pinHash,
+      boolean temporary,
+      Instant now) {
+    if (participants.updatePin(spaceId, eventId, participantId, pinHash, temporary, now) != 1) {
+      throw new IllegalStateException("participant number was not stored");
     }
   }
 
-  public List<ParticipantAccessMatch> findByKeyHash(UUID spaceId, UUID eventId, String keyHash) {
-    return access.findByKeyHash(ParticipantAccessKey.of(spaceId, eventId, keyHash));
+  @Transactional
+  public void updateName(UUID spaceId, UUID eventId, UUID participantId, String name, Instant now) {
+    if (participants.updateName(spaceId, eventId, participantId, name, now) != 1) {
+      throw new IllegalStateException("participant name was not stored");
+    }
   }
 }

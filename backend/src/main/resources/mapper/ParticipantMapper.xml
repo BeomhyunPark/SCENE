@@ -2,13 +2,42 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="app.scene.event.participant.mapper.ParticipantMapper">
-
   <insert id="save">
     INSERT INTO participants (
-      id, space_id, event_id, name, phone, phone_hash, phone_last4, created_at, updated_at)
+      id, space_id, event_id, name, phone, phone_hash, phone_last4, phone_key, pin_hash,
+      pin_temporary, created_at, updated_at)
     VALUES (
-      #{id}, #{spaceId}, #{eventId}, #{name}, #{phone}, #{phoneHash}, #{phoneLast4},
-      #{createdAt}, #{updatedAt})
+      #{id}, #{spaceId}, #{eventId}, #{name}, #{phone}, #{phoneHash}, #{phoneLast4}, #{phoneKey},
+      #{pinHash}, false, #{createdAt}, #{updatedAt})
   </insert>
 
+  <sql id="identity">
+    SELECT p.id, p.space_id, p.event_id, p.name, p.phone, p.pin_hash, p.pin_temporary,
+           (SELECT a.id FROM applications a
+            WHERE a.space_id = p.space_id AND a.event_id = p.event_id
+              AND a.participant_id = p.id AND a.status = 'SUBMITTED') AS application_id
+    FROM participants p
+  </sql>
+
+  <select id="findByPhoneKey" resultType="app.scene.event.participant.ParticipantIdentity">
+    <include refid="identity"/>
+    WHERE p.space_id = #{spaceId} AND p.event_id = #{eventId} AND p.phone_key = #{phoneKey}
+  </select>
+
+  <select id="findById" resultType="app.scene.event.participant.ParticipantIdentity">
+    <include refid="identity"/>
+    WHERE p.space_id = #{spaceId} AND p.event_id = #{eventId} AND p.id = #{participantId}
+  </select>
+
+  <update id="updatePin">
+    UPDATE participants
+    SET pin_hash = #{pinHash}, pin_temporary = #{temporary}, updated_at = #{now}
+    WHERE space_id = #{spaceId} AND event_id = #{eventId} AND id = #{participantId}
+  </update>
+
+  <update id="updateName">
+    UPDATE participants
+    SET name = #{name}, updated_at = #{now}
+    WHERE space_id = #{spaceId} AND event_id = #{eventId} AND id = #{participantId}
+  </update>
 </mapper>

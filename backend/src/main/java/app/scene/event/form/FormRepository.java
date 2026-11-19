@@ -93,9 +93,13 @@ public class FormRepository {
 
   @Transactional
   public int updateAccepting(
-      UUID spaceId, UUID eventId, UUID formId, boolean acceptingApplications) {
+      UUID spaceId,
+      UUID eventId,
+      UUID formId,
+      Boolean acceptingApplications,
+      Boolean acceptingEdits) {
     return forms.updateAccepting(
-        FormAcceptingUpdate.of(spaceId, eventId, formId, acceptingApplications));
+        FormAcceptingUpdate.of(spaceId, eventId, formId, acceptingApplications, acceptingEdits));
   }
 
   @Transactional

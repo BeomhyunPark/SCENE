@@ -3,7 +3,7 @@ package app.scene.event.participant.param;
 import java.time.Instant;
 import java.util.UUID;
 
-/** One participant identity row. Status is omitted because the values are unset. */
+/** One participant identity row with the phone key and number hash (DEC-078). */
 public final class ParticipantInsert {
 
   private final UUID id;
@@ -13,6 +13,8 @@ public final class ParticipantInsert {
   private final String phone;
   private final String phoneHash;
   private final String phoneLast4;
+  private final String phoneKey;
+  private final String pinHash;
   private final Instant createdAt;
   private final Instant updatedAt;
 
@@ -24,8 +26,12 @@ public final class ParticipantInsert {
       String phone,
       String phoneHash,
       String phoneLast4,
+      String phoneKey,
+      String pinHash,
       Instant createdAt,
       Instant updatedAt) {
+    this.phoneKey = phoneKey;
+    this.pinHash = pinHash;
     this.id = id;
     this.spaceId = spaceId;
     this.eventId = eventId;
@@ -45,10 +51,22 @@ public final class ParticipantInsert {
       String phone,
       String phoneHash,
       String phoneLast4,
+      String phoneKey,
+      String pinHash,
       Instant createdAt,
       Instant updatedAt) {
     return new ParticipantInsert(
-        id, spaceId, eventId, name, phone, phoneHash, phoneLast4, createdAt, updatedAt);
+        id,
+        spaceId,
+        eventId,
+        name,
+        phone,
+        phoneHash,
+        phoneLast4,
+        phoneKey,
+        pinHash,
+        createdAt,
+        updatedAt);
   }
 
   public UUID getId() {
@@ -77,6 +95,14 @@ public final class ParticipantInsert {
 
   public String getPhoneLast4() {
     return phoneLast4;
+  }
+
+  public String getPhoneKey() {
+    return phoneKey;
+  }
+
+  public String getPinHash() {
+    return pinHash;
   }
 
   public Instant getCreatedAt() {

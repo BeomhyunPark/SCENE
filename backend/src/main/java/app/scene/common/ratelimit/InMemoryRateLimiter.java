@@ -34,6 +34,19 @@ public class InMemoryRateLimiter {
     return deque.size();
   }
 
+  /** Hits still inside the window. Records nothing. */
+  public synchronized int count(String key, Duration window) {
+    ArrayDeque<Instant> deque = hits.get(key);
+    if (deque == null) {
+      return 0;
+    }
+    Instant cutoff = clock.instant().minus(window);
+    while (!deque.isEmpty() && !deque.peekFirst().isAfter(cutoff)) {
+      deque.removeFirst();
+    }
+    return deque.size();
+  }
+
   public synchronized void clear() {
     hits.clear();
   }

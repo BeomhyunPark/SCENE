@@ -104,6 +104,12 @@ class SecurityConfiguration {
                 .permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/participant/auth/logout")
                 .permitAll()
+                .requestMatchers(HttpMethod.PUT, "/api/v1/participant/pin")
+                .permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/participant/application")
+                .permitAll()
+                .requestMatchers(HttpMethod.PUT, "/api/v1/participant/application")
+                .permitAll()
                 .anyRequest()
                 .authenticated());
     return http.build();

@@ -50,5 +50,7 @@ public final class AuditActions {
    */
   public static final String GROUPS_PUBLISHED = "GROUPS_PUBLISHED";
 
+  public static final String PARTICIPANT_PIN_RESET = "PARTICIPANT_PIN_RESET";
+
   private AuditActions() {}
 }
