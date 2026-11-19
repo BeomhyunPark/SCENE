@@ -15,6 +15,7 @@ import app.scene.event.lifecycle.param.EventNameUpdate;
 import app.scene.event.lifecycle.param.EventStatusUpdate;
 import app.scene.event.lifecycle.param.LifecycleTransitionInsert;
 import app.scene.event.lifecycle.param.LifecycleTransitionListQuery;
+import app.scene.event.lifecycle.param.OperatedEventListQuery;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -29,6 +30,9 @@ public class EventRepository {
 
   /** Events have no created-at column. Client sort is rejected before this clause is used. */
   static final String LIST_ORDER = "e.name ASC, e.id ASC";
+
+  /** The cross-space list (#387) keeps the same order as one space's list. */
+  static final String OPERATED_ORDER = LIST_ORDER;
 
   private final EventMapper events;
   private final EventQueryMapper eventQueries;
@@ -93,6 +97,21 @@ public class EventRepository {
     return eventQueries.findPage(
         EventListQuery.of(
             spaceId, operatorUserId, PageParam.of((int) offset, request.size(), LIST_ORDER)));
+  }
+
+  /** Events the person operates in any space, through an {@code event_users} row (#387). */
+  public long countOperated(UUID userId) {
+    return eventQueries.countOperated(OperatedEventListQuery.of(userId, null));
+  }
+
+  public List<OperatedEventRow> listOperated(UUID userId, PageRequest request) {
+    long offset = request.offset();
+    if (offset > Integer.MAX_VALUE) {
+      throw new IllegalArgumentException("page offset does not fit an int");
+    }
+    return eventQueries.findOperatedPage(
+        OperatedEventListQuery.of(
+            userId, PageParam.of((int) offset, request.size(), OPERATED_ORDER)));
   }
 
   @Transactional

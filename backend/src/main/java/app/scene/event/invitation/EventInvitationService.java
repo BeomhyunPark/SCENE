@@ -158,7 +158,12 @@ public class EventInvitationService {
     EventLocation event = location(row.eventId());
     String outcome = judged(row, event.lifecycleStatus(), actorId, clock.instant());
     return new InvitationPreview(
-        event.name(), row.role(), inviterName(row.invitedBy()), row.expiresAt(), outcome);
+        row.eventId(),
+        event.name(),
+        row.role(),
+        inviterName(row.invitedBy()),
+        row.expiresAt(),
+        outcome);
   }
 
   @Transactional
@@ -176,7 +181,7 @@ public class EventInvitationService {
     Instant now = clock.instant();
     String outcome = judged(row, locked.lifecycleStatus(), actorId, now);
     if (ALREADY_ACCEPTED.equals(outcome)) {
-      return new InvitationAcceptance(ALREADY_ACCEPTED);
+      return acceptance(ALREADY_ACCEPTED, row, actorId);
     }
     int updated = invitations.acceptPending(row.spaceId(), row.eventId(), row.id(), actorId, now);
     if (updated != 1) {
@@ -186,15 +191,23 @@ public class EventInvitationService {
               .orElseThrow(() -> new SceneException(ErrorCode.INVITATION_NOT_FOUND));
       String retry = judged(again, locked.lifecycleStatus(), actorId, clock.instant());
       if (ALREADY_ACCEPTED.equals(retry)) {
-        return new InvitationAcceptance(ALREADY_ACCEPTED);
+        return acceptance(ALREADY_ACCEPTED, again, actorId);
       }
       throw new IllegalStateException("invitation was not accepted");
     }
+    // An operator who is already on the event, such as a member who left the space but kept this
+    // event (DEC-060), keeps the role they have. Role changes stay with the event owner (#387).
     if (eventUsers.findRole(row.spaceId(), row.eventId(), actorId).isEmpty()
         && eventUsers.save(row.spaceId(), row.eventId(), actorId, row.role()) != 1) {
       throw new IllegalStateException("operator was not added");
     }
-    return new InvitationAcceptance("ACCEPTED");
+    return acceptance("ACCEPTED", row, actorId);
+  }
+
+  /** The accepting user is the caller for both outcomes; ALREADY_ACCEPTED is the same person. */
+  private InvitationAcceptance acceptance(String outcome, InvitationRow row, UUID actorId) {
+    String role = eventUsers.findRole(row.spaceId(), row.eventId(), actorId).orElse(null);
+    return new InvitationAcceptance(outcome, row.eventId(), role);
   }
 
   private IssuedInvitation issue(EventLocation location, UUID actorId, String email, String role) {

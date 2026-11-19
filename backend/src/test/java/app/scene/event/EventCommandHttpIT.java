@@ -90,7 +90,8 @@ class EventCommandHttpIT {
     assertThat(body.get("name").asString()).isEqualTo("여름 수련회");
     assertThat(body.get("lifecycleStatus").asString()).isEqualTo("DRAFT");
     assertThat(body.get("lifecycleVersion").asInt()).isZero();
-    assertThat(created).doesNotContain("startsAt", "endsAt", "timezone", "spaceId");
+    assertThat(body.get("spaceId").asString()).isEqualTo(spaceId.toString());
+    assertThat(created).doesNotContain("startsAt", "endsAt", "timezone");
     assertThat(storedName(eventId)).isEqualTo("여름 수련회");
     assertThat(storedStatus(eventId)).isEqualTo("DRAFT");
     assertThat(storedVersion(eventId)).isZero();
@@ -695,7 +696,9 @@ class EventCommandHttpIT {
       "startDate",
       "endDate",
       "place",
-      "eventType"
+      "eventType",
+      "spaceId",
+      "spaceName"
     };
   }
 

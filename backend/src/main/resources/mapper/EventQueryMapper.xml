@@ -35,6 +35,38 @@
     <include refid="app.scene.common.mybatis.CommonMapper.orderByAndPage"/>
   </select>
 
+  <!-- #387: one row per event_users row of the caller. A revoked operator has no row. -->
+  <select id="countOperated" resultType="long">
+    SELECT count(*)
+    FROM event_users eu
+    JOIN events e ON e.id = eu.event_id AND e.space_id = eu.space_id
+    WHERE eu.user_id = #{userId}
+  </select>
+
+  <select id="findOperatedPage" resultType="app.scene.event.lifecycle.OperatedEventRow">
+    SELECT e.id AS event_id,
+           e.name,
+           e.lifecycle_status,
+           e.start_date,
+           e.end_date,
+           e.place,
+           e.event_type,
+           e.space_id,
+           s.name AS space_name,
+           eu.role AS event_role,
+           EXISTS (
+             SELECT 1 FROM members m
+             WHERE m.space_id = e.space_id
+               AND m.user_id = eu.user_id
+               AND m.status = 'ACTIVE'
+           ) AS space_member
+    FROM event_users eu
+    JOIN events e ON e.id = eu.event_id AND e.space_id = eu.space_id
+    JOIN spaces s ON s.id = e.space_id
+    WHERE eu.user_id = #{userId}
+    <include refid="app.scene.common.mybatis.CommonMapper.orderByAndPage"/>
+  </select>
+
   <select id="findProfile" resultType="app.scene.event.lifecycle.EventProfile">
     SELECT e.id AS event_id,
            e.name,
@@ -43,8 +75,11 @@
            e.start_date,
            e.end_date,
            e.place,
-           e.event_type
+           e.event_type,
+           e.space_id,
+           s.name AS space_name
     FROM events e
+    JOIN spaces s ON s.id = e.space_id
     WHERE e.id = #{eventId}
   </select>
 
