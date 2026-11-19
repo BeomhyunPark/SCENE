@@ -611,3 +611,33 @@
 .field-groups__members {
   padding: 0 8px 8px;
 }
+
+/* 새로 고침 (#408): stays at the bottom of the phone screen, where a thumb reaches it. */
+.event-field__refresh {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 -16px -40px;
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--color-border-default);
+  background: var(--color-bg-surface);
+  box-shadow: 0 -2px 8px var(--color-shadow-sticky);
+}
+
+.event-field__refresh-time {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  color: var(--color-text-primary);
+  font: var(--scene-label-m);
+}
+
+.event-field__refresh-note {
+  color: var(--color-text-secondary);
+  font: var(--scene-caption-m);
+}

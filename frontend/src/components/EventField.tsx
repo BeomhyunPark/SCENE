@@ -22,12 +22,13 @@ import { isApiError } from "../api/errors";
 import type { EventDetail, LifecycleStatus } from "../api/events";
 import { getPublishedGroups, type PublishedGroups } from "../api/groups";
 import { getMyPermissions } from "../api/operators";
-import { reloadQuery } from "../api/queryClient";
+import { pollQuery, reloadQuery } from "../api/queryClient";
 import { queryKeys } from "../api/queryKeys";
 import { getMe } from "../api/session";
 import { Button } from "./Button";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { FieldScan } from "./EventFieldScan";
+import { useFieldRefresh } from "./fieldRefresh";
 import { buildGroupStats, pendingFor, publishedGroupNames } from "./fieldGroupStats";
 import { FieldGroups } from "./FieldGroups";
 import { FieldRosterRow } from "./FieldRosterRow";
@@ -61,7 +62,8 @@ type Notice = { tone: "success" | "info" | "error"; text: string };
  * retries, then "확인 안 됨" with "다시 시도"; offline is shown, and coming back online resends and reloads.
  * A request whose result is unknown is never shown as done. "조별" (#288) groups the roster by the latest
  * published 조 편성 (DEC-072), not the working board; the QR result and the 전체 rows name that group too.
- * Copy is a draft.
+ * The summary and the roster on screen are read again every 10 seconds while the page is visible, and the
+ * bar at the bottom shows when they were read with "새로 고침" (#408, fieldRefresh.ts). Copy is a draft.
  */
 export function EventField() {
   const { eventId = "" } = useParams();
@@ -81,6 +83,7 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
   const [notice, setNotice] = useState<Notice | null>(null);
   const [cancelling, setCancelling] = useState<RosterItem | null>(null);
   const [scanning, setScanning] = useState(false);
+  const [searchFocused, setSearchFocused] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -203,6 +206,23 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
     setNotice(null);
     void queue.retry(request.target)?.then((delivery) => report(request.action, delivery));
   }
+
+  const groupsReadable = view === "groups" && Boolean(published.data?.publishedAt);
+  const listQuery = groupsReadable ? rosterAll : view === "all" ? roster : null;
+  const { refreshNow, refreshing } = useFieldRefresh({
+    online: queue.online,
+    paused: queue.pending.some((request) => request.phase === "sending"),
+    rosterHeld: searchFocused || cancelling !== null || scanOpen,
+    readSummary: () => pollQuery(summary),
+    readRoster: () => {
+      if (groupsReadable) return pollQuery(rosterAll);
+      if (view === "groups") return pollQuery(published);
+      // A "더 보기" load in flight is not cut off; the next read picks the new page up.
+      if (roster.isFetchingNextPage) return Promise.resolve();
+      return pollQuery(roster);
+    },
+  });
+  const readAt = lastReadAt(summary.dataUpdatedAt, listQuery?.dataUpdatedAt);
 
   const items = roster.data?.pages.flatMap((page) => page.items) ?? [];
   const total = roster.data?.pages[0]?.page.totalItems ?? 0;
@@ -338,6 +358,8 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
                 enterKeyHint="search"
                 placeholder="예: 김하늘, 1234"
                 onChange={(change) => setSearch(change.target.value)}
+                onFocus={() => setSearchFocused(true)}
+                onBlur={() => setSearchFocused(false)}
               />
             </div>
 
@@ -437,6 +459,23 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
             ) : null}
           </>
         )}
+
+        <div className="event-field__refresh">
+          <p className="event-field__refresh-time">
+            {readAt ? `${formatReadAt(readAt)}에 읽음` : "아직 읽지 못했어요"}
+            <span className="event-field__refresh-note">10초마다 새로 읽어요</span>
+          </p>
+          <Button
+            type="button"
+            variant="secondary"
+            size={48}
+            loading={refreshing}
+            disabled={!queue.online}
+            onClick={() => void refreshNow()}
+          >
+            새로 고침
+          </Button>
+        </div>
       </div>
 
       {cancelling?.checkIn ? (
@@ -577,6 +616,16 @@ function CancelDialog({
       />
     </ConfirmDialog>
   );
+}
+
+/** The older of the two reads, so the time never claims a list fresher than it is. 0 means never read. */
+function lastReadAt(summaryAt: number, listAt: number | undefined): number | null {
+  const reads = [summaryAt, listAt ?? summaryAt].filter((at) => at > 0);
+  return reads.length === 2 ? Math.min(...reads) : null;
+}
+
+function formatReadAt(at: number): string {
+  return new Date(at).toLocaleTimeString("ko-KR", { hour: "numeric", minute: "2-digit", second: "2-digit" });
 }
 
 function blockedReason(status: LifecycleStatus, mayWrite: boolean, permissionsPending: boolean): string | null {
