@@ -7,6 +7,7 @@ import {
   createForm,
   deleteField,
   listForms,
+  putCompletionNotice,
   readForm,
   reorderFields,
   setAccepting,
@@ -91,6 +92,20 @@ export const formHandlers = [
     if (isFailure(updated)) return fail(updated);
     return HttpResponse.json(updated);
   }),
+
+  http.put(
+    "/api/v1/operator/events/:eventId/forms/:formId/completion-notice",
+    async ({ request, params, cookies }) => {
+      if (!csrfMatches(request, cookies)) return problem(403, "FORBIDDEN", { detail: "hidden" });
+      const operator = currentOperator();
+      if (!operator) return problem(401, "AUTHENTICATION_REQUIRED");
+      const body = await readJson(request);
+      operatorRequests.push({ method: "PUT", url: new URL(request.url).pathname, body });
+      const updated = putCompletionNotice(String(params.eventId), String(params.formId), operator.userId, body);
+      if (isFailure(updated)) return fail(updated);
+      return HttpResponse.json(updated);
+    },
+  ),
 
   http.put("/api/v1/operator/events/:eventId/forms/:formId/setup", async ({ request, params, cookies }) => {
     if (!csrfMatches(request, cookies)) return problem(403, "FORBIDDEN", { detail: "hidden" });

@@ -4,13 +4,15 @@
 <mapper namespace="app.scene.event.form.mapper.FormQueryMapper">
 
   <select id="findByEvent" resultType="app.scene.event.form.FormRow">
-    SELECT id, space_id, event_id, accepting_applications, setup::text AS setup
+    SELECT id, space_id, event_id, accepting_applications, setup::text AS setup,
+      completion_notice
     FROM forms
     WHERE space_id = #{spaceId} AND event_id = #{eventId}
   </select>
 
   <select id="find" resultType="app.scene.event.form.FormRow">
-    SELECT id, space_id, event_id, accepting_applications, setup::text AS setup
+    SELECT id, space_id, event_id, accepting_applications, setup::text AS setup,
+      completion_notice
     FROM forms
     WHERE id = #{formId} AND space_id = #{spaceId} AND event_id = #{eventId}
   </select>

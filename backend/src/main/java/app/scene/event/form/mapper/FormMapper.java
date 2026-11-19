@@ -1,6 +1,7 @@
 package app.scene.event.form.mapper;
 
 import app.scene.event.form.param.FormAcceptingUpdate;
+import app.scene.event.form.param.FormCompletionNoticeUpdate;
 import app.scene.event.form.param.FormInsert;
 import app.scene.event.form.param.FormSetupUpdate;
 import org.apache.ibatis.annotations.Mapper;
@@ -13,4 +14,6 @@ public interface FormMapper {
   int updateAccepting(FormAcceptingUpdate update);
 
   int updateSetup(FormSetupUpdate update);
+
+  int updateCompletionNotice(FormCompletionNoticeUpdate update);
 }

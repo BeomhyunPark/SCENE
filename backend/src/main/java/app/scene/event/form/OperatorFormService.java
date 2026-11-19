@@ -479,6 +479,25 @@ public class OperatorFormService {
     return detail(spaceId, eventId, formId);
   }
 
+  /**
+   * Saves or clears the completion notice (#406, DEC-070 follow-up). {@code FORM_WRITE}. Submitted
+   * applications do not lock it, and the event lifecycle does not gate it.
+   */
+  @Transactional
+  public FormDetail putCompletionNotice(UUID actorId, UUID eventId, UUID formId, JsonNode body) {
+    EventAccessGate.Opened opened = gate.open(actorId, eventId);
+    UUID spaceId = opened.location().spaceId();
+    if (forms.find(spaceId, eventId, formId).isEmpty()) {
+      throw new SceneException(ErrorCode.RESOURCE_NOT_FOUND);
+    }
+    requireFormWrite(opened, actorId);
+    String notice = CompletionNotice.parse(body);
+    if (forms.updateCompletionNotice(spaceId, eventId, formId, notice) != 1) {
+      throw new IllegalStateException("completion notice was not stored");
+    }
+    return detail(spaceId, eventId, formId);
+  }
+
   private void saveSystem(
       UUID spaceId,
       UUID eventId,
@@ -583,7 +602,8 @@ public class OperatorFormService {
         form.acceptingApplications(),
         fields,
         forms.countSubmitted(spaceId, eventId, formId) > 0,
-        form.setup() == null ? null : json.readTree(form.setup()));
+        form.setup() == null ? null : json.readTree(form.setup()),
+        form.completionNotice());
   }
 
   /**

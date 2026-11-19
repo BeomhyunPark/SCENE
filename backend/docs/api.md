@@ -1026,9 +1026,12 @@ curl -sS \
     }
   ],
   "locked": false,
-  "setup": null
+  "setup": null,
+  "completionNotice": null
 }
 ```
+
+`completionNotice`는 신청을 마친 사람에게 보이는 완료 안내다(참가비 계좌, 문의처, 다음에 할 일). 없으면 `null`이다. 아래 `PUT …/completion-notice`로 쓴다.
 
 `setup`은 마지막으로 저장한 신청서 설정이다(아래 `PUT …/setup`의 본문 모양에 `generatedFor`가 붙는다). 저장한 적이 없으면 `null`이다.
 
@@ -1083,6 +1086,20 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
 ### `DELETE /api/v1/operator/events/{eventId}/forms/{formId}/fields/{fieldId}`
 
 운영자가 직접 만든 CUSTOM 필드를 지운다. `204`이고 본문이 없다. SYSTEM 필드와 자동 질문 삭제는 `409 CONFLICT`다. 자동 질문은 `hidden`으로 끄거나 설정에서 뺀다. 다른 질문이나 보기의 `showWhen`이 가리키는 필드도 `409 CONFLICT`다. 신청이 들어온 신청서는 `409 FIELD_LOCKED`이고, 대신 `hidden: true`로 숨긴다. 없는 필드는 `404 RESOURCE_NOT_FOUND`다.
+
+### `PUT /api/v1/operator/events/{eventId}/forms/{formId}/completion-notice`
+
+완료 안내를 쓰거나 지운다([#406](https://github.com/BeomhyunPark/SCENE/issues/406), DEC-070 Follow-up 2026-11-19). 유효한 `FORM_WRITE`가 필요하다. 그 행사의 신청서가 아니면, 권한보다 먼저 `404 RESOURCE_NOT_FOUND`다.
+
+```json
+{ "completionNotice": "참가비 3만원은 12월 31일까지 보내 주세요.\n신한 110-000-000000 (예금주 홍길동)\n문의: 010-0000-0000" }
+```
+
+- `completionNotice`만 받는다. 키가 꼭 있어야 하고 값은 문자열이나 `null`이다. 다른 키, 빠진 키, 다른 타입은 `400 VALIDATION_FAILED`(`errors[0].field`가 그 키)다.
+- **글자 그대로의 텍스트다.** CRLF와 CR은 LF로 바꾸고, 앞뒤 공백·빈 줄은 자른다. 안의 줄바꿈·탭·HTML 태그·링크는 그대로 저장하고 그대로 돌려준다. 서버는 HTML을 해석하거나 지우지 않고, 화면도 HTML로 그리지 않는다(링크도 누르는 링크로 바꾸지 않는다).
+- 자른 뒤 1000자(유니코드 코드 포인트)까지다. 넘거나, 줄바꿈·탭이 아닌 제어 문자가 있으면 `400 VALIDATION_FAILED`(`completionNotice`)다. 자른 뒤 비면 `null`로 저장한다(안내 없음).
+- **잠기지 않는다.** `SUBMITTED` 신청이 있어도(`locked`가 `true`여도) 고칠 수 있다. 행사 상태와 신청 받기 여부와도 상관없다. 이미 신청한 사람은 다음에 읽을 때 새 문구를 본다(아래 참가자 홈).
+- `200`은 신청서 상세다. `Idempotency-Key`는 읽지 않는다. audit은 남기지 않는다.
 
 ### `PUT /api/v1/operator/events/{eventId}/forms/{formId}/setup`
 
@@ -1444,9 +1461,12 @@ CSRF가 필요하다. `Idempotency-Key`는 읽지 않는다.
 {
   "applicationId": "…",
   "participantId": "…",
-  "accessKey": "…"
+  "accessKey": "…",
+  "completionNotice": "참가비 3만원은 …"
 }
 ```
+
+`completionNotice`는 제출한 순간의 완료 안내다(없으면 `null`). 신청 완료 화면이 글자 그대로 보인다. **공개 신청서 `GET`에는 싣지 않는다.** 신청을 마친 사람만 보게 하려는 것이다(#406).
 
 `accessKey`는 256비트 hex다. raw key는 이 응답에서 한 번만 나온다. 서버는 해시만 저장한다. 응답과 로그에 키를 다시 넣지 않는다.
 
@@ -1471,6 +1491,10 @@ CSRF가 필요하다. `Idempotency-Key`는 읽지 않는다.
 ```
 
 쿠키가 없거나 저장된 세션이 아니면 `401 AUTHENTICATION_REQUIRED`다. 운영자 세션 쿠키로는 열리지 않는다. 전화와 접근 키는 없다.
+
+### 참가자 세션으로 완료 안내 읽기 (계약만, B2)
+
+참가자 홈 `GET /api/v1/participant/home`(트랙 B의 B2, [#379](https://github.com/BeomhyunPark/SCENE/issues/379))의 본문에 `completionNotice`(문자열 또는 `null`)를 둔다. 값은 세션의 행사에 있는 신청서의 **지금** 완료 안내다(제출 때 받은 값이 아니다). 그래서 운영자가 고치면 이미 신청한 사람도 새 문구를 본다. 모양과 처리는 위 `PUT …/completion-notice`와 같고 글자 그대로 그린다. 서버는 `forms.completion_notice`를 `space_id`·`event_id`로 읽는다(`FormRepository.findByEvent(...).completionNotice()`). 이 경로는 아직 없다. 만들 때 이 절을 그 경로 설명으로 옮긴다.
 
 ### `POST /api/v1/participant/auth/logout`
 

@@ -8,6 +8,7 @@ import { openParticipantSession } from "../api/participant";
 import { reloadQuery } from "../api/queryClient";
 import { queryKeys } from "../api/queryKeys";
 import { Button } from "./Button";
+import { CompletionNotice } from "./CompletionNotice";
 import { ParticipantFrame } from "./ParticipantFrame";
 import { AnswerInput } from "./apply/AnswerInput";
 import { RangeSummary } from "./apply/RangeSummary";
@@ -184,6 +185,7 @@ function ApplyLink({ eventId, submitted }: { eventId: string; submitted: Submitt
 
   return (
     <ParticipantFrame title="신청했어요">
+      <CompletionNotice text={submitted.completionNotice} />
       <p className="participant-gate__body">이 링크만 다시 들어올 수 있어요. 이 화면을 떠나면 링크는 다시 보이지 않아요.</p>
       <input className="participant-gate__input" readOnly aria-label="다시 들어오는 링크" value={link} />
       {copied ? <p className="participant-gate__body">복사했어요.</p> : null}

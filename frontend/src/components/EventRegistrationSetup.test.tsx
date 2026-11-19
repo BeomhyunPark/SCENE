@@ -59,7 +59,8 @@ describe("event registration setup", () => {
     expect(screen.getByRole("region", { name: "참가자 화면 미리보기" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "직접 질문 추가" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /삭제$/ })).not.toBeInTheDocument();
-    expect(screen.getAllByText("준비 중")).toHaveLength(2);
+    expect(screen.getAllByText("준비 중")).toHaveLength(1);
+    expect(screen.getByRole("textbox", { name: "완료 안내 문구" })).toHaveValue("");
     const listed = operatorRequests.find((request) => request.method === "GET" && request.url.includes("/forms?"));
     expect(listed?.url).not.toContain("sort");
     const created = operatorRequests.find((request) => request.method === "POST" && request.url.endsWith("/forms"));
@@ -173,6 +174,45 @@ describe("event registration setup", () => {
     expect(screen.getByRole("button", { name: "보기 1 지우기" })).toBeDisabled();
   });
 
+  it("writes the completion notice as plain text, previews it, and edits it after applications arrive", async () => {
+    await login({ userId: localUsers[0].userId });
+    const created = await createForm(localEvent.eventId);
+    markSubmitted(localEvent.eventId, created.formId);
+    renderSetup();
+    const box = await screen.findByRole("textbox", { name: "완료 안내 문구" }, { timeout: 4000 });
+    const save = screen.getByRole("button", { name: "안내 저장" });
+    expect(save).toBeDisabled();
+    const preview = within(screen.getByRole("region", { name: "참가자 화면 미리보기" }));
+    expect(preview.getByText("완료 안내를 쓰면 여기에 보여요.")).toBeInTheDocument();
+
+    const text = "참가비 3만원\n신한 110-000 <b>홍길동</b>\nhttps://example.com/pay";
+    fireEvent.change(box, { target: { value: `  ${text}  ` } });
+    // The preview follows the draft and shows tags as typed.
+    const shown = preview.getByText(/참가비 3만원/);
+    expect(shown.textContent).toBe(text);
+    expect(shown.querySelector("b")).toBeNull();
+    fireEvent.click(save);
+    expect(await screen.findByText("저장했어요.")).toBeInTheDocument();
+    const put = operatorRequests.filter((request) => request.method === "PUT" && request.url.endsWith("/completion-notice"));
+    expect(put.at(-1)?.body).toEqual({ completionNotice: `  ${text}  ` });
+    expect((await getForm(localEvent.eventId, created.formId)).completionNotice).toBe(text);
+    expect(box).toHaveValue(text);
+
+    fireEvent.change(box, { target: { value: "가".repeat(1001) } });
+    expect(screen.getByText("1001/1000자")).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("1000자까지 쓸 수 있어요.");
+    expect(save).toBeDisabled();
+
+    fireEvent.change(box, { target: { value: "   " } });
+    fireEvent.click(save);
+    expect(await screen.findByText("안내를 비웠어요.")).toBeInTheDocument();
+    expect(put.length).toBeGreaterThan(0);
+    expect(operatorRequests.filter((request) => request.url.endsWith("/completion-notice")).at(-1)?.body).toEqual({
+      completionNotice: null,
+    });
+    expect((await getForm(localEvent.eventId, created.formId)).completionNotice).toBeNull();
+  });
+
   it("activates a draft before opening applications, then closes them", async () => {
     await login({ userId: localUsers[0].userId });
     renderSetup();
@@ -257,6 +297,8 @@ describe("event registration setup", () => {
     expect(screen.queryByRole("button", { name: "신청 열기" })).not.toBeInTheDocument();
     expect(screen.queryByRole("textbox", { name: "질문" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "질문 삭제" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "완료 안내 문구" })).not.toBeInTheDocument();
+    expect(screen.getByText("아직 안내가 없어요.")).toBeInTheDocument();
   });
   it("builds the form from the setup card and lets the operator click through the branches", async () => {
     await login({ userId: localUsers[0].userId });

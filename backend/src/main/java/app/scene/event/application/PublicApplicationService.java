@@ -119,7 +119,8 @@ public class PublicApplicationService {
     participants.saveAccess(
         ParticipantAccessInsert.of(
             UUID.randomUUID(), spaceId, eventId, participantId, Digests.sha256Hex(accessKey), now));
-    return new SubmittedApplication(applicationId, participantId, accessKey);
+    return new SubmittedApplication(
+        applicationId, participantId, accessKey, form.completionNotice());
   }
 
   private static AnswerEvaluator.Answer required(
