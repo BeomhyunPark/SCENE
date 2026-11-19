@@ -1,6 +1,7 @@
 package app.scene.event.operator;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -87,6 +88,41 @@ class OperatorPermissionHttpIT {
     assertThat(second).isEqualTo(first);
     assertThat(grantedAt(fx.eventId, fx.staffId)).startsWith("2020-01-01");
     assertThat(auditCount(fx.eventId, AuditActions.EVENT_USER_PERMISSIONS_REPLACED)).isEqualTo(1);
+  }
+
+  /**
+   * DEC-079: MANAGER has schedule and notice writes by default, a GRANT of a default key stores
+   * nothing, and STAFF gets group writes only by a personal GRANT.
+   */
+  @Test
+  void managerDefaultsIncludeScheduleAndNoticeAndStaffGetsGroupWriteByGrant() throws Exception {
+    Fixture fx = seed();
+    Cookie owner = login(fx.ownerId);
+    mvc.perform(get(permissions(fx.eventId, fx.managerId)).cookie(owner))
+        .andExpect(status().isOk())
+        .andExpect(
+            jsonPath("$.roleDefaults")
+                .value(
+                    contains(
+                        "CHECKIN_WRITE",
+                        "EVENT_READ",
+                        "NOTICE_WRITE",
+                        "SCHEDULE_WRITE",
+                        "TASK_WRITE")));
+    mvc.perform(get(permissions(fx.eventId, fx.staffId)).cookie(owner))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.roleDefaults").value(contains("CHECKIN_WRITE", "EVENT_READ")));
+
+    String manager =
+        putOk(fx, owner, fx.managerId, "{\"grants\":[\"NOTICE_WRITE\"],\"revokes\":[]}");
+    assertThat(json.readTree(manager).get("overrides").get("grants").size()).isZero();
+    assertThat(overrideCount(fx.eventId, fx.managerId)).isZero();
+
+    String staff = putOk(fx, owner, fx.staffId, "{\"grants\":[\"GROUP_WRITE\"],\"revokes\":[]}");
+    JsonNode body = json.readTree(staff);
+    assertThat(body.get("roleDefaults").toString()).doesNotContain("GROUP_WRITE");
+    assertThat(body.get("overrides").get("grants").get(0).asString()).isEqualTo("GROUP_WRITE");
+    assertThat(body.get("effective").toString()).contains("GROUP_WRITE", "CHECKIN_WRITE");
   }
 
   /** #39 rows 16 and 17. */

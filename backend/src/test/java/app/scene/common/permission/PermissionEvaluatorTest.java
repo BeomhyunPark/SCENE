@@ -23,16 +23,39 @@ class PermissionEvaluatorTest {
   }
 
   @Test
-  void managerAndStaffDefaultsStayUnsetExceptApprovedKeys() {
+  void managerAndStaffDefaultsFollowDec079() {
     assertThat(RoleDefaults.of("MANAGER"))
         .containsExactlyInAnyOrder(
-            Permission.EVENT_READ, Permission.TASK_WRITE, Permission.CHECKIN_WRITE);
+            Permission.EVENT_READ,
+            Permission.TASK_WRITE,
+            Permission.CHECKIN_WRITE,
+            Permission.SCHEDULE_WRITE,
+            Permission.NOTICE_WRITE);
     assertThat(RoleDefaults.of("STAFF"))
         .containsExactlyInAnyOrder(Permission.EVENT_READ, Permission.CHECKIN_WRITE);
     assertThat(RoleDefaults.of("OWNER"))
         .contains(Permission.DATA_EXPORT, Permission.EVENT_LIFECYCLE);
     assertThat(RoleDefaults.of("STAFF"))
         .doesNotContain(Permission.DATA_EXPORT, Permission.FINANCE_READ);
+    for (String role : new String[] {"MANAGER", "STAFF"}) {
+      assertThat(RoleDefaults.of(role))
+          .doesNotContain(
+              Permission.GROUP_WRITE,
+              Permission.PARTICIPANT_WRITE,
+              Permission.PARTICIPANT_CONTACT_READ,
+              Permission.DATA_EXPORT,
+              Permission.ROOM_WRITE);
+    }
+  }
+
+  @Test
+  void managerScheduleAndNoticeDefaultsGoOnRevokeAndStaffGetsThemOnlyByGrant() {
+    for (Permission key : new Permission[] {Permission.SCHEDULE_WRITE, Permission.NOTICE_WRITE}) {
+      assertThat(PermissionEvaluator.allows(key, "MANAGER", false, null)).isTrue();
+      assertThat(PermissionEvaluator.allows(key, "MANAGER", false, "REVOKE")).isFalse();
+      assertThat(PermissionEvaluator.allows(key, "STAFF", false, null)).isFalse();
+      assertThat(PermissionEvaluator.allows(key, "STAFF", false, "GRANT")).isTrue();
+    }
   }
 
   @Test

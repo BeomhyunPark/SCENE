@@ -61,3 +61,20 @@ export function removeOperator(eventId: string, userId: string): Promise<void> {
     method: "DELETE",
   }).then(() => undefined);
 }
+
+/**
+ * Replaces one operator's personal permissions (event OWNER only, DEC-029). The body is the whole
+ * set: overrides left out are removed. 422 PERMISSION_OWNER_NOT_OVERRIDABLE (target is OWNER),
+ * PERMISSION_OWNER_ONLY, PERMISSION_NOT_OVERRIDABLE (EVENT_READ), and 409 EVENT_ARCHIVED when an
+ * archived event's access would widen.
+ */
+export function replaceOperatorPermissions(
+  eventId: string,
+  userId: string,
+  overrides: { grants: string[]; revokes: string[] },
+): Promise<PermissionBody> {
+  return apiRequest(`/api/v1/operator/events/${eventId}/operators/${userId}/permissions`, {
+    method: "PUT",
+    body: { grants: overrides.grants, revokes: overrides.revokes },
+  });
+}

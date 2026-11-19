@@ -17,6 +17,17 @@
   background: var(--color-bg-surface);
 }
 
+.confirm-dialog__panel--scroll {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100dvh - 48px);
+}
+
+.confirm-dialog__panel--scroll .confirm-dialog__body {
+  min-height: 0;
+  overflow-y: auto;
+}
+
 .confirm-dialog__panel:focus {
   outline: none;
 }

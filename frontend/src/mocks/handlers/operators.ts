@@ -9,6 +9,7 @@ import {
   operatorsFor,
   permissionsFor,
   removeByOwner,
+  replacePermissions,
   type TaskFailure,
 } from "../taskStore";
 
@@ -69,6 +70,17 @@ export const operatorHandlers = [
     const body = permissionsFor(String(params.eventId), operator.userId, String(params.userId));
     if (isFailure(body)) return fail(body);
     return HttpResponse.json(body);
+  }),
+
+  http.put("/api/v1/operator/events/:eventId/operators/:userId/permissions", async ({ request, params, cookies }) => {
+    if (!csrfMatches(request, cookies)) return problem(403, "FORBIDDEN", { detail: "hidden" });
+    const operator = currentOperator();
+    if (!operator) return problem(401, "AUTHENTICATION_REQUIRED");
+    const body: unknown = await request.json().catch(() => null);
+    operatorRequests.push({ method: "PUT", url: new URL(request.url).pathname, body });
+    const result = replacePermissions(String(params.eventId), operator.userId, String(params.userId), body);
+    if (isFailure(result)) return fail(result);
+    return HttpResponse.json(result);
   }),
 ];
 

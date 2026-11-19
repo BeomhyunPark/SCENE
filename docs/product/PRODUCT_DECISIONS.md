@@ -1,6 +1,6 @@
 # Church Event Operations Platform — Product Decisions
 
-> **2026-09-30 baseline:** DEC-001~027의 기존 본문·Status 보존. 최초 정리 당시에는 새 DEC를 만들지 않았고, 이후 검토에서 DEC-028~059를 추가했다. 2026-10-01 #11·#12 기술 계약으로 DEC-060~061을, 2026-10-02 #31 업무·체크리스트 저장 계약으로 DEC-062를, #30 행사 lifecycle command 계약으로 DEC-063을, 2026-10-06 MVP 참여자 인증 결정으로 DEC-064를, 같은 날 업무 오류 판정 순서·Override 사유 저장 보강으로 DEC-065를, 2026-10-15 AI 기능 포함과 첫 AI 범위(C1·C7) 결정으로 DEC-066을, 2026-10-21 개발용 로그인 profile gate·세션 쿠키 결정으로 DEC-067을, 2026-11-16 신청서 질문 유형·조건부 표시·편집 잠금 결정으로 DEC-068을, 같은 날 운영자 Google 로그인·초대 기반 가입·첫 관리자 지정 결정으로 DEC-069를, 신청서 설정·자동 질문·기본항목(이름·전화·또래) 결정으로 DEC-070을, 2026-11-17 체크인·조 편성·신청 집계·부분 참석·운영 메모 결정으로 DEC-071~075를, 2026-11-18 조직 역할·조직 초대 결정으로 DEC-076을, 2026-11-19 행사 생성 권한(조직 OWNER·ADMIN만) 결정으로 DEC-077을 추가했다(현재 마지막 번호 DEC-077). 최신 요청의 제품명 SCENE 및 Technical Design / implementation 전 상태가 현재 기준이다. DEC-024/027의 단계와 §17 Product Name OPEN은 이전 이력이며 기술 기준은 [Architecture](../architecture/architecture-v0.1.md)를 따른다. 공식 Decision Log 정합화는 검토 필요.
+> **2026-09-30 baseline:** DEC-001~027의 기존 본문·Status 보존. 최초 정리 당시에는 새 DEC를 만들지 않았고, 이후 검토에서 DEC-028~059를 추가했다. 2026-10-01 #11·#12 기술 계약으로 DEC-060~061을, 2026-10-02 #31 업무·체크리스트 저장 계약으로 DEC-062를, #30 행사 lifecycle command 계약으로 DEC-063을, 2026-10-06 MVP 참여자 인증 결정으로 DEC-064를, 같은 날 업무 오류 판정 순서·Override 사유 저장 보강으로 DEC-065를, 2026-10-15 AI 기능 포함과 첫 AI 범위(C1·C7) 결정으로 DEC-066을, 2026-10-21 개발용 로그인 profile gate·세션 쿠키 결정으로 DEC-067을, 2026-11-16 신청서 질문 유형·조건부 표시·편집 잠금 결정으로 DEC-068을, 같은 날 운영자 Google 로그인·초대 기반 가입·첫 관리자 지정 결정으로 DEC-069를, 신청서 설정·자동 질문·기본항목(이름·전화·또래) 결정으로 DEC-070을, 2026-11-17 체크인·조 편성·신청 집계·부분 참석·운영 메모 결정으로 DEC-071~075를, 2026-11-18 조직 역할·조직 초대 결정으로 DEC-076을, 2026-11-19 행사 생성 권한(조직 OWNER·ADMIN만) 결정으로 DEC-077을, 같은 날 역할 기본 권한 표와 운영자별 권한 화면 결정으로 DEC-079를, 참가자 홈·일정표·공지·조장조원 결정으로 DEC-080~083을 추가했다(DEC-078은 참가자 들어오기 결정에 예약). 최신 요청의 제품명 SCENE 및 Technical Design / implementation 전 상태가 현재 기준이다. DEC-024/027의 단계와 §17 Product Name OPEN은 이전 이력이며 기술 기준은 [Architecture](../architecture/architecture-v0.1.md)를 따른다. 공식 Decision Log 정합화는 검토 필요.
 >
 > DEC-027은 단계 설명에 한해 DEC-024를 대체한다고 기록하지만 DEC-024의 원래 CONFIRMED 표기는 보존한다. Evidence Type의 HYPOTHESIS 용어 충돌도 [검토 기록](../architecture/architecture-v0.1.md)에 남긴다.
 > [Product Definition](PRODUCT_DEFINITION.md) · [Research](RESEARCH.md)
@@ -777,6 +777,7 @@ Operational Structure Research와 Product Definition Gate를 거치며 확정 �
 - (2026-10-02 보강, 현 결정, SCENE 개발 리드 전달) Event 권한은 `event_users` role의 기본 Permission Set에 사람별 `event_user_permissions` GRANT/REVOKE를 더하고 뺀 effective 집합이다. role 기본 집합은 Java enum mapping으로 두고, 고정 Role만으로 권한이 정해진다는 기존 기준을 대체한다.
 - (2026-10-02 보강) 부여·회수는 Event Owner만 한다. OWNER 권한은 override하지 않고, Owner 위임·행사 삭제 요청·개인정보 정리·권한 관리 등 OWNER 전용 권한은 다른 운영자(행사 전용 협력자 포함)에게 부여하지 않는다. role 변경과 운영자 제거 시 해당 운영자의 override는 사라진다. 서버가 모든 요청에서 effective 집합으로 판정하고 변경마다 audit을 남긴다.
 - (2026-10-02 보강, 현 결정 10/2) 운영자 추가·제거·role 변경과 개인별 권한 변경은 Event Owner만 한다. 개인별 권한 조회는 Event Owner·본인·Space OWNER(조회만)만 하고 Space ADMIN은 할 수 없다. 행사 전용 협력자의 연락처 숨김(DEC-060)은 어떤 GRANT로도 풀리지 않는다. Owner 위임 수락 시 받는 사람의 override는 위임 기록에 저장 후 지우고 취소 시 되살린다. ENDED에서는 권한 변경을 허용하고 ARCHIVED에서는 줄이는 변경만 허용한다(#30 L5).
+- (2026-11-19 → [DEC-079](#dec-079--역할-기본-권한은-manager가-일정공지-쓰기까지-staff는-체크인까지이고-나머지는-행사-owner가-운영-멤버-화면에서-사람별로-준다)) MANAGER·STAFF 기본 집합과 권한 설정 화면을 정했다.
 - (2026-10-02 보강) 위 OPEN 중 저장 구조·부여자·회수 방식은 해소했다. MANAGER/STAFF 기본 집합은 Backend Lead가 초안을 쓰고 현이 승인한다(현 결정 10/2). 미확정, 백엔드 리드 초안 대기. 예외로 `TASK_WRITE` 기본값은 DEC-062에서 확정한다. OWNER·MANAGER 포함, STAFF 미포함. 업무별 정확한 허용 집합(Permission 키 목록 초안)도 계속 확인이 필요하다. 테이블은 Flyway V1 초기 스키마에 포함하며(SCENE Backend Lead) 상세 계약은 아키텍처 문서의 2026-10-02 절에 둔다.
 
 ### Evidence
@@ -2955,6 +2956,77 @@ DEC-070은 부분·집회만 참석자가 `MEALS`에서 식사·집회 칸을 �
 ### Evidence
 
 현 결정 2026-11-19. [#370](https://github.com/BeomhyunPark/SCENE/issues/370) 사용자 결정. 근거 결정은 DEC-031, DEC-060, DEC-076이다.
+
+---
+
+## DEC-079 — 역할 기본 권한은 MANAGER가 일정·공지 쓰기까지, STAFF는 체크인까지이고, 나머지는 행사 OWNER가 운영 멤버 화면에서 사람별로 준다
+
+**Date:** 2026-11-19
+
+**Status:** CONFIRMED (기본값은 사용자 결정 2026-11-19 로드맵 결정 7, 권한 화면의 묶음·문구는 추천안으로 진행 [#395](https://github.com/BeomhyunPark/SCENE/issues/395))
+
+### Context
+
+DEC-029는 운영자마다 권한을 달리 준다고 정했고, 2026-10-02 보강으로 계산 방식(역할 기본값 + 사람별 `GRANT`·`REVOKE`)과 서버 경로(`PUT …/operators/{userId}/permissions`)를 만들었다. MANAGER·STAFF 기본값은 그 뒤 `TASK_WRITE`(DEC-062)와 `CHECKIN_WRITE`(DEC-071)만 승인됐고, 권한 설정 화면은 정하지 않았다. 그래서 2027년 1월 수련회([#230](https://github.com/BeomhyunPark/SCENE/issues/230))에 필요한 조 편성(`GROUP_WRITE`, DEC-072), 운영 메모(`PARTICIPANT_WRITE`, DEC-075), 연락처 보기(`PARTICIPANT_CONTACT_READ`), 명단 CSV(`DATA_EXPORT`, DEC-054)를 행사 OWNER 한 사람만 할 수 있었다. 로드맵 트랙 I([#385](https://github.com/BeomhyunPark/SCENE/issues/385)) I1·I2다.
+
+### Decision
+
+1. **역할 기본 권한 표.** `RoleDefaults`가 이 표를 따른다.
+
+   | 행사 역할 | 기본 권한 |
+   | --- | --- |
+   | `OWNER` | 등록된 행사 키 전부(바뀌지 않음) |
+   | `MANAGER` | `EVENT_READ`, `TASK_WRITE`(DEC-062), `CHECKIN_WRITE`(DEC-071), **`SCHEDULE_WRITE`, `NOTICE_WRITE`**(이번에 더함) |
+   | `STAFF` | `EVENT_READ`, `CHECKIN_WRITE`(DEC-071) |
+
+   그 밖의 키(조 편성, 참가자 정보 수정, 연락처 보기, 명단 내려받기, 숙소 배정, 신청서·행사 정보 고치기 등)는 기본으로 주지 않는다. 행사 OWNER가 사람별 `GRANT`로 준다.
+2. **바로 적용된다.** 기본값은 저장하지 않고 요청마다 계산한다(DEC-075가 경고한 성질). 배포하는 순간 **모든 행사의 기존 MANAGER**가 `SCHEDULE_WRITE`·`NOTICE_WRITE`를 갖는다. 일정·공지 API는 아직 없으므로(로드맵 트랙 C·D) 지금 열리는 쓰기 경로는 없다. 그 API가 열리면 기존 MANAGER가 바로 쓴다. 이 둘을 이미 개별 `GRANT`로 받은 MANAGER의 행은 그대로 남지만 결과는 같다. 다음 저장 때 서버가 기본값과 겹치는 `GRANT`를 정리한다(`normalize`). 특정 MANAGER에게 막으려면 OWNER가 개별로 뺀다(`REVOKE`).
+3. **권한 화면.** 행사 OWNER는 운영 멤버 화면의 운영자 행에서 "권한"을 눌러 그 사람의 권한을 켜고 끈다. 수련회에 쓰는 키만 사람이 읽는 말로 묶어 보인다.
+
+   | 묶음 | 항목 | 키 |
+   | --- | --- | --- |
+   | 참가자 | 연락처 보기 | `PARTICIPANT_CONTACT_READ` |
+   | | 참가자 정보 수정 | `PARTICIPANT_WRITE` |
+   | | 명단 내려받기 | `DATA_EXPORT` |
+   | 현장 운영 | 조 편성 | `GROUP_WRITE` |
+   | | 숙소 배정 | `ROOM_WRITE` |
+   | | 체크인 | `CHECKIN_WRITE` |
+   | | 준비 업무 | `TASK_WRITE` |
+   | 안내 | 일정 쓰기 | `SCHEDULE_WRITE` |
+   | | 공지 쓰기 | `NOTICE_WRITE` |
+   | 행사 설정 | 신청서 고치기 | `FORM_WRITE` |
+   | | 행사 정보 고치기 | `EVENT_UPDATE` |
+
+   - 항목마다 "역할 기본", "개별로 더함", "개별로 뺌"을 구분해 보인다. 운영자 행에는 개별로 더하거나 뺀 수를 보인다.
+   - 저장은 지금 overrides를 바탕으로 보이는 항목만 바꿔 `PUT`한다. 화면에 없는 키의 기존 override는 그대로 보낸다.
+   - OWNER 행에는 권한 편집이 없다(OWNER는 override하지 않는다). OWNER 전용 키(`EVENT_LIFECYCLE`·`EVENT_USER_MANAGE`)와 뺄 수 없는 `EVENT_READ`는 목록에 넣지 않고 "항상 켜짐/행사 OWNER만"으로 안내한다. 서버 판정(`422`)이 기준이고 화면은 그와 맞춘다(DEC-031).
+   - 보관된 행사에서는 켜기(넓히기)를 막고 끄기만 둔다(서버 `409 EVENT_ARCHIVED`와 같은 규칙, DEC-063).
+   - 역할을 바꾸면 개별 권한이 초기화된다는 기존 확인 문구는 그대로다.
+4. 새 권한 키, 새 ErrorCode, DB 변경은 없다.
+
+### 범위 밖
+
+- 여러 사람에게 한 번에 권한 주기, 권한 묶음(프리셋) 저장
+- 운영자 본인이 자기 권한을 보는 화면(서버 경로는 있다)
+- 회비·차량·반·미션·보호자 키의 화면 노출(그 기능이 생길 때 같은 표에 더한다)
+
+### Alternatives
+
+- STAFF에도 조 편성 기본: 조 편성은 작업본을 바꾸는 일이라 담당만 하도록 개인별로 둔다.
+- MANAGER에 연락처·CSV 기본: 반출·개인정보 범위가 모든 기존 행사에서 바로 넓어져(DEC-054, DEC-075 경고) 채택하지 않았다.
+- 권한 키를 모두 보이기: 아직 기능이 없는 키(회비·차량 등)가 섞여 판단이 어렵다. 쓰는 키만 보이고 나머지는 보존한다.
+
+### Reason
+
+수련회 운영진은 사람마다 맡은 일이 다르다(DEC-029). 모두에게 필요한 체크인과, 진행자가 쓰는 일정·공지만 역할로 주고, 개인정보와 작업본을 바꾸는 일은 OWNER가 담당자에게만 준다.
+
+### Consequence
+
+서버 `RoleDefaults`의 MANAGER에 `SCHEDULE_WRITE`·`NOTICE_WRITE`를 더한다. [backend/docs/api.md](../../backend/docs/api.md) "운영자"와 [source-guide](../../backend/docs/source-guide.md#접근과-권한)의 권한 표를 맞춘다. 화면은 `EventOperators`에 권한 편집을 더한다. 확인은 #394(I2), #395(I1).
+
+### Evidence
+
+사용자 결정 2026-11-19(로드맵 결정 7, [#385](https://github.com/BeomhyunPark/SCENE/issues/385)). 근거 결정은 DEC-029, DEC-031, DEC-054, DEC-062, DEC-071, DEC-072, DEC-075다.
 
 ---
 

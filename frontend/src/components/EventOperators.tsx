@@ -30,6 +30,7 @@ import { ConfirmDialog } from "./ConfirmDialog";
 import { EventScreen } from "./EventScreen";
 import { formatSubmittedAt, operatorRoleLabel } from "./eventFormat";
 import { markEventArea, readEventAreas } from "./eventLocalState";
+import { OperatorPermissionDialog, PermissionSummary } from "./OperatorPermissionEditor";
 import { OperatorShell } from "./OperatorShell";
 import { useEventOwner } from "./useEventOwner";
 import "./EventHome.css";
@@ -112,13 +113,15 @@ function OperatorsBody({ event, spaceName }: { event: EventDetail; spaceName?: s
 
 type ManageAction =
   | { kind: "role"; target: EventOperator; role: AddOperatorRole }
-  | { kind: "remove"; target: EventOperator };
+  | { kind: "remove"; target: EventOperator }
+  | { kind: "permissions"; target: EventOperator };
 
 /**
  * Operator rows. The event OWNER also gets a role change (MANAGER and STAFF) and a removal on every
  * row except OWNER rows (#371). Both ask first: a role change resets the person's individual
  * permissions, and a removal leaves their tasks without an assignee. An archived event still allows
  * a removal, because the server only blocks changes that widen access there (DEC-029 2026-10-02 보강).
+ * The owner also opens each non-owner's permissions to turn individual keys on and off (DEC-079).
  */
 function OperatorRows({
   eventId,
@@ -141,7 +144,7 @@ function OperatorRows({
     void queryClient.invalidateQueries({ queryKey: queryKeys.operators(eventId) });
   }
 
-  function fail(caught: unknown, target: EventOperator, kind: ManageAction["kind"]) {
+  function fail(caught: unknown, target: EventOperator, kind: "role" | "remove") {
     setDone("");
     setAction(null);
     if (isApiError(caught, "EVENT_ARCHIVED")) {
@@ -211,8 +214,23 @@ function OperatorRows({
             <li key={item.userId} className="event-home__member">
               <span className="event-home__applicant-name">{item.displayName}</span>
               <span className="event-home__count">{operatorRoleLabel(item.role)}</span>
+              {manage && item.role !== "OWNER" ? <PermissionSummary eventId={eventId} userId={item.userId} /> : null}
               {manage && item.role !== "OWNER" ? (
                 <span className="event-home__member-actions">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size={40}
+                    disabled={pending}
+                    aria-label={`${item.displayName} 권한`}
+                    onClick={() => {
+                      setAlert("");
+                      setDone("");
+                      setAction({ kind: "permissions", target: item });
+                    }}
+                  >
+                    권한
+                  </Button>
                   {archived ? null : (
                     <Button
                       type="button"
@@ -281,6 +299,18 @@ function OperatorRows({
             개별 권한은 모두 초기화되고 {operatorRoleLabel(action.role)} 기본 권한만 남아요.
           </p>
         </ConfirmDialog>
+      ) : null}
+      {action?.kind === "permissions" ? (
+        <OperatorPermissionDialog
+          eventId={eventId}
+          target={action.target}
+          archived={archived}
+          onClose={() => setAction(null)}
+          onSaved={(message) => {
+            setAction(null);
+            setDone(message);
+          }}
+        />
       ) : null}
       {action?.kind === "remove" ? (
         <ConfirmDialog
