@@ -1977,6 +1977,7 @@ audit `GROUPS_PUBLISHED`: detail은 `publicationId`, `boardVersion`, `assignedCo
 | 참가자 홈·갱신 확인·알림 | DEC-080 | [participant-home-contract](../../docs/architecture/participant-home-contract.md) | `GET /participant/home`, `GET /participant/updates`, `GET·POST /participant/notifications…`, `GET·POST /operator/events/{eventId}/notifications…`, `GET /operator/events/{eventId}/updates` |
 | 일정표 | DEC-081 | [schedule-contract](../../docs/architecture/schedule-contract.md) | `GET /operator/events/{eventId}/schedule`, `POST·PATCH·DELETE …/schedule/items…`, `POST …/schedule/publish`, `GET …/schedule/published`, `GET /participant/schedule` |
 | 공지 | DEC-082 | [notice-contract](../../docs/architecture/notice-contract.md) | `GET·POST /operator/events/{eventId}/notices`, `GET·PATCH·DELETE …/notices/{noticeId}`, `POST …/notices/{noticeId}/publish·archive·unarchive`, `GET /participant/notices`, `GET /participant/notices/{noticeId}` |
+| 내 조(조원·조장이 보는 범위) | DEC-083 | [participant-group-contract](../../docs/architecture/participant-group-contract.md) | `GET /participant/group`의 새 응답(지금 응답은 위 [조 편성](#get-apiv1participantgroup)), `GET /participant/group/members/{participantId}`, `GET·PUT /operator/events/{eventId}/participant-settings` |
 
 ## 결정 문서와 다른 점
 
