@@ -8,7 +8,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import app.scene.common.ratelimit.InMemoryRateLimiter;
 import app.scene.common.web.RequestIdFilter;
 import app.scene.support.PostgresTestcontainer;
 import ch.qos.logback.classic.Logger;
@@ -64,7 +63,6 @@ class SpaceInvitationIT {
   @Autowired WebApplicationContext context;
   @Autowired JdbcTemplate jdbc;
   @Autowired JsonMapper json;
-  @Autowired InMemoryRateLimiter attempts;
   @Autowired Clock clock;
 
   MockMvc mvc;
@@ -72,7 +70,6 @@ class SpaceInvitationIT {
 
   @BeforeEach
   void mockMvc() {
-    attempts.clear();
     logs = new ListAppender<>();
     logs.start();
     rootLogger().addAppender(logs);
@@ -401,7 +398,6 @@ class SpaceInvitationIT {
         403,
         "INVITATION_EMAIL_MISMATCH");
     Cookie session = login(invitee, "target@example.com");
-    attempts.clear();
     problem(accept(session, "s.unknown", "10.63.0.4"), 404, "INVITATION_NOT_FOUND");
     problem(accept(session, "", "10.63.0.4"), 404, "INVITATION_NOT_FOUND");
     // A space token without its marker is not looked up as a space token.
@@ -416,7 +412,6 @@ class SpaceInvitationIT {
         404,
         "INVITATION_NOT_FOUND");
 
-    attempts.clear();
     jdbc.update(
         "UPDATE space_invitations SET expires_at = now() - interval '1 second' WHERE id = ?",
         invite.id);
@@ -523,22 +518,27 @@ class SpaceInvitationIT {
     problem(mvc.perform(get(members(fx.spaceId)).cookie(login(left, null))), 403, "NOT_A_MEMBER");
   }
 
+  /** DEC-060 Follow-up 2026-11-19 (#389): space invitation preview and accept have no limit. */
   @Test
-  void previewAndAcceptShareTheEventInvitationAttemptLimit() throws Exception {
+  void repeatedPreviewAndAcceptAreNeverRateLimited() throws Exception {
     Fixture fx = seed();
-    Issued invite = invite(login(fx.ownerId, null), fx.spaceId, "limit@example.com", null);
-    Cookie session = login(user("Limited"), "limit@example.com");
+    Issued invite = invite(login(fx.ownerId, null), fx.spaceId, "repeat@example.com", null);
+    Cookie session = login(user("Repeat"), "repeat@example.com");
     String address = "10.66.0.1";
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 20; i++) {
       ok(preview(session, invite.token, address));
     }
-    problem(
-        postJson("/api/v1/operator/invitations/preview", session, tokenBody("nope"), address),
-        404,
-        "INVITATION_NOT_FOUND");
-    ok(preview(session, invite.token, address));
-    problem(accept(session, invite.token, address), 429, "RATE_LIMITED");
-    assertThat(state(invite.id)).isEqualTo("PENDING");
+    for (int i = 0; i < 10; i++) {
+      problem(
+          postJson("/api/v1/operator/invitations/preview", session, tokenBody("nope"), address),
+          404,
+          "INVITATION_NOT_FOUND");
+    }
+    ok(accept(session, invite.token, address));
+    for (int i = 0; i < 10; i++) {
+      ok(accept(session, invite.token, address));
+    }
+    assertThat(state(invite.id)).isEqualTo("ACCEPTED");
   }
 
   // --- helpers ---

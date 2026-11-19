@@ -2,7 +2,6 @@ package app.scene.event.invitation;
 
 import app.scene.common.web.ItemPage;
 import app.scene.identity.OperatorPrincipal;
-import jakarta.servlet.http.HttpServletRequest;
 import java.util.UUID;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -48,17 +47,15 @@ public class EventInvitationController {
   }
 
   @PostMapping("/api/v1/operator/invitations/preview")
-  InvitationPreview preview(@RequestBody JsonNode body, HttpServletRequest request) {
+  InvitationPreview preview(@RequestBody JsonNode body) {
     OperatorPrincipal principal = principal();
-    return invitations.preview(
-        principal.userId(), principal.email(), text(body, "token"), request.getRemoteAddr());
+    return invitations.preview(principal.userId(), principal.email(), text(body, "token"));
   }
 
   @PostMapping("/api/v1/operator/invitations/accept")
-  InvitationAcceptance accept(@RequestBody JsonNode body, HttpServletRequest request) {
+  InvitationAcceptance accept(@RequestBody JsonNode body) {
     OperatorPrincipal principal = principal();
-    return invitations.accept(
-        principal.userId(), principal.email(), text(body, "token"), request.getRemoteAddr());
+    return invitations.accept(principal.userId(), principal.email(), text(body, "token"));
   }
 
   private static OperatorPrincipal principal() {

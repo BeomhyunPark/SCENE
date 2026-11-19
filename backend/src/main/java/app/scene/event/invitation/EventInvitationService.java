@@ -2,7 +2,6 @@ package app.scene.event.invitation;
 
 import app.scene.common.error.ErrorCode;
 import app.scene.common.error.SceneException;
-import app.scene.common.invitation.InvitationAttempts;
 import app.scene.common.invitation.InvitationTokens;
 import app.scene.common.web.ItemPage;
 import app.scene.common.web.PageRequest;
@@ -37,14 +36,6 @@ public class EventInvitationService {
   /** One server constant. There is no per-space setting. */
   public static final Duration INVITATION_TTL = InvitationTokens.TTL;
 
-  /**
-   * Provisional preview and accept limit. The document leaves the number undecided. One bucket is
-   * shared by both commands, per account and per direct client address.
-   */
-  public static final int INVITATION_ATTEMPT_LIMIT = InvitationAttempts.LIMIT;
-
-  public static final Duration INVITATION_ATTEMPT_WINDOW = InvitationAttempts.WINDOW;
-
   private static final String ARCHIVED = "ARCHIVED";
   private static final String PENDING = "PENDING";
   private static final String REVOKED = "REVOKED";
@@ -56,7 +47,6 @@ public class EventInvitationService {
   private final OperatorAccountRepository accounts;
   private final OperatorPermissionService permissions;
   private final InvitationMailer mailer;
-  private final InvitationAttempts attempts;
   private final Clock clock;
 
   public EventInvitationService(
@@ -66,7 +56,6 @@ public class EventInvitationService {
       OperatorAccountRepository accounts,
       OperatorPermissionService permissions,
       InvitationMailer mailer,
-      InvitationAttempts attempts,
       Clock clock) {
     this.events = events;
     this.invitations = invitations;
@@ -74,7 +63,6 @@ public class EventInvitationService {
     this.accounts = accounts;
     this.permissions = permissions;
     this.mailer = mailer;
-    this.attempts = attempts;
     this.clock = clock;
   }
 
@@ -150,9 +138,7 @@ public class EventInvitationService {
   }
 
   @Transactional(readOnly = true)
-  public InvitationPreview preview(
-      UUID actorId, String sessionEmail, String token, String remoteAddress) {
-    limit(actorId, remoteAddress);
+  public InvitationPreview preview(UUID actorId, String sessionEmail, String token) {
     InvitationRow row = byToken(token);
     requireSameEmail(sessionEmail, row);
     EventLocation event = location(row.eventId());
@@ -167,9 +153,7 @@ public class EventInvitationService {
   }
 
   @Transactional
-  public InvitationAcceptance accept(
-      UUID actorId, String sessionEmail, String token, String remoteAddress) {
-    limit(actorId, remoteAddress);
+  public InvitationAcceptance accept(UUID actorId, String sessionEmail, String token) {
     InvitationRow seen = byToken(token);
     requireSameEmail(sessionEmail, seen);
     EventRow locked = events.getForUpdate(seen.spaceId(), seen.eventId());
@@ -220,10 +204,6 @@ public class EventInvitationService {
         id, location.spaceId(), location.id(), email, role, issued.hash(), expiresAt, actorId, now);
     mailer.send(new InvitationMail(email, role, location.name(), issued.link()));
     return new IssuedInvitation(id, role, PENDING, expiresAt, issued.link());
-  }
-
-  private void limit(UUID actorId, String remoteAddress) {
-    attempts.acquire(actorId, remoteAddress);
   }
 
   private InvitationRow byToken(String token) {

@@ -9,7 +9,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import app.scene.common.ratelimit.InMemoryRateLimiter;
 import app.scene.common.web.RequestIdFilter;
 import app.scene.event.lifecycle.EventLifecycleService;
 import app.scene.event.lifecycle.LifecycleRequest;
@@ -23,7 +22,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.Timestamp;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.HexFormat;
 import java.util.List;
@@ -49,8 +47,8 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * INV-04 preview, accept, and the provisional rate limit. The raw token is read from the fake
- * mailer and is not stored or echoed.
+ * INV-04 preview and accept. The raw token is read from the fake mailer and is not stored or
+ * echoed.
  */
 @SpringBootTest
 @Import(PostgresTestcontainer.class)
@@ -68,7 +66,6 @@ class EventInvitationAcceptIT {
   @Autowired JdbcTemplate jdbc;
   @Autowired JsonMapper json;
   @Autowired CapturingInvitationMailer mailer;
-  @Autowired InMemoryRateLimiter attempts;
   @Autowired EventLifecycleService lifecycle;
 
   MockMvc mvc;
@@ -77,7 +74,6 @@ class EventInvitationAcceptIT {
   @BeforeEach
   void mockMvc() {
     mailer.clear();
-    attempts.clear();
     logs = new ListAppender<>();
     logs.start();
     rootLogger().addAppender(logs);
@@ -377,46 +373,36 @@ class EventInvitationAcceptIT {
     assertLogsOmit("forged-token-value", "ada@example.com");
   }
 
-  /** DEC-060 row 9. The document leaves the number undecided; the provisional limit is 5. */
+  /** DEC-060 Follow-up 2026-11-19 (#389): preview and accept have no attempt limit. */
   @Test
-  void overLimitIsRateLimited() throws Exception {
-    assertThat(EventInvitationService.INVITATION_ATTEMPT_LIMIT).isEqualTo(5);
-    assertThat(EventInvitationService.INVITATION_ATTEMPT_WINDOW).isEqualTo(Duration.ofHours(1));
+  void repeatedPreviewAndAcceptAreNeverRateLimited() throws Exception {
     Fixture fx = seed("ACTIVE");
     Cookie owner = login(fx.ownerId, null);
-    Issued previewOnly = invite(owner, fx.eventId, "limit-preview@example.com", "STAFF");
-    Issued thenAccept = invite(owner, fx.eventId, "limit-accept@example.com", "STAFF");
-    Cookie previewSession = login(invitee("Limit Preview"), "limit-preview@example.com");
-    UUID acceptUser = invitee("Limit Accept");
-    Cookie acceptSession = login(acceptUser, "limit-accept@example.com");
+    Issued invite = invite(owner, fx.eventId, "repeat@example.com", "STAFF");
+    UUID acceptUser = invitee("Repeat");
+    Cookie session = login(acceptUser, "repeat@example.com");
 
-    for (int attempt = 0; attempt < 5; attempt++) {
-      ok(preview(previewSession, previewOnly.token(), "10.8.8.1"));
+    for (int attempt = 0; attempt < 20; attempt++) {
+      String body = ok(preview(session, invite.token(), "10.8.8.1"));
+      assertThat(json.readTree(body).get("outcome").asString()).isEqualTo("PENDING");
     }
-    Instant updated = updatedAt(previewOnly.id());
-    problem(
-        preview(previewSession, previewOnly.token(), "10.8.8.1", "req-preview-limit"),
-        429,
-        "RATE_LIMITED",
-        "req-preview-limit");
-    assertThat(invitationState(previewOnly.id())).isEqualTo("PENDING");
-    assertThat(updatedAt(previewOnly.id())).isEqualTo(updated);
-
-    for (int attempt = 0; attempt < 5; attempt++) {
-      ok(preview(acceptSession, thenAccept.token(), "10.8.8.2"));
+    for (int attempt = 0; attempt < 10; attempt++) {
+      problem(
+          preview(session, "forged-" + attempt, "10.8.8.1", "req-forged-" + attempt),
+          404,
+          "INVITATION_NOT_FOUND",
+          "req-forged-" + attempt);
     }
-    problem(
-        accept(acceptSession, thenAccept.token(), "10.8.8.2", "req-accept-limit"),
-        429,
-        "RATE_LIMITED",
-        "req-accept-limit");
-    assertThat(invitationState(thenAccept.id())).isEqualTo("PENDING");
-    assertThat(acceptedUser(thenAccept.id())).isNull();
-    assertThat(eventRole(fx.eventId, acceptUser)).isNull();
-    assertLogsOmit(previewOnly.token(), thenAccept.token(), "limit-preview@example.com");
+    String accepted = ok(accept(session, invite.token(), "10.8.8.1"));
+    assertThat(json.readTree(accepted).get("outcome").asString()).isEqualTo("ACCEPTED");
+    for (int attempt = 0; attempt < 10; attempt++) {
+      String again = ok(accept(session, invite.token(), "10.8.8.1"));
+      assertThat(json.readTree(again).get("outcome").asString()).isEqualTo("ALREADY_ACCEPTED");
+    }
+    assertThat(eventRole(fx.eventId, acceptUser)).isEqualTo("STAFF");
   }
 
-  /** DEC-060 row 7. Logged-out calls are 401 and do not fill the rate-limit bucket. */
+  /** DEC-060 row 7. Logged-out calls are 401 and keep the invitation pending. */
   @Test
   void loggedOutStaysUnauthorized() throws Exception {
     Fixture fx = seed("ACTIVE");
@@ -432,33 +418,6 @@ class EventInvitationAcceptIT {
         ok(preview(login(invitee("Invitee"), "ada@example.com"), invite.token(), "10.7.7.7"));
     assertThat(json.readTree(body).get("outcome").asString()).isEqualTo("PENDING");
     assertThat(invitationState(invite.id())).isEqualTo("PENDING");
-  }
-
-  /** DEC-060 row 9, split by account and by direct address. */
-  @Test
-  void accountAndAddressAreLimitedSeparately() throws Exception {
-    Fixture fx = seed("ACTIVE");
-    Cookie owner = login(fx.ownerId, null);
-    Issued first = invite(owner, fx.eventId, "a@example.com", "STAFF");
-    Issued second = invite(owner, fx.eventId, "b@example.com", "STAFF");
-    Cookie accountA = login(invitee("A"), "a@example.com");
-    Cookie accountB = login(invitee("B"), "b@example.com");
-    for (int attempt = 0; attempt < 5; attempt++) {
-      ok(preview(accountA, first.token(), "10.1.1.1"));
-    }
-    problem(
-        preview(accountB, second.token(), "10.1.1.1", "req-shared-ip"),
-        429,
-        "RATE_LIMITED",
-        "req-shared-ip");
-    problem(
-        preview(accountA, first.token(), "10.9.9.9", "req-shared-account"),
-        429,
-        "RATE_LIMITED",
-        "req-shared-account");
-    assertThat(ok(preview(accountB, second.token(), "10.9.9.9"))).contains("PENDING");
-    assertThat(invitationState(first.id())).isEqualTo("PENDING");
-    assertThat(invitationState(second.id())).isEqualTo("PENDING");
   }
 
   /** DEC-063 L5. A revoked archived invitation stays 410. A still-pending one is 409. */

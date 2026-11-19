@@ -4,7 +4,6 @@ import app.scene.common.audit.AuditActions;
 import app.scene.common.audit.AuditLogRepository;
 import app.scene.common.error.ErrorCode;
 import app.scene.common.error.SceneException;
-import app.scene.common.invitation.InvitationAttempts;
 import app.scene.common.invitation.InvitationTokens;
 import app.scene.common.tenant.OperatorAccess;
 import app.scene.common.tenant.SpaceMembership;
@@ -29,8 +28,9 @@ import tools.jackson.databind.json.JsonMapper;
  * Space (organization) invitations (DEC-076, #361). The contract follows event invitations (DEC-060
  * and its 2026-11-16 Follow-up): hash-only token, 7-day TTL, one PENDING per space and email,
  * resend supersedes, the link is returned once by create and resend and is never stored, logged or
- * audited. Preview and accept use the same judgement order, error codes and attempt limit. Unlike
- * event invitations, commands write an audit row (#361); details carry ids and the role only.
+ * audited. Preview and accept use the same judgement order and error codes, with no attempt limit
+ * (#389). Unlike event invitations, commands write an audit row (#361); details carry ids and the
+ * role only.
  *
  * <p>Access order on the space path: no membership row is {@code 404 RESOURCE_NOT_FOUND}, a {@code
  * LEFT} row is {@code 403 NOT_A_MEMBER}, an active member who may not invite is {@code 403
@@ -55,7 +55,6 @@ public class SpaceInvitationService {
   private final SpaceInvitationRepository invitations;
   private final OperatorAccess access;
   private final OperatorAccountRepository accounts;
-  private final InvitationAttempts attempts;
   private final AuditLogRepository auditLogs;
   private final JsonMapper json;
   private final Clock clock;
@@ -64,14 +63,12 @@ public class SpaceInvitationService {
       SpaceInvitationRepository invitations,
       OperatorAccess access,
       OperatorAccountRepository accounts,
-      InvitationAttempts attempts,
       AuditLogRepository auditLogs,
       JsonMapper json,
       Clock clock) {
     this.invitations = invitations;
     this.access = access;
     this.accounts = accounts;
-    this.attempts = attempts;
     this.auditLogs = auditLogs;
     this.json = json;
     this.clock = clock;
@@ -157,9 +154,7 @@ public class SpaceInvitationService {
   }
 
   @Transactional(readOnly = true)
-  public SpaceInvitationPreview preview(
-      UUID actorId, String sessionEmail, String token, String remoteAddress) {
-    attempts.acquire(actorId, remoteAddress);
+  public SpaceInvitationPreview preview(UUID actorId, String sessionEmail, String token) {
     SpaceInvitationRow row = byToken(token);
     requireSameEmail(sessionEmail, row);
     String outcome = judged(row, actorId, clock.instant());
@@ -182,9 +177,7 @@ public class SpaceInvitationService {
    * touched (DEC-039).
    */
   @Transactional
-  public SpaceInvitationAcceptance accept(
-      UUID actorId, String sessionEmail, String token, String remoteAddress) {
-    attempts.acquire(actorId, remoteAddress);
+  public SpaceInvitationAcceptance accept(UUID actorId, String sessionEmail, String token) {
     SpaceInvitationRow seen = byToken(token);
     requireSameEmail(sessionEmail, seen);
     invitations.lockSpace(seen.spaceId());
