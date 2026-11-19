@@ -602,9 +602,89 @@ curl -sS \
 
 수락 `200`은 `{ "outcome": "ACCEPTED" }`다. 같은 사람이 다시 수락하면 `{ "outcome": "ALREADY_ACCEPTED" }`다. 수락은 그 사용자를 초대의 `role`로 `event_users`에 넣는다. 이미 운영자면 역할을 바꾸지 않는다.
 
-미리보기는 행을 바꾸지 않는다. 수락과 미리보기는 계정마다, 그리고 요청 주소마다 한 시간에 5회다. 두 경로가 한 한도를 같이 쓴다. 한도는 이 프로세스 메모리에만 있다. 넘으면 `429 RATE_LIMITED`다. 한도 숫자는 잠정값이다.
+미리보기는 행을 바꾸지 않는다. 수락과 미리보기는 계정마다, 그리고 요청 주소마다 한 시간에 5회다. 두 경로가 한 한도를 같이 쓰고, [조직 초대](#조직-초대)의 미리보기·수락도 같은 한도를 쓴다. 한도는 이 프로세스 메모리에만 있다. 넘으면 `429 RATE_LIMITED`다. 한도 숫자는 잠정값이다.
 
 토큰이 없으면 `404 INVITATION_NOT_FOUND`다. 이 코드는 초대가 있는지 알려 주지 않는다. 세션에 검증된 이메일이 없으면 `403 EMAIL_NOT_VERIFIED`다. 있고 다르면 `403 INVITATION_EMAIL_MISMATCH`다. 다른 사람이 이미 수락했으면 `409 INVITATION_ALREADY_ACCEPTED`다. 취소는 `410 INVITATION_REVOKED`, 만료는 `410 INVITATION_EXPIRED`, 다시 보낸 이전 토큰은 `410 INVITATION_SUPERSEDED`다. 행사가 보관되었으면 `409 EVENT_ARCHIVED`다.
+
+## 조직 초대
+
+조직(공간) 초대다(DEC-076, #361). 계약은 [행사 초대](#초대)와 같다. 토큰 해시만 저장하고, 유효 시간은 7일이며, 같은 공간·이메일의 `PENDING`은 하나다. 새 초대나 다시 보내기는 이전 `PENDING`을 `SUPERSEDED`로 둔다. 생성과 다시 보내기의 `200` 본문만 `link`를 **한 번** 준다. 링크·토큰은 DB·audit·로그에 남지 않는다. 메일 포트는 부르지 않는다(SMTP는 범위 밖). 클래스는 `space/invitation/SpaceInvitationController`다.
+
+**링크 구분.** 수락 화면은 행사 초대와 같은 `/operator/invitations#<token>`이다. 조직 초대 토큰은 `s.`로 시작한다(`/operator/invitations#s.…`). `.`은 base64url 문자가 아니라서 접두어 없는 행사 토큰과 겹치지 않는다. 화면은 토큰이 `s.`로 시작하면 아래 `space-invitations` 경로를, 아니면 기존 `invitations` 경로를 부른다. 기존 행사 초대 링크는 그대로다. 해시는 접두어를 포함한 토큰 전체의 SHA-256이다. `s.`로 시작하지 않는 토큰을 조직 경로에 보내거나 조직 토큰을 행사 경로에 보내면 `404 INVITATION_NOT_FOUND`다.
+
+**권한.** 판정 순서는 공간 경로와 같다. 멤버 행이 없으면 `404 RESOURCE_NOT_FOUND`, `LEFT`면 `403 NOT_A_MEMBER`, 활성 멤버인데 `OWNER`·`ADMIN`이 아니면 `403 FORBIDDEN`이다(`SpaceMembership.mayInviteMembers()`). 필드 검증은 그다음이다. `ADMIN`으로 초대하는 것과 `ADMIN` 초대를 다시 보내거나 취소하는 것은 공간 `OWNER`만 한다(`mayInviteAsAdmin()`). 아니면 `403 FORBIDDEN`이다. 목록 권한은 초대 변경과 같다.
+
+**audit.** 행사 초대와 달리 명령마다 `audit_logs` 행을 남긴다. `space_id`가 있고 `event_id`는 없다. 액션은 `SPACE_INVITATION_CREATED`·`SPACE_INVITATION_RESENT`·`SPACE_INVITATION_REVOKED`·`SPACE_INVITATION_ACCEPTED`다. 상세는 `invitationId`, `role`이고, 다시 보내기는 `previousInvitationId`, 수락은 `outcome`(`ACCEPTED`·`ALREADY_MEMBER`)과 `membership`(`CREATED`·`REACTIVATED`·`UNCHANGED`)을 더한다. 이메일·토큰·해시·링크는 없다. 이미 취소된 초대를 다시 취소하거나 `ALREADY_ACCEPTED`일 때는 남기지 않는다.
+
+### `GET /api/v1/operator/spaces/{spaceId}/invitations`
+
+대기(`PENDING`) 조직 초대 목록이다. `page`·`size`·순서는 행사 초대 목록과 같다(최신 순, `sort` 없음). 만료가 지난 `PENDING`도 나온다. 항목은 `{ "id", "email", "role", "status", "expiresAt" }`다. 토큰, 해시, 링크는 없다.
+
+### `POST /api/v1/operator/spaces/{spaceId}/invitations`
+
+```json
+{ "email": "Person@Example.com", "role": "MEMBER" }
+```
+
+`email` 규칙은 행사 초대와 같다. `role`은 `MEMBER` 또는 `ADMIN`이고, 없거나 `null`이면 `MEMBER`다(1월 화면에는 역할 선택이 없다). 그 밖의 값(`OWNER`, 소문자 포함)은 `400 VALIDATION_FAILED`이고 필드는 `role`이다. 초대로 `OWNER`를 만들지 않는다.
+
+`200`
+
+```json
+{
+  "id": "…",
+  "role": "MEMBER",
+  "status": "PENDING",
+  "expiresAt": "2026-11-26T00:00:00Z",
+  "link": "/operator/invitations#s.…"
+}
+```
+
+### `POST /api/v1/operator/spaces/{spaceId}/invitations/{invitationId}/resend`
+
+본문이 없다. 행사 초대와 같다. 그 `PENDING`을 `SUPERSEDED`로 두고 같은 이메일·역할로 새 `PENDING`과 새 `link`를 준다. 초대가 그 공간에 없으면 `404 RESOURCE_NOT_FOUND`, `PENDING`이 아니면 `400 VALIDATION_FAILED`(필드 `invitationId`)다.
+
+### `DELETE /api/v1/operator/spaces/{spaceId}/invitations/{invitationId}`
+
+행사 초대와 같다. `PENDING`을 `REVOKED`로 바꾸고 `{ "id", "role", "status", "expiresAt" }`를 준다. 이미 `REVOKED`이면 같은 본문으로 `200`, `ACCEPTED`·`SUPERSEDED`는 `400 VALIDATION_FAILED`다.
+
+### `POST /api/v1/operator/space-invitations/preview`
+
+### `POST /api/v1/operator/space-invitations/accept`
+
+본문은 `{ "token": "s.…" }`다. 세션의 검증된 이메일과 비교하는 것, 오류 코드, 판정 순서, 한도는 [행사 초대](#post-apiv1operatorinvitationsaccept)와 같다. 한도는 행사 초대 미리보기·수락과 같은 통을 쓴다. 판정 순서: 토큰 없음 `404 INVITATION_NOT_FOUND` → 세션 이메일 없음 `403 EMAIL_NOT_VERIFIED` → 이메일 다름 `403 INVITATION_EMAIL_MISMATCH` → 다른 사람이 수락함 `409 INVITATION_ALREADY_ACCEPTED`(같은 사람이면 `ALREADY_ACCEPTED`) → 취소 `410 INVITATION_REVOKED` → 다시 보냄 `410 INVITATION_SUPERSEDED` → 만료 `410 INVITATION_EXPIRED`. 행사 보관 단계는 없다.
+
+미리보기 `200`. 행을 바꾸지 않는다.
+
+```json
+{
+  "spaceName": "Local space",
+  "role": "MEMBER",
+  "inviterName": "Local owner",
+  "expiresAt": "2026-11-26T00:00:00Z",
+  "outcome": "PENDING"
+}
+```
+
+`outcome`은 `PENDING`, `ALREADY_ACCEPTED`(이 사람이 이미 수락), `ALREADY_MEMBER`(대기 중인데 이미 활성 멤버)다.
+
+수락 `200`은 `{ "outcome": "ACCEPTED", "spaceId": "…" }`다. `spaceId`는 화면이 들어간 공간을 열 수 있게 행사 초대와 달리 더 준다.
+
+- 멤버 행이 없으면 초대의 `role`로 `ACTIVE` 행을 만든다.
+- `LEFT` 행이면 같은 행을 `ACTIVE`로 바꾸고 역할을 초대의 `role`로 둔다(재가입, DEC-037).
+- 이미 `ACTIVE`이면 `outcome`이 `ALREADY_MEMBER`이고 역할을 바꾸지 않는다. 초대는 `ACCEPTED`로 소비된다(역할 변경은 범위 밖).
+- 같은 사람이 다시 수락하면 `ALREADY_ACCEPTED`이고 아무것도 바꾸지 않는다.
+- 기존 `event_users` 행은 건드리지 않는다(DEC-039).
+
+수락한 사람은 바로 [행사 생성](#post-apiv1operatorspacesspaceidevents)을 할 수 있고 그 행사의 `OWNER`가 된다.
+
+## 조직 멤버
+
+### `GET /api/v1/operator/spaces/{spaceId}/members`
+
+활성(`ACTIVE`) 멤버 목록이다(DEC-076). 활성 멤버면 누구나 읽는다. 멤버 행이 없으면 `404 RESOURCE_NOT_FOUND`, `LEFT`면 `403 NOT_A_MEMBER`다. `page`·`size`는 공통 목록 규칙이고 `sort`는 받지 않는다. 순서는 `OWNER`·`ADMIN`·`MEMBER`, 그다음 이름(코드 포인트), 그다음 id다.
+
+항목은 `{ "userId", "displayName", "role" }`다. 보는 사람이 활성 `OWNER`·`ADMIN`이면 `email`을 더한다. 값은 그 멤버의 마지막 Google 로그인에서 받은 검증된 이메일이다. Google 로그인이 없는 계정은 `email` 키가 없다. `MEMBER`가 보면 어떤 항목에도 `email` 키가 없다(`SpaceMembership.maySeeMemberEmails()`).
 
 ## 운영자
 
