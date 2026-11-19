@@ -97,7 +97,7 @@ describe("event operators and invitations", () => {
     openApp(`/events/${EVENT}/operators`);
 
     expect(await screen.findByText("Local owner")).toBeInTheDocument();
-    await waitFor(() => expect(screen.queryByRole("heading", { name: "초대하기" })).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole("heading", { name: "외부 협력자 초대" })).not.toBeInTheDocument());
     expect(screen.queryByLabelText("이메일")).not.toBeInTheDocument();
   });
 

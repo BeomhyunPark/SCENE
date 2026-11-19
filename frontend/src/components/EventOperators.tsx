@@ -13,7 +13,9 @@ import {
   type IssuedInvitation,
   type PendingInvitation,
 } from "../api/invitations";
-import { listOperators } from "../api/operators";
+import { addOperator, listOperators, type AddOperatorRole, type EventOperator } from "../api/operators";
+import { listSpaceMembers } from "../api/spaceInvitations";
+import { useCurrentSpace } from "../api/useCurrentSpace";
 import type { ItemPage } from "../api/types";
 import { reloadQuery } from "../api/queryClient";
 import { queryKeys } from "../api/queryKeys";
@@ -26,7 +28,8 @@ import { useEventOwner } from "./useEventOwner";
 import "./EventHome.css";
 
 /**
- * Event operators and, for the event owner, invitations. The invitation link comes back once from
+ * Event operators and, for the event owner, a direct add of organization members (DEC-076) and
+ * invitations for outside collaborators. The invitation link comes back once from
  * create or resend (DEC-060 Follow-up 2026-11-16). It lives only in this component's state and is
  * not written to localStorage, sessionStorage, the path, or the query.
  */
@@ -93,9 +96,144 @@ function OperatorsBody({ event, spaceName }: { event: EventDetail; spaceName?: s
             </ul>
           ) : null}
         </section>
+        {owner.isOwner ? (
+          <MemberAdd eventId={eventId} archived={archived} operators={operators.data?.items} />
+        ) : null}
         {owner.isOwner ? <Invitations eventId={eventId} archived={archived} /> : null}
       </div>
     </OperatorShell>
+  );
+}
+
+/**
+ * Event OWNER picks an active space member who is not yet an operator and adds them as MANAGER or
+ * STAFF (POST /operators). Outsiders still come in through an invitation link.
+ */
+function MemberAdd({
+  eventId,
+  archived,
+  operators,
+}: {
+  eventId: string;
+  archived: boolean;
+  operators: EventOperator[] | undefined;
+}) {
+  const queryClient = useQueryClient();
+  const { space } = useCurrentSpace();
+  const spaceId = space?.spaceId ?? "";
+  const members = useQuery({
+    queryKey: queryKeys.spaceMembers(spaceId),
+    queryFn: ({ signal }) => listSpaceMembers(spaceId, signal),
+    enabled: spaceId.length > 0 && !archived,
+  });
+  const [userId, setUserId] = useState("");
+  const [role, setRole] = useState<AddOperatorRole>("STAFF");
+  const [alert, setAlert] = useState("");
+  const [done, setDone] = useState("");
+
+  const operatorIds = new Set((operators ?? []).map((item) => item.userId));
+  const candidates = operators ? (members.data?.items ?? []).filter((item) => !operatorIds.has(item.userId)) : [];
+  const selected = candidates.some((item) => item.userId === userId) ? userId : (candidates[0]?.userId ?? "");
+
+  function refreshOperators() {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.operators(eventId) });
+  }
+
+  const add = useMutation({
+    mutationFn: (input: { userId: string; role: AddOperatorRole }) => addOperator(eventId, input),
+    onSuccess: (added) => {
+      queryClient.setQueryData<ItemPage<EventOperator>>(queryKeys.operators(eventId), (current) =>
+        current && !current.items.some((item) => item.userId === added.userId)
+          ? {
+              ...current,
+              items: [...current.items, added],
+              page: { ...current.page, totalItems: current.page.totalItems + 1 },
+            }
+          : current,
+      );
+      refreshOperators();
+      setAlert("");
+      setDone(`${added.displayName}님을 ${operatorRoleLabel(added.role)} 역할로 추가했어요.`);
+      setUserId("");
+    },
+    onError: (caught) => {
+      setDone("");
+      if (isApiError(caught, "VALIDATION_FAILED") && caught.errors?.[0]?.field === "userId") {
+        setAlert("이미 이 행사의 운영자예요.");
+        refreshOperators();
+      } else if (isApiError(caught, "RESOURCE_NOT_FOUND")) {
+        setAlert("조직 멤버가 아니라서 추가할 수 없어요. 멤버 목록을 새로 불러왔어요.");
+        void queryClient.invalidateQueries({ queryKey: queryKeys.spaceMembers(spaceId) });
+      } else if (isApiError(caught, "EVENT_ARCHIVED")) {
+        setAlert("보관된 행사에는 운영자를 추가할 수 없어요.");
+      } else if (isApiError(caught, "FORBIDDEN") || isApiError(caught, "NOT_A_MEMBER")) {
+        setAlert("운영자를 추가할 권한이 없어요.");
+      } else {
+        setAlert("추가하지 못했어요. 다시 시도해 주세요.");
+      }
+    },
+  });
+
+  function submit(form: FormEvent<HTMLFormElement>) {
+    form.preventDefault();
+    if (!selected) return;
+    add.mutate({ userId: selected, role });
+  }
+
+  return (
+    <section className="event-home__apply" aria-labelledby="member-add-title">
+      <h2 id="member-add-title">조직 멤버 추가</h2>
+      <p>조직 멤버는 링크 없이 바로 운영자로 추가해요.</p>
+      {archived ? <p>보관된 행사에는 운영자를 추가할 수 없어요.</p> : null}
+      {!archived && (members.isPending || !operators) ? <p>불러오는 중이에요.</p> : null}
+      {!archived && members.isError ? (
+        <>
+          <p>조직 멤버를 불러오지 못했어요.</p>
+          <Button type="button" variant="secondary" size={40} onClick={() => reloadQuery(members)}>
+            다시 시도
+          </Button>
+        </>
+      ) : null}
+      {!archived && members.data && operators && candidates.length === 0 ? (
+        <p>추가할 수 있는 조직 멤버가 없어요. 모두 이 행사의 운영자예요.</p>
+      ) : null}
+      {!archived && candidates.length > 0 ? (
+        <form className="event-home__invite" onSubmit={submit} noValidate>
+          <label htmlFor="member-add-user">조직 멤버</label>
+          <select
+            id="member-add-user"
+            className="event-home__select"
+            value={selected}
+            onChange={(change) => setUserId(change.target.value)}
+          >
+            {candidates.map((item) => (
+              <option key={item.userId} value={item.userId}>
+                {item.email ? `${item.displayName} (${item.email})` : item.displayName}
+              </option>
+            ))}
+          </select>
+          <label htmlFor="member-add-role">추가할 역할</label>
+          <select
+            id="member-add-role"
+            className="event-home__select"
+            value={role}
+            onChange={(change) => setRole(change.target.value === "MANAGER" ? "MANAGER" : "STAFF")}
+          >
+            <option value="STAFF">{operatorRoleLabel("STAFF")}</option>
+            <option value="MANAGER">{operatorRoleLabel("MANAGER")}</option>
+          </select>
+          <Button type="submit" variant="primary" size={40} loading={add.isPending} disabled={add.isPending}>
+            운영자로 추가
+          </Button>
+        </form>
+      ) : null}
+      {alert ? (
+        <p className="event-home__error" role="alert">
+          {alert}
+        </p>
+      ) : null}
+      {done ? <p role="status">{done}</p> : null}
+    </section>
   );
 }
 
@@ -193,8 +331,8 @@ function Invitations({ eventId, archived }: { eventId: string; archived: boolean
 
   return (
     <section className="event-home__apply" aria-labelledby="invite-title">
-      <h2 id="invite-title">초대하기</h2>
-      <p>초대 링크를 만들어 직접 보내 주세요. 링크는 지금 한 번만 보여요.</p>
+      <h2 id="invite-title">외부 협력자 초대</h2>
+      <p>조직 멤버가 아닌 분은 초대 링크를 만들어 직접 보내 주세요. 링크는 지금 한 번만 보여요.</p>
       {archived ? (
         <p>보관된 행사에는 초대할 수 없어요.</p>
       ) : (
