@@ -3,7 +3,14 @@ import { currentOperator } from "./session";
 import { csrfMatches } from "../csrf";
 import { problem } from "../problem";
 import { operatorRequests } from "../operatorStore";
-import { addOperatorByOwner, operatorsFor, permissionsFor, type TaskFailure } from "../taskStore";
+import {
+  addOperatorByOwner,
+  changeRoleByOwner,
+  operatorsFor,
+  permissionsFor,
+  removeByOwner,
+  type TaskFailure,
+} from "../taskStore";
 
 export const operatorHandlers = [
   http.get("/api/v1/operator/events/:eventId/operators", ({ request, params }) => {
@@ -32,6 +39,27 @@ export const operatorHandlers = [
     const row = addOperatorByOwner(String(params.eventId), operator.userId, body);
     if ("code" in row) return fail(row);
     return HttpResponse.json({ userId: row.userId, displayName: row.displayName, role: row.role });
+  }),
+
+  http.patch("/api/v1/operator/events/:eventId/operators/:userId", async ({ request, params, cookies }) => {
+    if (!csrfMatches(request, cookies)) return problem(403, "FORBIDDEN", { detail: "hidden" });
+    const operator = currentOperator();
+    if (!operator) return problem(401, "AUTHENTICATION_REQUIRED");
+    const body: unknown = await request.json().catch(() => null);
+    operatorRequests.push({ method: "PATCH", url: new URL(request.url).pathname, body });
+    const row = changeRoleByOwner(String(params.eventId), operator.userId, String(params.userId), body);
+    if ("code" in row) return fail(row);
+    return HttpResponse.json({ userId: row.userId, displayName: row.displayName, role: row.role });
+  }),
+
+  http.delete("/api/v1/operator/events/:eventId/operators/:userId", ({ request, params, cookies }) => {
+    if (!csrfMatches(request, cookies)) return problem(403, "FORBIDDEN", { detail: "hidden" });
+    const operator = currentOperator();
+    if (!operator) return problem(401, "AUTHENTICATION_REQUIRED");
+    operatorRequests.push({ method: "DELETE", url: new URL(request.url).pathname });
+    const failure = removeByOwner(String(params.eventId), operator.userId, String(params.userId));
+    if (failure) return fail(failure);
+    return new HttpResponse(null, { status: 200 });
   }),
 
   http.get("/api/v1/operator/events/:eventId/operators/:userId/permissions", ({ request, params }) => {
