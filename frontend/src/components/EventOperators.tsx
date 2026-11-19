@@ -13,13 +13,21 @@ import {
   type IssuedInvitation,
   type PendingInvitation,
 } from "../api/invitations";
-import { addOperator, listOperators, type AddOperatorRole, type EventOperator } from "../api/operators";
+import {
+  addOperator,
+  changeOperatorRole,
+  listOperators,
+  removeOperator,
+  type AddOperatorRole,
+  type EventOperator,
+} from "../api/operators";
 import { listSpaceMembers } from "../api/spaceInvitations";
 import { useCurrentSpace } from "../api/useCurrentSpace";
 import type { ItemPage } from "../api/types";
 import { reloadQuery } from "../api/queryClient";
 import { queryKeys } from "../api/queryKeys";
 import { Button } from "./Button";
+import { ConfirmDialog } from "./ConfirmDialog";
 import { EventScreen } from "./EventScreen";
 import { formatSubmittedAt, operatorRoleLabel } from "./eventFormat";
 import { markEventArea, readEventAreas } from "./eventLocalState";
@@ -86,14 +94,7 @@ function OperatorsBody({ event, spaceName }: { event: EventDetail; spaceName?: s
             </>
           ) : null}
           {operators.data ? (
-            <ul className="event-home__applicant-rows">
-              {operators.data.items.map((item) => (
-                <li key={item.userId} className="event-home__member">
-                  <span className="event-home__applicant-name">{item.displayName}</span>
-                  <span className="event-home__count">{operatorRoleLabel(item.role)}</span>
-                </li>
-              ))}
-            </ul>
+            <OperatorRows eventId={eventId} items={operators.data.items} manage={owner.isOwner} archived={archived} />
           ) : null}
         </section>
         {owner.isOwner ? (
@@ -102,6 +103,217 @@ function OperatorsBody({ event, spaceName }: { event: EventDetail; spaceName?: s
         {owner.isOwner ? <Invitations eventId={eventId} archived={archived} /> : null}
       </div>
     </OperatorShell>
+  );
+}
+
+type ManageAction =
+  | { kind: "role"; target: EventOperator; role: AddOperatorRole }
+  | { kind: "remove"; target: EventOperator };
+
+/**
+ * Operator rows. The event OWNER also gets a role change (MANAGER and STAFF) and a removal on every
+ * row except OWNER rows (#371). Both ask first: a role change resets the person's individual
+ * permissions, and a removal leaves their tasks without an assignee. An archived event still allows
+ * a removal, because the server only blocks changes that widen access there (DEC-029 2026-10-02 보강).
+ */
+function OperatorRows({
+  eventId,
+  items,
+  manage,
+  archived,
+}: {
+  eventId: string;
+  items: EventOperator[];
+  manage: boolean;
+  archived: boolean;
+}) {
+  const queryClient = useQueryClient();
+  const [action, setAction] = useState<ManageAction | null>(null);
+  const [alert, setAlert] = useState("");
+  const [done, setDone] = useState("");
+
+  function refresh() {
+    // Also reloads every permissions query, which sits under the operators key.
+    void queryClient.invalidateQueries({ queryKey: queryKeys.operators(eventId) });
+  }
+
+  function fail(caught: unknown, target: EventOperator, kind: ManageAction["kind"]) {
+    setDone("");
+    setAction(null);
+    if (isApiError(caught, "EVENT_ARCHIVED")) {
+      setAlert("보관된 행사에서는 운영자 역할을 바꿀 수 없어요.");
+    } else if (isApiError(caught, "RESOURCE_NOT_FOUND")) {
+      setAlert(`${target.displayName}님은 이미 이 행사의 운영자가 아니에요. 목록을 새로 불러왔어요.`);
+      refresh();
+    } else if (isApiError(caught, "FORBIDDEN") || isApiError(caught, "NOT_A_MEMBER")) {
+      setAlert(kind === "role" ? "운영자 역할을 바꿀 권한이 없어요." : "운영자를 뺄 권한이 없어요.");
+      refresh();
+    } else if (isApiError(caught, "VALIDATION_FAILED")) {
+      setAlert("바꿀 수 없는 역할이에요.");
+    } else {
+      setAlert(kind === "role" ? "역할을 바꾸지 못했어요. 다시 시도해 주세요." : "빼지 못했어요. 다시 시도해 주세요.");
+    }
+  }
+
+  const change = useMutation({
+    mutationFn: (input: { target: EventOperator; role: AddOperatorRole }) =>
+      changeOperatorRole(eventId, input.target.userId, input.role),
+    onSuccess: (changed, input) => {
+      queryClient.setQueryData<ItemPage<EventOperator>>(queryKeys.operators(eventId), (current) =>
+        current
+          ? {
+              ...current,
+              items: current.items.map((item) => (item.userId === changed.userId ? { ...item, ...changed } : item)),
+            }
+          : current,
+      );
+      refresh();
+      setAction(null);
+      setAlert("");
+      setDone(`${input.target.displayName}님의 역할을 ${operatorRoleLabel(changed.role)}로 바꿨어요.`);
+    },
+    onError: (caught, input) => fail(caught, input.target, "role"),
+  });
+  const remove = useMutation({
+    mutationFn: (target: EventOperator) => removeOperator(eventId, target.userId),
+    onSuccess: (_, target) => {
+      queryClient.setQueryData<ItemPage<EventOperator>>(queryKeys.operators(eventId), (current) =>
+        current && current.items.some((item) => item.userId === target.userId)
+          ? {
+              ...current,
+              items: current.items.filter((item) => item.userId !== target.userId),
+              page: { ...current.page, totalItems: Math.max(0, current.page.totalItems - 1) },
+            }
+          : current,
+      );
+      refresh();
+      // The server cleared the assignee on their tasks.
+      void queryClient.invalidateQueries({ queryKey: queryKeys.allTasks(eventId) });
+      setAction(null);
+      setAlert("");
+      setDone(`${target.displayName}님을 행사 운영자에서 뺐어요.`);
+    },
+    onError: (caught, target) => fail(caught, target, "remove"),
+  });
+  const pending = change.isPending || remove.isPending;
+
+  return (
+    <>
+      {manage && archived ? <p>보관된 행사에서는 역할을 바꿀 수 없어요. 운영자 빼기는 할 수 있어요.</p> : null}
+      <ul className="event-home__applicant-rows">
+        {items.map((item) => {
+          const other: AddOperatorRole = item.role === "MANAGER" ? "STAFF" : "MANAGER";
+          return (
+            <li key={item.userId} className="event-home__member">
+              <span className="event-home__applicant-name">{item.displayName}</span>
+              <span className="event-home__count">{operatorRoleLabel(item.role)}</span>
+              {manage && item.role !== "OWNER" ? (
+                <span className="event-home__member-actions">
+                  {archived ? null : (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size={40}
+                      disabled={pending}
+                      aria-label={`${item.displayName} ${operatorRoleLabel(other)}로 변경`}
+                      onClick={() => setAction({ kind: "role", target: item, role: other })}
+                    >
+                      {operatorRoleLabel(other)}로 변경
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    variant="danger-outline"
+                    size={40}
+                    disabled={pending}
+                    aria-label={`${item.displayName} 빼기`}
+                    onClick={() => setAction({ kind: "remove", target: item })}
+                  >
+                    빼기
+                  </Button>
+                </span>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+      {alert ? (
+        <p className="event-home__error" role="alert">
+          {alert}
+        </p>
+      ) : null}
+      {done ? <p role="status">{done}</p> : null}
+      {action?.kind === "role" ? (
+        <ConfirmDialog
+          title={`${action.target.displayName}님을 ${operatorRoleLabel(action.role)}로 바꿀까요?`}
+          onClose={() => {
+            if (!change.isPending) setAction(null);
+          }}
+          footer={
+            <>
+              <Button
+                type="button"
+                variant="secondary"
+                size={48}
+                disabled={change.isPending}
+                onClick={() => setAction(null)}
+              >
+                돌아가기
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                size={48}
+                loading={change.isPending}
+                onClick={() => change.mutate({ target: action.target, role: action.role })}
+              >
+                역할 바꾸기
+              </Button>
+            </>
+          }
+        >
+          <p>
+            {operatorRoleLabel(action.target.role)}에서 {operatorRoleLabel(action.role)}로 바뀌어요. 이 사람에게 따로 준
+            개별 권한은 모두 초기화되고 {operatorRoleLabel(action.role)} 기본 권한만 남아요.
+          </p>
+        </ConfirmDialog>
+      ) : null}
+      {action?.kind === "remove" ? (
+        <ConfirmDialog
+          title={`${action.target.displayName}님을 행사에서 뺄까요?`}
+          onClose={() => {
+            if (!remove.isPending) setAction(null);
+          }}
+          footer={
+            <>
+              <Button
+                type="button"
+                variant="secondary"
+                size={48}
+                disabled={remove.isPending}
+                onClick={() => setAction(null)}
+              >
+                돌아가기
+              </Button>
+              <Button
+                type="button"
+                variant="danger"
+                size={48}
+                loading={remove.isPending}
+                onClick={() => remove.mutate(action.target)}
+              >
+                빼기
+              </Button>
+            </>
+          }
+        >
+          <p>
+            이 사람이 담당하던 업무는 담당자가 비워지고, 이 행사의 운영 화면에 더 들어올 수 없어요. 다시 함께하려면
+            운영자로 다시 추가해 주세요.
+          </p>
+        </ConfirmDialog>
+      ) : null}
+    </>
   );
 }
 
