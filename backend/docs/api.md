@@ -111,7 +111,6 @@ operator 경로는 운영자 세션이 필요하다. public 경로는 세션을 
 | `PERMISSION_OWNER_NOT_OVERRIDABLE` | 422 | 소유자의 권한은 개별 설정할 수 없다 |
 | `PERMISSION_OWNER_ONLY` | 422 | `EVENT_LIFECYCLE`, `EVENT_USER_MANAGE`는 소유자만 가진다 |
 | `PERMISSION_NOT_OVERRIDABLE` | 422 | `EVENT_READ`는 개별 설정으로 뺄 수 없다 |
-| `RATE_LIMITED` | 429 | 초대 미리보기·수락이 한도를 넘었다 |
 | `HANDOVER_NOT_ACCEPTED` | 409 | 수락되지 않은 인수인계가 있어 공간 탈퇴가 막힌다 |
 | `LAST_OWNER` | 409 | 마지막 소유자라 공간 탈퇴가 막힌다 |
 | `OWNER_ROLE_HELD` | 409 | 소유 역할을 가진 채 공간 탈퇴가 막히거나, 운영자 역할 변경·빼기의 대상이 행사 `OWNER`다 |
@@ -640,7 +639,7 @@ curl -sS \
 
 이미 그 행사의 운영자면(예: 조직에서 나가며 이 행사 접근을 유지한 사람) 초대는 `ACCEPTED`로 소비되지만 역할은 바꾸지 않는다. 응답 `role`은 수락 뒤 실제 역할이라 초대의 `role`과 다를 수 있다. 역할 변경은 행사 `OWNER`가 `PATCH /operators/{userId}`로 한다. 다시 수락할 때 그 사이 운영자에서 빠졌으면 `role`은 `null`이다. 미리보기의 `eventId`는 이메일이 맞을 때만 나온다. 수락한 뒤 화면이 그 행사를 바로 열 때 쓴다.
 
-미리보기는 행을 바꾸지 않는다. 수락과 미리보기는 계정마다, 그리고 요청 주소마다 한 시간에 5회다. 두 경로가 한 한도를 같이 쓰고, [조직 초대](#조직-초대)의 미리보기·수락도 같은 한도를 쓴다. 한도는 이 프로세스 메모리에만 있다. 넘으면 `429 RATE_LIMITED`다. 한도 숫자는 잠정값이다.
+미리보기는 행을 바꾸지 않는다. 미리보기·수락에는 횟수 제한이 없다. 연달아 불러도 `429`를 돌려주지 않는다([조직 초대](#조직-초대)도 같다, DEC-060 2026-11-19 후속, #389).
 
 토큰이 없으면 `404 INVITATION_NOT_FOUND`다. 이 코드는 초대가 있는지 알려 주지 않는다. 세션에 검증된 이메일이 없으면 `403 EMAIL_NOT_VERIFIED`다. 있고 다르면 `403 INVITATION_EMAIL_MISMATCH`다. 다른 사람이 이미 수락했으면 `409 INVITATION_ALREADY_ACCEPTED`다. 취소는 `410 INVITATION_REVOKED`, 만료는 `410 INVITATION_EXPIRED`, 다시 보낸 이전 토큰은 `410 INVITATION_SUPERSEDED`다. 행사가 보관되었으면 `409 EVENT_ARCHIVED`다.
 
@@ -690,7 +689,7 @@ curl -sS \
 
 ### `POST /api/v1/operator/space-invitations/accept`
 
-본문은 `{ "token": "s.…" }`다. 세션의 검증된 이메일과 비교하는 것, 오류 코드, 판정 순서, 한도는 [행사 초대](#post-apiv1operatorinvitationsaccept)와 같다. 한도는 행사 초대 미리보기·수락과 같은 통을 쓴다. 판정 순서: 토큰 없음 `404 INVITATION_NOT_FOUND` → 세션 이메일 없음 `403 EMAIL_NOT_VERIFIED` → 이메일 다름 `403 INVITATION_EMAIL_MISMATCH` → 다른 사람이 수락함 `409 INVITATION_ALREADY_ACCEPTED`(같은 사람이면 `ALREADY_ACCEPTED`) → 취소 `410 INVITATION_REVOKED` → 다시 보냄 `410 INVITATION_SUPERSEDED` → 만료 `410 INVITATION_EXPIRED`. 행사 보관 단계는 없다.
+본문은 `{ "token": "s.…" }`다. 세션의 검증된 이메일과 비교하는 것, 오류 코드, 판정 순서는 [행사 초대](#post-apiv1operatorinvitationsaccept)와 같다. 횟수 제한은 없다. 판정 순서: 토큰 없음 `404 INVITATION_NOT_FOUND` → 세션 이메일 없음 `403 EMAIL_NOT_VERIFIED` → 이메일 다름 `403 INVITATION_EMAIL_MISMATCH` → 다른 사람이 수락함 `409 INVITATION_ALREADY_ACCEPTED`(같은 사람이면 `ALREADY_ACCEPTED`) → 취소 `410 INVITATION_REVOKED` → 다시 보냄 `410 INVITATION_SUPERSEDED` → 만료 `410 INVITATION_EXPIRED`. 행사 보관 단계는 없다.
 
 미리보기 `200`. 행을 바꾸지 않는다.
 
