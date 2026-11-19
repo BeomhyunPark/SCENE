@@ -29,6 +29,7 @@
 - [GitHub Projects 운영 기준](project-management.md)
 - [2026-10-20 인수인계](handover/2026-10-20.md)
 - [진행 보드](https://github.com/users/BeomhyunPark/projects/5/views/1)
+- [2027년 1월 수련회 로드맵](product/retreat-2027-roadmap.md)
 - [프로토타입 감사 수정 현황·검증 자료](test_results/repair-status.md)
 
 [SCENE 소개로 돌아가기](../README.md)
