@@ -25,6 +25,22 @@ export type EventListItem = {
 
 export type EventDetail = EventListItem & {
   lifecycleVersion: number;
+  /** The organization that runs the event (#387). An event-only collaborator sees it too. */
+  spaceId: string;
+  spaceName: string;
+};
+
+export type OperatorEventRole = "OWNER" | "MANAGER" | "STAFF";
+
+/**
+ * One event I operate, in any organization (GET /api/v1/operator/events, #387). `spaceMember` is
+ * false for an event-only collaborator (DEC-039, DEC-060), such as someone who left the organization.
+ */
+export type OperatedEventItem = EventListItem & {
+  spaceId: string;
+  spaceName: string;
+  eventRole: OperatorEventRole;
+  spaceMember: boolean;
 };
 
 export type CreateEventInput = {
@@ -41,6 +57,17 @@ export function listEvents(
   signal?: AbortSignal,
 ): Promise<ItemPage<EventListItem>> {
   return apiRequest<ItemPage<EventListItem>>(`/api/v1/operator/spaces/${spaceId}/events`, {
+    query: { page: query.page, size: query.size },
+    signal,
+  });
+}
+
+/** Events I operate, whether or not I am a member of their organization (#387). */
+export function listOperatedEvents(
+  query: { page: number; size: number },
+  signal?: AbortSignal,
+): Promise<ItemPage<OperatedEventItem>> {
+  return apiRequest<ItemPage<OperatedEventItem>>("/api/v1/operator/events", {
     query: { page: query.page, size: query.size },
     signal,
   });

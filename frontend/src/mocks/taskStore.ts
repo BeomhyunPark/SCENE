@@ -232,6 +232,11 @@ export function eventRoleOf(eventId: string, userId: string): Role | null {
 }
 
 /** Invitation accept: adds the user once. An existing operator keeps their role. */
+/** Event rows of one person in every space (#387). */
+export function eventsOperatedBy(userId: string): { eventId: string; role: Role }[] {
+  return operators.filter((row) => row.userId === userId).map((row) => ({ eventId: row.eventId, role: row.role }));
+}
+
 export function addOperator(eventId: string, userId: string, displayName: string, role: Role): void {
   if (operators.some((row) => row.eventId === eventId && row.userId === userId)) return;
   operators.push({ eventId, userId, displayName, role });

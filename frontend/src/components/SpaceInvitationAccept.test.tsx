@@ -143,7 +143,7 @@ describe("space invitation accept", () => {
 
     seedToken(token);
     renderInvite();
-    expect(await screen.findByRole("heading", { name: "이미 수락한 초대예요" }, { timeout: 4000 })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Local space 조직 초대는 이미 수락했어요" }, { timeout: 4000 })).toBeInTheDocument();
     expect(storedInvitationToken()).toBeNull();
   });
 
@@ -187,7 +187,7 @@ describe("space invitation accept", () => {
     expect(await screen.findByRole("heading", { name: "Local event 초대를 받았어요" }, { timeout: 4000 })).toBeInTheDocument();
     expect(screen.getByText("Local owner님이 Staff로 초대했어요.")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "초대 수락" }));
-    expect(await screen.findByRole("heading", { name: "초대를 수락했어요" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Local event 초대를 수락했어요" })).toBeInTheDocument();
     expect(spaceCalled).toBe(false);
   });
 });

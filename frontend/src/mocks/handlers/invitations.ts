@@ -75,7 +75,8 @@ export const invitationHandlers = [
     const token = typeof body === "object" && body !== null ? (body as Record<string, unknown>).token : undefined;
     const result = judgeInvitation(token, operator.userId, currentSessionEmail(), false);
     if ("code" in result) return fail(result);
-    return HttpResponse.json(result);
+    const { eventId, eventName, role, inviterName, expiresAt, outcome } = result;
+    return HttpResponse.json({ eventId, eventName, role, inviterName, expiresAt, outcome });
   }),
 
   http.post("/api/v1/operator/invitations/accept", async ({ request, cookies }) => {
@@ -86,7 +87,7 @@ export const invitationHandlers = [
     const token = typeof body === "object" && body !== null ? (body as Record<string, unknown>).token : undefined;
     const result = judgeInvitation(token, operator.userId, currentSessionEmail(), true);
     if ("code" in result) return fail(result);
-    return HttpResponse.json({ outcome: result.outcome });
+    return HttpResponse.json({ outcome: result.outcome, eventId: result.eventId, role: result.operatorRole ?? null });
   }),
 ];
 

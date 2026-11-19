@@ -22,7 +22,6 @@ import {
   type EventOperator,
 } from "../api/operators";
 import { listSpaceMembers } from "../api/spaceInvitations";
-import { useCurrentSpace } from "../api/useCurrentSpace";
 import type { ItemPage } from "../api/types";
 import { reloadQuery } from "../api/queryClient";
 import { queryKeys } from "../api/queryKeys";
@@ -98,7 +97,12 @@ function OperatorsBody({ event, spaceName }: { event: EventDetail; spaceName?: s
           ) : null}
         </section>
         {owner.isOwner ? (
-          <MemberAdd eventId={eventId} archived={archived} operators={operators.data?.items} />
+          <MemberAdd
+            eventId={eventId}
+            spaceId={event.spaceId}
+            archived={archived}
+            operators={operators.data?.items}
+          />
         ) : null}
         {owner.isOwner ? <Invitations eventId={eventId} archived={archived} /> : null}
       </div>
@@ -319,20 +323,21 @@ function OperatorRows({
 
 /**
  * Event OWNER picks an active space member who is not yet an operator and adds them as MANAGER or
- * STAFF (POST /operators). Outsiders still come in through an invitation link.
+ * STAFF (POST /operators). Outsiders still come in through an invitation link. The members are
+ * those of the event's own organization, not the first organization in the list (#387).
  */
 function MemberAdd({
   eventId,
+  spaceId,
   archived,
   operators,
 }: {
   eventId: string;
+  spaceId: string;
   archived: boolean;
   operators: EventOperator[] | undefined;
 }) {
   const queryClient = useQueryClient();
-  const { space } = useCurrentSpace();
-  const spaceId = space?.spaceId ?? "";
   const members = useQuery({
     queryKey: queryKeys.spaceMembers(spaceId),
     queryFn: ({ signal }) => listSpaceMembers(spaceId, signal),

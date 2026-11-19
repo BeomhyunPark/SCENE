@@ -125,3 +125,32 @@
     white-space: normal;
   }
 }
+
+/* 협력 중인 행사 (#387) */
+.event-list__collab {
+  display: flex;
+  flex-direction: column;
+  margin-top: 32px;
+}
+
+.event-list__collab--lead {
+  margin-top: 0;
+}
+
+.event-list__collab-title {
+  margin: 0;
+  font: var(--scene-heading-s);
+  letter-spacing: 0;
+}
+
+.event-list__row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.event-list__row-org {
+  color: var(--color-text-secondary);
+  font: var(--scene-label-s);
+}

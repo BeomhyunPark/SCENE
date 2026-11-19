@@ -51,6 +51,8 @@ function LeaveFlow({ spaceId }: { spaceId: string }) {
     onSuccess: (_result, keepEventIds) => {
       setKeptCount(keepEventIds.length);
       void queryClient.invalidateQueries({ queryKey: queryKeys.spaces });
+      // Kept events move to 협력 중인 행사 on the event list (#387).
+      void queryClient.invalidateQueries({ queryKey: queryKeys.allOperatedEvents });
     },
     onError: (error) => {
       if (isApiError(error) && error.status === 401) {
@@ -86,10 +88,13 @@ function LeaveFlow({ spaceId }: { spaceId: string }) {
     return shell(
       <>
         <h2 className="space-leave__title">나갔어요</h2>
-        <p className="space-leave__body">행사 {keptCount}개는 계속 볼 수 있어요.</p>
+        <p className="space-leave__body">행사 {keptCount}개는 행사 목록의 협력 중인 행사에서 계속 볼 수 있어요.</p>
         <div className="space-leave__actions">
-          <Button type="button" variant="primary" size={40} onClick={() => navigate("/find-organization")}>
+          <Button type="button" variant="secondary" size={40} onClick={() => navigate("/find-organization")}>
             조직 찾기
+          </Button>
+          <Button type="button" variant="primary" size={40} onClick={() => navigate("/events")}>
+            행사 목록
           </Button>
         </div>
       </>,

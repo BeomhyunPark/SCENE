@@ -152,7 +152,8 @@ describe("space leave", () => {
     expect(screen.getByText("이 행사만 계속 볼 수 있어요.")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "행사 1개는 남기고 나가기" }));
     expect(await screen.findByRole("heading", { name: "나갔어요" })).toBeInTheDocument();
-    expect(screen.getByText("행사 1개는 계속 볼 수 있어요.")).toBeInTheDocument();
+    expect(screen.getByText("행사 1개는 행사 목록의 협력 중인 행사에서 계속 볼 수 있어요.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "행사 목록" })).toBeInTheDocument();
     expect(screen.queryByText("가을 수련회")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "내 행사 보기" })).not.toBeInTheDocument();
     expect(posted).toEqual([{ keepEventIds: [localEvent.eventId] }]);
