@@ -12,6 +12,11 @@ export function reloadQuery(query: { refetch: () => Promise<unknown> }): Promise
   return query["refetch"]();
 }
 
+/** A background read (#408): an in-flight fetch, such as a "더 보기" page, is joined rather than cut off. */
+export function pollQuery(query: { refetch: (options: { cancelRefetch: boolean }) => Promise<unknown> }): Promise<unknown> {
+  return query["refetch"]({ cancelRefetch: false });
+}
+
 export function createQueryClient(): QueryClient {
   return new QueryClient({
     defaultOptions: {
