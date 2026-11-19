@@ -146,7 +146,17 @@ export type FormDetail = FormListItem & {
   locked: boolean;
   /** Null until the first setup is saved. */
   setup: FormSetup | null;
+  /** Plain text shown after submit (#406). Null when there is none. Never locked. */
+  completionNotice: string | null;
 };
+
+/** Same limit as the server, counted in code points after line breaks become LF. */
+export const COMPLETION_NOTICE_MAX = 1000;
+
+/** The length the server counts: CRLF and CR become LF, and outer blank space is dropped. */
+export function completionNoticeLength(text: string): number {
+  return [...text.replace(/\r\n?/g, "\n").trim()].length;
+}
 
 /** An option sent to the server. A new option has no `optionId`. */
 export type OptionInput = {
@@ -233,6 +243,18 @@ export function reorderFields(eventId: string, formId: string, fieldIds: string[
 export function deleteField(eventId: string, formId: string, fieldId: string): Promise<void> {
   return apiRequest(`/api/v1/operator/events/${eventId}/forms/${formId}/fields/${fieldId}`, {
     method: "DELETE",
+  });
+}
+
+/** Saves or clears the completion notice. Blank text clears it. */
+export function putCompletionNotice(
+  eventId: string,
+  formId: string,
+  completionNotice: string | null,
+): Promise<FormDetail> {
+  return apiRequest(`/api/v1/operator/events/${eventId}/forms/${formId}/completion-notice`, {
+    method: "PUT",
+    body: { completionNotice },
   });
 }
 

@@ -1,0 +1,26 @@
+.completion-notice {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 14px 16px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 12px;
+  background: var(--color-bg-subtle);
+  color: var(--color-text-primary);
+}
+
+.completion-notice__title {
+  margin: 0;
+  font: var(--scene-label-m);
+  letter-spacing: 0;
+}
+
+.completion-notice__text {
+  margin: 0;
+  font: var(--scene-body-m);
+  letter-spacing: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

@@ -62,7 +62,7 @@ describe("participant apply", () => {
       http.post("/api/v1/public/events/:eventId/forms/:formId/applications", async ({ request }) => {
         posted.push(await request.json());
         return HttpResponse.json(
-          { applicationId: "app-1", participantId: "person-1", accessKey: KEY },
+          { applicationId: "app-1", participantId: "person-1", accessKey: KEY, completionNotice: null },
           { status: 201 },
         );
       }),
@@ -72,11 +72,33 @@ describe("participant apply", () => {
     fireEvent.change(screen.getByLabelText(/^전화/), { target: { value: "010-1234-5678" } });
     fireEvent.click(screen.getByRole("button", { name: "신청하기" }));
     const link = await screen.findByRole("textbox", { name: "다시 들어오는 링크" });
+    expect(screen.queryByRole("region", { name: "안내" })).not.toBeInTheDocument();
     expect(link).toHaveValue(`${window.location.origin}/participate/${EVENT}#${encodeURIComponent(KEY)}`);
     expect(String((link as HTMLInputElement).value).split("#")[0]).not.toContain(KEY);
     expect(posted).toEqual([{ answers: [{ fieldId: NAME, text: "김" }, { fieldId: PHONE, text: "010-1234-5678" }] }]);
     expect(setItem).not.toHaveBeenCalled();
     expect(screen.queryByText(SECRET)).not.toBeInTheDocument();
+  });
+
+  it("shows the completion notice from the submit response as plain text", async () => {
+    const notice = "참가비 3만원\n<a href=\"https://evil.example\">신한 110-000</a>\nhttps://example.com/pay";
+    server.use(
+      http.get("/api/v1/public/events/:eventId/forms/:formId", () => HttpResponse.json(formResponse())),
+      http.post("/api/v1/public/events/:eventId/forms/:formId/applications", () =>
+        HttpResponse.json(
+          { applicationId: "app-1", participantId: "person-1", accessKey: KEY, completionNotice: notice },
+          { status: 201 },
+        ),
+      ),
+    );
+    await openApp(`/apply/${EVENT}/${FORM}`);
+    fireEvent.change(await screen.findByLabelText(/^이름/), { target: { value: "김" } });
+    fireEvent.change(screen.getByLabelText(/^전화/), { target: { value: "010-1234-5678" } });
+    fireEvent.click(screen.getByRole("button", { name: "신청하기" }));
+    const region = await screen.findByRole("region", { name: "안내" });
+    const text = region.querySelector("p");
+    expect(text?.textContent).toBe(notice);
+    expect(region.querySelector("a")).toBeNull();
   });
 
   it("answers typed and conditional questions and sends typed values", async () => {

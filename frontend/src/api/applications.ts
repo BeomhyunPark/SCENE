@@ -15,6 +15,8 @@ export type SubmittedApplication = {
   applicationId: string;
   participantId: string;
   accessKey: string;
+  /** The form's completion notice at submit time, plain text, or null (#406). */
+  completionNotice: string | null;
 };
 
 /** Operator list item. Name is the SYSTEM NAME answer, or null. Phone stays on the detail only. */
@@ -247,6 +249,7 @@ function parseSubmitted(value: unknown): SubmittedApplication {
     applicationId: value.applicationId,
     participantId: value.participantId,
     accessKey: value.accessKey,
+    completionNotice: typeof value.completionNotice === "string" ? value.completionNotice : null,
   };
 }
 
