@@ -192,7 +192,7 @@ describe("space invitation accept", () => {
   });
 });
 
-describe("space invitation from settings to events", () => {
+describe("space invitation from the members page to events", () => {
   beforeEach(() => {
     if (!navigator.clipboard) {
       Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: vi.fn() } });
@@ -207,7 +207,7 @@ describe("space invitation from settings to events", () => {
   it("owner invites, the guest accepts, and the guest sees no create entry as a MEMBER", async () => {
     await login({ userId: OWNER });
     const owner = render(
-      <MemoryRouter initialEntries={["/settings"]}>
+      <MemoryRouter initialEntries={["/members"]}>
         <App />
       </MemoryRouter>,
     );

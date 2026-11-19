@@ -33,16 +33,16 @@ function renderOrgAt(path: string) {
 const orgMenus = [
   ["행사", "/events"],
   ["알림", "/notifications"],
+  ["멤버", "/members"],
   ["기록", "/history"],
-  ["준비 업무", "/tasks"],
   ["안내", "/guides"],
   ["일정", "/schedule"],
-  ["현장 운영", "/field"],
-  ["참가 현황", "/participants"],
-  ["운영 멤버", "/operators"],
   ["연동", "/integrations"],
   ["설정", "/settings"],
 ] as const;
+
+/** Event operation menus live only inside an event (#376). */
+const eventOnlyMenus = ["행사 운영", "준비 업무", "현장 운영", "참가 현황", "운영 멤버", "조 편성"] as const;
 
 /** The sidebar menu; the phone bottom bar repeats a few links, and jsdom shows both. */
 function sidebar() {
@@ -97,6 +97,14 @@ describe("operator shell", () => {
     renderOrgAt("/events");
     for (const [label, href] of orgMenus) {
       expect(sidebar().getByRole("link", { name: label })).toHaveAttribute("href", href);
+    }
+    expect(sidebar().getAllByRole("link")).toHaveLength(orgMenus.length);
+  });
+
+  it("shows no event operation menu outside an event (#376)", () => {
+    renderOrgAt("/members");
+    for (const label of eventOnlyMenus) {
+      expect(sidebar().queryByText(label)).not.toBeInTheDocument();
     }
   });
 
@@ -230,6 +238,9 @@ describe("phone menu drawer (#368)", () => {
     for (const [label, href] of orgMenus) {
       expect(within(dialog).getByRole("link", { name: label })).toHaveAttribute("href", href);
     }
+    for (const label of eventOnlyMenus) {
+      expect(within(dialog).queryByText(label)).not.toBeInTheDocument();
+    }
     expect(within(dialog).getByRole("link", { name: "행사" })).toHaveAttribute("aria-current", "page");
     expect(within(dialog).getByRole("button", { name: "로그아웃" })).toBeInTheDocument();
     expect(within(dialog).getByText("Local space")).toBeInTheDocument();
@@ -309,13 +320,12 @@ describe("phone bottom bar (#368)", () => {
   const bar = () => within(screen.getByRole("navigation", { name: "주요 메뉴" }));
   const barLinks = () => bar().getAllByRole("link").map((link) => [link.textContent, link.getAttribute("href")]);
 
-  it("offers 행사·현장 운영·참가 현황·알림 and 전체 메뉴 outside an event", () => {
+  it("offers only 행사·알림·멤버 and 전체 메뉴 outside an event (#376)", () => {
     renderDrawerAt("/events");
     expect(barLinks()).toEqual([
       ["행사", "/events"],
-      ["현장 운영", "/field"],
-      ["참가 현황", "/participants"],
       ["알림", "/notifications"],
+      ["멤버", "/members"],
     ]);
     expect(bar().getByRole("link", { name: "행사" })).toHaveAttribute("aria-current", "page");
     expect(bar().getByRole("button", { name: "전체 메뉴" })).toHaveAttribute("aria-expanded", "false");
@@ -358,9 +368,12 @@ describe("phone bottom bar (#368)", () => {
     expect(bar().queryAllByRole("link").filter((link) => link.hasAttribute("aria-current"))).toEqual([]);
   });
 
-  it("marks 알림 on the notifications page", () => {
+  it("marks 알림 on the notifications page and 멤버 on the members page", () => {
     renderDrawerAt("/notifications");
     expect(bar().getByRole("link", { name: "알림" })).toHaveAttribute("aria-current", "page");
+    cleanup();
+    renderDrawerAt("/members");
+    expect(bar().getByRole("link", { name: "멤버" })).toHaveAttribute("aria-current", "page");
   });
 
   it("opens the same drawer from 전체 메뉴 and gives focus back to it", () => {
