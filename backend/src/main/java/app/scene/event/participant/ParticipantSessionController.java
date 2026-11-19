@@ -33,9 +33,10 @@ public class ParticipantSessionController {
       @PathVariable UUID eventId,
       @RequestBody(required = false) JsonNode body,
       HttpServletRequest request) {
-    String token = sessions.signIn(eventId, body, request.getRemoteAddr());
+    ParticipantSessionService.Issued issued =
+        sessions.signIn(eventId, body, request.getRemoteAddr());
     return ResponseEntity.noContent()
-        .header(HttpHeaders.SET_COOKIE, cookies.setCookie(token))
+        .header(HttpHeaders.SET_COOKIE, cookies.setCookie(issued))
         .build();
   }
 
@@ -55,6 +56,6 @@ public class ParticipantSessionController {
   @PostMapping("/api/v1/participant/auth/logout")
   ResponseEntity<Void> logout(HttpServletRequest request) {
     sessions.logout(cookies.token(request));
-    return ResponseEntity.noContent().build();
+    return ResponseEntity.noContent().header(HttpHeaders.SET_COOKIE, cookies.clearCookie()).build();
   }
 }

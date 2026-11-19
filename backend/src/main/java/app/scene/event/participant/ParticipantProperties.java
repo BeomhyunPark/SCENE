@@ -10,7 +10,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * lockDuration}. More than {@code ipFailureLimit} failures from one address inside {@code
  * ipFailureWindow} answer 429. More than {@code submitIpLimit} public submits from one address
  * inside {@code submitIpWindow} answer 429. Sessions end {@code sessionDaysAfterEnd} days after the
- * day after the event's end date, at midnight in {@code zone}.
+ * day after the event's end date, at midnight in {@code zone}. The cookie lives as long; for an
+ * event with no end date it lives {@code cookieMaxAgeWithoutEnd} (the server still decides).
  */
 @ConfigurationProperties("scene.participant")
 public record ParticipantProperties(
@@ -22,7 +23,8 @@ public record ParticipantProperties(
     Duration submitIpWindow,
     Integer sessionDaysAfterEnd,
     String zone,
-    Integer bcryptStrength) {
+    Integer bcryptStrength,
+    Duration cookieMaxAgeWithoutEnd) {
 
   public ParticipantProperties {
     lockFailures = lockFailures == null ? 5 : lockFailures;
@@ -34,5 +36,7 @@ public record ParticipantProperties(
     sessionDaysAfterEnd = sessionDaysAfterEnd == null ? 7 : sessionDaysAfterEnd;
     zone = zone == null || zone.isBlank() ? "Asia/Seoul" : zone;
     bcryptStrength = bcryptStrength == null ? 10 : bcryptStrength;
+    cookieMaxAgeWithoutEnd =
+        cookieMaxAgeWithoutEnd == null ? Duration.ofDays(180) : cookieMaxAgeWithoutEnd;
   }
 }

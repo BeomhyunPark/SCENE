@@ -13,4 +13,7 @@ public interface ParticipantSessionQueryMapper {
       @Param("now") Instant now,
       @Param("zone") String zone,
       @Param("daysAfterEnd") int daysAfterEnd);
+
+  java.time.LocalDate findEventEndDate(
+      @Param("spaceId") java.util.UUID spaceId, @Param("eventId") java.util.UUID eventId);
 }

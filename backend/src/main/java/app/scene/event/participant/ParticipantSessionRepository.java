@@ -40,6 +40,11 @@ public class ParticipantSessionRepository {
             tokenHash, now, properties.zone(), properties.sessionDaysAfterEnd()));
   }
 
+  /** The event's end date, or null. */
+  public java.time.LocalDate findEventEndDate(UUID spaceId, UUID eventId) {
+    return queries.findEventEndDate(spaceId, eventId);
+  }
+
   @Transactional
   public void deleteByTokenHash(String tokenHash) {
     sessions.deleteByTokenHash(tokenHash);

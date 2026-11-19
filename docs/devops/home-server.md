@@ -136,6 +136,8 @@ age -d -i scene-backup.key scene-YYYYMMDD-HHMMSS.sql.gz.age | gunzip | docker co
 | 공개 신청 POST `/api/v1/public/events/*/forms/*/applications` | 같은 IP 10분 1,000번 초과 → `429 RATE_LIMITED` |
 | 참가자 들어오기 POST `/api/v1/public/events/*/participant-sessions` | 같은 IP 실패 10분 300번 초과 → `429`. 전화번호별 연속 5번 실패 → 5분 잠금(운영자 초기화로도 풀림) |
 
+**현장에서 한도 올리기(배포 없이).** 숫자는 `deploy/home/.env`의 `SCENE_PARTICIPANT_*`로 바꾼다(비우면 기본값). 수련회 당일 와이파이에서 여러 사람이 `429`("요청이 너무 많아요", "시도가 너무 많아요")를 보면 `.env`에 예를 들어 `SCENE_PARTICIPANT_IPFAILURELIMIT=1000`, `SCENE_PARTICIPANT_SUBMITIPLIMIT=5000`을 넣고 `cd ~/scene/deploy/home && docker compose up -d backend`를 실행한다. 백엔드만 다시 뜨고(약 1분) 코드는 바뀌지 않으므로 배포 동결 중에도 된다. 카운터와 잠금은 다시 뜨면서 모두 풀린다. 한 사람의 잠금만 풀려면 운영자가 참가 현황에서 6자리를 초기화한다.
+
 IP는 nginx가 넘기는 `CF-Connecting-IP`(→ `X-Forwarded-For`, `SERVER_FORWARD_HEADERS_STRATEGY=framework`)다. Cloudflare를 거치지 않는 요청은 없으므로 이 값을 믿는다.
 
 **Cloudflare 규칙 (사용자가 대시보드에서 설정한다. 이 저장소에서는 설정하지 않았다):** `scene.greengroove.app` → Security → WAF → Rate limiting rules에 규칙 하나를 더한다. 무료 플랜은 규칙 1개, 10초 단위다.

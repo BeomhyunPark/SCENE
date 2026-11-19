@@ -26,13 +26,26 @@ public class ParticipantSessionCookie {
 
   static final String COOKIE_PATH = "/api/v1/participant";
 
-  /** The {@code Set-Cookie} value for a raw session token (DEC-067). */
-  public String setCookie(String token) {
-    return ResponseCookie.from(security.session().participantCookieName(), token)
+  /**
+   * The {@code Set-Cookie} value for an issued session (DEC-067, DEC-078 §3). {@code Max-Age} keeps
+   * the cookie after the browser closes, until the server-side end of the session.
+   */
+  public String setCookie(ParticipantSessionService.Issued issued) {
+    return cookie(issued.token(), issued.maxAge());
+  }
+
+  /** Removes the cookie with the same attributes ({@code Max-Age=0}). */
+  public String clearCookie() {
+    return cookie("", java.time.Duration.ZERO);
+  }
+
+  private String cookie(String value, java.time.Duration maxAge) {
+    return ResponseCookie.from(security.session().participantCookieName(), value)
         .httpOnly(true)
         .secure(true)
         .sameSite(security.session().sameSite())
         .path(COOKIE_PATH)
+        .maxAge(maxAge)
         .build()
         .toString();
   }

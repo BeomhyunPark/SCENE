@@ -93,7 +93,11 @@ class ParticipantSessionHttpIT {
     assertThat(created.get("revised").asBoolean()).isFalse();
     assertThat(submitted.getResponse().getContentAsString()).doesNotContain(PIN);
     UUID first = UUID.fromString(created.get("participantId").asString());
-    String fromSubmit = cookieValue(participantCookieHeader(submitted));
+    String submitCookie = participantCookieHeader(submitted);
+    String fromSubmit = cookieValue(submitCookie);
+    // DEC-078 §3: the cookie outlives the browser. No end date: 180 days.
+    assertThat(submitCookie)
+        .contains("Max-Age=15552000", "HttpOnly", "Secure", "Path=/api/v1/participant");
     String stored =
         jdbc.queryForObject("SELECT pin_hash FROM participants WHERE id = ?", String.class, first);
     assertThat(stored).startsWith("$2").doesNotContain(PIN);
@@ -113,7 +117,7 @@ class ParticipantSessionHttpIT {
     assertThat(setCookie).startsWith(PARTICIPANT_COOKIE + "=");
     assertThat(setCookie).contains("HttpOnly", "Secure", "SameSite=Lax");
     assertThat(setCookie).contains("Path=/api/v1/participant");
-    assertThat(setCookie).doesNotContain("Max-Age", "Expires=", "Domain=", PIN);
+    assertThat(setCookie).contains("Max-Age=15552000").doesNotContain("Domain=", PIN);
     assertThat(token).hasSize(64).matches("[0-9a-f]+");
     assertThat(countTokenHash(Digests.sha256Hex(token))).isEqualTo(1);
     assertThat(countToken(token)).isZero();
@@ -148,12 +152,19 @@ class ParticipantSessionHttpIT {
     String other =
         cookieValue(
             participantCookieHeader(issue(form.eventId, signIn("이", "010-9999-0000", PIN))));
-    mvc.perform(
-            post("/api/v1/participant/auth/logout")
-                .cookie(session, csrf())
-                .header(CSRF_HEADER, CSRF))
-        .andExpect(status().isNoContent())
-        .andExpect(content().string(""));
+    String cleared =
+        mvc.perform(
+                post("/api/v1/participant/auth/logout")
+                    .cookie(session, csrf())
+                    .header(CSRF_HEADER, CSRF))
+            .andExpect(status().isNoContent())
+            .andExpect(content().string(""))
+            .andReturn()
+            .getResponse()
+            .getHeader(HttpHeaders.SET_COOKIE);
+    assertThat(cleared)
+        .startsWith(PARTICIPANT_COOKIE + "=;")
+        .contains("Max-Age=0", "HttpOnly", "Secure", "Path=/api/v1/participant");
     assertThat(countTokenHash(Digests.sha256Hex(token))).isZero();
     assertThat(countTokenHash(Digests.sha256Hex(other))).isEqualTo(1);
     mvc.perform(get("/api/v1/participant/me").cookie(session)).andExpect(status().isUnauthorized());
@@ -424,6 +435,16 @@ class ParticipantSessionHttpIT {
         "UPDATE events SET end_date = (now() AT TIME ZONE 'Asia/Seoul')::date - 7 WHERE id = ?",
         form.eventId);
     mvc.perform(get("/api/v1/participant/me").cookie(session)).andExpect(status().isOk());
+    // A new session's cookie lives until the same limit: end date + 8 days, 00:00 Asia/Seoul.
+    long maxAge =
+        maxAgeOf(participantCookieHeader(issue(form.eventId, signIn("고", "010-2323-4545", PIN))));
+    java.time.ZoneId seoul = java.time.ZoneId.of("Asia/Seoul");
+    long expected =
+        java.time.Duration.between(
+                java.time.Instant.now(),
+                java.time.LocalDate.now(seoul).plusDays(1).atStartOfDay(seoul).toInstant())
+            .getSeconds();
+    assertThat(maxAge).isBetween(expected - 60, expected + 60);
     jdbc.update(
         "UPDATE events SET end_date = (now() AT TIME ZONE 'Asia/Seoul')::date - 8 WHERE id = ?",
         form.eventId);
@@ -491,6 +512,13 @@ class ParticipantSessionHttpIT {
     mvc.perform(get("/api/v1/participant/anywhere"))
         .andExpect(status().isUnauthorized())
         .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
+  }
+
+  private static long maxAgeOf(String setCookie) {
+    java.util.regex.Matcher m =
+        java.util.regex.Pattern.compile("Max-Age=(\\d+)").matcher(setCookie);
+    assertThat(m.find()).isTrue();
+    return Long.parseLong(m.group(1));
   }
 
   private JsonNode failed(UUID eventId, String body) throws Exception {

@@ -65,7 +65,7 @@
 - 백만 가지라 잠금과 시도 제한이 있어야만 안전하다. 전화번호 하나에 5분마다 5번이면 하루 1,440번이다. 잠금은 남의 번호를 일부러 잠그는 데 쓰일 수 있어 시간을 짧게 두었다(DEC-078 §2 근거).
 - 잊었을 때: 운영자가 `PARTICIPANT_WRITE`로 초기화하면 서버가 만든 임시 번호가 응답에 한 번 나온다(`Cache-Control: no-store`). 같은 transaction에서 그 참가자의 세션을 모두 지우고 audit `PARTICIPANT_PIN_RESET`(번호 없음)을 남긴다. 임시 번호로 연 세션은 새 번호를 정하기 전에는 다른 참가자 경로가 `403 PARTICIPANT_PIN_CHANGE_REQUIRED`다.
 - 검증 진입 경계: `POST /api/v1/public/events/{eventId}/participant-sessions`와 공개 신청 POST(같은 전화의 재신청). 첫 신청 성공도 세션을 연다.
-- 세션 토큰은 CSPRNG 256비트이고 해시만 저장한다. 쿠키는 DEC-067(`SCENE_PSESSION`, HttpOnly, Secure, SameSite=Lax, 경로 `/api/v1/participant`). 세션은 로그아웃, 6자리 초기화·변경(다른 세션), 행사 끝 날짜+8일 0시(Asia/Seoul)에 끝난다.
+- 세션 토큰은 CSPRNG 256비트이고 해시만 저장한다. 쿠키는 DEC-067(`SCENE_PSESSION`, HttpOnly, Secure, SameSite=Lax, 경로 `/api/v1/participant`)에 세션 끝 시각까지의 `Max-Age`를 더한다(끝 날짜가 없으면 180일, 끝났는지는 서버가 판정). 세션은 로그아웃, 6자리 초기화·변경(다른 세션), 행사 끝 날짜+8일 0시(Asia/Seoul)에 끝난다.
 - 신청 수정은 revision으로 남는다(이전 답 `SUPERSEDED`, 고친 사람, 바뀐 질문). 번호를 남에게 알려 준 경우는 막지 못하고 수정 이력과 운영자 알림으로 되돌린다.
 - 도착 체크인은 번호와 상관없다(DEC-071).
 - 링크 접근 키(`participant_access`)는 더 만들지 않고 그 키로 세션을 열지 않는다. fragment·`history.replaceState` 규칙(DEC-064, QA #55)은 참가자 화면에서 빠졌다. 운영자 초대 링크(DEC-060)의 fragment 규칙은 그대로다.

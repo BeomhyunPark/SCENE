@@ -7,6 +7,10 @@ import app.scene.event.lifecycle.EventRepository;
 import app.scene.event.participant.param.ParticipantSessionInsert;
 import java.security.SecureRandom;
 import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.HexFormat;
 import java.util.Map;
 import java.util.Optional;
@@ -35,6 +39,7 @@ public class ParticipantSessionService {
   private final ParticipantSessionRepository sessions;
   private final ParticipantPins pins;
   private final ParticipantGuard guard;
+  private final ParticipantProperties properties;
   private final Clock clock;
   private final SecureRandom random = new SecureRandom();
 
@@ -44,7 +49,9 @@ public class ParticipantSessionService {
       ParticipantSessionRepository sessions,
       ParticipantPins pins,
       ParticipantGuard guard,
+      ParticipantProperties properties,
       Clock clock) {
+    this.properties = properties;
     this.events = events;
     this.participants = participants;
     this.sessions = sessions;
@@ -53,9 +60,16 @@ public class ParticipantSessionService {
     this.clock = clock;
   }
 
-  /** Signs in. Returns the raw session token. The caller sets the cookie and does not log it. */
+  /**
+   * A raw session token and how long its cookie should live: until the server-side end of the
+   * session (DEC-078 §3), so a phone keeps the session after the browser closes. The caller sets
+   * the cookie and does not log the token.
+   */
+  public record Issued(String token, Duration maxAge) {}
+
+  /** Signs in. Returns the raw session token and the cookie lifetime. */
   @Transactional
-  public String signIn(UUID eventId, JsonNode body, String address) {
+  public Issued signIn(UUID eventId, JsonNode body, String address) {
     EventLocation location =
         events
             .findLocation(eventId)
@@ -84,9 +98,9 @@ public class ParticipantSessionService {
     return open(location.spaceId(), eventId, participant.id());
   }
 
-  /** Opens a session for a participant already checked by the caller. Returns the raw token. */
+  /** Opens a session for a participant already checked by the caller. */
   @Transactional
-  public String open(UUID spaceId, UUID eventId, UUID participantId) {
+  public Issued open(UUID spaceId, UUID eventId, UUID participantId) {
     String token = newToken();
     sessions.save(
         ParticipantSessionInsert.of(
@@ -97,7 +111,21 @@ public class ParticipantSessionService {
             null,
             Digests.sha256Hex(token),
             clock.instant()));
-    return token;
+    return new Issued(token, cookieMaxAge(spaceId, eventId));
+  }
+
+  /** Until midnight ({@code zone}) of end date + 1 + days; a fixed lifetime with no end date. */
+  private Duration cookieMaxAge(UUID spaceId, UUID eventId) {
+    LocalDate end = sessions.findEventEndDate(spaceId, eventId);
+    if (end == null) {
+      return properties.cookieMaxAgeWithoutEnd();
+    }
+    Instant until =
+        end.plusDays(1L + properties.sessionDaysAfterEnd())
+            .atStartOfDay(ZoneId.of(properties.zone()))
+            .toInstant();
+    Duration left = Duration.between(clock.instant(), until);
+    return left.isNegative() ? Duration.ZERO : left;
   }
 
   /**

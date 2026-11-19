@@ -1519,7 +1519,7 @@ CSRF가 필요하다. `Idempotency-Key`는 읽지 않는다.
 
 두 경우 모두 `Set-Cookie`로 참가자 세션(`SCENE_PSESSION`)이 열린다. 신청 직후 화면은 바로 들어간 상태다. 접근 키는 더 만들지 않는다.
 
-**요청 제한(#401).** 같은 IP의 신청 POST가 10분에 1,000번을 넘으면 `429 RATE_LIMITED`다. 성공·실패를 모두 센다. 한 IP 뒤에 200명이 있어도 걸리지 않는 남용 방지선이다. IP는 nginx가 넘기는 `X-Forwarded-For`(Cloudflare의 `CF-Connecting-IP`)다. 숫자는 `scene.participant.*` 설정이다.
+**요청 제한(#401).** 같은 IP의 신청 POST가 10분에 1,000번을 넘으면 `429 RATE_LIMITED`다. 성공·실패를 모두 센다. 한 IP 뒤에 200명이 있어도 걸리지 않는 남용 방지선이다. IP는 nginx가 넘기는 `X-Forwarded-For`(Cloudflare의 `CF-Connecting-IP`)다. 숫자는 `scene.participant.*` 설정이다. 숫자는 홈서버 `.env`의 `SCENE_PARTICIPANT_*`로 배포 없이 바꾼다([홈서버 운영](../../docs/devops/home-server.md)).
 
 ## 참가자 세션
 
@@ -1540,7 +1540,7 @@ CSRF가 필요하다.
 | 그 전화번호로 연속 5번 틀렸다(신청이 없는 번호도 똑같이 센다) | 5분 동안 `429 PARTICIPANT_LOGIN_LOCKED`. 본문 `retryAfterSeconds`. 운영자가 6자리를 초기화해도 풀린다. 맞히면 0으로 돌아간다 |
 | 같은 IP의 실패가 10분에 300번을 넘었다 | `429 RATE_LIMITED` |
 
-쿠키는 `HttpOnly`, `Secure`, `SameSite=Lax`, 경로 `/api/v1/participant`다. 값은 세션 토큰이고 서버는 해시만 저장한다. 세션은 로그아웃, 6자리 초기화, 또는 **행사 끝 날짜+8일 0시(Asia/Seoul)**에 끝난다. 끝 날짜가 없는 행사는 로그아웃까지다. 끝난 세션은 `401 AUTHENTICATION_REQUIRED`다.
+쿠키는 `HttpOnly`, `Secure`, `SameSite=Lax`, 경로 `/api/v1/participant`이고 `Max-Age`가 있다(브라우저를 닫아도 남는다). `Max-Age`는 아래 세션 끝 시각까지이고, 행사 끝 날짜가 없으면 180일이다(`scene.participant.cookie-max-age-without-end`). 실제로 세션이 끝났는지는 서버가 판정한다. 첫 신청·재신청 응답의 쿠키도 같다. 값은 세션 토큰이고 서버는 해시만 저장한다. 세션은 로그아웃, 6자리 초기화, 또는 **행사 끝 날짜+8일 0시(Asia/Seoul)**에 끝난다. 끝 날짜가 없는 행사는 로그아웃까지다. 끝난 세션은 `401 AUTHENTICATION_REQUIRED`다.
 
 시도 횟수와 잠금은 서버 메모리에 있다. 서버가 다시 뜨면 0부터 센다. 예전 `{ "accessKey" }` 본문은 받지 않는다(`400 VALIDATION_FAILED`, DEC-078 §7).
 
@@ -1574,7 +1574,7 @@ CSRF가 필요하다. 새 번호를 정한다.
 
 ### `POST /api/v1/participant/auth/logout`
 
-CSRF가 필요하다. 그 쿠키의 세션 행만 지운다. `204`이고 본문이 없다. 쿠키가 없거나 모르는 값이면 지울 행이 없고 역시 `204`다. 다른 참가자의 세션은 남는다.
+CSRF가 필요하다. 그 쿠키의 세션 행만 지우고, 같은 속성에 `Max-Age=0`인 `Set-Cookie`로 쿠키를 지운다. `204`이고 본문이 없다. 쿠키가 없거나 모르는 값이면 지울 행이 없고 역시 `204`다. 다른 참가자의 세션은 남는다.
 
 ## 참가자 신청
 

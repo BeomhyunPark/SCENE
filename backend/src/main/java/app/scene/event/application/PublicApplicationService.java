@@ -81,7 +81,8 @@ public class PublicApplicationService {
   }
 
   /** The response body, the raw session token for the cookie, and whether a participant is new. */
-  public record Submission(SubmittedApplication body, String sessionToken, boolean created) {}
+  public record Submission(
+      SubmittedApplication body, ParticipantSessionService.Issued session, boolean created) {}
 
   @Transactional
   public Submission submit(UUID eventId, UUID formId, JsonNode body, String address) {
@@ -146,7 +147,7 @@ public class PublicApplicationService {
         ApplicationInsert.of(
             applicationId, spaceId, eventId, formId, participantId, SUBMITTED, now),
         rows);
-    String token = sessions.open(spaceId, eventId, participantId);
+    ParticipantSessionService.Issued token = sessions.open(spaceId, eventId, participantId);
     return new Submission(
         new SubmittedApplication(applicationId, participantId, 1, false, form.completionNotice()),
         token,
@@ -184,7 +185,8 @@ public class PublicApplicationService {
             participant.name(),
             ApplicationRevisions.BY_PARTICIPANT,
             null);
-    String token = sessions.open(location.spaceId(), eventId, participant.id());
+    ParticipantSessionService.Issued token =
+        sessions.open(location.spaceId(), eventId, participant.id());
     return new Submission(
         new SubmittedApplication(
             result.applicationId(),

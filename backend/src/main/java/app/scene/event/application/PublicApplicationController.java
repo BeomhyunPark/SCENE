@@ -38,7 +38,7 @@ public class PublicApplicationController {
     PublicApplicationService.Submission submission =
         applications.submit(eventId, formId, body, request.getRemoteAddr());
     return ResponseEntity.status(submission.created() ? HttpStatus.CREATED : HttpStatus.OK)
-        .header(HttpHeaders.SET_COOKIE, sessionCookies.setCookie(submission.sessionToken()))
+        .header(HttpHeaders.SET_COOKIE, sessionCookies.setCookie(submission.session()))
         .body(submission.body());
   }
 }
