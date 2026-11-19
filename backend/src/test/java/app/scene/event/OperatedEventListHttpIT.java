@@ -210,6 +210,21 @@ class OperatedEventListHttpIT {
     assertThat(body.get("items").get(0).get("eventRole").asString()).isEqualTo("MANAGER");
     assertThat(body.get("items").get(0).get("spaceMember").asBoolean()).isFalse();
     ok(member, "/api/v1/operator/events/" + fx.eventId);
+    // The revoked-access audit from the leave does not block the re-added operator anywhere.
+    assertThat(eventRole(fx.eventId, fx.memberId)).isEqualTo("MANAGER");
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT status FROM event_invitations WHERE event_id = ? AND email_normalized = ?",
+                String.class,
+                fx.eventId,
+                "member@example.com"))
+        .isEqualTo("ACCEPTED");
+    ok(member, "/api/v1/operator/spaces/" + fx.spaceId + "/events/" + fx.eventId);
+    ok(member, "/api/v1/operator/events/" + fx.eventId + "/operators");
+    ok(member, "/api/v1/operator/events/" + fx.eventId + "/lifecycle");
+    ok(member, "/api/v1/operator/events/" + fx.eventId + "/tasks");
+    ok(member, "/api/v1/operator/events/" + fx.eventId + "/check-ins/summary");
+    ok(member, "/api/v1/operator/events/" + fx.eventId + "/applications");
 
     // Opening the same link again is the only "already" answer, and it still names the event.
     JsonNode again = json.readTree(ok(postToken(member, "preview", token)));
