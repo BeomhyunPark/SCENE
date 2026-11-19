@@ -208,7 +208,7 @@
 | I1 | 행사 OWNER가 운영자별 권한을 화면에서 고친다 | 조 편성 담당에게 `GROUP_WRITE`를 준다 | P0 | 서버 경로는 있다 |
 | I2 | 역할 기본값: MANAGER에게 일정·공지 쓰기를 더한다. STAFF는 체크인만이다 | DEC에 표가 있고 `RoleDefaults`가 따른다 | P0 | 결정 7. 모든 행사에 바로 적용된다 |
 | I3 | 운영자 알림: 신청 수정·재신청·취소를 알림 목록에 쌓고, 알림 메뉴와 휴대폰 하단 막대에 읽지 않은 수를 보인다 | 참가자가 고치면 운영자 알림에 30초 안에 뜬다 | P0 | [#279](https://github.com/BeomhyunPark/SCENE/issues/279), 구조 6, `operator_notices` |
-| I4 | 행사 밖 메뉴에는 조직 메뉴만 둔다 | 행사 밖에서 행사 화면으로 끌려 들어가지 않는다 | P1 | [#376](https://github.com/BeomhyunPark/SCENE/issues/376) |
+| I4 | 행사 밖 메뉴에는 조직 메뉴만 둔다 | 행사 밖에서 행사 화면으로 끌려 들어가지 않는다 | 완료 | [#376](https://github.com/BeomhyunPark/SCENE/issues/376). 2026-11-19에 #377로 main에 병합됐다. 배포 뒤 휴대폰 확인만 남았다 |
 | I5 | 행사 메뉴에 일정·공지·숙소·식사를 넣고 눌러도 안 가는 버튼을 잇거나 뺀다. 시작한 영역을 서버에 저장한다 | 행사 안의 모든 버튼이 화면으로 이어진다 | P1 | C4, D3, G3, H3 |
 | I6 | 참가자 이름을 누르면 어느 화면에서든 같은 신청 상세가 열린다 | 현장 운영·조 편성·숙소에서 같다 | P1 | [#348](https://github.com/BeomhyunPark/SCENE/issues/348) |
 | I7 | 운영자가 변경 기록(체크인, 조 이동, 공개, 신청 수정)을 본다 | 기록 화면에서 누가 언제 바꿨는지 본다 | P2 | [#280](https://github.com/BeomhyunPark/SCENE/issues/280) |
