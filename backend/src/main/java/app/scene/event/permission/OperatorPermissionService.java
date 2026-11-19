@@ -269,6 +269,7 @@ public class OperatorPermissionService {
     if (lockedRole == null) {
       throw new SceneException(ErrorCode.RESOURCE_NOT_FOUND);
     }
+    rejectOwnerTarget(lockedRole);
     if (ARCHIVED.equals(locked.lifecycleStatus())) {
       throw new SceneException(ErrorCode.EVENT_ARCHIVED);
     }
@@ -295,9 +296,11 @@ public class OperatorPermissionService {
     if (eventUsers.findRole(spaceId, eventId, targetUserId).isEmpty()) {
       throw new SceneException(ErrorCode.RESOURCE_NOT_FOUND);
     }
-    if (eventUsers.findRoleForUpdate(spaceId, eventId, targetUserId).isEmpty()) {
+    String lockedRole = eventUsers.findRoleForUpdate(spaceId, eventId, targetUserId).orElse(null);
+    if (lockedRole == null) {
       throw new SceneException(ErrorCode.RESOURCE_NOT_FOUND);
     }
+    rejectOwnerTarget(lockedRole);
     leave.revokeEventAccess(spaceId, eventId, targetUserId, actorId, REMOVAL_REASON);
   }
 
@@ -490,6 +493,17 @@ public class OperatorPermissionService {
       parsed.add(Permission.find(key).orElseThrow());
     }
     return parsed;
+  }
+
+  /**
+   * DEC-033·DEC-034·DEC-035. An event OWNER is never demoted or removed through the operator paths,
+   * including oneself. Owner changes go only through the owner transfer (handover) flow. Checked on
+   * the locked role, after not found and before {@code EVENT_ARCHIVED}.
+   */
+  private static void rejectOwnerTarget(String lockedRole) {
+    if ("OWNER".equals(lockedRole)) {
+      throw new SceneException(ErrorCode.OWNER_ROLE_HELD);
+    }
   }
 
   private static void rejectRules(String role, List<Permission> grants, List<Permission> revokes) {
