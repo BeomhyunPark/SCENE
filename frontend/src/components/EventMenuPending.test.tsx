@@ -33,6 +33,8 @@ describe("event sidebar pending menus", () => {
     fireEvent.click(await screen.findByRole("button", { name: /Local event/ }));
     // The sidebar; the phone bottom bar repeats 현장 운영 and jsdom shows both.
     const sidebar = async () => within(await screen.findByRole("navigation", { name: "운영 메뉴" }));
+    // Only the event sidebar has 현장 운영 (#376), so wait for the event to open.
+    await screen.findAllByRole("link", { name: "현장 운영" });
     fireEvent.click((await sidebar()).getByRole("link", { name: "현장 운영" }));
     expect(await screen.findByLabelText("이름 또는 전화 끝 4자리")).toBeInTheDocument();
     expect((await sidebar()).getByRole("link", { name: "현장 운영" })).toHaveAttribute("aria-current", "page");

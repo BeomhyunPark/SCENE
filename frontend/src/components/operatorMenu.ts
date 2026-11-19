@@ -16,20 +16,18 @@ export function matchesPath(pathname: string, href?: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-/** Organization sidebar. Menus without a screen yet open the shared "준비 중" page at their own address. */
+/**
+ * Organization sidebar: organization menus only (#376). Event operation menus (준비 업무, 현장 운영,
+ * 참가 현황, 운영 멤버) live inside an event. Menus without a screen yet open the shared "준비 중" page
+ * at their own address.
+ */
 const primary = [
   { key: "events" as const, label: "행사", icon: events, to: "/events" },
   { key: "notifications" as const, label: "알림", icon: bell, to: "/notifications" },
+  { key: "members" as const, label: "멤버", icon: people, to: "/members" },
   { key: "history" as const, label: "기록", icon: note, to: "/history" },
-  { key: "tasks" as const, label: "준비 업무", icon: clipboard, to: "/tasks" },
   { key: "guides" as const, label: "안내", icon: envelope, to: "/guides" },
   { key: "schedule" as const, label: "일정", icon: calendar, to: "/schedule" },
-];
-
-const operation = [
-  { key: "field" as const, label: "현장 운영", icon: chartLine, to: "/field" },
-  { key: "participants" as const, label: "참가 현황", icon: address, to: "/participants" },
-  { key: "operators" as const, label: "운영 멤버", icon: briefcase, to: "/operators" },
 ];
 
 const system = [
@@ -50,6 +48,7 @@ export type OperatorMenu = {
 export type MenuKey =
   | "events"
   | "notifications"
+  | "members"
   | "history"
   | "tasks"
   | "guides"
@@ -79,7 +78,6 @@ export function operatorMenuSections(menu: OperatorMenu, pathname: string): Menu
   if (!eventName) {
     return [
       { items: primary.map((menu) => item(menu.key, menu.label, menu.icon, menu.to)) },
-      { label: "행사 운영", items: operation.map((menu) => item(menu.key, menu.label, menu.icon, menu.to)) },
       { items: system.map((menu) => item(menu.key, menu.label, menu.icon, menu.to)) },
     ];
   }
@@ -109,9 +107,11 @@ export function operatorMenuSections(menu: OperatorMenu, pathname: string): Menu
 
 
 /**
- * Phone bottom bar shortcuts (#368): what operators check most on site, picked from the same menu so
- * labels, addresses and the current page match the sidebar. 알림 is the organization's, also inside an
- * event. Inside an event 참가 현황 shows only when that area is on; everything else is in 전체 메뉴.
+ * Phone bottom bar shortcuts (#368): what operators check most, picked from the same menu so labels,
+ * addresses and the current page match the sidebar. Outside an event only organization menus
+ * (행사 · 알림 · 멤버, #376); inside an event 홈 · 현장 운영 · 참가 현황 · 알림. 알림 is the
+ * organization's, also inside an event. 참가 현황 shows only when that area is on; everything else
+ * is in 전체 메뉴.
  */
 export function bottomNavItems(menu: OperatorMenu, pathname: string): MenuItem[] {
   const all = operatorMenuSections(menu, pathname).flatMap((section) => section.items);
@@ -128,6 +128,6 @@ export function bottomNavItems(menu: OperatorMenu, pathname: string): MenuItem[]
     to: "/notifications",
     current: matchesPath(pathname, "/notifications"),
   };
-  if (!menu.eventName) return [...pick(["events", "field", "participants"]), notifications];
+  if (!menu.eventName) return pick(["events", "notifications", "members"]);
   return [...pick(["event", "field", "participants"]), notifications];
 }
