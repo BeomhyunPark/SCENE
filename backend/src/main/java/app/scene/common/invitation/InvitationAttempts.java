@@ -9,8 +9,10 @@ import org.springframework.stereotype.Component;
 
 /**
  * Provisional preview and accept limit. The document leaves the number undecided. One bucket is
- * shared by event and space invitation preview and accept, per account and per direct client
- * address, so the shared landing page gives no extra guesses.
+ * shared by event and space invitation preview and accept, per account and per client address, so
+ * the shared landing page gives no extra guesses. The address is {@code getRemoteAddr()}: behind
+ * the home server's nginx it is Cloudflare's CF-Connecting-IP, taken only from a trusted proxy
+ * ({@code server.forward-headers-strategy: native}, #389). Without a proxy it is the peer address.
  */
 @Component
 public class InvitationAttempts {

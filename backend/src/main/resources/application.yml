@@ -26,6 +26,11 @@ spring:
       initialize-schema: never
 
 server:
+  # #389. Tomcat RemoteIpValve reads X-Forwarded-For and X-Forwarded-Proto only when the connecting
+  # address is inside server.tomcat.remoteip.internal-proxies (default: loopback and private
+  # ranges, which covers the compose network where nginx runs). It ignores RFC 7239 Forwarded.
+  # The invitation attempt limit keys on the resulting request.getRemoteAddr().
+  forward-headers-strategy: native
   error:
     include-message: never
     include-stacktrace: never

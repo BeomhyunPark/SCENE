@@ -14,6 +14,10 @@
 - 공유기 포트를 열지 않는다. 집 IP가 드러나지 않고, IP가 바뀌어도 접속이 유지된다.
 - 화면과 API를 한 주소(같은 출처)에서 제공한다. `SCENE_SESSION`·`SCENE_PSESSION` 쿠키가 그대로 동작한다.
 - HTTPS는 Cloudflare가 처리한다. nginx는 백엔드에 `X-Forwarded-Proto: https`를 넘긴다. 이 값은 Google 로그인(#232)의 리디렉션 주소에 쓰인다.
+- **클라이언트 IP (#389, 2026-11-19).** 초대 미리보기·수락 횟수 제한은 계정과 클라이언트 IP 기준이다. nginx는 `X-Forwarded-For`를 Cloudflare가 넣는 `CF-Connecting-IP` 하나로 **덮어쓴다**(이어 붙이지 않는다). 클라이언트가 보낸 `X-Forwarded-For`·`Forwarded`·`X-Forwarded-Port`·`X-Forwarded-Prefix`·`X-Forwarded-Ssl`·`X-Real-IP`는 백엔드로 넘기지 않는다(`frontend/nginx.conf`).
+  - 백엔드는 `server.forward-headers-strategy: native`(Tomcat RemoteIpValve, `application.yml`)다. 이 헤더들은 접속한 주소가 사설·루프백 대역(`server.tomcat.remoteip.internal-proxies` 기본값, compose 네트워크의 nginx 포함)일 때만 믿고, RFC 7239 `Forwarded`는 읽지 않는다. 그래서 사용자마다 따로 한도를 쓰고, 헤더를 꾸며 한도를 우회할 수 없다.
+  - 전제: nginx·백엔드 포트를 밖에 열지 않는다. 포트를 열면 `CF-Connecting-IP`를 클라이언트가 직접 넣을 수 있으므로, 그때는 nginx `set_real_ip_from`에 Cloudflare 대역을 넣는 방식으로 바꾼다.
+  - 이전(`SERVER_FORWARD_HEADERS_STRATEGY: framework`)은 어느 주소에서 온 헤더든 믿었고, nginx가 그대로 넘기던 `Forwarded: for=…`로 요청마다 다른 IP를 꾸밀 수 있었다.
 - 이 서버 하나가 운영 환경이다. **스테이징은 따로 두지 않는다** (2026-11-16 사용자 결정). 11/30까지 이 서버에서 리허설하고, 리허설 데이터는 신청을 열기 전에 지운다(5절).
 
 ## 2. Surface Pro 준비 (한 번)
