@@ -8,6 +8,8 @@ export const queryKeys = {
   spaceInvitations: (spaceId: string) => ["spaces", spaceId, "invitations"] as const,
   event: (eventId: string) => ["events", eventId] as const,
   retrospective: (eventId: string) => ["events", eventId, "retrospective"] as const,
+  /** Every task list and detail of an event, e.g. after an operator removal clears assignees. */
+  allTasks: (eventId: string) => ["events", eventId, "tasks"] as const,
   tasks: (eventId: string, page: number) => ["events", eventId, "tasks", page] as const,
   task: (eventId: string, taskId: string) => ["events", eventId, "tasks", taskId] as const,
   operators: (eventId: string) => ["events", eventId, "operators"] as const,
