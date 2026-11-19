@@ -734,7 +734,7 @@ curl -sS \
 
 `EVENT_UPDATE`, `EVENT_USER_READ`, `PARTICIPANT_READ`, `PARTICIPANT_CONTACT_READ`, `PARTICIPANT_WRITE`, `FORM_WRITE`, `APPLICATION_READ`, `APPLICATION_MANAGE`, `TASK_WRITE`, `SCHEDULE_WRITE`, `NOTICE_WRITE`, `FINANCE_READ`, `FINANCE_WRITE`, `GROUP_WRITE`, `ROOM_WRITE`, `RIDE_WRITE`, `CLASS_WRITE`, `CHECKIN_WRITE`, `MISSION_WRITE`, `GUARDIAN_WRITE`, `GUARDIAN_CONTACT_READ`, `PRIVACY_LOG_READ`, `AUDIT_LOG_READ`, `DATA_EXPORT`, `EVENT_READ`, `EVENT_LIFECYCLE`, `EVENT_USER_MANAGE`.
 
-`OWNER`는 이 키를 모두 기본으로 가진다. `MANAGER`의 기본은 `EVENT_READ`, `TASK_WRITE`, `CHECKIN_WRITE`다. `STAFF`의 기본은 `EVENT_READ`, `CHECKIN_WRITE`다(DEC-071). 키가 있다고 그 업무의 API가 열려 있는 것은 아니다. 지금 HTTP가 `PermissionEvaluator`로 보는 키는 `EVENT_READ`, `EVENT_UPDATE`, `FORM_WRITE`, `TASK_WRITE`, `CHECKIN_WRITE`, `DATA_EXPORT`, `EVENT_USER_MANAGE`다. 신청자 CSV는 `DATA_EXPORT`다. 행사 이름 변경은 `EVENT_UPDATE`다. 신청서 쓰기는 `FORM_WRITE`다. 신청 읽기는 `APPLICATION_READ`가 아니라 `EVENT_READ`다. 행사 상태 변경은 그 키 대신 행사 역할 `OWNER`와 공간 역할 `OWNER`를 본다. `EVENT_LIFECYCLE`은 소유자 전용이라 다른 역할에 `GRANT`되지 않는다.
+`OWNER`는 이 키를 모두 기본으로 가진다. `MANAGER`의 기본은 `EVENT_READ`, `TASK_WRITE`, `CHECKIN_WRITE`, `SCHEDULE_WRITE`, `NOTICE_WRITE`다. `STAFF`의 기본은 `EVENT_READ`, `CHECKIN_WRITE`다(DEC-071, DEC-079). 그 밖의 키는 행사 `OWNER`가 사람별 `GRANT`로 준다. 기본값은 계산값이라 바뀌면 모든 행사의 기존 운영자에게 바로 적용된다. 일정·공지 API는 아직 없어서 `SCHEDULE_WRITE`·`NOTICE_WRITE`로 열리는 경로는 지금 없다. 키가 있다고 그 업무의 API가 열려 있는 것은 아니다. 지금 HTTP가 `PermissionEvaluator`로 보는 키는 `EVENT_READ`, `EVENT_UPDATE`, `FORM_WRITE`, `TASK_WRITE`, `CHECKIN_WRITE`, `DATA_EXPORT`, `EVENT_USER_MANAGE`다. 신청자 CSV는 `DATA_EXPORT`다. 행사 이름 변경은 `EVENT_UPDATE`다. 신청서 쓰기는 `FORM_WRITE`다. 신청 읽기는 `APPLICATION_READ`가 아니라 `EVENT_READ`다. 행사 상태 변경은 그 키 대신 행사 역할 `OWNER`와 공간 역할 `OWNER`를 본다. `EVENT_LIFECYCLE`은 소유자 전용이라 다른 역할에 `GRANT`되지 않는다.
 
 ### `GET /api/v1/operator/events/{eventId}/operators`
 
@@ -780,9 +780,9 @@ curl -sS \
 {
   "userId": "…",
   "role": "MANAGER",
-  "roleDefaults": ["CHECKIN_WRITE", "EVENT_READ", "TASK_WRITE"],
+  "roleDefaults": ["CHECKIN_WRITE", "EVENT_READ", "NOTICE_WRITE", "SCHEDULE_WRITE", "TASK_WRITE"],
   "overrides": { "grants": [], "revokes": [] },
-  "effective": ["CHECKIN_WRITE", "EVENT_READ", "TASK_WRITE"]
+  "effective": ["CHECKIN_WRITE", "EVENT_READ", "NOTICE_WRITE", "SCHEDULE_WRITE", "TASK_WRITE"]
 }
 ```
 
@@ -799,7 +799,7 @@ curl -sS \
 }
 ```
 
-`grants`와 `revokes`는 둘 다 필수 배열이다. 빈 배열도 된다. 모르는 키는 `UNKNOWN_PERMISSION`, 같은 요청 안의 중복은 `DUPLICATE_PERMISSION`이다. 이 둘은 `errors[]`의 `code`다.
+`grants`와 `revokes`는 둘 다 필수 배열이다. 빈 배열도 된다. 역할 기본값에 이미 있는 키의 `GRANT`와 기본값에 없는 키의 `REVOKE`는 저장하지 않는다. 화면(운영 멤버의 "권한", DEC-079)은 지금 `overrides`를 바탕으로 보이는 키만 바꿔 보낸다. 모르는 키는 `UNKNOWN_PERMISSION`, 같은 요청 안의 중복은 `DUPLICATE_PERMISSION`이다. 이 둘은 `errors[]`의 `code`다.
 
 소유자에게 override를 주면 `422 PERMISSION_OWNER_NOT_OVERRIDABLE`이다. 소유자 전용 키를 `GRANT`하면 `422 PERMISSION_OWNER_ONLY`다. `EVENT_READ`를 `REVOKE`하면 `422 PERMISSION_NOT_OVERRIDABLE`다. 보관된 행사에서 권한이 넓어지면 `409 EVENT_ARCHIVED`다. 같은 내용이면 저장하지 않고 현재 본문을 `200`으로 돌려준다.
 
