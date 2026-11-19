@@ -88,7 +88,7 @@ public class OperatorEventCommandService {
     SpaceMembership membership = requireActiveMember(actorId, spaceId);
     PageRequest request = PageRequest.of(page, size);
     Sorts.parse(sort, Set.of());
-    UUID operatedBy = seesEveryEvent(membership) ? null : actorId;
+    UUID operatedBy = membership.seesEveryEvent() ? null : actorId;
     long total = events.countInSpace(spaceId, operatedBy);
     List<EventListItem> items = new ArrayList<>();
     for (EventListRow row : events.listInSpace(spaceId, operatedBy, request)) {
@@ -144,11 +144,6 @@ public class OperatorEventCommandService {
     return membership;
   }
 
-  /** Space owner and space admin read, matching the existing org-admin event read. */
-  private static boolean seesEveryEvent(SpaceMembership membership) {
-    return "OWNER".equals(membership.role()) || "ADMIN".equals(membership.role());
-  }
-
   /**
    * Effective {@code EVENT_READ}, or an active space owner or admin. This does not insert an
    * operator row and does not widen lifecycle reads.
@@ -157,7 +152,7 @@ public class OperatorEventCommandService {
     if (allows(opened, actorId, Permission.EVENT_READ)) {
       return true;
     }
-    return seesEveryEvent(opened.membership());
+    return opened.membership().seesEveryEvent();
   }
 
   private void requireEventUpdate(EventAccessGate.Opened opened, UUID actorId) {

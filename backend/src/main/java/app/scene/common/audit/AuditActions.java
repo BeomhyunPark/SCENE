@@ -50,5 +50,19 @@ public final class AuditActions {
    */
   public static final String GROUPS_PUBLISHED = "GROUPS_PUBLISHED";
 
+  /**
+   * Space invitation commands (#361, DEC-076). Rows carry the space and no event. Details are
+   * {@code invitationId} and {@code role}; resend adds {@code previousInvitationId}; accept adds
+   * {@code outcome} ({@code ACCEPTED} or {@code ALREADY_MEMBER}) and {@code membership} ({@code
+   * CREATED}, {@code REACTIVATED} or {@code UNCHANGED}). No email, token, hash or link.
+   */
+  public static final String SPACE_INVITATION_CREATED = "SPACE_INVITATION_CREATED";
+
+  public static final String SPACE_INVITATION_RESENT = "SPACE_INVITATION_RESENT";
+
+  public static final String SPACE_INVITATION_REVOKED = "SPACE_INVITATION_REVOKED";
+
+  public static final String SPACE_INVITATION_ACCEPTED = "SPACE_INVITATION_ACCEPTED";
+
   private AuditActions() {}
 }

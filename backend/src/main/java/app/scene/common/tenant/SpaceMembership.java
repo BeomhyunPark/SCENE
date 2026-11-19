@@ -8,6 +8,9 @@ package app.scene.common.tenant;
  */
 public record SpaceMembership(Kind kind, String role) {
 
+  public static final String OWNER = "OWNER";
+  public static final String ADMIN = "ADMIN";
+
   public enum Kind {
     ABSENT,
     ENDED,
@@ -26,11 +29,40 @@ public record SpaceMembership(Kind kind, String role) {
     return new SpaceMembership(Kind.ACTIVE, role);
   }
 
+  /** Active space owner only. A space admin may not read event operator rows. */
   public boolean mayReadEventPermissions() {
-    return kind == Kind.ACTIVE && "OWNER".equals(role);
+    return activeOwner();
+  }
+
+  /** Active space owner or admin: reads every event in the space without an operator row. */
+  public boolean seesEveryEvent() {
+    return activeOwnerOrAdmin();
+  }
+
+  /** Active space owner or admin may send a space invitation (DEC-076). */
+  public boolean mayInviteMembers() {
+    return activeOwnerOrAdmin();
+  }
+
+  /** Only an active space owner may invite someone as admin (DEC-076). */
+  public boolean mayInviteAsAdmin() {
+    return activeOwner();
+  }
+
+  /** Active space owner or admin sees member email addresses on the member list (DEC-076). */
+  public boolean maySeeMemberEmails() {
+    return activeOwnerOrAdmin();
   }
 
   public boolean mayChangeEventOperators() {
     return false;
+  }
+
+  private boolean activeOwner() {
+    return kind == Kind.ACTIVE && OWNER.equals(role);
+  }
+
+  private boolean activeOwnerOrAdmin() {
+    return kind == Kind.ACTIVE && (OWNER.equals(role) || ADMIN.equals(role));
   }
 }

@@ -176,6 +176,8 @@ CSRF 쿠키는 `XSRF-TOKEN`, 헤더는 `X-XSRF-TOKEN`이다. 변경 요청은 �
 | 행사 한 건 조회 | `event/OperatorEventController` |
 | 활성화, 종료, 다시 열기, 보관, 보관 해제, 전이 목록 | `event/lifecycle/EventLifecycleController` |
 | 초대 생성, 재발송, 취소, 미리보기, 수락 | `event/invitation/EventInvitationController` |
+| 조직 초대, 조직 멤버 목록 (DEC-076) | `space/invitation/SpaceInvitationController` |
+| 초대 토큰·링크 규칙, 미리보기·수락 한도 (두 초대 공통) | `common/invitation/InvitationTokens`, `InvitationAttempts` |
 | 운영자 목록과 역할, 권한 override | `event/operator/EventOperatorController` |
 | 행사 소유권 이전 요청, 조회, 수락, 거절, 취소 | `event/transfer/OwnerTransferController` |
 | 업무 목록, 생성, 상세, 수정, 삭제 | `event/task/TaskCommandController` |
@@ -222,6 +224,7 @@ Flyway만 스키마를 쓴다. `V1__baseline.sql`이 제품 테이블이고, `V2
 | 탈퇴와 접근 취소 | `space/MembershipLeaveRevokeIT`, `space/OperatorLeaveHttpIT` |
 | 행사 상태 전이 HTTP | `event/lifecycle/EventLifecycleHttpIT` |
 | 초대 | `event/invitation/EventInvitationIT`, `EventInvitationAcceptIT` |
+| 조직 초대 | `space/invitation/SpaceInvitationIT` |
 | 운영자와 권한 override | `event/operator/EventOperatorIT`, `OperatorPermissionHttpIT` |
 | 행사 소유권 이전 HTTP | `event/transfer/OwnerTransferHttpIT` |
 | 업무 명령 | `event/task/TaskCommandHttpIT` |

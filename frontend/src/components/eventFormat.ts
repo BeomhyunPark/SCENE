@@ -61,6 +61,14 @@ export function operatorRoleLabel(role: string): string {
   return role;
 }
 
+/** Space (organization) role on the settings member list and space invitations (DEC-076). */
+export function spaceRoleLabel(role: string): string {
+  if (role === "OWNER") return "Owner";
+  if (role === "ADMIN") return "Admin";
+  if (role === "MEMBER") return "Member";
+  return role;
+}
+
 const publishedFormat = new Intl.DateTimeFormat("ko-KR", {
   timeZone: "Asia/Seoul",
   month: "numeric",

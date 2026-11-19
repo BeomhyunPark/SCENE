@@ -1,8 +1,9 @@
 import { http, HttpResponse } from "msw";
 import { currentOperator } from "./session";
+import { csrfMatches } from "../csrf";
 import { problem } from "../problem";
 import { operatorRequests } from "../operatorStore";
-import { operatorsFor, permissionsFor, type TaskFailure } from "../taskStore";
+import { addOperatorByOwner, operatorsFor, permissionsFor, type TaskFailure } from "../taskStore";
 
 export const operatorHandlers = [
   http.get("/api/v1/operator/events/:eventId/operators", ({ request, params }) => {
@@ -22,6 +23,17 @@ export const operatorHandlers = [
     });
   }),
 
+  http.post("/api/v1/operator/events/:eventId/operators", async ({ request, params, cookies }) => {
+    if (!csrfMatches(request, cookies)) return problem(403, "FORBIDDEN", { detail: "hidden" });
+    const operator = currentOperator();
+    if (!operator) return problem(401, "AUTHENTICATION_REQUIRED");
+    const body: unknown = await request.json().catch(() => null);
+    operatorRequests.push({ method: "POST", url: new URL(request.url).pathname, body });
+    const row = addOperatorByOwner(String(params.eventId), operator.userId, body);
+    if ("code" in row) return fail(row);
+    return HttpResponse.json({ userId: row.userId, displayName: row.displayName, role: row.role });
+  }),
+
   http.get("/api/v1/operator/events/:eventId/operators/:userId/permissions", ({ request, params }) => {
     const operator = currentOperator();
     if (!operator) return problem(401, "AUTHENTICATION_REQUIRED");
@@ -33,7 +45,7 @@ export const operatorHandlers = [
 ];
 
 function fail(failure: TaskFailure): Response {
-  return problem(failure.status, failure.code, { detail: "hidden" });
+  return problem(failure.status, failure.code, { detail: "hidden", ...(failure.errors ? { errors: failure.errors } : {}) });
 }
 
 function isFailure(value: object): value is TaskFailure {

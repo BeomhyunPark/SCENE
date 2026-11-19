@@ -6,7 +6,6 @@ import app.scene.common.error.ErrorCode;
 import app.scene.common.error.SceneException;
 import app.scene.common.permission.Permission;
 import app.scene.common.permission.PermissionEvaluator;
-import app.scene.common.tenant.SpaceMembership;
 import app.scene.event.lifecycle.EventAccessGate;
 import app.scene.event.lifecycle.EventLocation;
 import app.scene.event.lifecycle.EventRepository;
@@ -112,9 +111,7 @@ public class RetrospectiveService {
     if (allows(opened, actorId, Permission.EVENT_READ)) {
       return true;
     }
-    SpaceMembership membership = opened.membership();
-    return membership.kind() == SpaceMembership.Kind.ACTIVE
-        && ("OWNER".equals(membership.role()) || "ADMIN".equals(membership.role()));
+    return opened.membership().seesEveryEvent();
   }
 
   private boolean allows(EventAccessGate.Opened opened, UUID actorId, Permission permission) {

@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="app.scene.space.invitation.mapper.SpaceInvitationMapper">
+
+  <sql id="columns">
+    id, space_id, email_normalized, role, token_hash, status,
+    expires_at, invited_by, accepted_user_id
+  </sql>
+
+  <!-- Serializes create, resend and accept for one space, like the event row lock. -->
+  <select id="lockSpace" resultType="int">
+    SELECT 1 FROM spaces WHERE id = #{spaceId} FOR UPDATE
+  </select>
+
+  <select id="findSpaceName" resultType="string">
+    SELECT name FROM spaces WHERE id = #{spaceId}
+  </select>
+
+  <select id="find" resultType="app.scene.space.invitation.SpaceInvitationRow">
+    SELECT <include refid="columns"/>
+    FROM space_invitations
+    WHERE id = #{id} AND space_id = #{spaceId}
+  </select>
+
+  <select id="findForUpdate" resultType="app.scene.space.invitation.SpaceInvitationRow">
+    SELECT <include refid="columns"/>
+    FROM space_invitations
+    WHERE id = #{id} AND space_id = #{spaceId}
+    FOR UPDATE
+  </select>
+
+  <select id="findByTokenHash" resultType="app.scene.space.invitation.SpaceInvitationRow">
+    SELECT <include refid="columns"/>
+    FROM space_invitations
+    WHERE token_hash = #{tokenHash}
+  </select>
+
+  <select id="countPending" resultType="long">
+    SELECT count(*) FROM space_invitations
+    WHERE space_id = #{spaceId} AND status = 'PENDING'
+  </select>
+
+  <!-- token_hash is selected for the row shape only and never leaves the service. -->
+  <select id="findPendingPage" resultType="app.scene.space.invitation.SpaceInvitationRow">
+    SELECT <include refid="columns"/>
+    FROM space_invitations
+    WHERE space_id = #{spaceId} AND status = 'PENDING'
+    <include refid="app.scene.common.mybatis.CommonMapper.orderByAndPage"/>
+  </select>
+
+  <insert id="insertPending">
+    INSERT INTO space_invitations (
+      id, space_id, email_normalized, role, token_hash, status,
+      expires_at, invited_by, created_at, updated_at)
+    VALUES (
+      #{id}, #{spaceId}, #{emailNormalized}, #{role}, #{tokenHash}, 'PENDING',
+      #{expiresAt}, #{invitedBy}, #{now}, #{now})
+  </insert>
+
+  <update id="supersedePending">
+    UPDATE space_invitations
+    SET status = 'SUPERSEDED', updated_at = #{now}
+    WHERE space_id = #{spaceId} AND email_normalized = #{emailNormalized} AND status = 'PENDING'
+  </update>
+
+  <update id="revokePending">
+    UPDATE space_invitations
+    SET status = 'REVOKED', updated_at = #{now}
+    WHERE id = #{id} AND space_id = #{spaceId} AND status = 'PENDING'
+  </update>
+
+  <update id="acceptPending">
+    UPDATE space_invitations
+    SET status = 'ACCEPTED', accepted_user_id = #{acceptedUserId}, accepted_at = #{now},
+        updated_at = #{now}
+    WHERE id = #{id} AND space_id = #{spaceId}
+      AND status = 'PENDING' AND expires_at &gt; #{now}
+  </update>
+
+  <select id="findMembershipStatusForUpdate" resultType="string">
+    SELECT status FROM members
+    WHERE space_id = #{spaceId} AND user_id = #{userId}
+    FOR UPDATE
+  </select>
+
+  <insert id="insertMember">
+    INSERT INTO members (space_id, user_id, role, status)
+    VALUES (#{spaceId}, #{userId}, #{role}, 'ACTIVE')
+  </insert>
+
+  <!-- DEC-076: a LEFT membership comes back ACTIVE with the invited role. -->
+  <update id="reactivateMember">
+    UPDATE members
+    SET status = 'ACTIVE', role = #{role}
+    WHERE space_id = #{spaceId} AND user_id = #{userId} AND status = 'LEFT'
+  </update>
+
+  <select id="countActiveMembers" resultType="long">
+    SELECT count(*) FROM members
+    WHERE space_id = #{spaceId} AND status = 'ACTIVE'
+  </select>
+
+  <select id="findActiveMembers" resultType="app.scene.space.invitation.SpaceMemberRow">
+    SELECT m.user_id AS user_id, u.display_name AS display_name, m.role AS role,
+           g.email AS email
+    FROM members m
+    JOIN users u ON u.id = m.user_id
+    LEFT JOIN user_google_identities g ON g.user_id = m.user_id
+    WHERE m.space_id = #{spaceId} AND m.status = 'ACTIVE'
+    <include refid="app.scene.common.mybatis.CommonMapper.orderByAndPage"/>
+  </select>
+
+</mapper>

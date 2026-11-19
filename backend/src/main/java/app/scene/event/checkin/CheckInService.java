@@ -6,7 +6,6 @@ import app.scene.common.error.ErrorCode;
 import app.scene.common.error.SceneException;
 import app.scene.common.permission.Permission;
 import app.scene.common.permission.PermissionEvaluator;
-import app.scene.common.tenant.SpaceMembership;
 import app.scene.common.web.ItemPage;
 import app.scene.common.web.PageRequest;
 import app.scene.event.lifecycle.EventAccessGate;
@@ -338,9 +337,7 @@ public class CheckInService {
     if (allows(opened, actorId, Permission.EVENT_READ)) {
       return true;
     }
-    SpaceMembership membership = opened.membership();
-    return membership.kind() == SpaceMembership.Kind.ACTIVE
-        && ("OWNER".equals(membership.role()) || "ADMIN".equals(membership.role()));
+    return opened.membership().seesEveryEvent();
   }
 
   private boolean allows(EventAccessGate.Opened opened, UUID actorId, Permission permission) {
