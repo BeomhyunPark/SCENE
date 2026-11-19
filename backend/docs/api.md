@@ -1967,6 +1967,17 @@ audit `GROUPS_PUBLISHED`: detail은 `publicationId`, `boardVersion`, `assignedCo
 
 `Permission` enum에 키가 있는 것은 그 업무의 API가 열렸다는 뜻이 아니다.
 
+## 계약 초안 (아직 서버에 없다)
+
+아래 경로는 **아직 서버에 없다.** 이 문서는 지금 서버가 받는 계약만 적으므로, 2주차(11/26~) 이후에 만들 경로의 계약 초안은 `docs/architecture`에 따로 둔다. 서버가 경로를 열면 그 절을 이 문서로 옮기고 초안에서 지운다. 그 전까지 이 문서의 다른 절과 초안이 다르면 이 문서(지금 서버)를 따른다.
+
+| 영역 | 정책 | 계약 초안 | 경로 |
+|---|---|---|---|
+| 참가자 홈·갱신 확인·알림 | DEC-080 | [participant-home-contract](../../docs/architecture/participant-home-contract.md) | `GET /participant/home`, `GET /participant/updates`, `GET·POST /participant/notifications…`, `GET·POST /operator/events/{eventId}/notifications…`, `GET /operator/events/{eventId}/updates` |
+| 일정표 | DEC-081 | [schedule-contract](../../docs/architecture/schedule-contract.md) | `GET /operator/events/{eventId}/schedule`, `POST·PATCH·DELETE …/schedule/items…`, `POST …/schedule/publish`, `GET …/schedule/published`, `GET /participant/schedule` |
+| 공지 | DEC-082 | [notice-contract](../../docs/architecture/notice-contract.md) | `GET·POST /operator/events/{eventId}/notices`, `GET·PATCH·DELETE …/notices/{noticeId}`, `POST …/notices/{noticeId}/publish·archive·unarchive`, `GET /participant/notices`, `GET /participant/notices/{noticeId}` |
+| 내 조(조원·조장이 보는 범위) | DEC-083 | [participant-group-contract](../../docs/architecture/participant-group-contract.md) | `GET /participant/group`의 새 응답(지금 응답은 위 [조 편성](#get-apiv1participantgroup)), `GET /participant/group/members/{participantId}`, `GET·PUT /operator/events/{eventId}/participant-settings` |
+
 ## 결정 문서와 다른 점
 
 - [DEC-064](../../docs/product/PRODUCT_DECISIONS.md) Follow-up (2026-10-21)은 참가자 세션 발급, `GET /api/v1/participant/me`, `POST /api/v1/participant/auth/logout`를 Phase 3보다 앞서 MVP에 넣었다. 이 서버와 맞는다. [API Architecture](../../docs/architecture/api-architecture-v0.1.md)와 [Security](../../docs/architecture/security-privacy-v0.1.md)는 아직 Phase 3로 적는다.
