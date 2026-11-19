@@ -32,6 +32,7 @@ type StoredForm = {
   eventId: string;
   formId: string;
   acceptingApplications: boolean;
+  acceptingEdits: boolean;
   fields: StoredField[];
   /** Submitted applications. One or more locks type changes (DEC-068). */
   submitted: number;
@@ -72,7 +73,7 @@ export function listForms(eventId: string, actorId: string): FormListItem[] | Fo
   if (gate) return gate;
   return forms
     .filter((form) => form.eventId === eventId)
-    .map((form) => ({ formId: form.formId, acceptingApplications: form.acceptingApplications }));
+    .map((form) => ({ formId: form.formId, acceptingApplications: form.acceptingApplications, acceptingEdits: form.acceptingEdits }));
 }
 
 export function createForm(eventId: string, actorId: string, body: unknown): FormDetail | FormFailure {
@@ -85,6 +86,7 @@ export function createForm(eventId: string, actorId: string, body: unknown): For
     eventId,
     formId: crypto.randomUUID(),
     acceptingApplications: false,
+    acceptingEdits: true,
     fields: [systemField("NAME", "이름", 0), systemField("PHONE", "전화", 1), systemField("COHORT", "또래", 2)],
     submitted: 0,
     setup: null,
@@ -154,8 +156,10 @@ export function setAccepting(
   const accepting = readAccepting(body);
   if (isFormFailure(accepting)) return accepting;
   const event = eventById(eventId);
-  if (accepting && event?.lifecycleStatus !== "ACTIVE") return { status: 409, code: "INVALID_STATE_TRANSITION" };
-  found.acceptingApplications = accepting;
+  const opening = accepting.acceptingApplications === true || accepting.acceptingEdits === true;
+  if (opening && event?.lifecycleStatus !== "ACTIVE") return { status: 409, code: "INVALID_STATE_TRANSITION" };
+  if (accepting.acceptingApplications !== undefined) found.acceptingApplications = accepting.acceptingApplications;
+  if (accepting.acceptingEdits !== undefined) found.acceptingEdits = accepting.acceptingEdits;
   return toDetail(found);
 }
 
@@ -656,15 +660,24 @@ function readLabel(body: unknown): string | FormFailure {
   return checkedLabel(body.label, "label");
 }
 
-function readAccepting(body: unknown): boolean | FormFailure {
+/** `acceptingApplications`, `acceptingEdits` (DEC-078 §6), or both. */
+function readAccepting(body: unknown): { acceptingApplications?: boolean; acceptingEdits?: boolean } | FormFailure {
   if (!isRecord(body)) return { status: 400, code: "VALIDATION_FAILED", errors: [{ field: "acceptingApplications" }] };
   for (const key of Object.keys(body)) {
-    if (key !== "acceptingApplications") return { status: 400, code: "VALIDATION_FAILED", errors: [{ field: key }] };
+    if (key !== "acceptingApplications" && key !== "acceptingEdits") {
+      return { status: 400, code: "VALIDATION_FAILED", errors: [{ field: key }] };
+    }
   }
-  if (typeof body.acceptingApplications !== "boolean") {
+  const out: { acceptingApplications?: boolean; acceptingEdits?: boolean } = {};
+  for (const key of ["acceptingApplications", "acceptingEdits"] as const) {
+    if (body[key] === undefined) continue;
+    if (typeof body[key] !== "boolean") return { status: 400, code: "VALIDATION_FAILED", errors: [{ field: key }] };
+    out[key] = body[key];
+  }
+  if (out.acceptingApplications === undefined && out.acceptingEdits === undefined) {
     return { status: 400, code: "VALIDATION_FAILED", errors: [{ field: "acceptingApplications" }] };
   }
-  return body.acceptingApplications;
+  return out;
 }
 
 function checkedLabel(value: string, field: string): string | FormFailure {
@@ -684,6 +697,7 @@ function toDetail(form: StoredForm): FormDetail {
   return {
     formId: form.formId,
     acceptingApplications: form.acceptingApplications,
+    acceptingEdits: form.acceptingEdits,
     fields: structuredClone(fields).map((field) => {
       delete field.presetDefaults;
       return field;

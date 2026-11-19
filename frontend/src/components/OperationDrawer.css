@@ -223,3 +223,18 @@
 .operation-drawer__impact-warn {
   font-weight: 700;
 }
+
+/* 6자리 초기화 (DEC-078 §2). */
+.operation-drawer__secret {
+  margin: 4px 0;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.operation-drawer__inline-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}

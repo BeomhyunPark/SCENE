@@ -18,6 +18,7 @@ export function problem(
     participantIds?: string[];
     unassignedCount?: number;
     applicationStatus?: string;
+    retryAfterSeconds?: number;
   },
 ): Response {
   return HttpResponse.json(

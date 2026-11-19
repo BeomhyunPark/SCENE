@@ -138,6 +138,8 @@ export type FormSetup = {
 export type FormListItem = {
   formId: string;
   acceptingApplications: boolean;
+  /** "신청 수정 받기" (DEC-078 §6), separate from accepting applications. */
+  acceptingEdits: boolean;
 };
 
 export type FormDetail = FormListItem & {

@@ -8,7 +8,7 @@ import { createForm, setAccepting } from "../mocks/formStore";
 import { moveAsOtherOperator, seedGroup, workingGroupOf } from "../mocks/groupStore";
 import { operationOf, seedOperationMemo } from "../mocks/operationStore";
 import { operatorRequests, setLifecycle } from "../mocks/operatorStore";
-import { submitPublicApplication } from "../mocks/participantStore";
+import { currentParticipant, openParticipantSession, submitPublicApplication } from "../mocks/participantStore";
 import { revokePermissions } from "../mocks/taskStore";
 
 const EVENT = localEvent.eventId;
@@ -29,6 +29,7 @@ function seed(names: string[]) {
         { fieldId: nameField.fieldId, text: name },
         { fieldId: phoneField.fieldId, text: `010-1111-000${index}` },
       ],
+      pin: "730914",
     });
     if ("code" in submitted) throw new Error(submitted.code);
     return submitted;
@@ -50,6 +51,27 @@ async function openDrawer(name: string) {
 }
 
 describe("현재 운영 정보 수정 drawer (#337)", () => {
+  it("resets the six-digit number and shows the temporary one once (DEC-078)", async () => {
+    seed(["김하나"]);
+    await login({ userId: OWNER });
+    openApp(`/events/${EVENT}/participants`);
+
+    const drawer = await openDrawer("김하나");
+    fireEvent.click(within(drawer).getByRole("button", { name: "6자리 초기화" }));
+    expect(within(drawer).getByText(/임시 번호가 한 번 보여요/)).toBeInTheDocument();
+    fireEvent.click(within(drawer).getByRole("button", { name: "초기화" }));
+    const temporary = (await within(drawer).findByLabelText("임시 번호", {}, WAIT)).textContent ?? "";
+    expect(temporary).toMatch(/^\d{6}$/);
+    expect(operatorRequests.some((request) => request.method === "POST" && request.url.endsWith("/pin-reset"))).toBe(true);
+
+    // The old number no longer works; the temporary one opens a session that must set a new number.
+    expect(openParticipantSession(EVENT, { name: "김하나", phone: "010-1111-0000", pin: "730914" })).toMatchObject({
+      code: "PARTICIPANT_LOGIN_FAILED",
+    });
+    expect(openParticipantSession(EVENT, { name: "김하나", phone: "010-1111-0000", pin: temporary })).toBeNull();
+    expect(currentParticipant()?.pinChangeRequired).toBe(true);
+  });
+
   it("saves the memo with its version, counts characters, and shows who saved it", async () => {
     const [first] = seed(["김하나"]);
     await login({ userId: OWNER });
@@ -102,6 +124,8 @@ describe("현재 운영 정보 수정 drawer (#337)", () => {
     const drawer = await openDrawer("김하나");
     expect(within(drawer).getByLabelText("운영 메모")).toHaveAttribute("readonly");
     expect(within(drawer).getByText(/운영 메모를 고칠 권한이 없어요/)).toBeInTheDocument();
+    expect(within(drawer).getByRole("button", { name: "6자리 초기화" })).toBeDisabled();
+    expect(within(drawer).getByText(/권한이 있는 운영자만 초기화할 수 있어요/)).toBeInTheDocument();
   });
 
   it("hides 수정 and says why when the operator can change nothing", async () => {

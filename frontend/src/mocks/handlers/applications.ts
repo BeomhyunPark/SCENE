@@ -7,7 +7,7 @@ import { attendanceMode, attendedSlotIds, formSlots } from "../attendedSlots";
 import { eventFormDetail, eventFormId, formFields, requireEventRead } from "../formStore";
 import { eventById, operatorRequests } from "../operatorStore";
 import { permissionsFor } from "../taskStore";
-import { submittedApplication, submittedApplications, tableApplications } from "../participantStore";
+import { resetParticipantPin, submittedApplication, submittedApplications, tableApplications } from "../participantStore";
 import { checkedInAtOf } from "../checkInStore";
 import { workingGroupOf } from "../groupStore";
 import { problem } from "../problem";
@@ -115,6 +115,7 @@ export const applicationHandlers = [
           checkedInAt: checkedInAtOf(eventId, row.participantId),
           slotIds: form && slots ? attendedSlotIds(form, slots, new Map(Object.entries(row.answers))) : null,
           operation: operationOf(row.applicationId),
+          revision: row.revision,
         })),
         slots,
       },
@@ -144,6 +145,26 @@ export const applicationHandlers = [
         return { ...answer, contact, value: contact && !contactVisible ? null : answer.value };
       }),
     });
+  }),
+
+  // 6자리 초기화 (DEC-078 §2), shaped like ParticipantPinResetController: 404 → 403 → 409 archived.
+  http.post("/api/v1/operator/events/:eventId/participants/:participantId/pin-reset", ({ request, params, cookies }) => {
+    if (!csrfMatches(request, cookies)) return problem(403, "FORBIDDEN");
+    const operator = currentOperator();
+    if (!operator) return problem(401, "AUTHENTICATION_REQUIRED");
+    operatorRequests.push({ method: "POST", url: new URL(request.url).pathname });
+    const eventId = String(params.eventId);
+    const event = eventById(eventId);
+    if (!event) return problem(404, "RESOURCE_NOT_FOUND", { detail: "hidden" });
+    const known = tableApplications(eventId).some((row) => row.participantId === String(params.participantId));
+    if (!known) return problem(404, "RESOURCE_NOT_FOUND", { detail: "hidden" });
+    const perms = permissionsFor(eventId, operator.userId, operator.userId);
+    if ("status" in perms) return problem(perms.status, perms.code, { detail: "hidden" });
+    if (!perms.effective.includes("PARTICIPANT_WRITE")) return problem(403, "FORBIDDEN", { detail: "hidden" });
+    if (event.lifecycleStatus === "ARCHIVED") return problem(409, "EVENT_ARCHIVED", { detail: "hidden" });
+    const temporaryPin = resetParticipantPin(eventId, String(params.participantId));
+    if (!temporaryPin) return problem(404, "RESOURCE_NOT_FOUND", { detail: "hidden" });
+    return HttpResponse.json({ temporaryPin }, { headers: { "Cache-Control": "no-store" } });
   }),
 
   // 운영 정보 저장 (#335, DEC-075), shaped like ApplicationOperationController. The memo body never

@@ -24,7 +24,7 @@ function submit(form: ReturnType<typeof openForm>, texts: Record<string, string>
   const answers = form.fields
     .filter((field) => texts[field.label] !== undefined)
     .map((field) => ({ fieldId: field.fieldId, text: texts[field.label] }));
-  const submitted = submitPublicApplication(EVENT, form.formId, { answers });
+  const submitted = submitPublicApplication(EVENT, form.formId, { answers, pin: "730914" });
   if ("code" in submitted) throw new Error(submitted.code);
   return submitted;
 }
@@ -50,7 +50,7 @@ describe("event participation applicants", () => {
 
   it("shows applicants as the 참가 현황 table, with the phone for the owner and no access key", async () => {
     const form = openForm("식사");
-    const first = submit(form, { 이름: "김하나", 전화: "010-1111-2222", 또래: "94", 식사: "채식" });
+    submit(form, { 이름: "김하나", 전화: "010-1111-2222", 또래: "94", 식사: "채식" });
     submit(form, { 이름: "박둘", 전화: "010-3333-4444" });
     await login({ userId: OWNER });
     openApp(`/events/${EVENT}/participants`);
@@ -67,7 +67,7 @@ describe("event participation applicants", () => {
     expect(screen.getByRole("heading", { name: "참가자를 받는 방법" })).toBeInTheDocument();
     // 식사 is not one of the design's columns: it is off until the operator turns it on.
     expect(within(table).queryByText("채식")).not.toBeInTheDocument();
-    expect(document.body.textContent ?? "").not.toContain(first.accessKey);
+    expect(document.body.textContent ?? "").not.toContain("730914");
   });
 
   it("leaves the phone column out for an operator without contact access", async () => {
@@ -95,7 +95,7 @@ describe("event participation applicants", () => {
     const answers = await screen.findAllByRole("definition");
     expect(answers.map((item) => item.textContent)).toEqual(["김하나", "010-1111-2222", "채식"]);
     expect(screen.getAllByRole("term").map((item) => item.textContent)).toEqual(["이름", "전화", "식사"]);
-    expect(document.body.textContent ?? "").not.toContain(submitted.accessKey);
+    expect(document.body.textContent ?? "").not.toContain("730914");
     expect(
       operatorRequests.some(
         (request) => request.url === `/api/v1/operator/events/${EVENT}/applications/${submitted.applicationId}`,

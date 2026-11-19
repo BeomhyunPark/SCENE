@@ -61,6 +61,8 @@ describe("public form, arrival and departure (DEC-074)", () => {
     const { problem } = await import("../mocks/problem");
     server.use(http.post("/api/v1/public/events/:eventId/forms/:formId/applications", () => problem(400, "APPLICATION_VALIDATION_FAILED")));
     fireEvent.click(screen.getByRole("checkbox", { name: /동의/ }));
+    fireEvent.change(screen.getByLabelText("숫자 6자리"), { target: { value: "730914" } });
+    fireEvent.change(screen.getByLabelText("한 번 더"), { target: { value: "730914" } });
     fireEvent.click(screen.getByRole("button", { name: "신청하기" }));
     const departure = screen.getByRole("group", { name: /수련회장에서 언제 출발하나요/ });
     expect(await within(departure).findByText(/출발은 도착보다 앞일 수 없어요/)).toBeInTheDocument();

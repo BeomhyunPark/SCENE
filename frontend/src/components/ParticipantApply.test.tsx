@@ -11,7 +11,7 @@ const EVENT = localEvent.eventId;
 const FORM = "00000000-0000-4000-8000-0000000000aa";
 const NAME = "00000000-0000-4000-8000-0000000000b1";
 const PHONE = "00000000-0000-4000-8000-0000000000b2";
-const KEY = "participant-access-key";
+const PIN = "730914";
 const SECRET = "hidden-server-detail";
 
 function formResponse() {
@@ -29,6 +29,20 @@ function problem(status: number, code: string) {
     { type: "urn:scene:problem:test", title: code, status, detail: SECRET, code },
     { status, headers: { "Content-Type": "application/problem+json" } },
   );
+}
+
+function enterPin(pin: string, again = pin) {
+  fireEvent.change(screen.getByLabelText("숫자 6자리"), { target: { value: pin } });
+  fireEvent.change(screen.getByLabelText("한 번 더"), { target: { value: again } });
+}
+
+function signedIn(pinChangeRequired = false) {
+  return HttpResponse.json({ participantId: "person-1", eventId: EVENT, spaceId: "space-1", name: "김", pinChangeRequired });
+}
+
+async function fillNameAndPhone() {
+  fireEvent.change(await screen.findByLabelText(/^이름/), { target: { value: "김" } });
+  fireEvent.change(screen.getByLabelText(/^전화/), { target: { value: "010-1234-5678" } });
 }
 
 async function openApp(path: string) {
@@ -54,29 +68,46 @@ describe("participant apply", () => {
     vi.restoreAllMocks();
   });
 
-  it("shows the return link once and does not store the key", async () => {
+  it("asks for the number twice, sends it once and is signed in right away", async () => {
     const posted: unknown[] = [];
     const setItem = vi.spyOn(Storage.prototype, "setItem");
     server.use(
       http.get("/api/v1/public/events/:eventId/forms/:formId", () => HttpResponse.json(formResponse())),
       http.post("/api/v1/public/events/:eventId/forms/:formId/applications", async ({ request }) => {
         posted.push(await request.json());
-        return HttpResponse.json(
-          { applicationId: "app-1", participantId: "person-1", accessKey: KEY },
-          { status: 201 },
-        );
+        return HttpResponse.json({ applicationId: "app-1", participantId: "person-1", revision: 1, revised: false }, { status: 201 });
       }),
+      http.get("/api/v1/participant/me", () => signedIn()),
     );
     await openApp(`/apply/${EVENT}/${FORM}`);
-    fireEvent.change(await screen.findByLabelText(/^이름/), { target: { value: "김" } });
-    fireEvent.change(screen.getByLabelText(/^전화/), { target: { value: "010-1234-5678" } });
+    await fillNameAndPhone();
+
     fireEvent.click(screen.getByRole("button", { name: "신청하기" }));
-    const link = await screen.findByRole("textbox", { name: "다시 들어오는 링크" });
-    expect(link).toHaveValue(`${window.location.origin}/participate/${EVENT}#${encodeURIComponent(KEY)}`);
-    expect(String((link as HTMLInputElement).value).split("#")[0]).not.toContain(KEY);
-    expect(posted).toEqual([{ answers: [{ fieldId: NAME, text: "김" }, { fieldId: PHONE, text: "010-1234-5678" }] }]);
+    expect(await screen.findByText("숫자 6자리를 넣어 주세요.")).toBeInTheDocument();
+    enterPin("123456");
+    expect(screen.getByText("이어지는 숫자는 쓸 수 없어요.")).toBeInTheDocument();
+    enterPin("111111");
+    expect(screen.getByText("같은 숫자만 반복한 번호는 쓸 수 없어요.")).toBeInTheDocument();
+    // 101234 is inside 01012345678.
+    enterPin("101234");
+    expect(screen.getByText("전화번호에 들어 있는 숫자는 쓸 수 없어요.")).toBeInTheDocument();
+    enterPin(PIN, "730915");
+    expect(screen.getByText("두 번호가 달라요.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "신청하기" }));
+    expect(posted).toEqual([]);
+
+    enterPin(PIN);
+    fireEvent.click(screen.getByRole("button", { name: "신청하기" }));
+    expect(await screen.findByRole("heading", { name: "신청했어요" })).toBeInTheDocument();
+    const address = screen.getByRole("textbox", { name: "참가자 주소" });
+    expect(address).toHaveValue(`${window.location.origin}/participate/${EVENT}`);
+    expect(posted).toEqual([{ pin: PIN, answers: [{ fieldId: NAME, text: "김" }, { fieldId: PHONE, text: "010-1234-5678" }] }]);
+    expect(document.body.textContent ?? "").not.toContain(PIN);
     expect(setItem).not.toHaveBeenCalled();
-    expect(screen.queryByText(SECRET)).not.toBeInTheDocument();
+
+    // The submit response opened the session, so the participant page is already signed in.
+    fireEvent.click(screen.getByRole("link", { name: "내 신청 보기" }));
+    expect(await screen.findByRole("heading", { name: "김님, 참가 신청이 됐어요." })).toBeInTheDocument();
   });
 
   it("answers typed and conditional questions and sends typed values", async () => {
@@ -142,7 +173,7 @@ describe("participant apply", () => {
       ),
       http.post("/api/v1/public/events/:eventId/forms/:formId/applications", async ({ request }) => {
         posted.push(await request.json());
-        return HttpResponse.json({ applicationId: "app-1", participantId: "person-1", accessKey: KEY }, { status: 201 });
+        return HttpResponse.json({ applicationId: "app-1", participantId: "person-1", revision: 1, revised: false }, { status: 201 });
       }),
     );
     await openApp(`/apply/${EVENT}/${FORM}`);
@@ -161,10 +192,12 @@ describe("participant apply", () => {
     fireEvent.change(screen.getByLabelText(/^도착 예정 시각/), { target: { value: "2027-01-22T19:30" } });
     fireEvent.click(screen.getByRole("checkbox", { name: "저녁" }));
     fireEvent.click(screen.getByRole("checkbox", { name: /개인정보 수집에 동의합니다/ }));
+    enterPin(PIN);
     fireEvent.click(screen.getByRole("button", { name: "신청하기" }));
-    await screen.findByRole("textbox", { name: "다시 들어오는 링크" });
+    await screen.findByRole("heading", { name: "신청했어요" });
     expect(posted).toEqual([
       {
+        pin: PIN,
         answers: [
           { fieldId: NAME, text: "김" },
           { fieldId: PHONE, text: "010-1234-5678" },
@@ -177,69 +210,110 @@ describe("participant apply", () => {
     ]);
   });
 
-  it("enters from the key it just received", async () => {
-    const posted: unknown[] = [];
+  it("tells an applied phone with another number that it already applied", async () => {
+    server.use(
+      http.get("/api/v1/public/events/:eventId/forms/:formId", () => HttpResponse.json(formResponse())),
+      http.post("/api/v1/public/events/:eventId/forms/:formId/applications", () => problem(409, "APPLICATION_ALREADY_EXISTS")),
+    );
+    await openApp(`/apply/${EVENT}/${FORM}`);
+    await fillNameAndPhone();
+    enterPin(PIN);
+    fireEvent.click(screen.getByRole("button", { name: "신청하기" }));
+    expect(await screen.findByText(/이 전화번호로 이미 신청했어요/)).toBeInTheDocument();
+    expect(screen.queryByText(SECRET)).not.toBeInTheDocument();
+  });
+
+  it("says the application was edited when the same phone and number apply again", async () => {
     server.use(
       http.get("/api/v1/public/events/:eventId/forms/:formId", () => HttpResponse.json(formResponse())),
       http.post("/api/v1/public/events/:eventId/forms/:formId/applications", () =>
-        HttpResponse.json({ applicationId: "app-1", participantId: "person-1", accessKey: KEY }, { status: 201 }),
-      ),
-      http.post("/api/v1/public/events/:eventId/participant-sessions", async ({ request }) => {
-        posted.push(await request.json());
-        return new HttpResponse(null, { status: 204 });
-      }),
-      http.get("/api/v1/participant/me", () =>
-        HttpResponse.json({ participantId: "person-1", eventId: EVENT, spaceId: "space-1", name: "김" }),
+        HttpResponse.json({ applicationId: "app-2", participantId: "person-1", revision: 2, revised: true }),
       ),
     );
     await openApp(`/apply/${EVENT}/${FORM}`);
-    fireEvent.change(await screen.findByLabelText(/^이름/), { target: { value: "김" } });
-    fireEvent.change(screen.getByLabelText(/^전화/), { target: { value: "01012345678" } });
+    await fillNameAndPhone();
+    enterPin(PIN);
     fireEvent.click(screen.getByRole("button", { name: "신청하기" }));
-    fireEvent.click(await screen.findByRole("button", { name: "들어가기" }));
-    expect(await screen.findByRole("heading", { name: "김님, 참가 신청이 됐어요." })).toBeInTheDocument();
-    expect(posted).toEqual([{ accessKey: KEY }]);
-    expect(screen.queryByText(KEY)).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "로그아웃" }));
-    expect(await screen.findByRole("heading", { name: "나갔어요" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "신청을 고쳤어요" })).toBeInTheDocument();
   });
 
-  it("strips the fragment before opening a session", async () => {
+  it("signs in on the participant address with name, phone and number", async () => {
     const posted: unknown[] = [];
+    let inside = false;
     server.use(
+      http.get("/api/v1/participant/me", () => (inside ? signedIn() : problem(401, "AUTHENTICATION_REQUIRED"))),
       http.post("/api/v1/public/events/:eventId/participant-sessions", async ({ request }) => {
         posted.push(await request.json());
+        inside = true;
         return new HttpResponse(null, { status: 204 });
       }),
-      http.get("/api/v1/participant/me", () =>
-        HttpResponse.json({ participantId: "person-1", eventId: EVENT, spaceId: "space-1", name: "김" }),
-      ),
+      http.post("/api/v1/participant/auth/logout", () => {
+        inside = false;
+        return new HttpResponse(null, { status: 204 });
+      }),
     );
-    window.location.hash = `#${encodeURIComponent(KEY)}`;
     await openApp(`/participate/${EVENT}`);
-    expect(window.location.hash).toBe("");
+    expect(await screen.findByRole("heading", { name: "내 신청 보기" })).toBeInTheDocument();
+    expect(screen.queryByText(/링크/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "들어가기" }));
+    expect(screen.getByText("이름, 전화번호, 숫자 6자리를 모두 넣어 주세요.")).toBeInTheDocument();
+    expect(posted).toEqual([]);
+    fireEvent.change(screen.getByLabelText("이름"), { target: { value: " 김 " } });
+    fireEvent.change(screen.getByLabelText("전화번호"), { target: { value: "010-1234-5678" } });
+    fireEvent.change(screen.getByLabelText("숫자 6자리"), { target: { value: "73-09-14" } });
+    fireEvent.click(screen.getByRole("button", { name: "들어가기" }));
     expect(await screen.findByRole("heading", { name: "김님, 참가 신청이 됐어요." })).toBeInTheDocument();
-    expect(posted).toEqual([{ accessKey: KEY }]);
-    expect(screen.queryByText(KEY)).not.toBeInTheDocument();
+    expect(posted).toEqual([{ name: "김", phone: "010-1234-5678", pin: PIN }]);
+    fireEvent.click(screen.getByRole("button", { name: "로그아웃" }));
+    expect(await screen.findByRole("heading", { name: "나갔어요" })).toBeInTheDocument();
+    expect(screen.getByLabelText("이름")).toBeInTheDocument();
   });
 
-  it("hides a rejected key and the problem detail", async () => {
+  it("gives one message for any wrong part and says how long a lock lasts", async () => {
+    let attempt = 0;
     server.use(
-      http.post("/api/v1/public/events/:eventId/participant-sessions", () => problem(401, "PARTICIPANT_ACCESS_INVALID")),
+      http.get("/api/v1/participant/me", () => problem(401, "AUTHENTICATION_REQUIRED")),
+      http.post("/api/v1/public/events/:eventId/participant-sessions", () => {
+        attempt += 1;
+        if (attempt === 1) return problem(401, "PARTICIPANT_LOGIN_FAILED");
+        return HttpResponse.json(
+          { type: "urn:scene:problem:test", title: "x", status: 429, detail: SECRET, code: "PARTICIPANT_LOGIN_LOCKED", retryAfterSeconds: 600 },
+          { status: 429, headers: { "Content-Type": "application/problem+json" } },
+        );
+      }),
     );
-    window.location.hash = `#${encodeURIComponent(KEY)}`;
     await openApp(`/participate/${EVENT}`);
-    expect(await screen.findByRole("heading", { name: "사용할 수 없는 링크예요" })).toBeInTheDocument();
+    fireEvent.change(await screen.findByLabelText("이름"), { target: { value: "김" } });
+    fireEvent.change(screen.getByLabelText("전화번호"), { target: { value: "010-1234-5678" } });
+    fireEvent.change(screen.getByLabelText("숫자 6자리"), { target: { value: "482915" } });
+    fireEvent.click(screen.getByRole("button", { name: "들어가기" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("이름, 전화번호, 숫자 6자리를 다시 확인해 주세요.");
+    fireEvent.click(screen.getByRole("button", { name: "들어가기" }));
+    expect(await screen.findByText(/10분 뒤에 다시 해 주세요/)).toBeInTheDocument();
     expect(screen.queryByText(SECRET)).not.toBeInTheDocument();
-    expect(screen.queryByText(KEY)).not.toBeInTheDocument();
-    expect(window.location.pathname + window.location.search).not.toContain(KEY);
   });
 
-  it("asks for the link when there is no session", async () => {
-    server.use(http.get("/api/v1/participant/me", () => problem(401, "AUTHENTICATION_REQUIRED")));
+  it("makes a temporary-number session set a new number before the participant home", async () => {
+    const posted: unknown[] = [];
+    let temporary = true;
+    server.use(
+      http.get("/api/v1/participant/me", () => signedIn(temporary)),
+      http.put("/api/v1/participant/pin", async ({ request }) => {
+        posted.push(await request.json());
+        temporary = false;
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
     await openApp(`/participate/${EVENT}`);
-    expect(await screen.findByRole("heading", { name: "링크가 필요해요" })).toBeInTheDocument();
-    expect(screen.queryByText(SECRET)).not.toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "새 숫자 6자리를 정해 주세요" })).toBeInTheDocument();
+    enterPin("654321");
+    fireEvent.click(screen.getByRole("button", { name: "번호 정하기" }));
+    expect(screen.getByText("이어지는 숫자는 쓸 수 없어요.")).toBeInTheDocument();
+    expect(posted).toEqual([]);
+    enterPin("904172");
+    fireEvent.click(screen.getByRole("button", { name: "번호 정하기" }));
+    expect(await screen.findByRole("heading", { name: "김님, 참가 신청이 됐어요." })).toBeInTheDocument();
+    expect(posted).toEqual([{ newPin: "904172" }]);
   });
 
   it("shows a closed form without the problem detail", async () => {
@@ -254,7 +328,7 @@ describe("participant apply", () => {
     server.use(
       http.get("/api/v1/operator/events/:eventId/forms", () =>
         HttpResponse.json({
-          items: [{ formId: FORM, acceptingApplications: true }],
+          items: [{ formId: FORM, acceptingApplications: true, acceptingEdits: true }],
           page: { number: 0, size: 20, totalItems: 1, totalPages: 1 },
         }),
       ),
@@ -266,13 +340,19 @@ describe("participant apply", () => {
     expect((address as HTMLInputElement).value).not.toContain("#");
     fireEvent.click(screen.getByRole("button", { name: "복사" }));
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith(`${window.location.origin}/apply/${EVENT}/${FORM}`);
+    // DEC-078 §8: the one participant address, with its QR, for the group chat.
+    const participant = screen.getByRole("textbox", { name: "참가자 주소" });
+    expect(participant).toHaveValue(`${window.location.origin}/participate/${EVENT}`);
+    expect(screen.getByRole("img", { name: "참가자 주소 QR" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "주소 복사" }));
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(`${window.location.origin}/participate/${EVENT}`);
   });
 
   it("hides the apply address until applications are open", async () => {
     server.use(
       http.get("/api/v1/operator/events/:eventId/forms", () =>
         HttpResponse.json({
-          items: [{ formId: FORM, acceptingApplications: false }],
+          items: [{ formId: FORM, acceptingApplications: false, acceptingEdits: true }],
           page: { number: 0, size: 20, totalItems: 1, totalPages: 1 },
         }),
       ),

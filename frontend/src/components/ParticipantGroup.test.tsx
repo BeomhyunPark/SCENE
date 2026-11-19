@@ -194,13 +194,13 @@ describe("participant group", () => {
 describe("participant group mock", () => {
   it("follows the server order and gives members only to a leader", async () => {
     const form = openForm();
-    const ids = ["가", "나", "다"].map((name) => {
+    const ids = ["가", "나", "다"].map((name, index) => {
       const answers = form.fields.flatMap((field) => {
         if (field.systemKey === "NAME") return [{ fieldId: field.fieldId, text: name }];
-        if (field.systemKey === "PHONE") return [{ fieldId: field.fieldId, text: "010-1234-5678" }];
+        if (field.systemKey === "PHONE") return [{ fieldId: field.fieldId, text: `010-1234-567${index}` }];
         return [];
       });
-      const issued = submitPublicApplication(EVENT, form.formId, { answers });
+      const issued = submitPublicApplication(EVENT, form.formId, { answers, pin: "730914" });
       if ("code" in issued) throw new Error(issued.code);
       return issued.participantId;
     });

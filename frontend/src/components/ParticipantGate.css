@@ -258,3 +258,28 @@
   color: var(--color-text-secondary);
   font: var(--scene-body-s);
 }
+
+/* DEC-078: the six-digit number at the end of the form and on the sign-in screen. */
+.participant-gate__pin {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  margin: 8px 0 0;
+  padding: 16px 0 0;
+  border: 0;
+  border-top: 1px solid var(--color-border-default);
+}
+
+.participant-gate__pin legend {
+  float: left;
+  width: 100%;
+  margin-bottom: 4px;
+}
+
+.participant-gate__secret {
+  margin: 0;
+  font: var(--scene-title-l, var(--scene-label-m));
+  letter-spacing: 4px;
+}

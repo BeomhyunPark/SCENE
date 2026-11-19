@@ -18,6 +18,7 @@ import { buildColumns, slotSummary } from "./applicantTable/model";
 import { Button } from "./Button";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { formatSubmittedAt } from "./eventFormat";
+import { PinReset } from "./PinReset";
 import "./OperationDrawer.css";
 
 const UNASSIGNED = "";
@@ -329,6 +330,13 @@ export function OperationDrawer({
               저장했어요.
             </p>
           ) : null}
+
+          <PinReset
+            eventId={eventId}
+            participantId={row.participantId}
+            eventStatus={eventStatus}
+            mayWrite={!permissions.isPending && effective.includes("PARTICIPANT_WRITE")}
+          />
 
           <p className="operation-drawer__origin">
             신청 당시 값: {attendance || "참석 범위 없음"} · {submitted} 제출

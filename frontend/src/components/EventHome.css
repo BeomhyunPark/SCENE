@@ -562,3 +562,15 @@
   white-space: pre-wrap;
   color: var(--color-text-primary);
 }
+
+/* 참가자 주소와 QR (DEC-078 §8). */
+.event-home__qr {
+  border: 1px solid var(--color-border-default);
+  border-radius: 12px;
+}
+
+.event-home__address-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
