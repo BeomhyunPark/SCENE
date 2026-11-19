@@ -125,6 +125,27 @@ age -d -i scene-backup.key scene-YYYYMMDD-HHMMSS.sql.gz.age | gunzip | docker co
 - [ ] 백업 자동 실행 + 복구 리허설 1회
 - [ ] 휴대폰 LTE(집 Wi-Fi 아님)로 신청 페이지 접속 확인
 - [ ] Cloudflare에서 `scene.greengroove.app`이 프록시(주황 구름) 상태인지 확인
+- [ ] Cloudflare 요청 제한 규칙(공개 POST) 추가 — 위 "공개 신청·참가자 들어오기 요청 제한"
+
+### 공개 신청·참가자 들어오기 요청 제한 (#401, DEC-078)
+
+서버가 먼저 막는다(설정 `scene.participant.*`, 숫자는 잠정, 서버 메모리라 재시작하면 0부터).
+
+| 대상 | 서버 제한 |
+|---|---|
+| 공개 신청 POST `/api/v1/public/events/*/forms/*/applications` | 같은 IP 10분 1,000번 초과 → `429 RATE_LIMITED` |
+| 참가자 들어오기 POST `/api/v1/public/events/*/participant-sessions` | 같은 IP 실패 10분 300번 초과 → `429`. 전화번호별 연속 5번 실패 → 잠금 5분·30분·24시간(24시간 안 단계, 운영자 초기화로 풀림). 마지막 단계·IP 초과는 백엔드 로그 경고(`docker compose logs backend | grep 'over limit\|last stage'`) |
+
+**현장에서 한도 올리기(배포 없이).** 숫자는 `deploy/home/.env`의 `SCENE_PARTICIPANT_*`로 바꾼다(비우면 기본값). 수련회 당일 와이파이에서 여러 사람이 `429`("요청이 너무 많아요", "시도가 너무 많아요")를 보면 `.env`에 예를 들어 `SCENE_PARTICIPANT_IPFAILURELIMIT=1000`, `SCENE_PARTICIPANT_SUBMITIPLIMIT=5000`을 넣고 `cd ~/scene/deploy/home && docker compose up -d backend`를 실행한다. 백엔드만 다시 뜨고(약 1분) 코드는 바뀌지 않으므로 배포 동결 중에도 된다. 카운터와 잠금은 다시 뜨면서 모두 풀린다. 한 사람의 잠금만 풀려면 운영자가 참가 현황에서 6자리를 초기화한다.
+
+IP는 nginx가 넘기는 `CF-Connecting-IP`(→ `X-Forwarded-For`, `SERVER_FORWARD_HEADERS_STRATEGY=framework`)다. Cloudflare를 거치지 않는 요청은 없으므로 이 값을 믿는다.
+
+**Cloudflare 규칙 (사용자가 대시보드에서 설정한다. 이 저장소에서는 설정하지 않았다):** `scene.greengroove.app` → Security → WAF → Rate limiting rules에 규칙 하나를 더한다. 무료 플랜은 규칙 1개, 10초 단위다.
+
+- 조건: `http.request.method eq "POST" and starts_with(http.request.uri.path, "/api/v1/public/")`
+- 기준: IP, 10초에 100번 초과 → Block 10초(무료 플랜 기본값)
+- 이유: 서버 제한(10분 1,000번)보다 짧은 폭주만 Cloudflare에서 끊는다. 교회·수련회장 와이파이처럼 한 IP 뒤에 많은 사람이 있어도 200명이 동시에 눌러도 10초에 100번은 잘 넘지 않는다. 막히는 사람이 보이면 Security → Events에서 확인하고 숫자를 올린다.
+- 확인: 설정 뒤 휴대폰에서 신청 한 번이 되는지 본다. Security → Events에서 막힌 요청을 본다.
 
 ## 6. 수련회 당일 (가장 큰 위험: 집 정전·인터넷 장애)
 

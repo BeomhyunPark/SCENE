@@ -2,15 +2,23 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="app.scene.event.participant.mapper.ParticipantSessionQueryMapper">
-
+  <!-- DEC-078 §3: a session ends at midnight (zone) of end_date + 1 + daysAfterEnd. -->
   <select id="findByTokenHash" resultType="app.scene.event.participant.ParticipantSelf">
-    SELECT s.participant_id, s.event_id, s.space_id, p.name
+    SELECT s.participant_id, s.event_id, s.space_id, p.name,
+           p.pin_temporary AS pin_change_required
     FROM participant_sessions s
     JOIN participants p
       ON p.space_id = s.space_id
      AND p.event_id = s.event_id
      AND p.id = s.participant_id
+    JOIN events e
+      ON e.id = s.event_id
+     AND e.space_id = s.space_id
     WHERE s.token_hash = #{tokenHash}
+      AND (e.end_date IS NULL
+           OR #{now} &lt; ((e.end_date + 1 + #{daysAfterEnd})::timestamp AT TIME ZONE #{zone}))
   </select>
-
+  <select id="findEventEndDate" resultType="java.time.LocalDate">
+    SELECT end_date FROM events WHERE id = #{eventId} AND space_id = #{spaceId}
+  </select>
 </mapper>

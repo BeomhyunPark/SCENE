@@ -80,7 +80,7 @@ public class OperatorFormService {
     long total = forms.count(spaceId, eventId);
     List<FormListItem> items = new ArrayList<>();
     for (FormListRow row : forms.list(spaceId, eventId, request)) {
-      items.add(new FormListItem(row.formId(), row.acceptingApplications()));
+      items.add(new FormListItem(row.formId(), row.acceptingApplications(), row.acceptingEdits()));
     }
     return ItemPage.of(items, request, total);
   }
@@ -131,11 +131,16 @@ public class OperatorFormService {
       throw new SceneException(ErrorCode.RESOURCE_NOT_FOUND);
     }
     requireFormWrite(opened, actorId);
-    boolean accepting = parseAccepting(body);
-    if (accepting && !ACTIVE.equals(opened.location().lifecycleStatus())) {
+    Boolean accepting = parseSwitch(body, "acceptingApplications");
+    Boolean edits = parseSwitch(body, "acceptingEdits");
+    if (accepting == null && edits == null) {
+      throw field("acceptingApplications");
+    }
+    boolean opening = Boolean.TRUE.equals(accepting) || Boolean.TRUE.equals(edits);
+    if (opening && !ACTIVE.equals(opened.location().lifecycleStatus())) {
       throw new SceneException(ErrorCode.INVALID_STATE_TRANSITION);
     }
-    if (forms.updateAccepting(spaceId, eventId, formId, accepting) != 1) {
+    if (forms.updateAccepting(spaceId, eventId, formId, accepting, edits) != 1) {
       throw new IllegalStateException("form acceptance was not stored");
     }
     return detail(spaceId, eventId, formId);
@@ -600,6 +605,7 @@ public class OperatorFormService {
     return new FormDetail(
         form.id(),
         form.acceptingApplications(),
+        form.acceptingEdits(),
         fields,
         forms.countSubmitted(spaceId, eventId, formId) > 0,
         form.setup() == null ? null : json.readTree(form.setup()),
@@ -663,19 +669,25 @@ public class OperatorFormService {
     return trimmed;
   }
 
-  /** The body is {@code acceptingApplications} only. */
-  private static boolean parseAccepting(JsonNode body) {
+  /**
+   * The body has {@code acceptingApplications}, {@code acceptingEdits} (DEC-078 §6), or both. A
+   * missing key is left as it is.
+   */
+  private static Boolean parseSwitch(JsonNode body, String name) {
     if (body == null || !body.isObject()) {
       throw field("acceptingApplications");
     }
     for (String key : body.propertyNames()) {
-      if (!"acceptingApplications".equals(key)) {
+      if (!"acceptingApplications".equals(key) && !"acceptingEdits".equals(key)) {
         throw field(key);
       }
     }
-    JsonNode value = body.get("acceptingApplications");
-    if (value == null || !value.isBoolean()) {
-      throw field("acceptingApplications");
+    JsonNode value = body.get(name);
+    if (value == null) {
+      return null;
+    }
+    if (!value.isBoolean()) {
+      throw field(name);
     }
     return value.booleanValue();
   }

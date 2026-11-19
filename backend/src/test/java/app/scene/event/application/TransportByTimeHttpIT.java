@@ -316,7 +316,8 @@ class TransportByTimeHttpIT {
                       .cookie(csrf())
                       .header(CSRF_HEADER, CSRF)
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content("{\"answers\":[" + String.join(",", answers) + "]}"))
+                      .content(
+                          "{\"pin\":\"730914\",\"answers\":[" + String.join(",", answers) + "]}"))
               .andExpect(status().is(httpStatus))
               .andReturn()
               .getResponse()

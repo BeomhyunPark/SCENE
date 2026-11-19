@@ -16,7 +16,7 @@ import app.scene.event.form.AnswerType;
 import app.scene.event.form.FieldRules;
 import app.scene.event.form.FormRepository;
 import app.scene.event.form.param.FieldValues;
-import app.scene.event.participant.Digests;
+import app.scene.support.ParticipantSessions;
 import app.scene.support.PostgresTestcontainer;
 import jakarta.servlet.http.Cookie;
 import java.sql.Timestamp;
@@ -135,7 +135,9 @@ class ApplicationReadHttpIT {
             "submittedAt",
             "contactVisible",
             "answers",
-            "operation");
+            "operation",
+            "participantId",
+            "revision");
     assertThat(body.get("contactVisible").asBoolean()).isTrue();
     assertThat(body.get("answers")).hasSize(5);
     assertAnswer(body.get("answers").get(0), "SYSTEM", "NAME", "이름", 0, "이름답");
@@ -195,6 +197,7 @@ class ApplicationReadHttpIT {
             "GET /api/v1/operator/events/{eventId}/applications/summary",
             "GET /api/v1/operator/events/{eventId}/applications/table",
             "PUT /api/v1/operator/events/{eventId}/applications/{applicationId}/operation",
+            "GET /api/v1/operator/events/{eventId}/applications/{applicationId}/revisions",
             "POST /api/v1/public/events/{eventId}/forms/{formId}/applications");
 
     String publicBody =
@@ -417,30 +420,9 @@ class ApplicationReadHttpIT {
     Seeded seeded = seed(event);
     String path = applicationPath(event.eventId, seeded.applicationId);
     ok(writeMemo(event.owner, path, "운영자만 보는 메모", 0, "req-private"));
-    String accessKey = "participant-key-for-memo-test";
-    jdbc.update(
-        """
-        INSERT INTO participant_access (id, space_id, event_id, participant_id, key_hash, created_at)
-        VALUES (?, ?, ?, ?, ?, now())
-        """,
-        UUID.randomUUID(),
-        event.spaceId,
-        event.eventId,
-        participantOf(seeded.applicationId),
-        Digests.sha256Hex(accessKey));
-    String setCookie =
-        mvc.perform(
-                post("/api/v1/public/events/" + event.eventId + "/participant-sessions")
-                    .cookie(csrf())
-                    .header(CSRF_HEADER, CSRF)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content("{\"accessKey\":\"" + accessKey + "\"}"))
-            .andExpect(status().isNoContent())
-            .andReturn()
-            .getResponse()
-            .getHeader("Set-Cookie");
-    assertThat(setCookie).startsWith("SCENE_PSESSION=");
-    Cookie session = new Cookie("SCENE_PSESSION", setCookie.substring(15, setCookie.indexOf(';')));
+    Cookie session =
+        ParticipantSessions.open(
+            jdbc, event.spaceId, event.eventId, participantOf(seeded.applicationId));
     for (String route :
         List.of(
             "/api/v1/participant/me",

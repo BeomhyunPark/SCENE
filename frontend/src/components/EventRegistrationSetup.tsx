@@ -99,7 +99,7 @@ function SetupBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
   function remember(detail: FormDetail) {
     queryClient.setQueryData(queryKeys.form(eventId, detail.formId), detail);
     queryClient.setQueryData(queryKeys.forms(eventId, 0), {
-      items: [{ formId: detail.formId, acceptingApplications: detail.acceptingApplications }],
+      items: [{ formId: detail.formId, acceptingApplications: detail.acceptingApplications, acceptingEdits: detail.acceptingEdits }],
       page: forms.data?.page ?? { number: 0, size: 50, totalItems: 1, totalPages: 1 },
     });
   }

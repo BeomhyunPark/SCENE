@@ -6,7 +6,12 @@ import { eventById } from "./operatorStore";
 type Issued = {
   applicationId: string;
   participantId: string;
-  accessKey: string;
+  /** Digits of the phone: one phone is one participant in an event (DEC-078 §1). */
+  phoneKey: string;
+  /** Mock only: the number is kept in memory to compare. The server keeps a bcrypt hash. */
+  pin: string;
+  pinTemporary: boolean;
+  revision: number;
   eventId: string;
   spaceId: string;
   formId: string;
@@ -17,21 +22,63 @@ type Issued = {
 
 type StoredAnswer = { fieldId: string; value: Record<string, unknown> };
 
-export type ParticipantFailure = { status: number; code: string };
+export type ParticipantFailure = { status: number; code: string; retryAfterSeconds?: number };
 
 let issued: Issued[] = [];
-let session: { participantId: string; eventId: string; spaceId: string; name: string } | null = null;
+let session: { participantId: string; eventId: string } | null = null;
+const failures = new Map<string, number>();
+const lockedUntil = new Map<string, number>();
+const LOCK_FAILURES = 5;
+const LOCK_MS = 5 * 60 * 1000;
 
 export function resetParticipantStore(): void {
   issued = [];
   session = null;
+  failures.clear();
+  lockedUntil.clear();
+}
+
+export type Submitted = { applicationId: string; participantId: string; revision: number; revised: boolean };
+
+/** DEC-078 §2: six digits, not one digit repeated, not a run up or down, not inside the phone. */
+export function pinAccepted(pin: unknown, phoneDigits: string): pin is string {
+  if (typeof pin !== "string" || !/^\d{6}$/.test(pin)) return false;
+  const steps = [...pin].slice(1).map((digit, index) => Number(digit) - Number(pin[index]));
+  if (steps.every((step) => step === 0) || steps.every((step) => step === 1) || steps.every((step) => step === -1)) return false;
+  return !phoneDigits.includes(pin);
+}
+
+function lockKey(eventId: string, phoneKey: string): string {
+  return `${eventId}:${phoneKey}`;
+}
+
+function lockFailure(eventId: string, phoneKey: string): ParticipantFailure | null {
+  const until = lockedUntil.get(lockKey(eventId, phoneKey));
+  if (until && until > Date.now()) return { status: 429, code: "PARTICIPANT_LOGIN_LOCKED", retryAfterSeconds: Math.ceil((until - Date.now()) / 1000) };
+  return null;
+}
+
+function failed(eventId: string, phoneKey: string): void {
+  const key = lockKey(eventId, phoneKey);
+  const count = (failures.get(key) ?? 0) + 1;
+  if (count >= LOCK_FAILURES) {
+    failures.delete(key);
+    lockedUntil.set(key, Date.now() + LOCK_MS);
+  } else {
+    failures.set(key, count);
+  }
+}
+
+function succeeded(eventId: string, phoneKey: string): void {
+  failures.delete(lockKey(eventId, phoneKey));
+  lockedUntil.delete(lockKey(eventId, phoneKey));
 }
 
 export function submitPublicApplication(
   eventId: string,
   formId: string,
   body: unknown,
-): { applicationId: string; participantId: string; accessKey: string } | ParticipantFailure {
+): Submitted | ParticipantFailure {
   const event = eventById(eventId);
   if (!event) return { status: 404, code: "RESOURCE_NOT_FOUND" };
   const form = publicForm(eventId, formId);
@@ -49,10 +96,37 @@ export function submitPublicApplication(
   if (detail && reversedRange(detail, new Map(answers.map((answer) => [answer.fieldId, answer.value])))) {
     return { status: 400, code: "APPLICATION_VALIDATION_FAILED" };
   }
+  const phoneKey = phone.replace(/\D/g, "");
+  const pin = isRecord(body) ? body.pin : undefined;
+  const existing = issued.find((row) => row.eventId === eventId && row.phoneKey === phoneKey);
+  if (existing) {
+    const locked = lockFailure(eventId, phoneKey);
+    if (locked) return locked;
+    if (pin !== existing.pin) {
+      failed(eventId, phoneKey);
+      return { status: 409, code: "APPLICATION_ALREADY_EXISTS" };
+    }
+    succeeded(eventId, phoneKey);
+    if (event.lifecycleStatus !== "ACTIVE" || !acceptingEdits(eventId)) return { status: 409, code: "EDITS_CLOSED" };
+    const changed = JSON.stringify(existing.answers) !== JSON.stringify(answers);
+    if (changed) {
+      existing.applicationId = crypto.randomUUID();
+      existing.revision += 1;
+      existing.answers = answers;
+      existing.name = name.trim();
+      existing.submittedAt = new Date().toISOString();
+    }
+    session = { participantId: existing.participantId, eventId };
+    return { applicationId: existing.applicationId, participantId: existing.participantId, revision: existing.revision, revised: true };
+  }
+  if (!pinAccepted(pin, phoneKey)) return { status: 400, code: "PARTICIPANT_PIN_WEAK" };
   const row: Issued = {
     applicationId: crypto.randomUUID(),
     participantId: crypto.randomUUID(),
-    accessKey: randomKey(),
+    phoneKey,
+    pin,
+    pinTemporary: false,
+    revision: 1,
     eventId,
     spaceId: event.spaceId,
     formId,
@@ -61,7 +135,12 @@ export function submitPublicApplication(
     answers,
   };
   issued.push(row);
-  return { applicationId: row.applicationId, participantId: row.participantId, accessKey: row.accessKey };
+  session = { participantId: row.participantId, eventId };
+  return { applicationId: row.applicationId, participantId: row.participantId, revision: 1, revised: false };
+}
+
+function acceptingEdits(eventId: string): boolean {
+  return eventFormDetail(eventId)?.acceptingEdits ?? true;
 }
 
 /**
@@ -93,15 +172,65 @@ function keepShown(fields: FormField[], answers: StoredAnswer[]): StoredAnswer[]
   return out;
 }
 
+/** DEC-078 §3: name, phone and number. Any wrong part is the same 401; five in a row lock the phone. */
 export function openParticipantSession(eventId: string, body: unknown): ParticipantFailure | null {
   const event = eventById(eventId);
   if (!event) return { status: 404, code: "RESOURCE_NOT_FOUND" };
-  const accessKey = readKey(body);
-  const match = accessKey ? issued.filter((row) => row.eventId === eventId && row.accessKey === accessKey) : [];
-  if (match.length !== 1) return { status: 401, code: "PARTICIPANT_ACCESS_INVALID" };
-  const row = match[0];
-  session = { participantId: row.participantId, eventId: row.eventId, spaceId: row.spaceId, name: row.name };
+  if (!isRecord(body) || typeof body.name !== "string" || typeof body.phone !== "string" || typeof body.pin !== "string") {
+    return { status: 400, code: "VALIDATION_FAILED" };
+  }
+  const phoneKey = body.phone.replace(/\D/g, "");
+  const locked = lockFailure(eventId, phoneKey);
+  if (locked) return locked;
+  const row = issued.find((item) => item.eventId === eventId && item.phoneKey === phoneKey);
+  if (!row || row.pin !== body.pin.trim() || foldName(row.name) !== foldName(body.name)) {
+    failed(eventId, phoneKey);
+    return { status: 401, code: "PARTICIPANT_LOGIN_FAILED" };
+  }
+  succeeded(eventId, phoneKey);
+  session = { participantId: row.participantId, eventId: row.eventId };
   return null;
+}
+
+function foldName(name: string): string {
+  return name.trim().replace(/\s+/g, " ");
+}
+
+/** `PUT /participant/pin`. A temporary-number session needs no current number. */
+export function changeParticipantPin(body: unknown): ParticipantFailure | null {
+  const row = sessionRow();
+  if (!row) return { status: 401, code: "AUTHENTICATION_REQUIRED" };
+  if (!isRecord(body)) return { status: 400, code: "VALIDATION_FAILED" };
+  if (!row.pinTemporary) {
+    if (typeof body.currentPin !== "string") return { status: 400, code: "VALIDATION_FAILED" };
+    if (body.currentPin !== row.pin) {
+      failed(row.eventId, row.phoneKey);
+      return { status: 401, code: "PARTICIPANT_LOGIN_FAILED" };
+    }
+  }
+  if (!pinAccepted(body.newPin, row.phoneKey)) return { status: 400, code: "PARTICIPANT_PIN_WEAK" };
+  row.pin = body.newPin;
+  row.pinTemporary = false;
+  return null;
+}
+
+/** Operator reset (DEC-078 §2): a temporary number shown once; the participant's session ends. */
+export function resetParticipantPin(eventId: string, participantId: string): string | null {
+  const row = issued.find((item) => item.eventId === eventId && item.participantId === participantId);
+  if (!row) return null;
+  let pin = String(Math.floor(Math.random() * 1_000_000)).padStart(6, "0");
+  while (!pinAccepted(pin, row.phoneKey)) {
+    pin = String(Math.floor(Math.random() * 1_000_000)).padStart(6, "0");
+  }
+  row.pin = pin;
+  row.pinTemporary = true;
+  succeeded(eventId, row.phoneKey);
+  if (session?.participantId === participantId) session = null;
+  return pin;
+}
+
+function sessionRow(): Issued | undefined {
+  return session ? issued.find((row) => row.participantId === session?.participantId) : undefined;
 }
 
 /**
@@ -145,6 +274,8 @@ export function submittedApplication(
   formId: string;
   status: string;
   submittedAt: string;
+  participantId: string;
+  revision: number;
   answers: {
     fieldId: string;
     kind: "SYSTEM" | "CUSTOM";
@@ -172,6 +303,8 @@ export function submittedApplication(
     formId: row.formId,
     status: "SUBMITTED",
     submittedAt: row.submittedAt,
+    participantId: row.participantId,
+    revision: row.revision,
     answers,
   };
 }
@@ -206,6 +339,7 @@ export function tableApplications(eventId: string): {
   participantId: string;
   formId: string;
   submittedAt: string;
+  revision: number;
   answers: Record<string, Record<string, unknown>>;
 }[] {
   return issued
@@ -215,6 +349,7 @@ export function tableApplications(eventId: string): {
       participantId: row.participantId,
       formId: row.formId,
       submittedAt: row.submittedAt,
+      revision: row.revision,
       answers: Object.fromEntries(row.answers.map((answer) => [answer.fieldId, answer.value])),
     }));
 }
@@ -234,7 +369,10 @@ export function seedApplication(
   const row: Issued = {
     applicationId: crypto.randomUUID(),
     participantId: crypto.randomUUID(),
-    accessKey: randomKey(),
+    phoneKey: crypto.randomUUID(),
+    pin: "730914",
+    pinTemporary: false,
+    revision: 1,
     eventId,
     spaceId: event?.spaceId ?? "",
     formId,
@@ -243,6 +381,8 @@ export function seedApplication(
     answers,
   };
   row.name = answerFor(fields, answers, "NAME") ?? "";
+  const phone = answerFor(fields, answers, "PHONE");
+  if (phone) row.phoneKey = phone.replace(/\D/g, "");
   issued.push(row);
   return { applicationId: row.applicationId, participantId: row.participantId };
 }
@@ -253,7 +393,10 @@ export function seedApplicationWithoutName(eventId: string, formId: string, subm
   const row: Issued = {
     applicationId: crypto.randomUUID(),
     participantId: crypto.randomUUID(),
-    accessKey: randomKey(),
+    phoneKey: crypto.randomUUID(),
+    pin: "730914",
+    pinTemporary: false,
+    revision: 1,
     eventId,
     spaceId: event?.spaceId ?? "",
     formId,
@@ -275,8 +418,16 @@ function textOf(answer: StoredAnswer): string {
   return typeof answer.value.text === "string" ? answer.value.text : "";
 }
 
-export function currentParticipant(): { participantId: string; eventId: string; spaceId: string; name: string } | null {
-  return session;
+export function currentParticipant(): {
+  participantId: string;
+  eventId: string;
+  spaceId: string;
+  name: string;
+  pinChangeRequired: boolean;
+} | null {
+  const row = sessionRow();
+  if (!row) return null;
+  return { participantId: row.participantId, eventId: row.eventId, spaceId: row.spaceId, name: row.name, pinChangeRequired: row.pinTemporary };
 }
 
 export function clearParticipant(): void {
@@ -305,17 +456,6 @@ function readAnswers(body: unknown): StoredAnswer[] | null {
     else return null;
   }
   return answers;
-}
-
-function readKey(body: unknown): string | null {
-  if (!isRecord(body) || typeof body.accessKey !== "string") return null;
-  const key = body.accessKey.trim();
-  return key.length > 0 ? key : null;
-}
-
-function randomKey(): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(32));
-  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

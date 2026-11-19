@@ -92,7 +92,7 @@ class PublicApplicationSubmitHttpIT {
   }
 
   @Test
-  void openSubmitStoresSourceAndASecondPhoneCreatesAnotherParticipant() throws Exception {
+  void openSubmitStoresSourceAndTheSamePhoneIsTheSameParticipant() throws Exception {
     Held event = openEvent("Open owner");
     Opened form = createForm(event);
     ok(
@@ -113,13 +113,13 @@ class PublicApplicationSubmitHttpIT {
     String created = created(publicSubmit(form.eventId, form.formId, body, "req-submit"));
     JsonNode response = json.readTree(created);
     assertThat(response.propertyNames())
-        .containsExactly("applicationId", "participantId", "accessKey", "completionNotice");
+        .containsExactly(
+            "applicationId", "participantId", "revision", "revised", "completionNotice");
     assertThat(response.get("completionNotice").isNull()).isTrue();
     UUID applicationId = UUID.fromString(response.get("applicationId").asString());
     UUID participantId = UUID.fromString(response.get("participantId").asString());
-    String accessKey = response.get("accessKey").asString();
-    assertThat(accessKey).hasSize(64).matches("[0-9a-f]+");
-    assertThat(created).doesNotContain("key_hash", "phone_hash");
+    String accessKey = "730914";
+    assertThat(created).doesNotContain("key_hash", "phone_hash", "pin_hash", accessKey);
 
     assertThat(statusOf(applicationId)).isEqualTo("SUBMITTED");
     assertThat(participantOf(applicationId)).isEqualTo(participantId);
@@ -128,8 +128,7 @@ class PublicApplicationSubmitHttpIT {
     assertThat(storedPhone(participantId)).isEqualTo("010-1234-5678");
     assertThat(storedLast4(participantId)).isEqualTo("5678");
     assertThat(storedPhoneHash(participantId)).isEqualTo(Digests.sha256Hex("010-1234-5678"));
-    assertThat(storedKeyHash(participantId)).isEqualTo(Digests.sha256Hex(accessKey));
-    assertThat(countKey(accessKey)).isZero();
+    assertThat(accessCount(form.eventId)).isZero();
     assertThat(answerText(applicationId)).doesNotContain(accessKey);
     assertThat(auditCount(form.eventId)).isEqualTo(audits);
 
@@ -146,13 +145,24 @@ class PublicApplicationSubmitHttpIT {
     assertThat(answers.get(1).get("value").get("text").asString()).isEqualTo("010-1234-5678");
     assertThat(detail).doesNotContain(accessKey);
 
-    String again = created(publicSubmit(form.eventId, form.formId, body, "req-again"));
-    assertThat(again).doesNotContain("DUPLICATE_APPLICATION");
-    assertThat(participantCount(form.eventId)).isEqualTo(2);
-    assertThat(applicationCount(form.eventId)).isEqualTo(2);
+    // DEC-078: the same phone is the same participant. Same answers and number change nothing.
+    String again = ok(publicSubmit(form.eventId, form.formId, body, "req-again"));
+    assertThat(participantCount(form.eventId)).isEqualTo(1);
+    assertThat(applicationCount(form.eventId)).isEqualTo(1);
     assertThat(json.readTree(again).get("participantId").asString())
-        .isNotEqualTo(participantId.toString());
-    assertThat(json.readTree(again).get("accessKey").asString()).isNotEqualTo(accessKey);
+        .isEqualTo(participantId.toString());
+    assertThat(json.readTree(again).get("revised").asBoolean()).isTrue();
+    assertThat(json.readTree(again).get("revision").asInt()).isEqualTo(1);
+    // Another number on the same digits is "already applied" with nothing from the first answers.
+    String other =
+        answers(form.nameId, "김", form.phoneId, "01012345678").replace("730914", "482915");
+    JsonNode exists =
+        problem(
+            publicSubmit(form.eventId, form.formId, other, "req-exists"),
+            409,
+            "APPLICATION_ALREADY_EXISTS");
+    assertThat(exists.toString()).doesNotContain("010-1234-5678", applicationId.toString());
+    assertThat(participantCount(form.eventId)).isEqualTo(1);
 
     problem(
         publicSubmit(form.eventId, form.formId, answers(form.phoneId, "01099998888"), "req-name"),
@@ -163,8 +173,8 @@ class PublicApplicationSubmitHttpIT {
             form.eventId, form.formId, answers(form.nameId, "김", form.phoneId, "123"), "req-short"),
         400,
         "APPLICATION_VALIDATION_FAILED");
-    assertThat(applicationCount(form.eventId)).isEqualTo(2);
-    assertThat(participantCount(form.eventId)).isEqualTo(2);
+    assertThat(applicationCount(form.eventId)).isEqualTo(1);
+    assertThat(participantCount(form.eventId)).isEqualTo(1);
   }
 
   @Test
@@ -265,7 +275,7 @@ class PublicApplicationSubmitHttpIT {
         publicSubmit(
             form.eventId,
             form.formId,
-            "{\"answers\":[" + nameAndPhone + fullAttendance + "]}",
+            "{\"pin\":\"730914\",\"answers\":[" + nameAndPhone + fullAttendance + "]}",
             "req-no-consent"),
         400,
         "APPLICATION_VALIDATION_FAILED");
@@ -276,7 +286,12 @@ class PublicApplicationSubmitHttpIT {
             publicSubmit(
                 form.eventId,
                 form.formId,
-                "{\"answers\":[" + nameAndPhone + fullAttendance + staleCar + consent + "]}",
+                "{\"pin\":\"730914\",\"answers\":["
+                    + nameAndPhone
+                    + fullAttendance
+                    + staleCar
+                    + consent
+                    + "]}",
                 "req-typed"));
     UUID applicationId = UUID.fromString(json.readTree(submitted).get("applicationId").asString());
     assertThat(answerCount(applicationId)).isEqualTo(4);
@@ -519,7 +534,7 @@ class PublicApplicationSubmitHttpIT {
   }
 
   private String answers(UUID nameId, String name, UUID phoneId, String phone) {
-    return "{\"answers\":["
+    return "{\"pin\":\"730914\",\"answers\":["
         + "{\"fieldId\":\""
         + nameId
         + "\",\"text\":\""
@@ -533,7 +548,11 @@ class PublicApplicationSubmitHttpIT {
   }
 
   private String answers(UUID phoneId, String phone) {
-    return "{\"answers\":[{\"fieldId\":\"" + phoneId + "\",\"text\":\"" + phone + "\"}]}";
+    return "{\"pin\":\"730914\",\"answers\":[{\"fieldId\":\""
+        + phoneId
+        + "\",\"text\":\""
+        + phone
+        + "\"}]}";
   }
 
   private MockHttpServletRequestBuilder publicSubmit(
@@ -556,12 +575,16 @@ class PublicApplicationSubmitHttpIT {
         .getContentAsString();
   }
 
-  private void problem(MockHttpServletRequestBuilder request, int httpStatus, String code)
+  private JsonNode problem(MockHttpServletRequestBuilder request, int httpStatus, String code)
       throws Exception {
-    mvc.perform(request)
-        .andExpect(status().is(httpStatus))
-        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
-        .andExpect(jsonPath("$.code").value(code));
+    return json.readTree(
+        mvc.perform(request)
+            .andExpect(status().is(httpStatus))
+            .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+            .andExpect(jsonPath("$.code").value(code))
+            .andReturn()
+            .getResponse()
+            .getContentAsString());
   }
 
   private String ok(MockHttpServletRequestBuilder request) throws Exception {
@@ -710,20 +733,6 @@ class PublicApplicationSubmitHttpIT {
   private String storedPhoneHash(UUID participantId) {
     return jdbc.queryForObject(
         "SELECT phone_hash FROM participants WHERE id = ?", String.class, participantId);
-  }
-
-  private String storedKeyHash(UUID participantId) {
-    return jdbc.queryForObject(
-        "SELECT key_hash FROM participant_access WHERE participant_id = ?",
-        String.class,
-        participantId);
-  }
-
-  private int countKey(String rawKey) {
-    Integer count =
-        jdbc.queryForObject(
-            "SELECT count(*) FROM participant_access WHERE key_hash = ?", Integer.class, rawKey);
-    return count == null ? 0 : count;
   }
 
   private String answerText(UUID applicationId) {

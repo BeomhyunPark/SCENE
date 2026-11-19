@@ -5,6 +5,7 @@ import app.scene.common.error.SceneException;
 import app.scene.common.security.SecurityProperties;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Component;
 
 /**
@@ -23,15 +24,53 @@ public class ParticipantSessionCookie {
     this.security = security;
   }
 
-  /** The signed-in participant, or 401. */
+  static final String COOKIE_PATH = "/api/v1/participant";
+
+  /**
+   * The {@code Set-Cookie} value for an issued session (DEC-067, DEC-078 §3). {@code Max-Age} keeps
+   * the cookie after the browser closes, until the server-side end of the session.
+   */
+  public String setCookie(ParticipantSessionService.Issued issued) {
+    return cookie(issued.token(), issued.maxAge());
+  }
+
+  /** Removes the cookie with the same attributes ({@code Max-Age=0}). */
+  public String clearCookie() {
+    return cookie("", java.time.Duration.ZERO);
+  }
+
+  private String cookie(String value, java.time.Duration maxAge) {
+    return ResponseCookie.from(security.session().participantCookieName(), value)
+        .httpOnly(true)
+        .secure(true)
+        .sameSite(security.session().sameSite())
+        .path(COOKIE_PATH)
+        .maxAge(maxAge)
+        .build()
+        .toString();
+  }
+
+  /**
+   * The signed-in participant, or 401. A session opened with a temporary number is {@code
+   * PARTICIPANT_PIN_CHANGE_REQUIRED} until a new number is set (DEC-078 §2).
+   */
   public ParticipantSelf require(HttpServletRequest request) {
+    ParticipantSelf self = requireAny(request);
+    if (self.pinChangeRequired()) {
+      throw new SceneException(ErrorCode.PARTICIPANT_PIN_CHANGE_REQUIRED);
+    }
+    return self;
+  }
+
+  /** The signed-in participant, also a temporary-number session, or 401. */
+  public ParticipantSelf requireAny(HttpServletRequest request) {
     return sessions
         .current(token(request))
         .orElseThrow(() -> new SceneException(ErrorCode.AUTHENTICATION_REQUIRED));
   }
 
   /** The raw cookie value, or null. */
-  String token(HttpServletRequest request) {
+  public String token(HttpServletRequest request) {
     Cookie[] cookies = request.getCookies();
     if (cookies == null) {
       return null;

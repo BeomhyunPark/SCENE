@@ -11,10 +11,16 @@ export type PublicForm = {
 /** Request items for `POST …/applications`. Text questions may use the `text` shortcut. */
 export type AnswerItem = { fieldId: string; text: string } | { fieldId: string; value: Record<string, unknown> };
 
+/**
+ * `POST …/applications` (DEC-078). The response also sets the participant session cookie, so the
+ * person is signed in right away. `revised` is true when the phone had applied and the number
+ * matched, so the submit became an edit.
+ */
 export type SubmittedApplication = {
   applicationId: string;
   participantId: string;
-  accessKey: string;
+  revision: number;
+  revised: boolean;
   /** The form's completion notice at submit time, plain text, or null (#406). */
   completionNotice: string | null;
 };
@@ -216,10 +222,11 @@ export function submitApplication(
   eventId: string,
   formId: string,
   answers: AnswerItem[],
+  pin: string,
 ): Promise<SubmittedApplication> {
   return apiRequest<unknown>(`/api/v1/public/events/${eventId}/forms/${formId}/applications`, {
     method: "POST",
-    body: { answers },
+    body: { pin, answers },
   }).then(parseSubmitted);
 }
 
@@ -240,15 +247,16 @@ function parseSubmitted(value: unknown): SubmittedApplication {
     !isRecord(value) ||
     typeof value.applicationId !== "string" ||
     typeof value.participantId !== "string" ||
-    typeof value.accessKey !== "string" ||
-    value.accessKey.length === 0
+    typeof value.revision !== "number" ||
+    typeof value.revised !== "boolean"
   ) {
     throw new ApiError({ status: 201, code: "UNEXPECTED" });
   }
   return {
     applicationId: value.applicationId,
     participantId: value.participantId,
-    accessKey: value.accessKey,
+    revision: value.revision,
+    revised: value.revised,
     completionNotice: typeof value.completionNotice === "string" ? value.completionNotice : null,
   };
 }

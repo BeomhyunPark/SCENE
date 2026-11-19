@@ -48,7 +48,7 @@ function seedApplicants() {
     const answers = form.fields
       .filter((field) => text[field.label] !== undefined)
       .map((field) => ({ fieldId: field.fieldId, text: text[field.label] }));
-    const submitted = submitPublicApplication(EVENT, form.formId, { answers });
+    const submitted = submitPublicApplication(EVENT, form.formId, { answers, pin: "730914" });
     if ("code" in submitted) throw new Error(submitted.code);
   }
 }

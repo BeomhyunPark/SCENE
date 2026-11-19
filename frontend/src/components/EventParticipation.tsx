@@ -13,6 +13,7 @@ import type { LifecycleStatus } from "../api/events";
 import { getMyPermissions } from "../api/operators";
 import { getMe } from "../api/session";
 import { OperationDrawer } from "./OperationDrawer";
+import { ParticipantAddress } from "./ParticipantAddress";
 import { ApplicantTable } from "./applicantTable/ApplicantTable";
 import type { EventDetail } from "../api/events";
 import { listForms } from "../api/forms";
@@ -233,6 +234,7 @@ function ParticipationBody({ event, spaceName }: { event: EventDetail; spaceName
           }
         />
         <ApplyAddress eventId={eventId} />
+        <ParticipantAddress eventId={eventId} />
         <div className="event-home__work-intro">
           <h2>참가자를 받는 방법</h2>
           <p>행사에 맞는 방법으로 시작해 보세요.</p>

@@ -75,7 +75,13 @@ class FormCommandHttpIT {
     JsonNode body = json.readTree(created);
     assertThat(body.propertyNames())
         .containsExactly(
-            "formId", "acceptingApplications", "fields", "locked", "setup", "completionNotice");
+            "formId",
+            "acceptingApplications",
+            "acceptingEdits",
+            "fields",
+            "locked",
+            "setup",
+            "completionNotice");
     assertThat(body.get("setup").isNull()).isTrue();
     assertThat(body.get("completionNotice").isNull()).isTrue();
     assertThat(body.get("locked").booleanValue()).isFalse();
@@ -125,7 +131,7 @@ class FormCommandHttpIT {
     assertThat(list.propertyNames()).containsExactly("items", "page");
     assertThat(list.get("items")).hasSize(1);
     assertThat(list.get("items").get(0).propertyNames())
-        .containsExactly("formId", "acceptingApplications");
+        .containsExactly("formId", "acceptingApplications", "acceptingEdits");
     assertThat(list.get("items").get(0).get("formId").asString()).isEqualTo(formId.toString());
     assertThat(list.get("page").get("size").asInt()).isEqualTo(50);
     assertThat(listed).doesNotContain("이름", "fields");

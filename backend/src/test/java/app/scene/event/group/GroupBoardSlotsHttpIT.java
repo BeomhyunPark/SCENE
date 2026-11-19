@@ -251,7 +251,7 @@ class GroupBoardSlotsHttpIT {
   void participantGroupHasNoSlots() throws Exception {
     Held event = openEvent("Participant owner");
     Form form = setupForm(event, setup(true, SCHEDULE));
-    String accessKey =
+    String phone =
         form.submit(
             "나래",
             1,
@@ -287,7 +287,7 @@ class GroupBoardSlotsHttpIT {
             "{\"expectedBoardVersion\":" + version + ",\"confirmUnassigned\":true}"));
 
     String mine =
-        mvc.perform(get("/api/v1/participant/group").cookie(participantSession(event, accessKey)))
+        mvc.perform(get("/api/v1/participant/group").cookie(participantSession(event, "나래", phone)))
             .andExpect(status().isOk())
             .andReturn()
             .getResponse()
@@ -407,10 +407,10 @@ class GroupBoardSlotsHttpIT {
                   .cookie(csrf())
                   .header(CSRF_HEADER, CSRF)
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content("{\"answers\":[" + String.join(",", answers) + "]}"));
+                  .content("{\"pin\":\"730914\",\"answers\":[" + String.join(",", answers) + "]}"));
       JsonNode submitted = json.readTree(body);
       applications.put(name, submitted.get("applicationId").asString());
-      return submitted.get("accessKey").asString();
+      return "010-5555-000" + number;
     }
 
     void hide(String key) {
@@ -542,15 +542,20 @@ class GroupBoardSlotsHttpIT {
     return cookie;
   }
 
-  /** Signs in through the public session path and returns the participant cookie. */
-  private Cookie participantSession(Held event, String accessKey) throws Exception {
+  /** Signs in with name, phone and number (DEC-078) and returns the participant cookie. */
+  private Cookie participantSession(Held event, String name, String phone) throws Exception {
     MvcResult issued =
         mvc.perform(
                 post("/api/v1/public/events/" + event.eventId + "/participant-sessions")
                     .cookie(csrf())
                     .header(CSRF_HEADER, CSRF)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content("{\"accessKey\":\"" + accessKey + "\"}"))
+                    .content(
+                        "{\"name\":\""
+                            + name
+                            + "\",\"phone\":\""
+                            + phone
+                            + "\",\"pin\":\"730914\"}"))
             .andExpect(status().isNoContent())
             .andReturn();
     String prefix = PARTICIPANT_COOKIE + "=";

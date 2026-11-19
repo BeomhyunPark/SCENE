@@ -91,7 +91,12 @@ operator 경로는 운영자 세션이 필요하다. public 경로는 세션을 
 | `VALIDATION_FAILED` | 400 | 본문, 쿼리, 경로 형식이 계약과 다르다 |
 | `APPLICATION_VALIDATION_FAILED` | 400 | 공개 신청 답변이 계약과 다르다 |
 | `FIELD_LOCKED` | 409 | 신청이 들어온 신청서에서 질문 유형·보기 제거·표시 조건·질문 삭제를 막는다 (DEC-068) |
-| `PARTICIPANT_ACCESS_INVALID` | 401 | 참가자 접근 키가 없거나, 틀리거나, 그 행사 것과 같지 않다 |
+| `PARTICIPANT_LOGIN_FAILED` | 401 | 참가자의 이름·전화번호·숫자 6자리가 맞지 않는다. 무엇이 틀렸는지 구분하지 않는다 (DEC-078) |
+| `PARTICIPANT_LOGIN_LOCKED` | 429 | 그 전화번호로 연속 5번 틀려 잠겼다. `retryAfterSeconds` |
+| `PARTICIPANT_PIN_WEAK` | 400 | 숫자 6자리가 아니거나 받지 않는 번호다 |
+| `PARTICIPANT_PIN_CHANGE_REQUIRED` | 403 | 임시 번호로 들어온 세션이 새 번호를 정하기 전에 다른 참가자 경로를 불렀다 |
+| `APPLICATION_ALREADY_EXISTS` | 409 | 같은 전화번호의 신청이 이미 있고 숫자 6자리가 맞지 않는다 |
+| `EDITS_CLOSED` | 409 | 신청 수정을 받지 않는다(스위치가 꺼졌거나 행사가 `ACTIVE`가 아니다) |
 | `PAGE_SIZE_EXCEEDED` | 400 | `size`가 100을 넘는다 |
 | `RESOURCE_NOT_FOUND` | 404 | 행사가 없거나, 테넌트 밖에 있거나, 그 사람에게 존재를 보여 주지 않는다 |
 | `FORM_NOT_FOUND` | 404 | 그 행사의 신청서가 아니다 |
@@ -111,6 +116,7 @@ operator 경로는 운영자 세션이 필요하다. public 경로는 세션을 
 | `PERMISSION_OWNER_NOT_OVERRIDABLE` | 422 | 소유자의 권한은 개별 설정할 수 없다 |
 | `PERMISSION_OWNER_ONLY` | 422 | `EVENT_LIFECYCLE`, `EVENT_USER_MANAGE`는 소유자만 가진다 |
 | `PERMISSION_NOT_OVERRIDABLE` | 422 | `EVENT_READ`는 개별 설정으로 뺄 수 없다 |
+| `RATE_LIMITED` | 429 | 공개 신청, 참가자 들어오기 실패가 IP별 한도를 넘었다 (DEC-078) |
 | `HANDOVER_NOT_ACCEPTED` | 409 | 수락되지 않은 인수인계가 있어 공간 탈퇴가 막힌다 |
 | `LAST_OWNER` | 409 | 마지막 소유자라 공간 탈퇴가 막힌다 |
 | `OWNER_ROLE_HELD` | 409 | 소유 역할을 가진 채 공간 탈퇴가 막히거나, 운영자 역할 변경·빼기의 대상이 행사 `OWNER`다 |
@@ -1042,10 +1048,10 @@ curl -sS \
 ### `PATCH /api/v1/operator/events/{eventId}/forms/{formId}`
 
 ```json
-{ "acceptingApplications": true }
+{ "acceptingApplications": true, "acceptingEdits": true }
 ```
 
-`acceptingApplications`만 받는 boolean이다. `true`는 행사가 `ACTIVE`일 때만 된다. 아니면 `409 INVALID_STATE_TRANSITION`이다. `false`는 상태와 상관없이 된다. `200`은 상세다.
+두 boolean 중 하나 이상을 받는다. 다른 키는 `400`이다. `acceptingApplications`는 신청 받기, `acceptingEdits`는 "신청 수정 받기"다([DEC-078](../../docs/product/PRODUCT_DECISIONS.md) §6, 기본 켜짐). `true`는 행사가 `ACTIVE`일 때만 된다. 아니면 `409 INVALID_STATE_TRANSITION`이다. `false`는 상태와 상관없이 된다. `200`은 상세다. 상세와 목록에도 `acceptingEdits`가 있다. 수정은 행사가 `ACTIVE`이고 `acceptingEdits`일 때만 받는다. 행사가 끝나면 스위치와 상관없이 닫힌다.
 
 ### `POST /api/v1/operator/events/{eventId}/forms/{formId}/fields`
 
@@ -1201,6 +1207,46 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
 `operation`은 운영 정보다(#335, DEC-075). 참가 현황 표의 `rows[].operation`과 같다. `answers`는 바뀌지 않는 원본이다.
 
 `answers`는 필드 position 순이다. 받은 답만 있고, 답이 없는 질문은 빠진다. `answerType`·`hidden`·`config`는 그 질문의 **현재** 값이다(운영자 신청서 상세의 필드와 같은 모양). 화면은 이것으로 선택형 답의 `optionId`를 지금 보기 문구로 바꾸고, 숨긴 질문(`hidden: true`)과 숨긴 보기(`config.options[].hidden: true`)에 "(숨김)"을 붙인다(DEC-068 §6). `value` 모양은 DEC-068 §1을 따른다.
+
+한 건 조회와 참가 현황 표의 행에는 `revision`(1부터)과 `participantId`가 있다. `SUPERSEDED` 신청도 한 건 조회로 읽는다(변경 전 답).
+
+### `GET /api/v1/operator/events/{eventId}/applications/{applicationId}/revisions`
+
+그 신청의 참가자가 낸 모든 revision이다. 권한은 한 건 조회와 같다. 최신이 먼저다. 신청자 알림(I3)과 변경 전후 화면이 읽는다.
+
+```json
+{
+  "items": [
+    {
+      "applicationId": "…",
+      "revision": 2,
+      "status": "SUBMITTED",
+      "submittedAt": "2026-12-17T00:00:00Z",
+      "revisedBy": "PARTICIPANT",
+      "revisedByUserId": null,
+      "changes": [
+        { "key": "NAME", "fieldId": "…", "label": "이름" },
+        { "key": "FIELD", "fieldId": "…", "label": "참석 일정" }
+      ]
+    },
+    { "applicationId": "…", "revision": 1, "status": "SUPERSEDED", "submittedAt": "…", "revisedBy": null, "revisedByUserId": null, "changes": [] }
+  ]
+}
+```
+
+`revisedBy`는 첫 신청이면 `null`, 참가자가 고쳤으면 `PARTICIPANT`, 운영자가 고쳤으면 `OPERATOR`(A12, 아직 없음)다. `changes`는 바뀐 질문을 그 revision을 저장할 때의 질문 제목으로 담는다. 이름이 바뀌었으면 `key: NAME`이다. 답 값은 없다. 변경 전후 값은 각 `applicationId`의 한 건 조회로 읽는다(연락처 규칙도 그대로).
+
+### `POST /api/v1/operator/events/{eventId}/participants/{participantId}/pin-reset`
+
+참가자의 숫자 6자리를 초기화한다([DEC-078](../../docs/product/PRODUCT_DECISIONS.md) §2). 본문은 없다(`{}`도 된다). CSRF가 필요하다. effective `PARTICIPANT_WRITE`가 필요하다. 판정은 404(행사·참가자) → 403 → 409 `EVENT_ARCHIVED`다.
+
+`200`, `Cache-Control: no-store`
+
+```json
+{ "temporaryPin": "583920" }
+```
+
+임시 번호는 이 응답에서 한 번만 나온다. 서버는 해시만 저장한다. 같은 transaction에서 그 참가자의 세션을 모두 지우고, 그 전화의 잠금을 푼다. audit `PARTICIPANT_PIN_RESET`(detail `{ "participantId" }`)을 남긴다. 번호는 audit·로그에 없다. 참가자는 이름·전화번호·임시 번호로 들어와 새 번호를 정한다(`pinChangeRequired`).
 
 ### `PUT /api/v1/operator/events/{eventId}/applications/{applicationId}/operation`
 
@@ -1441,7 +1487,7 @@ CSRF가 필요하다. `Idempotency-Key`는 읽지 않는다.
 }
 ```
 
-`answers`만 받는다. 각 항목은 `fieldId`와 `text` 또는 `value` 중 하나다. `text`는 글 질문의 줄임으로 `value: { "text" }`와 같다. 유형별 `value`는 다음과 같고, 저장되는 답 값(`answers.value`)도 같은 모양이다.
+`answers`와 `pin`만 받는다(아래). 각 항목은 `fieldId`와 `text` 또는 `value` 중 하나다. `text`는 글 질문의 줄임으로 `value: { "text" }`와 같다. 유형별 `value`는 다음과 같고, 저장되는 답 값(`answers.value`)도 같은 모양이다.
 
 | 유형 | `value` |
 |---|---|
@@ -1455,30 +1501,48 @@ CSRF가 필요하다. `Idempotency-Key`는 읽지 않는다.
 
 서버는 position 순서로 `showWhen`을 다시 계산한다. 화면이 보낸 표시 여부를 믿지 않는다. 숨겨진 질문(숨김이거나 조건이 거짓)은 필수 검사를 하지 않고, 그 답은 거절하지 않고 저장하지 않는다. 숨겨진 보기를 고른 답도 그 보기를 빼고 본다. 빈 글은 답이 없는 것으로 본다. 보이는 필수 질문에 답이 없거나, 모르는 `fieldId`, 겹친 `fieldId`, 유형과 다른 값, 범위 밖 값, 출발 칸(`DEPARTURE_SLOT`)이 도착 칸(`ARRIVAL_SLOT`)보다 앞인 답(같은 칸은 된다, DEC-074)은 `400 APPLICATION_VALIDATION_FAILED`다. `NAME`과 `PHONE`은 늘 필수다. `COHORT`는 켜져 있으면(`hidden`이 아니면) 필수다. `errors`는 없다. 닫힌 신청서는 `409 FORM_CLOSED`다. 없는 신청서는 `404 FORM_NOT_FOUND`다. 없는 행사는 `404 RESOURCE_NOT_FOUND`다.
 
-`201`. `Location` 헤더는 없다.
+`pin`은 참가자가 정한 숫자 6자리다([DEC-078](../../docs/product/PRODUCT_DECISIONS.md)). 화면이 두 번 받아 비교하고 서버에는 한 값을 보낸다. 숫자 6개가 아니거나, 같은 숫자 반복(`000000`), 1씩 오르거나 내리는 숫자(`123456`, `654321`), 이 신청의 전화번호 숫자에 들어 있는 6자리면 `400 PARTICIPANT_PIN_WEAK`다. 답 검사가 먼저이고, 답이 맞을 때 번호를 본다. 서버는 bcrypt 해시만 저장한다. `pin`은 응답·로그·오류 본문에 다시 나오지 않는다.
 
 ```json
-{
-  "applicationId": "…",
-  "participantId": "…",
-  "accessKey": "…",
-  "completionNotice": "참가비 3만원은 …"
-}
+{ "answers": [ … ], "pin": "730914" }
 ```
 
-`completionNotice`는 제출한 순간의 완료 안내다(없으면 `null`). 신청 완료 화면이 글자 그대로 보인다. **공개 신청서 `GET`에는 싣지 않는다.** 신청을 마친 사람만 보게 하려는 것이다(#406).
+**처음 신청**이면 `201`이다. `Location` 헤더는 없다.
 
-`accessKey`는 256비트 hex다. raw key는 이 응답에서 한 번만 나온다. 서버는 해시만 저장한다. 응답과 로그에 키를 다시 넣지 않는다.
+```json
+{ "applicationId": "…", "participantId": "…", "revision": 1, "revised": false, "completionNotice": "참가비 3만원은 …" }
+```
+
+`completionNotice`는 제출한 순간의 완료 안내다(없으면 `null`). 신청 완료 화면이 글자 그대로 보인다. **공개 신청서 `GET`에는 싣지 않는다.** 신청을 마친 사람만 보게 하려는 것이다(#406). 재신청(수정) 응답에도 같은 값이 있다.
+
+**같은 전화번호의 신청이 이미 있으면**(전화번호의 숫자만 비교한다) 번호가 맞을 때만 그 신청의 수정이 된다(새 revision, [참가자 신청](#참가자-신청)과 같은 저장). `200`이고 `revised: true`다. 이름이 달라도 수정이다. 수정이 닫혀 있으면 `409 EDITS_CLOSED`다. 번호가 틀리면 `409 APPLICATION_ALREADY_EXISTS`이고 이전 답은 본문에 없다. 이 실패는 그 전화의 [잠금](#post-apiv1publiceventseventidparticipant-sessions) 횟수에 들어가고, 잠겨 있으면 `429 PARTICIPANT_LOGIN_LOCKED`다. 바뀐 답이 없으면 revision을 만들지 않고 지금 신청을 돌려준다.
+
+두 경우 모두 `Set-Cookie`로 참가자 세션(`SCENE_PSESSION`)이 열린다. 신청 직후 화면은 바로 들어간 상태다. 접근 키는 더 만들지 않는다.
+
+**요청 제한(#401).** 같은 IP의 신청 POST가 10분에 1,000번을 넘으면 `429 RATE_LIMITED`다. 성공·실패를 모두 센다. 한 IP 뒤에 200명이 있어도 걸리지 않는 남용 방지선이다. IP는 nginx가 넘기는 `X-Forwarded-For`(Cloudflare의 `CF-Connecting-IP`)다. 숫자는 `scene.participant.*` 설정이다. 숫자는 홈서버 `.env`의 `SCENE_PARTICIPANT_*`로 배포 없이 바꾼다([홈서버 운영](../../docs/devops/home-server.md)).
 
 ## 참가자 세션
 
 ### `POST /api/v1/public/events/{eventId}/participant-sessions`
 
-본문은 `{ "accessKey": "…" }`다. 앞뒤 공백은 자른다. CSRF가 필요하다. 행사가 없으면 `404 RESOURCE_NOT_FOUND`다. 키가 없거나, 그 행사에 맞는 접근이 하나가 아니면 `401 PARTICIPANT_ACCESS_INVALID`다. 맞는 키와 틀린 키를 본문으로 구분하지 않는다.
+CSRF가 필요하다.
 
-성공은 `204`다. 본문은 없다. `Set-Cookie` 이름은 `SCENE_PSESSION`이다. `HttpOnly`, `Secure`, `SameSite=Lax`, 경로 `/api/v1/participant`다. 값은 세션 토큰이고 응답 본문에는 없다. 서버는 토큰 해시만 저장한다.
+```json
+{ "name": "김하늘", "phone": "010-1234-5678", "pin": "730914" }
+```
 
-키를 링크 fragment로 두고 읽은 뒤 지우는 규칙은 [DEC-064](../../docs/product/PRODUCT_DECISIONS.md)다. 이 경로의 구현 단계는 [결정 문서와 다른 점](#결정-문서와-다른-점)에 있다.
+세 키만 받는다. 다른 키나 문자열이 아닌 값은 `400 VALIDATION_FAILED`다. 이름은 앞뒤 공백을 자르고 가운데 공백을 하나로 모아 지금 이름(마지막 revision의 이름)과 비교한다. 전화번호는 숫자만 비교한다. 행사가 없으면 `404 RESOURCE_NOT_FOUND`다.
+
+| 경우 | 응답 |
+| --- | --- |
+| 세 값이 맞고 그 참가자에게 `SUBMITTED` 신청이 있다 | `204`. `Set-Cookie` `SCENE_PSESSION` |
+| 이름·전화번호·번호 중 하나라도 틀리거나, 그 전화의 신청이 없다 | `401 PARTICIPANT_LOGIN_FAILED`. 무엇이 틀렸는지 구분하지 않는다 |
+| 그 전화번호로 연속 5번 틀렸다(신청이 없는 번호도 똑같이 센다) | 잠금 동안 `429 PARTICIPANT_LOGIN_LOCKED`. 본문 `retryAfterSeconds`. 24시간 안의 첫 잠금 5분, 두 번째 30분, 세 번째부터 24시간. 맞히거나 운영자가 6자리를 초기화하면 처음으로 돌아간다. 맞히면 0으로 돌아간다 |
+| 같은 IP의 실패가 10분에 300번을 넘었다 | `429 RATE_LIMITED` |
+
+쿠키는 `HttpOnly`, `Secure`, `SameSite=Lax`, 경로 `/api/v1/participant`이고 `Max-Age`가 있다(브라우저를 닫아도 남는다). `Max-Age`는 아래 세션 끝 시각까지이고, 행사 끝 날짜가 없으면 180일이다(`scene.participant.cookie-max-age-without-end`). 실제로 세션이 끝났는지는 서버가 판정한다. 첫 신청·재신청 응답의 쿠키도 같다. 값은 세션 토큰이고 서버는 해시만 저장한다. 세션은 로그아웃, 6자리 초기화, 또는 **행사 끝 날짜+8일 0시(Asia/Seoul)**에 끝난다. 끝 날짜가 없는 행사는 로그아웃까지다. 끝난 세션은 `401 AUTHENTICATION_REQUIRED`다.
+
+시도 횟수와 잠금은 서버 메모리에 있다. 서버가 다시 뜨면 0부터 센다. 예전 `{ "accessKey" }` 본문은 받지 않는다(`400 VALIDATION_FAILED`, DEC-078 §7).
 
 ### `GET /api/v1/participant/me`
 
@@ -1487,10 +1551,22 @@ CSRF가 필요하다. `Idempotency-Key`는 읽지 않는다.
 `200`
 
 ```json
-{ "participantId": "…", "eventId": "…", "spaceId": "…", "name": "김" }
+{ "participantId": "…", "eventId": "…", "spaceId": "…", "name": "김", "pinChangeRequired": false }
 ```
 
-쿠키가 없거나 저장된 세션이 아니면 `401 AUTHENTICATION_REQUIRED`다. 운영자 세션 쿠키로는 열리지 않는다. 전화와 접근 키는 없다.
+`pinChangeRequired`가 `true`면 운영자가 초기화한 임시 번호로 들어온 세션이다. 이때는 이 경로, [번호 정하기](#put-apiv1participantpin), 로그아웃만 되고 다른 참가자 경로는 `403 PARTICIPANT_PIN_CHANGE_REQUIRED`다.
+
+쿠키가 없거나 저장된 세션이 아니면 `401 AUTHENTICATION_REQUIRED`다. 운영자 세션 쿠키로는 열리지 않는다. 전화와 번호는 없다.
+
+### `PUT /api/v1/participant/pin`
+
+CSRF가 필요하다. 새 번호를 정한다.
+
+```json
+{ "currentPin": "730914", "newPin": "481207" }
+```
+
+임시 번호로 들어온 세션(`pinChangeRequired: true`)은 `currentPin`을 생략한다. 그 밖에는 필수이고, 틀리면 `401 PARTICIPANT_LOGIN_FAILED`이며 잠금 횟수에 들어간다. `newPin`은 신청 때와 같은 규칙이다(`400 PARTICIPANT_PIN_WEAK`). 성공은 `204`다. 그 참가자의 다른 세션은 끊고 이 세션은 남긴다.
 
 ### 참가자 세션으로 완료 안내 읽기 (계약만, B2)
 
@@ -1498,7 +1574,41 @@ CSRF가 필요하다. `Idempotency-Key`는 읽지 않는다.
 
 ### `POST /api/v1/participant/auth/logout`
 
-CSRF가 필요하다. 그 쿠키의 세션 행만 지운다. `204`이고 본문이 없다. 쿠키가 없거나 모르는 값이면 지울 행이 없고 역시 `204`다. 다른 참가자의 세션은 남는다.
+CSRF가 필요하다. 그 쿠키의 세션 행만 지우고, 같은 속성에 `Max-Age=0`인 `Set-Cookie`로 쿠키를 지운다. `204`이고 본문이 없다. 쿠키가 없거나 모르는 값이면 지울 행이 없고 역시 `204`다. 다른 참가자의 세션은 남는다.
+
+## 참가자 신청
+
+참가자 세션으로 자기 신청을 읽고 고친다([DEC-078](../../docs/product/PRODUCT_DECISIONS.md) §4). 화면(A5)은 아직 없다.
+
+### `GET /api/v1/participant/application`
+
+`200`
+
+```json
+{
+  "applicationId": "…",
+  "formId": "…",
+  "revision": 2,
+  "submittedAt": "2026-12-16T00:00:00Z",
+  "acceptingEdits": true,
+  "fields": [ … ],
+  "answers": [{ "fieldId": "…", "value": { "text": "김하늘" } }]
+}
+```
+
+`fields`는 [공개 신청서](#get-apiv1publiceventseventidformsformid)와 같은 모양이다(숨긴 질문·보기는 빠진다). `answers`는 지금(`SUBMITTED`) revision의 답 가운데 숨기지 않은 질문의 답이고, 모양은 저장 값(`answers.value`)과 같다. `acceptingEdits`는 행사가 `ACTIVE`이고 신청서의 `acceptingEdits`가 켜져 있을 때 `true`다. 신청이 없으면(취소 등) `404 RESOURCE_NOT_FOUND`다.
+
+### `PUT /api/v1/participant/application`
+
+CSRF가 필요하다.
+
+```json
+{ "expectedRevision": 2, "answers": [ … ] }
+```
+
+`answers`는 공개 신청 POST와 같은 규칙으로 검사한다. 전화번호는 숫자가 지금과 같아야 한다(다르면 `400 APPLICATION_VALIDATION_FAILED`). 숨긴 질문의 이전 답은 그대로 옮긴다. 수정이 닫혀 있으면 `409 EDITS_CLOSED`다. `expectedRevision`이 지금과 다르면 `409 CONCURRENT_MODIFICATION`이고 본문 `revision`이 지금 값이다. 성공은 `200`이고 본문은 `GET`과 같다. 바뀐 답이 없으면 revision을 만들지 않는다.
+
+저장: 새 `applications` 행(`SUBMITTED`, `revision` +1, `previous_application_id`, `revised_by: PARTICIPANT`, `changes`)을 만들고 이전 행을 `SUPERSEDED`로 바꾼다. 운영 메모는 새 행으로 옮긴다. 조 배정·체크인은 참가자에 붙어 있어 그대로다. 집계·편성판·CSV·참가 현황 표·체크인 명단은 `SUBMITTED`만 읽어 새 답을 쓴다. 이름이 바뀌면 `participants.name`도 바뀐다.
 
 ## 체크인
 
@@ -1965,6 +2075,7 @@ audit `GROUPS_PUBLISHED`: detail은 `publicationId`, `boardVersion`, `assignedCo
 | `TASK_COMPLETED` | 업무가 `DONE`이 될 때 |
 | `APPLICATION_OPERATION_UPDATED` | 신청의 운영 정보(운영 메모)를 저장할 때마다. details는 `applicationId`·`version`·`fields`뿐이고 메모 본문은 없다(#335) |
 | `TASK_REOPENED` | `DONE` 업무가 다시 열릴 때 |
+| `PARTICIPANT_PIN_RESET` | 운영자가 참가자의 숫자 6자리를 초기화할 때마다. detail은 `participantId`뿐이다(DEC-078) |
 
 이름 상수는 `common/audit/AuditActions`에 있다. 업무 진행의 네 이름은 그 클래스 밖에 있고, `TaskProgressService`가 문자열로 넣는다. `OWNER_TRANSFER_ACCEPTED`도 그 클래스 밖에 있고, `OwnerTransferService`가 문자열로 넣는다. detail은 `transferId`, `toUserId`, `recipientPriorRole`, `deletedOverrides`다. actor는 받는 사람이다.
 
@@ -1983,7 +2094,8 @@ audit `GROUPS_PUBLISHED`: detail은 `publicationId`, `boardVersion`, `assignedCo
 - 비밀번호 로그인
 - SMTP. 초대 링크는 생성·다시 보내기 응답에 한 번 나오고, 메일 포트는 프로세스 메모리에만 담는다
 - 체크 항목 추가
-- 참가자 조회(`GET /api/v1/participant/me`·`GET /api/v1/participant/check-in`·`GET /api/v1/participant/group` 밖)
+- 참가자 조회(`GET /api/v1/participant/me`·`GET /api/v1/participant/application`·`GET /api/v1/participant/check-in`·`GET /api/v1/participant/group` 밖)
+- 운영자의 신청 대리 수정·직접 추가(A12), 신청 취소(#338)
 - 회비, 방, 차량
 - 신청자 CSV([신청자 CSV](#post-apiv1operatoreventseventidapplicationsexport)) 밖의 Export, 공간 설정
 - 행사 기간·장소·유형을 바꾸는 `PATCH`. 이름만 바꾼다
@@ -2004,6 +2116,7 @@ audit `GROUPS_PUBLISHED`: detail은 `publicationId`, `boardVersion`, `assignedCo
 
 ## 결정 문서와 다른 점
 
+- [DEC-078](../../docs/product/PRODUCT_DECISIONS.md)이 DEC-064의 링크 접근 키를 이름·전화번호·숫자 6자리로 바꿨다. 이 서버와 맞는다. [API Architecture](../../docs/architecture/api-architecture-v0.1.md)의 DEC-064 절은 옛 계약이다.
 - [DEC-064](../../docs/product/PRODUCT_DECISIONS.md) Follow-up (2026-10-21)은 참가자 세션 발급, `GET /api/v1/participant/me`, `POST /api/v1/participant/auth/logout`를 Phase 3보다 앞서 MVP에 넣었다. 이 서버와 맞는다. [API Architecture](../../docs/architecture/api-architecture-v0.1.md)와 [Security](../../docs/architecture/security-privacy-v0.1.md)는 아직 Phase 3로 적는다.
 - [DEC-068](../../docs/product/PRODUCT_DECISIONS.md)의 질문 유형 9종, 질문·보기 표시 조건, 신청 접수 후 잠금, 숨겨진 답 버리기는 이 서버와 맞는다(#225). 운영자 빌더(#226)와 참가자 입력 화면(#227)도 이 계약을 쓴다. 서버는 예전 `{label}`·`{fieldId, text}` 요청도 그대로 받는다.
 - [DEC-067](../../docs/product/PRODUCT_DECISIONS.md)의 개발용 로그인 profile gate, 로그인 body `email`, `SCENE_SESSION`·`SCENE_PSESSION`, 로그인 시 `changeSessionId()`는 이 서버와 맞는다. `local`·`test` 밖에서는 로그인 경로가 404다. 세션에 검증된 이메일이 없으면 초대 미리보기·수락은 `403 EMAIL_NOT_VERIFIED`다.

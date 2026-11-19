@@ -14,6 +14,7 @@ import tools.jackson.databind.JsonNode;
 public record FormDetail(
     UUID formId,
     boolean acceptingApplications,
+    boolean acceptingEdits,
     List<FormFieldView> fields,
     boolean locked,
     JsonNode setup,

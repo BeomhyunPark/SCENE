@@ -13,4 +13,5 @@ public record ApplicationTableState(
     UUID groupId,
     String groupName,
     boolean leader,
-    Instant checkedInAt) {}
+    Instant checkedInAt,
+    int revision) {}

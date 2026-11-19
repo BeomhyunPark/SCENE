@@ -119,11 +119,10 @@ class PublicFormReadHttpIT {
             .getResponse()
             .getContentAsString();
     assertThat(applicationCount(form.eventId)).isEqualTo(1);
-    assertThat(json.readTree(submitted).get("accessKey").asString()).isNotBlank();
+    assertThat(json.readTree(submitted).has("accessKey")).isFalse();
+    assertThat(submitted).doesNotContain("730914");
     String again = ok(publicForm(form.eventId, form.formId, "req-get-again"));
-    assertThat(again)
-        .doesNotContain(
-            "이름답", "010-1234-5678", json.readTree(submitted).get("accessKey").asString());
+    assertThat(again).doesNotContain("이름답", "010-1234-5678", "730914");
   }
 
   @Test
@@ -177,7 +176,7 @@ class PublicFormReadHttpIT {
   }
 
   private String answers(UUID nameId, String name, UUID phoneId, String phone) {
-    return "{\"answers\":["
+    return "{\"pin\":\"730914\",\"answers\":["
         + "{\"fieldId\":\""
         + nameId
         + "\",\"text\":\""

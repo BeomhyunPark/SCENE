@@ -5,6 +5,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import app.scene.common.web.RequestIdFilter;
@@ -22,6 +23,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers;
@@ -374,6 +376,221 @@ class AttendanceRangeHttpIT {
    * Counts slots from the board as a screen would: each participant in each of their slots, and
    * participants with unknown slots apart. Both must equal the summary's {@code meals}.
    */
+  /**
+   * DEC-078 §4 (#402): an edit is a new revision. Summary, board, table and CSV read the new
+   * answers; the group, the check-in and the operator memo stay with the person.
+   */
+  @Test
+  void anEditFeedsEveryCountAndKeepsTheGroupCheckInAndMemo() throws Exception {
+    Held event = openEvent("Edit owner");
+    Form form = setupForm(event, setup("RANGE"));
+    form.submit("가람", 1, values("ATTENDANCE", opt("opt_full")));
+    String participantId =
+        form.submit(
+            "나래",
+            2,
+            values(
+                "ATTENDANCE",
+                opt("opt_partial"),
+                "ARRIVAL_SLOT",
+                opt("opt_d1_worship"),
+                "DEPARTURE_SLOT",
+                opt("opt_d2_lunch")));
+    String first = form.applications.get("나래");
+    String base = "/api/v1/operator/events/" + event.eventId;
+    ok(
+        write(
+            put(base + "/applications/" + first + "/operation"),
+            event.owner,
+            "{\"memo\":\"늦게 옴\",\"expectedVersion\":0}"));
+    String groupId =
+        json.readTree(created(write(post(base + "/groups"), event.owner, "{\"name\":\"1조\"}")))
+            .get("group")
+            .get("groupId")
+            .asString();
+    ok(
+        write(
+            post(base + "/group-assignments"),
+            event.owner,
+            "{\"changes\":[{\"participantId\":\""
+                + participantId
+                + "\",\"fromGroupId\":null,\"toGroupId\":\""
+                + groupId
+                + "\"}]}"));
+    ok(
+        write(
+                post(base + "/check-ins"),
+                event.owner,
+                "{\"mode\":\"MANUAL\",\"participantId\":\"" + participantId + "\"}")
+            .header("Idempotency-Key", "edit-" + participantId));
+
+    // The same phone with the same number edits: now a full attendee, under a new name.
+    MvcResult edited =
+        mvc.perform(
+                post("/api/v1/public/events/"
+                        + event.eventId
+                        + "/forms/"
+                        + form.formId
+                        + "/applications")
+                    .cookie(csrf())
+                    .header(CSRF_HEADER, CSRF)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(form.body("나래별", 2, values("ATTENDANCE", opt("opt_full")))))
+            .andExpect(status().isOk())
+            .andReturn();
+    JsonNode editBody = json.readTree(edited.getResponse().getContentAsString());
+    assertThat(editBody.get("revised").asBoolean()).isTrue();
+    assertThat(editBody.get("revision").asInt()).isEqualTo(2);
+    assertThat(editBody.get("participantId").asString()).isEqualTo(participantId);
+    String second = editBody.get("applicationId").asString();
+    assertThat(second).isNotEqualTo(first);
+    Cookie session = participantCookie(edited);
+
+    JsonNode board = board(event);
+    assertThat(attended(board, "나래별")).isEqualTo(ALL);
+    assertThat(board.get("participants")).hasSize(2);
+    assertSameAsSummary(event, board, 0);
+    assertThat(person(board, "나래별").get("groupId").asString()).isEqualTo(groupId);
+
+    JsonNode table = json.readTree(ok(get(base + "/applications/table").cookie(event.owner)));
+    assertThat(table.get("rows")).hasSize(2);
+    JsonNode row = null;
+    for (JsonNode candidate : table.get("rows")) {
+      if (candidate.get("participantId").asString().equals(participantId)) {
+        row = candidate;
+      }
+    }
+    assertThat(row).isNotNull();
+    assertThat(row.get("applicationId").asString()).isEqualTo(second);
+    assertThat(row.get("revision").asInt()).isEqualTo(2);
+    assertThat(row.get("checkedInAt").isNull()).isFalse();
+    assertThat(row.get("group").get("groupId").asString()).isEqualTo(groupId);
+    assertThat(row.get("operation").get("memo").asString()).isEqualTo("늦게 옴");
+    List<String> slots = new ArrayList<>();
+    row.get("slotIds").forEach(id -> slots.add(id.asString()));
+    assertThat(slots).isEqualTo(ALL);
+
+    String csv =
+        mvc.perform(
+                post(base + "/applications/export")
+                    .cookie(event.owner, csrf())
+                    .header(CSRF_HEADER, CSRF))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString(StandardCharsets.UTF_8);
+    assertThat(csv).contains("나래별").doesNotContain("나래,").doesNotContain("1월 23일 (토) 점심\"");
+    assertThat(csv.split("\r?\n")).hasSize(3);
+
+    JsonNode old = json.readTree(ok(get(base + "/applications/" + first).cookie(event.owner)));
+    assertThat(old.get("status").asString()).isEqualTo("SUPERSEDED");
+    assertThat(old.get("revision").asInt()).isEqualTo(1);
+    JsonNode revisions =
+        json.readTree(ok(get(base + "/applications/" + first + "/revisions").cookie(event.owner)));
+    assertThat(revisions.get("items")).hasSize(2);
+    JsonNode latest = revisions.get("items").get(0);
+    assertThat(latest.get("revision").asInt()).isEqualTo(2);
+    assertThat(latest.get("revisedBy").asString()).isEqualTo("PARTICIPANT");
+    List<String> changed = new ArrayList<>();
+    latest.get("changes").forEach(change -> changed.add(change.get("key").asString()));
+    assertThat(changed).contains("NAME", "FIELD");
+    assertThat(latest.get("changes").toString()).doesNotContain("opt_full", "나래별");
+    assertThat(revisions.get("items").get(1).get("revisedBy").isNull()).isTrue();
+
+    // The participant reads and edits through the session the submit opened.
+    JsonNode mine =
+        json.readTree(
+            mvc.perform(get("/api/v1/participant/application").cookie(session))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString());
+    assertThat(mine.get("revision").asInt()).isEqualTo(2);
+    assertThat(mine.get("acceptingEdits").asBoolean()).isTrue();
+    assertThat(mine.toString()).doesNotContain("늦게 옴", "730914");
+    String partial =
+        form.body(
+            "나래별",
+            2,
+            values(
+                "ATTENDANCE",
+                opt("opt_partial"),
+                "ARRIVAL_SLOT",
+                opt("opt_d2_dinner"),
+                "DEPARTURE_SLOT",
+                opt("opt_d2_dinner")));
+    String editBodyJson = partial.replace("{\"pin\":\"730914\",", "{\"expectedRevision\":2,");
+    JsonNode afterEdit =
+        json.readTree(
+            mvc.perform(participantEdit(session, editBodyJson))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString());
+    assertThat(afterEdit.get("revision").asInt()).isEqualTo(3);
+    assertThat(attended(board(event), "나래별")).containsExactly("opt_d2_dinner");
+    mvc.perform(participantEdit(session, editBodyJson))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.code").value("CONCURRENT_MODIFICATION"))
+        .andExpect(jsonPath("$.revision").value(3));
+    // The phone is the identity and does not change through an edit.
+    mvc.perform(
+            participantEdit(
+                session,
+                editBodyJson
+                    .replace("\"expectedRevision\":2", "\"expectedRevision\":3")
+                    .replace("010-5555-0002", "010-5555-0009")))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("APPLICATION_VALIDATION_FAILED"));
+
+    // Edits turned off: the participant only reads, and a resubmit is EDITS_CLOSED.
+    ok(write(patch(forms(event) + "/" + form.formId), event.owner, "{\"acceptingEdits\":false}"));
+    mvc.perform(get("/api/v1/participant/application").cookie(session))
+        .andExpect(jsonPath("$.acceptingEdits").value(false));
+    mvc.perform(
+            participantEdit(
+                session, editBodyJson.replace("\"expectedRevision\":2", "\"expectedRevision\":3")))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.code").value("EDITS_CLOSED"));
+    mvc.perform(
+            post("/api/v1/public/events/"
+                    + event.eventId
+                    + "/forms/"
+                    + form.formId
+                    + "/applications")
+                .cookie(csrf())
+                .header(CSRF_HEADER, CSRF)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(form.body("나래별", 2, values("ATTENDANCE", opt("opt_full")))))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.code").value("EDITS_CLOSED"));
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM applications WHERE participant_id = ?",
+                Integer.class,
+                UUID.fromString(participantId)))
+        .isEqualTo(3);
+  }
+
+  private static MockHttpServletRequestBuilder participantEdit(Cookie session, String body) {
+    return put("/api/v1/participant/application")
+        .cookie(session, csrf())
+        .header(CSRF_HEADER, CSRF)
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(body);
+  }
+
+  private static Cookie participantCookie(MvcResult result) {
+    String prefix = PARTICIPANT_COOKIE + "=";
+    for (String header : result.getResponse().getHeaders(HttpHeaders.SET_COOKIE)) {
+      if (header.startsWith(prefix)) {
+        return new Cookie(
+            PARTICIPANT_COOKIE, header.substring(prefix.length(), header.indexOf(';')));
+      }
+    }
+    throw new AssertionError("no participant cookie");
+  }
+
   private void assertSameAsSummary(Held event, JsonNode board, long unknown) throws Exception {
     Map<String, Long> fromBoard = new LinkedHashMap<>();
     for (JsonNode slot : board.get("slots")) {
@@ -504,7 +721,9 @@ class AttendanceRangeHttpIT {
       }
     }
 
-    /** Submits and returns the access key. {@code values} maps a preset key to its value JSON. */
+    /**
+     * Submits and returns the participant id. {@code values} maps a preset key to its value JSON.
+     */
     String submit(String name, int number, Map<String, String> values) throws Exception {
       String body =
           created(
@@ -515,7 +734,7 @@ class AttendanceRangeHttpIT {
                   .content(body(name, number, values)));
       JsonNode submitted = json.readTree(body);
       applications.put(name, submitted.get("applicationId").asString());
-      return submitted.get("accessKey").asString();
+      return submitted.get("participantId").asString();
     }
 
     void rejected(String name, int number, Map<String, String> values) throws Exception {
@@ -528,7 +747,7 @@ class AttendanceRangeHttpIT {
           .andExpect(status().isBadRequest());
     }
 
-    private String body(String name, int number, Map<String, String> values) {
+    String body(String name, int number, Map<String, String> values) {
       List<String> answers = new ArrayList<>();
       answers.add(text("NAME", name));
       answers.add(text("PHONE", "010-5555-000" + number));
@@ -543,7 +762,7 @@ class AttendanceRangeHttpIT {
       if (fieldIds.containsKey("CONSENT")) {
         answers.add("{\"fieldId\":\"" + fieldIds.get("CONSENT") + "\",\"value\":{\"value\":true}}");
       }
-      return "{\"answers\":[" + String.join(",", answers) + "]}";
+      return "{\"pin\":\"730914\",\"answers\":[" + String.join(",", answers) + "]}";
     }
 
     void hide(String key) {

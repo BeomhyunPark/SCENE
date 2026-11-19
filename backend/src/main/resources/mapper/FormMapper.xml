@@ -10,7 +10,10 @@
 
   <update id="updateAccepting">
     UPDATE forms
-    SET accepting_applications = #{acceptingApplications}
+    <set>
+      <if test="acceptingApplications != null">accepting_applications = #{acceptingApplications},</if>
+      <if test="acceptingEdits != null">accepting_edits = #{acceptingEdits},</if>
+    </set>
     WHERE id = #{formId} AND space_id = #{spaceId} AND event_id = #{eventId}
   </update>
 

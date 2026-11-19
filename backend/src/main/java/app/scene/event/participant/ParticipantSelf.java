@@ -3,7 +3,8 @@ package app.scene.event.participant;
 import java.util.UUID;
 
 /**
- * Signed-in participant. Phone, the access key, and {@code key_hash} stay off this body. The
- * contract does not name the fields, so this slice returns only these four.
+ * Signed-in participant. Phone and the number hash stay off this body. {@code pinChangeRequired} is
+ * true for a session opened with an operator's temporary number (DEC-078 §2).
  */
-public record ParticipantSelf(UUID participantId, UUID eventId, UUID spaceId, String name) {}
+public record ParticipantSelf(
+    UUID participantId, UUID eventId, UUID spaceId, String name, boolean pinChangeRequired) {}

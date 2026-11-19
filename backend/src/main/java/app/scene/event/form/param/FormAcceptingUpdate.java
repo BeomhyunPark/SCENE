@@ -2,25 +2,35 @@ package app.scene.event.form.param;
 
 import java.util.UUID;
 
-/** The only writable form flag. Field rows are not updated here. */
+/** The two writable form switches. A null value is left as it is. Field rows are not updated. */
 public final class FormAcceptingUpdate {
 
   private final UUID spaceId;
   private final UUID eventId;
   private final UUID formId;
-  private final boolean acceptingApplications;
+  private final Boolean acceptingApplications;
+  private final Boolean acceptingEdits;
 
   private FormAcceptingUpdate(
-      UUID spaceId, UUID eventId, UUID formId, boolean acceptingApplications) {
+      UUID spaceId,
+      UUID eventId,
+      UUID formId,
+      Boolean acceptingApplications,
+      Boolean acceptingEdits) {
     this.spaceId = spaceId;
     this.eventId = eventId;
     this.formId = formId;
     this.acceptingApplications = acceptingApplications;
+    this.acceptingEdits = acceptingEdits;
   }
 
   public static FormAcceptingUpdate of(
-      UUID spaceId, UUID eventId, UUID formId, boolean acceptingApplications) {
-    return new FormAcceptingUpdate(spaceId, eventId, formId, acceptingApplications);
+      UUID spaceId,
+      UUID eventId,
+      UUID formId,
+      Boolean acceptingApplications,
+      Boolean acceptingEdits) {
+    return new FormAcceptingUpdate(spaceId, eventId, formId, acceptingApplications, acceptingEdits);
   }
 
   public UUID getSpaceId() {
@@ -35,7 +45,11 @@ public final class FormAcceptingUpdate {
     return formId;
   }
 
-  public boolean isAcceptingApplications() {
+  public Boolean getAcceptingApplications() {
     return acceptingApplications;
+  }
+
+  public Boolean getAcceptingEdits() {
+    return acceptingEdits;
   }
 }

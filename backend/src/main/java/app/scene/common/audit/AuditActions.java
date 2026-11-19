@@ -64,5 +64,7 @@ public final class AuditActions {
 
   public static final String SPACE_INVITATION_ACCEPTED = "SPACE_INVITATION_ACCEPTED";
 
+  public static final String PARTICIPANT_PIN_RESET = "PARTICIPANT_PIN_RESET";
+
   private AuditActions() {}
 }

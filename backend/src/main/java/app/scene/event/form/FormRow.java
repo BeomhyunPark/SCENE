@@ -11,5 +11,6 @@ public record FormRow(
     UUID spaceId,
     UUID eventId,
     boolean acceptingApplications,
+    boolean acceptingEdits,
     String setup,
     String completionNotice) {}

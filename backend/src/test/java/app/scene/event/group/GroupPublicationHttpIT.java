@@ -11,7 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import app.scene.common.web.RequestIdFilter;
-import app.scene.event.participant.Digests;
+import app.scene.support.ParticipantSessions;
 import app.scene.support.PostgresTestcontainer;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
@@ -28,13 +28,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers;
 import org.springframework.session.web.http.SessionRepositoryFilter;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -979,39 +977,12 @@ class GroupPublicationHttpIT {
         answer(id, cohortField, "{\"text\":\"" + cohort + "\"}");
       }
       String accessKey = "access-" + UUID.randomUUID();
-      jdbc.update(
-          """
-          INSERT INTO participant_access (
-            id, space_id, event_id, participant_id, key_hash, created_at)
-          VALUES (?, ?, ?, ?, ?, now())
-          """,
-          UUID.randomUUID(),
-          spaceId,
-          eventId,
-          id,
-          Digests.sha256Hex(accessKey));
-      return new Person(id, session(accessKey));
+      return new Person(id, session(id));
     }
 
-    /** Signs in through the public session path and returns the participant cookie. */
-    Cookie session(String accessKey) throws Exception {
-      MockHttpServletRequestBuilder request =
-          post("/api/v1/public/events/" + eventId + "/participant-sessions")
-              .cookie(csrf())
-              .header(CSRF_HEADER, CSRF)
-              .contentType(MediaType.APPLICATION_JSON)
-              .content("{\"accessKey\":\"" + accessKey + "\"}");
-      MvcResult issued = mvc.perform(request).andExpect(status().isNoContent()).andReturn();
-      String prefix = PARTICIPANT_COOKIE + "=";
-      List<String> headers = new ArrayList<>();
-      for (String header : issued.getResponse().getHeaders(HttpHeaders.SET_COOKIE)) {
-        if (header.startsWith(prefix)) {
-          headers.add(header);
-        }
-      }
-      assertThat(headers).hasSize(1);
-      String header = headers.get(0);
-      return new Cookie(PARTICIPANT_COOKIE, header.substring(prefix.length(), header.indexOf(';')));
+    /** Opens a participant session for an inserted participant (DEC-078 sign-in is elsewhere). */
+    Cookie session(UUID participantId) {
+      return ParticipantSessions.open(jdbc, spaceId, eventId, participantId);
     }
   }
 }

@@ -51,15 +51,18 @@ export function seedRetreat(setup: FormSetup | null = RETREAT_SETUP) {
     if (!field) throw new Error(`no ${key}`);
     return field.fieldId;
   };
+  let seeded = 0;
   return {
     formId: form.formId,
     fieldId: idOf,
     /** Submits one application; answers are keyed by preset or system key. Returns the application id. */
     apply(answers: Record<string, Answer>): string {
-      const items = Object.entries({ PHONE: "010-0000-0000", ...answers }).map(([key, value]) =>
+      // One phone is one participant (DEC-078), so each seeded applicant gets its own phone.
+      seeded += 1;
+      const items = Object.entries({ PHONE: `010-0000-${String(seeded).padStart(4, "0")}`, ...answers }).map(([key, value]) =>
         typeof value === "string" ? { fieldId: idOf(key), text: value } : { fieldId: idOf(key), value },
       );
-      const submitted = submitPublicApplication(RETREAT, form.formId, { answers: items });
+      const submitted = submitPublicApplication(RETREAT, form.formId, { answers: items, pin: "730914" });
       if ("code" in submitted) throw new Error(submitted.code);
       return submitted.applicationId;
     },
