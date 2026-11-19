@@ -11,6 +11,11 @@ export const localUsers = [
     userId: "00000000-0000-4000-8000-000000000003",
     displayName: "Local staff",
   },
+  {
+    // Not in any space. Accepts a space invitation in the mock (#362).
+    userId: "00000000-0000-4000-8000-000000000004",
+    displayName: "Local guest",
+  },
 ] as const;
 
 export const localSpace = {

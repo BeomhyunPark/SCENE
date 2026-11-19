@@ -15,11 +15,15 @@ export const EVENT_TYPES: readonly EventType[] = [
 
 type Membership = { spaceId: string; name: string; role: SpaceRole; userId: string };
 
-const memberships: Membership[] = [
-  { ...localSpace, role: "OWNER", userId: localUsers[0].userId },
-  { ...localSpace, role: "ADMIN", userId: localUsers[1].userId },
-  { ...localSpace, role: "MEMBER", userId: localUsers[2].userId },
-];
+function seedMemberships(): Membership[] {
+  return [
+    { ...localSpace, role: "OWNER", userId: localUsers[0].userId },
+    { ...localSpace, role: "ADMIN", userId: localUsers[1].userId },
+    { ...localSpace, role: "MEMBER", userId: localUsers[2].userId },
+  ];
+}
+
+let memberships: Membership[] = seedMemberships();
 
 export type StoredEvent = EventDetail & { spaceId: string };
 
@@ -36,7 +40,20 @@ export const operatorRequests: LoggedRequest[] = [];
 
 export function resetOperatorStore(): void {
   events = [seedEvent()];
+  memberships = seedMemberships();
   operatorRequests.length = 0;
+}
+
+/** Active members of one space, in no particular order. */
+export function membersOf(spaceId: string): Membership[] {
+  return memberships.filter((membership) => membership.spaceId === spaceId);
+}
+
+/** Adds an active membership. A mock space invitation accept calls this (#362). */
+export function addMembership(spaceId: string, userId: string, role: SpaceRole): void {
+  if (memberships.some((membership) => membership.spaceId === spaceId && membership.userId === userId)) return;
+  const name = memberships.find((membership) => membership.spaceId === spaceId)?.name ?? localSpace.name;
+  memberships.push({ spaceId, name, role, userId });
 }
 
 export function spacesFor(userId: string): Membership[] {

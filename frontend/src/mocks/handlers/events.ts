@@ -9,8 +9,10 @@ import {
   eventsFor,
   isEventType,
   operatorRequests,
+  spacesFor,
   type StoredEvent,
 } from "../operatorStore";
+import { addOperator, eventRoleOf } from "../taskStore";
 
 const PAGE_SIZE = 50;
 
@@ -24,7 +26,13 @@ export const eventHandlers = [
       return problem(400, "VALIDATION_FAILED", { errors: [{ field: "sort" }] });
     }
     const page = numberParam(url, "page");
-    const items = eventsFor(String(params.spaceId)).map(toListItem);
+    // Space OWNER and ADMIN see every event. Others see only events they operate (api.md).
+    const spaceId = String(params.spaceId);
+    const spaceRole = spacesFor(operator.userId).find((space) => space.spaceId === spaceId)?.role;
+    const seesEvery = spaceRole === "OWNER" || spaceRole === "ADMIN";
+    const items = eventsFor(spaceId)
+      .filter((event) => seesEvery || eventRoleOf(event.eventId, operator.userId) != null)
+      .map(toListItem);
     const start = page * PAGE_SIZE;
     const slice = items.slice(start, start + PAGE_SIZE);
     const totalPages = items.length === 0 ? 0 : Math.ceil(items.length / PAGE_SIZE);
@@ -58,6 +66,8 @@ export const eventHandlers = [
       eventType: isEventType(body.eventType) ? body.eventType : null,
     };
     addEvent(event);
+    // The creator becomes the event OWNER, like OperatorEventCommandService#create.
+    addOperator(event.eventId, operator.userId, operator.displayName, "OWNER");
     const detail = toDetail(event);
     operatorRequests[operatorRequests.length - 1].response = detail;
     return HttpResponse.json(detail, { status: 201 });

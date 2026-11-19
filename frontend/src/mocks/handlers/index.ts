@@ -12,6 +12,7 @@ import { participantCheckInHandlers } from "./participantCheckIn";
 import { participantGroupHandlers } from "./participantGroup";
 import { sessionHandlers } from "./session";
 import { spaceHandlers } from "./spaces";
+import { spaceInvitationHandlers } from "./spaceInvitations";
 import { taskHandlers } from "./tasks";
 
 export const handlers = [
@@ -20,6 +21,7 @@ export const handlers = [
   ...eventHandlers,
   ...operatorHandlers,
   ...invitationHandlers,
+  ...spaceInvitationHandlers,
   ...taskHandlers,
   ...formHandlers,
   ...participantHandlers,
