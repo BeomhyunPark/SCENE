@@ -234,12 +234,17 @@ function parseForm(value: unknown): PublicForm {
   if (!isRecord(value) || typeof value.formId !== "string" || !Array.isArray(value.fields)) {
     throw new ApiError({ status: 200, code: "UNEXPECTED" });
   }
+  return { formId: value.formId, fields: parseFormFields(value.fields) };
+}
+
+/** Public form fields, also used by the participant's own application (#427). */
+export function parseFormFields(value: unknown[]): FormField[] {
   const fields: FormField[] = [];
-  for (const field of value.fields) {
+  for (const field of value) {
     if (!isField(field)) throw new ApiError({ status: 200, code: "UNEXPECTED" });
     fields.push(withDefaults(field));
   }
-  return { formId: value.formId, fields };
+  return fields;
 }
 
 function parseSubmitted(value: unknown): SubmittedApplication {

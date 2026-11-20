@@ -277,6 +277,11 @@ export function publish(eventId: string, actorId: string, body: unknown, now = n
   };
 }
 
+/** How many times the event's groups were published (`PUBLISHED` only), for the participant feed mock. */
+export function publicationCount(eventId: string): number {
+  return boardOf(eventId).publications.length;
+}
+
 export type ParticipantGroupBody = {
   status: "NOT_ELIGIBLE" | "NOT_PUBLISHED" | "UNASSIGNED" | "ASSIGNED";
   publishedAt: string | null;

@@ -10,6 +10,7 @@ import { operatorHandlers } from "./operators";
 import { participantHandlers } from "./participant";
 import { participantCheckInHandlers } from "./participantCheckIn";
 import { participantGroupHandlers } from "./participantGroup";
+import { participantHomeHandlers } from "./participantHome";
 import { sessionHandlers } from "./session";
 import { spaceHandlers } from "./spaces";
 import { spaceInvitationHandlers } from "./spaceInvitations";
@@ -27,6 +28,7 @@ export const handlers = [
   ...participantHandlers,
   ...participantCheckInHandlers,
   ...participantGroupHandlers,
+  ...participantHomeHandlers,
   ...applicationHandlers,
   ...lifecycleHandlers,
   ...retrospectiveHandlers,

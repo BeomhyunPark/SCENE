@@ -38,4 +38,18 @@ export const queryKeys = {
   participantMe: (eventId: string) => ["participant", "me", eventId] as const,
   participantCheckIn: (eventId: string) => ["participant", "check-in", eventId] as const,
   participantGroup: (eventId: string) => ["participant", "group", eventId] as const,
+  /**
+   * Participant home cards (DEC-080). A card reading more than one request keeps this key as the
+   * prefix, e.g. `[...queryKeys.participantNotices(eventId), "detail", noticeId]`, so the one
+   * invalidation from `participant/updateTargets.ts` reloads all of them.
+   */
+  participantHome: (eventId: string) => ["participant", "home", eventId] as const,
+  participantSchedule: (eventId: string) => ["participant", "schedule", eventId] as const,
+  participantNotices: (eventId: string) => ["participant", "notices", eventId] as const,
+  participantRooms: (eventId: string) => ["participant", "rooms", eventId] as const,
+  participantMealOrder: (eventId: string) => ["participant", "meal-order", eventId] as const,
+  participantApplication: (eventId: string) => ["participant", "application", eventId] as const,
+  participantNotifications: (eventId: string) => ["participant", "notifications", eventId] as const,
+  /** Every participant read of the event, removed on logout. */
+  participantAll: ["participant"] as const,
 };

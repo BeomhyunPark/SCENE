@@ -430,6 +430,91 @@ export function currentParticipant(): {
   return { participantId: row.participantId, eventId: row.eventId, spaceId: row.spaceId, name: row.name, pinChangeRequired: row.pinTemporary };
 }
 
+/** The current revision of a participant's application, or null without one (feed mock). */
+export function currentApplicationRevision(participantId: string): number | null {
+  return issued.find((row) => row.participantId === participantId)?.revision ?? null;
+}
+
+/** Public-form shape of the fields: hidden questions and hidden options left out (api.md "참가자 신청"). */
+function publicFields(row: Issued): FormField[] {
+  return formFields(row.eventId, row.formId)
+    .filter((field) => !field.hidden)
+    .map((field) =>
+      field.config.options
+        ? { ...field, config: { ...field.config, options: field.config.options.filter((option) => !option.hidden) } }
+        : field,
+    )
+    .sort((a, b) => a.position - b.position);
+}
+
+function ownApplicationBody(row: Issued) {
+  const fields = publicFields(row);
+  const shown = new Set(fields.map((field) => field.fieldId));
+  const event = eventById(row.eventId);
+  return {
+    applicationId: row.applicationId,
+    formId: row.formId,
+    revision: row.revision,
+    submittedAt: row.submittedAt,
+    acceptingEdits: event?.lifecycleStatus === "ACTIVE" && acceptingEdits(row.eventId),
+    fields,
+    answers: row.answers.filter((answer) => shown.has(answer.fieldId)),
+  };
+}
+
+/** GET /participant/application (A4). Null when the session has no application. */
+export function readOwnApplication(): ReturnType<typeof ownApplicationBody> | null {
+  const row = sessionRow();
+  return row ? ownApplicationBody(row) : null;
+}
+
+/**
+ * PUT /participant/application (A4, DEC-078 §4): closed edits → 409 EDITS_CLOSED, a stale revision →
+ * 409 CONCURRENT_MODIFICATION with the current `revision`, then the same answer checks as the public
+ * submit. The phone must keep its digits. Answers to hidden questions carry over; nothing changed
+ * makes no new revision.
+ */
+export function reviseOwnApplication(body: unknown): ReturnType<typeof ownApplicationBody> | (ParticipantFailure & { revision?: number }) {
+  const row = sessionRow();
+  if (!row) return { status: 401, code: "AUTHENTICATION_REQUIRED" };
+  const event = eventById(row.eventId);
+  if (event?.lifecycleStatus !== "ACTIVE" || !acceptingEdits(row.eventId)) return { status: 409, code: "EDITS_CLOSED" };
+  if (!isRecord(body) || typeof body.expectedRevision !== "number") return { status: 400, code: "VALIDATION_FAILED" };
+  if (body.expectedRevision !== row.revision) return { status: 409, code: "CONCURRENT_MODIFICATION", revision: row.revision };
+  const fields = publicFields(row);
+  const read = readAnswers(body);
+  const answers = read && keepShown(fields, read);
+  if (!answers) return { status: 400, code: "APPLICATION_VALIDATION_FAILED" };
+  const name = answerFor(fields, answers, "NAME");
+  const phone = answerFor(fields, answers, "PHONE");
+  if (!name || !phone || phone.replace(/\D/g, "") !== row.phoneKey) return { status: 400, code: "APPLICATION_VALIDATION_FAILED" };
+  const detail = eventFormDetail(row.eventId);
+  if (detail && reversedRange(detail, new Map(answers.map((answer) => [answer.fieldId, answer.value])))) {
+    return { status: 400, code: "APPLICATION_VALIDATION_FAILED" };
+  }
+  const shown = new Set(fields.map((field) => field.fieldId));
+  const kept = row.answers.filter((answer) => !shown.has(answer.fieldId));
+  const next = [...answers, ...kept];
+  const sameAnswers = (list: StoredAnswer[]) => JSON.stringify([...list].sort((a, b) => a.fieldId.localeCompare(b.fieldId)));
+  if (sameAnswers(next) !== sameAnswers(row.answers)) {
+    row.applicationId = crypto.randomUUID();
+    row.revision += 1;
+    row.answers = next;
+    row.name = name.trim();
+    row.submittedAt = new Date().toISOString();
+  }
+  return ownApplicationBody(row);
+}
+
+/** Test seam: another device or an operator saved a newer revision. */
+export function reviseAsSomeoneElse(participantId: string, fieldId: string, value: Record<string, unknown>): void {
+  const row = issued.find((item) => item.participantId === participantId);
+  if (!row) return;
+  row.answers = [...row.answers.filter((answer) => answer.fieldId !== fieldId), { fieldId, value }];
+  row.applicationId = crypto.randomUUID();
+  row.revision += 1;
+}
+
 export function clearParticipant(): void {
   session = null;
 }
