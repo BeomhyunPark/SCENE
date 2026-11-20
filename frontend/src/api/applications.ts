@@ -98,7 +98,67 @@ export type ApplicationDetail = {
   operation: ApplicationOperation;
   /** Set while this is the participant's latest, withdrawn application (DEC-084 §9). */
   withdrawal: ApplicationWithdrawal | null;
+  /** Counts edits from 1 (DEC-078 §4). 1 from an older server. */
+  revision: number;
 };
+
+/** One changed question of a revision, titled as it was when stored. No values (DEC-078 §4). */
+export type RevisionChange = { key: "NAME" | "FIELD"; fieldId: string; label: string };
+
+/**
+ * One revision of the participant's application, newest first (#437). `revisedBy` is null for the
+ * first application, `PARTICIPANT` or `OPERATOR` after. Values come from each revision's detail.
+ */
+export type ApplicationRevision = {
+  applicationId: string;
+  revision: number;
+  status: string;
+  submittedAt: string;
+  revisedBy: "PARTICIPANT" | "OPERATOR" | null;
+  changes: RevisionChange[];
+};
+
+/** Every revision of the application's participant (DEC-078 §4). Same access as the detail. */
+export function getApplicationRevisions(
+  eventId: string,
+  applicationId: string,
+  signal?: AbortSignal,
+): Promise<ApplicationRevision[]> {
+  return apiRequest<unknown>(`/api/v1/operator/events/${eventId}/applications/${applicationId}/revisions`, {
+    signal,
+  }).then(parseRevisions);
+}
+
+function parseRevisions(value: unknown): ApplicationRevision[] {
+  if (!isRecord(value) || !Array.isArray(value.items)) throw new ApiError({ status: 200, code: "UNEXPECTED" });
+  const out: ApplicationRevision[] = [];
+  for (const item of value.items) {
+    if (
+      !isRecord(item) ||
+      typeof item.applicationId !== "string" ||
+      typeof item.revision !== "number" ||
+      typeof item.status !== "string" ||
+      typeof item.submittedAt !== "string"
+    ) {
+      throw new ApiError({ status: 200, code: "UNEXPECTED" });
+    }
+    const changes: RevisionChange[] = [];
+    for (const change of Array.isArray(item.changes) ? item.changes : []) {
+      if (isRecord(change) && typeof change.fieldId === "string" && typeof change.label === "string") {
+        changes.push({ key: change.key === "NAME" ? "NAME" : "FIELD", fieldId: change.fieldId, label: change.label });
+      }
+    }
+    out.push({
+      applicationId: item.applicationId,
+      revision: item.revision,
+      status: item.status,
+      submittedAt: item.submittedAt,
+      revisedBy: item.revisedBy === "PARTICIPANT" || item.revisedBy === "OPERATOR" ? item.revisedBy : null,
+      changes,
+    });
+  }
+  return out;
+}
 
 export function listApplications(
   eventId: string,
@@ -160,6 +220,10 @@ export type TableRow = {
   /** Slot ids the person attends, in `slots` order (DEC-074). Null is "모름", and always null without `slots`. */
   slotIds: string[] | null;
   operation: ApplicationOperation;
+  /** Counts edits from 1; above 1 the table marks "수정됨" and `submittedAt` is the last edit (#437). */
+  revision: number;
+  /** Who stored the current revision; null for revision 1 or from an older server. */
+  revisedBy: "PARTICIPANT" | "OPERATOR" | null;
 };
 
 /** One meal or service slot, the same shape as the group board's `slots`. */
@@ -465,6 +529,7 @@ function parseDetail(value: unknown): ApplicationDetail {
     answers,
     operation: parseOperation(value.operation) ?? EMPTY_OPERATION,
     withdrawal: parseWithdrawal(value.withdrawal),
+    revision: typeof value.revision === "number" ? value.revision : 1,
   };
 }
 
@@ -520,6 +585,8 @@ function parseTable(value: unknown): ApplicationTable {
       checkedInAt: typeof row.checkedInAt === "string" ? row.checkedInAt : null,
       slotIds: Array.isArray(row.slotIds) ? row.slotIds.filter((id): id is string => typeof id === "string") : null,
       operation: parseOperation(row.operation) ?? EMPTY_OPERATION,
+      revision: typeof row.revision === "number" ? row.revision : 1,
+      revisedBy: row.revisedBy === "PARTICIPANT" || row.revisedBy === "OPERATOR" ? row.revisedBy : null,
     });
   }
   return {

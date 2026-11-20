@@ -5,6 +5,8 @@ import caret from "../assets/event-nav/caret.svg";
 import { OperatorBottomNav } from "./OperatorBottomNav";
 import { OperatorMenuDrawer } from "./OperatorMenuDrawer";
 import { OperatorNav } from "./OperatorNav";
+import { badgeText } from "../api/operatorNotifications";
+import { useOperatorUpdatesPolling, useOperatorUpdatesValue } from "./useOperatorUpdates";
 import "./OperatorShell.css";
 
 // The start-up from /login/done plays once per history entry, even if the shell mounts again
@@ -67,7 +69,12 @@ export function OperatorShell({
   spaceName?: string;
   children: ReactNode;
 }) {
-  const menu = { eventName, eventHref, eventAreas, participantsHref, tasksHref, spaceName };
+  // Inside an event the shell runs the operator refresh check and shows the unread badge (#436).
+  const eventId = eventHref ? /^\/events\/([^/]+)$/.exec(eventHref)?.[1] : undefined;
+  useOperatorUpdatesPolling(eventId);
+  const updates = useOperatorUpdatesValue(eventId);
+  const notificationsBadge = updates ? badgeText(updates.notifications.unreadCount) : null;
+  const menu = { eventName, eventHref, eventAreas, participantsHref, tasksHref, spaceName, notificationsBadge };
   const [collapsed, setCollapsed] = useState(readCollapsed);
   const boot = useBootEntrance();
   const drawerId = useId();

@@ -77,4 +77,14 @@
       AND n.target_type = #{targetType} AND n.target_id = #{targetId}
       AND n.read_at IS NULL
   </update>
+
+  <!-- A target that moved to a new row (a new application revision): ids are the old rows. -->
+  <update id="retarget">
+    UPDATE notifications n
+    SET target_id = #{targetId}
+    WHERE n.space_id = #{spaceId} AND n.event_id = #{eventId}
+      AND n.target_type = #{targetType}
+      AND n.target_id IN
+      <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+  </update>
 </mapper>

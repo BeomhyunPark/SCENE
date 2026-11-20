@@ -16,6 +16,22 @@ export const NONE_LABEL = "응답 없음";
 
 export type ColumnType = "person" | "choice" | "multi" | "text" | "number" | "date" | "group" | "status" | "memo";
 
+/** Id of the 수정 column (#437): rows the participant (or an operator) changed after applying. */
+export const EDITED = "edited";
+export const EDITED_KEY = "edited";
+
+/** True when the application was changed after the first submit (DEC-078 §4, #437). */
+export function isEdited(row: TableRow): boolean {
+  return row.revision > 1;
+}
+
+/** "수정됨 · 2번 고침" text of the 수정 column; empty for an untouched application. */
+export function editedText(row: TableRow): string {
+  if (!isEdited(row)) return "";
+  const who = row.revisedBy === "OPERATOR" ? "운영자" : "참가자";
+  return `수정됨 · ${who} · ${row.revision - 1}번 고침`;
+}
+
 /** Id of the 운영 메모 column (#337). Not a field id, so it never collides with a question. */
 export const MEMO = "operationMemo";
 export const HAS_MEMO = "has";
@@ -200,6 +216,21 @@ export function buildColumns(table: ApplicationTable): ColumnDef[] {
     text: (row) => row.operation.memo,
     buckets: (row) => (row.operation.memo.trim() ? [HAS_MEMO] : []),
     sortValue: (row) => row.operation.memo.trim() || null,
+  });
+  // 수정 (#437): shown on the person cell anyway; this column filters, counts and sorts by it.
+  columns.push({
+    id: EDITED,
+    label: "수정",
+    type: "choice",
+    defaultVisible: false,
+    countable: true,
+    options: [
+      { key: EDITED_KEY, label: "수정됨" },
+      { key: NONE, label: "처음 그대로" },
+    ],
+    text: editedText,
+    buckets: (row) => (isEdited(row) ? [EDITED_KEY] : []),
+    sortValue: (row) => row.revision,
   });
   columns.push({
     id: "submitted",

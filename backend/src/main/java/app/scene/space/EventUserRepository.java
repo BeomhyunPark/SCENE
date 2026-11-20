@@ -11,6 +11,7 @@ import app.scene.space.param.EventOperatorListQuery;
 import app.scene.space.param.EventOperatorRoleUpdate;
 import app.scene.space.param.EventScope;
 import app.scene.space.param.OperatedEventQuery;
+import app.scene.space.param.OperatorAuthorityQuery;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -67,6 +68,15 @@ public class EventUserRepository {
     return queries.findOperators(
         EventOperatorListQuery.of(
             spaceId, eventId, PageParam.of((int) offset, request.size(), orderByClause)));
+  }
+
+  /**
+   * Every operator of the event with their role, ended handover and stored override of {@code
+   * permission}, in one statement (DEC-080 §7.2 recipients). Order is by user id.
+   */
+  public List<OperatorAuthority> findAuthorities(UUID spaceId, UUID eventId, String permission) {
+    return queries.findAuthorities(
+        OperatorAuthorityQuery.of(spaceId, eventId, permission, AuthorityStatuses.ENDED));
   }
 
   public boolean existsAuthorityEnded(UUID spaceId, UUID eventId, UUID userId) {

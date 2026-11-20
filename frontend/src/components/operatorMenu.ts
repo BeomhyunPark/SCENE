@@ -42,6 +42,8 @@ export type OperatorMenu = {
   participantsHref?: string;
   tasksHref?: string;
   spaceName?: string;
+  /** Unread notifications of this event as badge text ("3", "99+"), or null (#436). Events only. */
+  notificationsBadge?: string | null;
 };
 
 /** Stable keys let the phone bottom bar (#368) pick its shortcuts out of the same menu. */
@@ -62,12 +64,12 @@ export type MenuKey =
   | "groups"
   | "areas";
 
-export type MenuItem = { key: MenuKey; label: string; icon: string; to?: string; current: boolean };
+export type MenuItem = { key: MenuKey; label: string; icon: string; to?: string; current: boolean; badge?: string | null };
 export type MenuSection = { label?: string; items: MenuItem[] };
 
 /** The operator menu for this place: the organization menus, or the menus of one event. */
 export function operatorMenuSections(menu: OperatorMenu, pathname: string): MenuSection[] {
-  const { eventName, eventHref, eventAreas = [], participantsHref, tasksHref } = menu;
+  const { eventName, eventHref, eventAreas = [], participantsHref, tasksHref, notificationsBadge = null } = menu;
   const item = (key: MenuKey, label: string, icon: string, to: string | undefined, current = matchesPath(pathname, to)) => ({
     key,
     label,
@@ -81,8 +83,16 @@ export function operatorMenuSections(menu: OperatorMenu, pathname: string): Menu
       { items: system.map((menu) => item(menu.key, menu.label, menu.icon, menu.to)) },
     ];
   }
+  // 알림 inside an event is that event's list with its unread badge (#436, DEC-080 §7.5).
   const sections: MenuSection[] = [
-    { items: [item("event", eventName, events, eventHref, Boolean(eventHref) && pathname === eventHref)] },
+    {
+      items: [
+        item("event", eventName, events, eventHref, Boolean(eventHref) && pathname === eventHref),
+        ...(eventHref
+          ? [{ ...item("notifications", "알림", bell, `${eventHref}/notifications`), badge: notificationsBadge }]
+          : []),
+      ],
+    },
   ];
   if (eventHref) {
     sections.push({
@@ -109,9 +119,10 @@ export function operatorMenuSections(menu: OperatorMenu, pathname: string): Menu
 /**
  * Phone bottom bar shortcuts (#368): what operators check most, picked from the same menu so labels,
  * addresses and the current page match the sidebar. Outside an event only organization menus
- * (행사 · 알림 · 멤버, #376); inside an event 홈 · 현장 운영 · 참가 현황 · 알림. 알림 is the
- * organization's, also inside an event. 참가 현황 shows only when that area is on; everything else
- * is in 전체 메뉴.
+ * (행사 · 알림 · 멤버, #376); inside an event 홈 · 현장 운영 · 참가 현황 · 알림. Inside an event 알림
+ * is that event's list with the unread badge (#436); while the event is still loading it falls back
+ * to the organization's page. 참가 현황 shows only when that area is on; everything else is in 전체
+ * 메뉴.
  */
 export function bottomNavItems(menu: OperatorMenu, pathname: string): MenuItem[] {
   const all = operatorMenuSections(menu, pathname).flatMap((section) => section.items);
@@ -121,7 +132,7 @@ export function bottomNavItems(menu: OperatorMenu, pathname: string): MenuItem[]
       if (!found) return [];
       return [key === "event" ? { ...found, label: "홈" } : found];
     });
-  const notifications = all.find((item) => item.key === "notifications") ?? {
+  const notifications = all.find((item) => item.key === "notifications" && item.to) ?? {
     key: "notifications" as const,
     label: "알림",
     icon: bell,

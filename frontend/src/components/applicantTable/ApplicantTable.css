@@ -478,6 +478,12 @@ th[aria-sort="descending"] .roster__arrow {
   font: var(--scene-label-s);
 }
 
+.roster__tag--edited {
+  margin-left: 6px;
+  background: var(--color-warning-bg, var(--color-bg-subtle));
+  color: var(--color-warning-fg, var(--color-text-secondary));
+}
+
 .roster__tag--done {
   background: var(--color-success-bg);
   color: var(--color-success-fg);
