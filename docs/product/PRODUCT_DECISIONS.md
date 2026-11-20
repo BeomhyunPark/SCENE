@@ -3299,6 +3299,31 @@ B2 서버를 만들며 계약 초안과 다르게 정하거나 초안이 열어 
 
 사용자 결정 2026-11-19([#278 댓글](https://github.com/BeomhyunPark/SCENE/issues/278#issuecomment-7000830891), 로드맵 트랙 C). 근거 자료는 DEC-040·043·046·047·048·051, DEC-068(날짜·시간), DEC-070·073·074(칸 id), DEC-072(작업본·공개본 계약), DEC-080, API 초안 §9, api.md "조 편성", 마이그레이션 V13·V14.
 
+
+### Follow-up (2026-11-20, #435)
+
+C2·C3 서버를 만들며 계약 초안과 다르게 정하거나 초안이 열어 둔 것을 정했다. 경로·응답은 [api.md "일정표"](../../backend/docs/api.md#일정표)로 옮겼고, [계약 초안](../architecture/schedule-contract.md)에는 화면 규칙만 남겼다. 새 ErrorCode·권한 키는 없다. 마이그레이션은 `V21__schedule.sql`(추가만, 병합 때 번호를 맞춘다).
+
+1. **신청이 없는(취소된) 참가자는 `status: NOT_ELIGIBLE`, `items: []`다.** 초안 §8의 "신청 상태는 보지 않는다"를 바꾼다. `ParticipantAudience`는 `ALL`도 활성 참가자(`SUBMITTED` 신청이 있음)로 판정하고(DEC-080 Follow-up 2번), 사용자 기준도 "취소된 사람은 새 기능에서 빠진다"다. 내 조(`GET /participant/group`)의 `NOT_ELIGIBLE`과 같은 모양이고 신청을 먼저 본다. 알림 받는 사람에서도 빠진다.
+2. **알림의 `target`은 `{ "type": "SCHEDULE", "id": null }`이다.** 일정은 행사에 하나라 id가 없다. 합치기는 `target_id IS NOT DISTINCT FROM`이라 그대로 된다. 대상으로 읽음 처리하도록 `POST …/notifications/read`의 `target.id`에 명시적 `null`을 받게 했다(공용 코드 `NotificationReadRequest`·`NotificationMapper.markRead`의 작은 변경. `id` 키가 빠지면 지금처럼 `400`).
+3. **받는 사람.** 첫 공개(`SCHEDULE_PUBLISHED`)는 초안의 "활성 참가자 전원"이 아니라 **항목을 하나라도 볼 수 있는** 활성 참가자다(`ALL` 항목이 있으면 전원, `LEADERS` 항목만 있으면 조장, `STAFF`만 있으면 없음). 그 뒤 공개(`SCHEDULE_CHANGED`)는 추가·변경·삭제된 항목을 **바뀌기 전이나 뒤에** 볼 수 있던 활성 참가자다(대상이 `ALL`→`STAFF`로 바뀐 항목도 참가자에게는 사라진 것이라 알린다).
+4. **`notify: false`는 첫 공개의 알림도 끈다.** 초안은 첫 공개 알림을 `notify`와 상관없이 적었다. 운영자가 "알리지 않음"을 고르면 그대로 따른다(결정 대기 1).
+5. **문구.** 제목 "일정표가 올라왔어요"(본문 없음) / "일정이 바뀌었어요", 본문은 바뀐 항목 제목 최대 셋을 쉼표로 잇고 넘치면 " 외 N건"(예: "오전 집회, 레크리에이션, 산책 외 2건"). 일정 제목만 넣는다. 조장의 본문에는 `LEADERS` 항목 제목도 들어가므로 공개 한 번에 알림 문장이 많아야 두 개(조장, 나머지)다. 200명도 문장 두 개다.
+6. **변경 표시를 24시간 안에서 합친다.** 초안은 "직전 공개본과 비교해 저장"만 적었다. 그러면 10분 간격 두 번의 공개에서 첫 변경(시각)이 사라진다. 그래서 24시간 안의 표시가 있으면 `fields`를 합치고 `previous`는 처음 값을 지키며, 처음 값으로 되돌아간 `day`·`startTime`·`endTime`·`place`는 빠진다(모두 빠지면 표시 없음). `ADDED` 항목은 24시간 안에 고쳐도 `ADDED`이고 `changedAt`이 새 공개 시각이 된다. `ADDED`의 `fields`는 `[]`, `previous`는 `null`이다.
+7. **24시간 판정은 서버가 한다.** 참가자·운영자 공개본 응답은 24시간이 지난 `change`를 `null`로, 지난 `removedItems`를 빼고 준다. 화면은 받은 대로 보이면 된다. 응답에 `serverTime`을 더했다.
+8. **응답에 더한 키.** 운영자 작업본: `startDate`·`endDate`·`timeZone`, 항목 `leadersOnly`, `slots[]`의 `date`·`dayLabel`·`sortOrder`(편성판 `slots`와 같은 모양에 `linkedItemId`). 공개본 조회: `status`·`publishedByDisplayName`·`boardVersion`·`serverTime`, 항목 `leadersOnly`·`change`, `removedItems[].audience`·`date`. 참가자: `serverTime`, `removedItems[].date`, 항목 `sortOrder`.
+9. **작은 규칙.** 공개한 적이 없으면 `hasUnpublishedChanges: true`다(첫 공개는 항목이 없어도 된다). `PATCH`로 일차·시작 시각을 바꾸고 `sortOrder`를 보내지 않으면 새 시각의 맨 뒤로 간다. 행사 기간이 없어도 `PATCH`(일차를 보내지 않을 때)·`DELETE`는 된다. 공개의 기간 확인은 `ALREADY_PUBLISHED` 다음이다. 일차 범위처럼 행사를 봐야 아는 `400`은 행사 상태 `409` 뒤에 나온다. `DELETE`의 `publish`·`confirmOtherChanges`·`notify` 쿼리는 `true`·`false`만 받는다.
+10. **한계.** 대상이 `ALL`→`STAFF`로 바뀐 항목은 참가자 목록에서 그냥 사라지고 "취소됨"으로 보이지 않는다(알림은 간다, 3번).
+11. **비용.** 참가자 `GET /participant/schedule` 한 요청은 SQL 세 문장(세션, 활성·조장 판정, 행사 기간과 최근 공개 한 행)이고 작업본을 읽지 않는다. 200명 × 60항목에서 공개는 수십 ms, 200명이 한꺼번에 읽어도 1초 안이었다(`ParticipantScheduleCostIT`, 로컬 Testcontainers). 상태는 모두 DB에 있고 서버 메모리에 두는 것이 없다. 참가자 조회 경로에는 IP 제한이 없다.
+
+#### 결정 대기 (추천안으로 진행, PR 검토에서 확인)
+
+| # | 질문 | 선택지 | 추천안 | 영향 |
+|---|---|---|---|---|
+| 1 | 첫 공개에서 `notify: false`를 따르나 | 따른다 / 첫 공개는 늘 알린다 | 따른다 | 운영자가 끄면 "일정표가 올라왔어요"도 없다. 참가자 화면은 그래도 30초 안에 바뀐다 |
+| 2 | 신청이 취소된 참가자의 일정 | `NOT_ELIGIBLE`로 아무것도 안 보임 / 공개본을 그대로 보임 | `NOT_ELIGIBLE` | 취소한 사람이 세션을 가진 채로 남아도 일정을 보지 못한다. A7이 세션을 끊으면 `401`이 먼저다 |
+| 3 | 24시간 안의 연속 변경 표시 | 합친다 / 마지막 공개만 | 합친다 | "09:00 → 10:00"처럼 처음 값이 남는다. 되돌리면 표시가 사라진다 |
+
 ---
 
 ## DEC-082 — 공지는 DRAFT·PUBLISHED·ARCHIVED이고, 대상은 전체·조장·운영진이며, 참가자는 화면 안 알림으로 받고 전달 채널은 알림 행에 나중에 붙인다
