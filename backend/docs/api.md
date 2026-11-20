@@ -1208,7 +1208,9 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
 
 `answers`는 필드 position 순이다. 받은 답만 있고, 답이 없는 질문은 빠진다. `answerType`·`hidden`·`config`는 그 질문의 **현재** 값이다(운영자 신청서 상세의 필드와 같은 모양). 화면은 이것으로 선택형 답의 `optionId`를 지금 보기 문구로 바꾸고, 숨긴 질문(`hidden: true`)과 숨긴 보기(`config.options[].hidden: true`)에 "(숨김)"을 붙인다(DEC-068 §6). `value` 모양은 DEC-068 §1을 따른다.
 
-한 건 조회와 참가 현황 표의 행에는 `revision`(1부터)과 `participantId`가 있다. `SUPERSEDED` 신청도 한 건 조회로 읽는다(변경 전 답).
+한 건 조회와 참가 현황 표의 행에는 `revision`(1부터)과 `participantId`가 있다. `SUPERSEDED` 신청도 한 건 조회로 읽는다(변경 전 답). 연락처 규칙(`PARTICIPANT_CONTACT_READ`가 없으면 전화 답의 `value`가 `null`)과 audit도 지금 신청과 같다(#437).
+
+참가 현황 표의 행에는 `revisedBy`도 있다(#437). 지금 revision을 누가 저장했는지이고 `revision`이 1이면 `null`, 참가자가 고쳤으면 `PARTICIPANT`, 운영자가 고쳤으면 `OPERATOR`(A12)다. 화면은 `revision`이 1보다 크면 "수정됨"을 그린다. 그 행의 `submittedAt`은 마지막 수정 시각이다.
 
 한 건 조회의 `withdrawal`은 그 신청이 참가자의 마지막 revision이고 `WITHDRAWN`일 때 `{ "withdrawnAt", "withdrawnByDisplayName", "reason", "reapplyBlocked" }`이고, 아니면 `null`이다([신청 취소와 되돌리기](#신청-취소와-되돌리기)). `reason`은 운영자 화면에만 보인다.
 
@@ -1236,7 +1238,7 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
 }
 ```
 
-`revisedBy`는 첫 신청이면 `null`, 참가자가 고쳤으면 `PARTICIPANT`, 운영자가 고쳤으면 `OPERATOR`(A12, 아직 없음)다. `changes`는 바뀐 질문을 그 revision을 저장할 때의 질문 제목으로 담는다. 이름이 바뀌었으면 `key: NAME`이다. 답 값은 없다. 변경 전후 값은 각 `applicationId`의 한 건 조회로 읽는다(연락처 규칙도 그대로).
+`revisedBy`는 첫 신청이면 `null`, 참가자가 고쳤으면 `PARTICIPANT`, 운영자가 고쳤으면 `OPERATOR`(A12, 아직 없음)다. `changes`는 바뀐 질문을 그 revision을 저장할 때의 질문 제목으로 담는다. 이름이 바뀌었으면 `key: NAME`이다. 답 값은 없다. 변경 전후 값은 각 `applicationId`의 한 건 조회로 읽는다(연락처 규칙도 그대로). 신청 상세 화면은 revision을 펼칠 때 그 revision과 바로 앞 revision을 한 건씩 읽어 `changes`의 질문만 비교한다(#437).
 
 ### `POST /api/v1/operator/events/{eventId}/participants/{participantId}/pin-reset`
 
@@ -1823,7 +1825,70 @@ CSRF가 필요하다. 본문은 셋 중 정확히 하나다.
 - `participant_feed_versions`: 행사당 한 행(`space_id`, `event_id` 기본 키), 열 `home`·`schedule`·`notices`·`groups`·`rooms`·`meal_order`·`updated_at`. 처음 오를 때 만든다. 행이 없으면 모두 0이다. 마이그레이션 때 이미 조 편성 공개본이 있는 행사는 `groups`를 공개본 수로 채웠다(`features.groups`가 꺼지지 않게).
 - `notifications`: 참가자·운영자 알림 한 테이블. `recipient_kind`가 `PARTICIPANT`면 `recipient_participant_id`, `OPERATOR`면 `recipient_user_id`만 있다. `title` 80자, `body` 200자, `count` ≥ 1, `seq`는 전체에서 늘어나는 번호. 색인은 참가자 목록·참가자 미읽음(부분 색인)·운영자 목록·대상(`event_id`, `target_type`, `target_id`). 보존은 행사 데이터와 같다.
 - 둘 다 DB에만 있다. 서버 메모리에 두는 값은 없다.
-- 운영자 알림 경로(`GET·POST /operator/events/{eventId}/notifications…`, `GET …/updates`)와 `operator_notices` 이전은 아직 없다(I3, 계약 초안 §7.5·§7.6).
+- 운영자 알림 경로와 `operator_notices` 이전은 아래 [운영자 알림·갱신 확인](#운영자-알림갱신-확인)에 있다.
+
+## 운영자 알림·갱신 확인
+
+운영자가 화면 안에서 받는 알림과 운영자 화면의 주기 확인이다([DEC-080](../../docs/product/PRODUCT_DECISIONS.md) §6·§7과 Follow-up #436, [#436](https://github.com/BeomhyunPark/SCENE/issues/436)). 알림은 행사 단위로 본다. 컨트롤러는 `event/notification/OperatorNotificationController`, `event/updates/OperatorUpdatesController`다.
+
+세 경로 모두 운영자 세션이 필요하다(없으면 `401 AUTHENTICATION_REQUIRED`. 참가자 세션 쿠키로는 열리지 않는다). 판정은 다른 운영자 경로와 같은 `EventAccessGate` 순서다: 행사가 없거나 다른 공간이면 `404 RESOURCE_NOT_FOUND`, 운영자에서 제거됐거나 공간을 떠났으면 `403 NOT_A_MEMBER`. 그 위에 **그 행사의 운영자**(`event_users` 행)여야 한다. 운영자 행이 없는 활성 공간 멤버(공간 `OWNER`·`ADMIN` 포함)도 `403 NOT_A_MEMBER`다(받는 사람별 목록이라 그 행사에 그 사람의 목록이 없다). 권한 키는 보지 않는다(받은 것만 본다). 응답은 `Cache-Control: no-store`이고 audit을 남기지 않는다. 행사 상태로 막지 않는다. IP 제한이 없다.
+
+### `GET /api/v1/operator/events/{eventId}/notifications?before={seq}&limit=30`
+
+[참가자 경로](#get-apiv1participantnotificationsbeforeseqlimit30)와 같은 쿼리·응답이다. 받는 사람이 세션의 운영자이고 그 행사인 행만 준다.
+
+### `POST /api/v1/operator/events/{eventId}/notifications/read`
+
+CSRF가 필요하다. [참가자 경로](#post-apiv1participantnotificationsread)와 같은 본문·응답이다. 다른 운영자의 알림 id는 조용히 건너뛴다(그 알림은 바뀌지 않고 응답은 없는 id를 보낸 것과 같다).
+
+### `GET /api/v1/operator/events/{eventId}/updates`
+
+열린 운영자 화면이 보이는 동안 `pollAfterSeconds` 안팎마다 부른다. 값이 바뀐 것만 다시 읽는다.
+
+`200`
+
+```json
+{
+  "notifications": { "latestSeq": 9012, "unreadCount": 3 },
+  "notices": 8,
+  "schedule": 0,
+  "checkIns": 154,
+  "pollAfterSeconds": 15,
+  "serverTime": "2027-01-22T05:30:12Z"
+}
+```
+
+| 키 | 뜻 |
+| --- | --- |
+| `notifications` | 세션 운영자의 그 행사 알림 최대 `seq`(없으면 0)와 읽지 않은 수(100에서 멈춘다). 화면은 `latestSeq`가 바뀌면 알림 목록·배지를 다시 읽는다 |
+| `notices` | 운영자 범위 공지 값(`NoticeBoardVersions.read`, 행사당 한 행). 대상·상태와 상관없이 공지 쓰기마다 오른다. 운영자 공지 화면(D3)이 이 값으로 다시 읽는다 |
+| `schedule` | 일정표 작업본 `boardVersion`(`ScheduleBoards.boardVersion`, 처음은 0). 운영자 일정 화면이 쓴다 |
+| `checkIns` | 그 행사 `checkin_logs`의 최대 `seq`(체크인·취소), 없으면 0. 현장 현황(E1)이 쓴다 |
+
+- `pollAfterSeconds`는 설정 `scene.operator.poll-after-seconds`(기본 15, 10–300 밖은 가까운 끝으로 맞춘다. 홈서버 `.env`의 `SCENE_OPERATOR_POLLAFTERSECONDS`)다.
+- 한 요청의 SQL은 열두 문장이다(2026-11-20 `OperatorUpdatesCostIT`): Spring Session의 세션 읽기·갱신·다시 읽기 셋(모든 운영자 경로가 같다), 운영자 경로 공통 판정 다섯(행사, 공간 안의 행사, 역할, 공간 멤버십, 넘긴 소유 권한), 알림 요약·공지 값·일정 작업본 버전·체크인 `seq` 하나씩. 목록·공개본·신청 테이블은 읽지 않는다.
+
+### 운영자가 받는 알림
+
+| `kind` | `target` | 받는 사람 | 만드는 때 | 제목·본문 |
+| --- | --- | --- | --- | --- |
+| `APPLICATION_REVISED` | `APPLICATION`, 지금 신청 id | 만드는 순간 그 행사에서 유효한 `PARTICIPANT_READ`를 가진 운영자 | 참가자가 신청을 고쳐 새 revision이 생길 때(`PUT /participant/application`) | "김OO님이 신청을 고쳤어요" · 바뀐 질문 제목("참석 방식, 이동 수단") |
+| `APPLICATION_RESUBMITTED` | 같음 | 같음 | 같은 전화·맞는 6자리로 다시 신청해 수정이 될 때(공개 신청 `200`) | "김OO님이 다시 신청해 내용을 바꿨어요" · 바뀐 질문 제목 |
+| `APPLICATION_CANCELLED` | `APPLICATION`, 취소된 신청 id | 같음. 취소한 운영자는 뺀다 | 신청 취소(DEC-084) | "김OO님의 신청이 취소됐어요" (본문 없음, 사유 없음) |
+| `APPLICATION_RESTORED` | `APPLICATION`, 지금 신청 id | 같음. 되돌린 운영자는 뺀다 | 운영자 되돌리기, 취소된 사람의 다시 신청(DEC-084 §5) | "김OO님의 신청 취소를 되돌렸어요" / "김OO님이 취소된 신청으로 다시 신청했어요" |
+| `LIFECYCLE_OVERRIDE` | `EVENT`, 행사 id | 넘긴 소유 권한이 끝나지 않은 행사 `OWNER` | 공간 소유자가 대신 시작·종료·다시 열기 등을 할 때 | "행사 상태를 공간 소유자가 바꿨어요" · "행사를 종료했어요" 등 |
+
+- 유효 권한은 `PermissionEvaluator`(역할 기본값 + 사람별 `GRANT` − `REVOKE`, 넘긴 OWNER는 저장된 GRANT만)다. 기본값으로는 OWNER·MANAGER가 받고, STAFF는 `GRANT`를 받아야, MANAGER도 `REVOKE`되면 받지 않는다. 운영자에서 제거됐거나 공간을 떠나 `event_users` 행이 없는 사람은 받지 않는다. 받는 사람 계산은 그 행사 운영자 수와 상관없이 SQL 한 문장(`event_users` + 그 권한의 override)이다.
+- **바뀐 답이 없어 revision이 생기지 않으면** 알림도 없다. 6자리가 틀린 재신청(`409`)도 없다. 알림은 revision·상태 변경과 **같은 트랜잭션**에서 넣는다. 변경이 실패하면 알림도 없다.
+- 제목·본문에는 이름과 바뀐 질문 제목까지만 넣는다. 답의 내용·전화번호·숫자 6자리·취소 사유는 넣지 않는다. 신청 상세에서 권한대로 본다.
+- revision마다 `applications` 행이 새로 생기므로, 새 알림을 넣기 전에 그 참가자의 모든 revision을 가리키던 알림(읽은 것 포함)의 `target.id`를 지금 신청 id로 옮긴다. 그래서 같은 참가자가 다섯 번 고치면 읽지 않은 알림이 한 줄(`count` 5)이고, 어느 알림을 눌러도 지금 신청 상세(`/events/{eventId}/participants/{applicationId}`)로 간다. 변경 이력은 상세의 revision 목록에서 본다.
+- 공지 서버(D2)는 `STAFF_NOTICE_PUBLISHED`(`NOTICE`)를 같은 목록에 만든다. 화면은 모르는 `kind`나 아직 화면이 없는 대상을 누를 수 없게 그린다.
+
+### 저장
+
+- `V24__operator_notices_to_notifications.sql`이 `operator_notices`의 행을 `notifications`로 옮긴다: `recipient_kind = 'OPERATOR'`, `kind = 'LIFECYCLE_OVERRIDE'`, `target_type = 'EVENT'`, `target_id = event_id`, 제목 "행사 상태를 공간 소유자가 바꿨어요", `read_at = created_at`(읽은 상태), id는 그대로. 그 뒤 코드는 `notifications`에만 쓴다.
+- **`operator_notices` 테이블은 지우지 않았다.** 배포가 실패해 옛 코드로 되돌려지면 옛 코드가 그 테이블에 쓰기 때문이다(추가만 하는 마이그레이션). 수련회가 끝나고 되돌릴 일이 없어진 뒤 다음 마이그레이션에서 `DROP TABLE operator_notices`를 한다. 그 사이에 옛 코드가 쓴 행이 있으면 그 마이그레이션이 같은 방식으로 한 번 더 옮긴다.
+- 모두 DB에만 있다. 서버 메모리에 두는 상태가 없다.
 
 ## 공지
 
@@ -2898,7 +2963,6 @@ audit `GROUPS_PUBLISHED`: detail은 `publicationId`, `boardVersion`, `assignedCo
 
 | 영역 | 정책 | 계약 초안 | 경로 |
 |---|---|---|---|
-| 운영자 알림·운영자 갱신 확인 | DEC-080 | [participant-home-contract](../../docs/architecture/participant-home-contract.md) §7.5 | `GET·POST /operator/events/{eventId}/notifications…`, `GET /operator/events/{eventId}/updates` (참가자 홈·`updates`·알림은 위 [참가자 홈·갱신 확인·알림](#참가자-홈갱신-확인알림)으로 옮겼다) |
 | 내 조(조원·조장이 보는 범위) | DEC-083 | [participant-group-contract](../../docs/architecture/participant-group-contract.md) | `GET /participant/group`의 새 응답(지금 응답은 위 [조 편성](#get-apiv1participantgroup)), `GET /participant/group/members/{participantId}`, `GET·PUT /operator/events/{eventId}/participant-settings` |
 
 ## 결정 문서와 다른 점

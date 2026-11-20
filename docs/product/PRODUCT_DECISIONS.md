@@ -3064,7 +3064,7 @@ DEC-064는 참가자가 신청 완료 화면에 한 번 나오는 링크(fragmen
 
 A5 화면(내 정보 탭)을 만들었다. 낸 답 보기, 수정이 열려 있을 때 고치기(`expectedRevision`), 전화번호는 읽기만, `409 EDITS_CLOSED`(읽기 전용으로 돌아감)·`409 CONCURRENT_MODIFICATION`(새 revision을 다시 읽어 그 값에서 다시 고치게)·`400`·`404`(신청 없음)를 처리한다. 숫자 6자리 바꾸기와 로그아웃도 이 탭에 있다. 질문 입력·조건부 표시·검사는 신청 화면과 같은 부품(`useAnswerDraft`)을 쓴다.
 
-운영자 쪽 "신청 수정 받기" 스위치(§6 (d))는 **화면에 없다.** `EventRegistrationSetup.tsx`는 저장할 때 지금 `acceptingEdits` 값을 그대로 실어 보낼 뿐 켜고 끄는 컨트롤이 없다. 운영자 화면은 이 작업 범위 밖이라 #427에 남겼다.
+운영자 쪽 "신청 수정 받기" 스위치(§6 (d))는 신청서 화면(`EventRegistrationSetup`)의 신청 열기·닫기 아래에 따로 둔다(`EditsSwitch`). 신청을 닫아도 수정은 그대로이고, 수정을 닫으면 참가자 내 정보는 탭을 다시 열 때 읽기 전용이 된다. 켜기는 진행 중인 행사에서만 되고(시작 전에는 버튼이 비활성), 끝난 행사는 상태만 보이며, `FORM_WRITE`가 없으면 상태만 보이고 버튼이 없다.
 
 ---
 
@@ -3262,6 +3262,28 @@ B3·B4 화면(하위 세션)을 만들며 정하거나 덧붙인 점이다. 경�
 |---|---|---|---|---|
 | 3 | 신청서의 `acceptingEdits`가 바뀔 때 `updates`의 어느 값을 올리나 | 올리지 않음(탭을 열 때 다시 읽기) / `home`을 올림 / `application`을 행사 범위로도 올림 | 올리지 않음(지금 구현). 탭을 열 때 다시 읽으므로 30초 반영이 필요 없다 | 이미 내 정보 탭을 열어 둔 사람은 탭을 다시 열거나 저장할 때 닫힘을 안다 |
 
+
+### Follow-up (2026-11-20, #436)
+
+I3 운영자 알림과 A6 "수정됨"·변경 전후([#437](https://github.com/BeomhyunPark/SCENE/issues/437))를 만들며 정하거나 계약 초안과 다르게 만든 점이다. 경로 계약은 [api.md "운영자 알림·갱신 확인"](../../backend/docs/api.md#운영자-알림갱신-확인)으로 옮겼다.
+
+1. **받는 사람(결정 대기 1의 추천안대로):** 알림을 만드는 순간 그 행사의 `event_users` 행이 있고 `PermissionEvaluator`로 계산한 유효 `PARTICIPANT_READ`가 있는 사람이다(역할 기본값 + 사람별 `GRANT` − `REVOKE`, 넘긴 OWNER는 저장된 GRANT만). 운영자 제거·공간 탈퇴는 `event_users` 행을 지우므로(`MembershipLeaveService.revokeEventAccess`) 빠지고, 탈퇴하며 남긴 행사는 행이 있어 접근이 남으므로 받는다(`EventAccessGate`와 같은 기준). 운영자 행이 없는 공간 OWNER·ADMIN은 받지 않는다. 계산은 운영자 수와 상관없이 SQL 한 문장(`EventUserRepository.findAuthorities`)이다(`event/notification/OperatorRecipients`).
+2. **`target.id`는 지금 신청 id이고, 새 revision마다 옛 알림을 옮긴다.** revision마다 `applications` 행이 새로 생기므로, 새 알림을 넣기 전에 그 참가자의 모든 revision을 가리키던 알림(읽은 것 포함)의 `target_id`를 새 행으로 바꾼다(`Notifications.retarget`, 같은 트랜잭션). 그래서 읽지 않은 같은 종류는 한 줄로 합쳐지고(다섯 번 고치면 `count` 5), 어느 알림을 눌러도 화면 경로 `/events/:eventId/participants/:applicationId`가 그대로 지금 신청을 연다. 참가자 id를 대상으로 쓰는 안은 화면이 참가자 id → 신청 id를 한 번 더 찾아야 하고, 첫 신청 id를 쓰는 안은 누르면 옛 revision이 열린다. 옮기기는 공용 코드에 메서드 하나를 더한 것이다(공용 코드의 다른 동작은 바꾸지 않았다).
+3. **문구:** 제목은 "김OO님이 신청을 고쳤어요"(재신청은 "…님이 다시 신청해 내용을 바꿨어요"), 본문은 바뀐 질문 제목을 `, `로 이은 것이다(`changes`의 그때 제목). 답·전화번호·6자리·취소 사유는 넣지 않는다. 이름이 바뀌면 새 이름을 쓴다.
+4. **취소·복귀(DEC-084 §7):** `ApplicationStatusChanged`를 같은 트랜잭션의 `@EventListener`로 받아 `APPLICATION_CANCELLED`("…님의 신청이 취소됐어요", `important`)와 `APPLICATION_RESTORED`(운영자 되돌리기 "…님의 신청 취소를 되돌렸어요" / 다시 신청 "…님이 취소된 신청으로 다시 신청했어요")를 만든다. 처리한 운영자는 뺀다. 취소된 사람의 다시 신청은 답이 바뀌어도 `RESUBMITTED`가 아니라 `RESTORED` 하나다.
+5. **`LIFECYCLE_OVERRIDE`의 본문**은 "행사를 종료했어요"처럼 바뀐 동작을 적고 `important`다. 받는 사람은 옛 `operator_notices`와 같다(넘긴 권한이 끝나지 않은 OWNER).
+6. **운영자 경로의 판정:** `EventAccessGate` 순서 뒤에 그 행사의 운영자(`event_users` 행)가 아니면 `403 NOT_A_MEMBER`다. 받는 사람별 목록이라 운영자 행이 없는 공간 OWNER·ADMIN에게는 목록이 없다. 화면은 `401`·`403`·`404`를 받으면 주기 확인을 멈추고 배지를 보이지 않는다.
+7. **운영자 `updates`:** `notices`는 D2의 `NoticeBoardVersions.read`, `checkIns`는 그 행사 `checkin_logs` 최대 `seq`, `schedule`은 C2의 `ScheduleBoards.boardVersion`이다. 한 요청은 SQL 열두 문장이다(Spring Session 셋, 운영자 경로 공통 판정 다섯, 값 넷). `scene.operator.poll-after-seconds`는 기본 15, 10–300 밖은 끝으로 맞춘다(`SCENE_OPERATOR_POLLAFTERSECONDS`).
+8. **`operator_notices`는 이번에 지우지 않는다.** V24가 행을 읽은 상태로 옮기고 코드는 `notifications`에만 쓴다. 배포가 실패해 옛 코드로 되돌려지면 옛 코드가 그 테이블에 쓰므로 수련회 뒤 마이그레이션에서 남은 행을 한 번 더 옮기고 지운다. 결정 7의 "옮기고 지운다"는 두 단계로 나뉜다.
+9. **화면:** 행사 안 메뉴에 "알림"(`/events/:eventId/notifications`)을 행사 홈 아래에 두고, 사이드바와 휴대폰 하단 막대의 알림에 그 행사의 읽지 않은 수를 붙인다("99+"). 행사 밖 조직 메뉴의 "알림"(`/notifications`, #376 구조 유지)은 "알림은 행사 안에서 봐요" 안내와 행사 목록 링크이고 배지가 없다. 주기 확인은 운영자 화면 틀(`OperatorShell`)이 행사 안에서만 돈다(±20%, 숨기면 멈춤, 보이면 바로, 실패하면 두 배·최대 300초). 종류 → 화면 경로 표는 `components/notificationHref.ts` 한곳이고, 공지 종류(`STAFF_NOTICE_PUBLISHED`·`STAFF_NOTICE_UPDATED`)는 운영자 공지 화면(D3)이 한 줄을 더할 때까지 누를 수 없다.
+10. **A6:** 참가 현황 표 행에 `revisedBy`를 더했다(`revision`은 이미 있었다). 표는 이름 옆에 "수정됨" 표시, "수정됨" 칩(거르기), 숨겨 둔 "수정" 열(거르기·세기·정렬)을 둔다. 신청 상세는 변경 이력(몇 번째, 고친 주체, 시각, 바뀐 질문)을 보이고 "변경 전후 보기"를 누르면 그 revision과 앞 revision을 한 건 조회로 읽어 질문마다 이전 → 이후를 보인다. 한 건 조회의 연락처 규칙이 옛 revision에도 같아(`OperatorNotificationHttpIT`), 연락처 권한이 없으면 전후 모두 가려진다. 옛 revision을 열면 "지금 신청 열기" 링크가 있다.
+
+| # | 질문 | 선택지 | 추천안 | 영향 |
+|---|---|---|---|---|
+| 4 | 열어 둔 운영자 화면의 15초 확인이 운영자 세션(60분 유휴 만료)을 계속 늘려도 되나 | 그대로 둠 / `updates`는 세션 시각을 늘리지 않음 / 화면이 보일 때만 도니 그대로 두되 보안 문서에 적음 | 그대로 두고 적는다(화면이 숨겨지면 멈추므로 열어 둔 채 자리를 뜬 탭만 해당) | 바꾸려면 Spring Session 필터 앞에서 이 경로만 만료 시각 갱신을 빼야 한다 |
+| 5 | 운영자 행이 없는 공간 OWNER·ADMIN도 신청 변경 알림을 받나 | 받지 않음 / `seesEveryEvent`면 받음 | 받지 않음(지금 운영자 경로가 모두 그렇다) | 받게 하려면 받는 사람 계산과 운영자 경로 판정을 함께 바꾼다 |
+
+후속(이번 범위 밖): 들어오기 잠금 경고(DEC-078 표 "잠금")를 운영자 알림으로 보내기, `operator_notices` 삭제 마이그레이션, 여러 행사를 모은 알림 목록.
 ---
 
 ## DEC-081 — 일정표는 조 편성과 같은 작업본·공개본 계약을 쓰고, 운영자는 항목 하나를 "저장하고 바로 공개"하며, 참가자는 24시간 동안 "변경됨"을 본다

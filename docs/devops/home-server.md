@@ -140,6 +140,8 @@ age -d -i scene-backup.key scene-YYYYMMDD-HHMMSS.sql.gz.age | gunzip | docker co
 
 **참가자 화면 갱신 주기(배포 없이).** 참가자 화면은 `GET /api/v1/participant/updates`를 `pollAfterSeconds`(기본 25초, 화면이 ±20%로 불러 20–30초) 안팎마다 부른다(DEC-080, #423, #425). 서버가 느리면 `.env`에 `SCENE_PARTICIPANT_POLLAFTERSECONDS=60`처럼 넣고(10–300, 밖의 값은 가까운 끝으로 맞춘다) `docker compose up -d backend`를 실행한다. 화면은 다음 확인부터 새 주기를 쓴다. 참가자 조회 경로(`/api/v1/participant/**` GET)에는 IP 제한이 없다(서버·nginx·위 Cloudflare 규칙 모두). 200명이 같은 와이파이에서 25초 안팎마다 불러도(초당 8건 안팎) 막히지 않는다.
 
+**운영자 화면 갱신 주기(배포 없이).** 운영자 화면은 보이는 동안 `GET /api/v1/operator/events/{eventId}/updates`를 `pollAfterSeconds`(기본 15초) 안팎마다 불러 알림 배지를 갱신한다(DEC-080 §7.5, #436). 바꾸려면 `.env`에 `SCENE_OPERATOR_POLLAFTERSECONDS=30`처럼 넣고(10–300) `docker compose up -d backend`를 실행한다. 이 경로에도 IP 제한이 없다(운영진도 같은 와이파이를 쓴다).
+
 IP는 nginx가 넘기는 `CF-Connecting-IP`(→ `X-Forwarded-For`, `SERVER_FORWARD_HEADERS_STRATEGY=framework`)다. Cloudflare를 거치지 않는 요청은 없으므로 이 값을 믿는다.
 
 **Cloudflare 규칙 (사용자가 대시보드에서 설정한다. 이 저장소에서는 설정하지 않았다):** `scene.greengroove.app` → Security → WAF → Rate limiting rules에 규칙 하나를 더한다. 무료 플랜은 규칙 1개, 10초 단위다.

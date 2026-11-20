@@ -67,7 +67,9 @@ public record ApplicationTable(
    * rule (DEC-074); null when unknown or when there are no slots. {@code participantId} is the id
    * the group board and {@code group-assignments} use. {@code operation} is the operator values
    * (#335, DEC-075), such as the operator memo; version 0 when none is stored. {@code revision}
-   * counts edits from 1 (DEC-078 §4).
+   * counts edits from 1 (DEC-078 §4); above 1 the screen marks the row "수정됨", {@code submittedAt}
+   * is then the time of that last edit, and {@code revisedBy} says who stored it ({@code
+   * PARTICIPANT} or {@code OPERATOR}; null for revision 1).
    */
   public record Row(
       UUID applicationId,
@@ -78,7 +80,8 @@ public record ApplicationTable(
       Instant checkedInAt,
       List<String> slotIds,
       ApplicationOperation operation,
-      int revision) {}
+      int revision,
+      String revisedBy) {}
 
   /**
    * One meal or worship slot of the form setup, the same as the group board's {@code slots[]} item

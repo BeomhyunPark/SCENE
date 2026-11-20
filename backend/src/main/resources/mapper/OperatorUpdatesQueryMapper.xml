@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="app.scene.event.updates.mapper.OperatorUpdatesQueryMapper">
+
+  <!-- One index read (checkin_logs_participant starts with space_id, event_id). -->
+  <select id="findCheckInSeq" resultType="long">
+    SELECT coalesce(max(l.seq), 0)
+    FROM checkin_logs l
+    WHERE l.space_id = #{spaceId} AND l.event_id = #{eventId}
+  </select>
+
+</mapper>

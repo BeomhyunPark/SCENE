@@ -378,3 +378,41 @@
     grid-row: 1 / span 3;
   }
 }
+
+/* 신청 수정 받기 (#427): beside the 신청 열기/닫기 state, its own small row. */
+.registration-setup__edits {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: 12px;
+}
+
+.registration-setup__edits-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.registration-setup__edits-copy h3 {
+  margin: 0;
+  font: var(--scene-label-m);
+  letter-spacing: 0;
+}
+
+.registration-setup__edits-copy p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font: var(--scene-body-m);
+  letter-spacing: 0;
+}
+
+.registration-setup__edits > .registration-setup__note,
+.registration-setup__edits > .registration-setup__alert {
+  flex-basis: 100%;
+}

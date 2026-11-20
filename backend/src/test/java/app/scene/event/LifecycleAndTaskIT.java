@@ -77,7 +77,16 @@ class LifecycleAndTaskIT {
         lifecycle.end(
             fx.spaceId, fx.eventId, new LifecycleRequest(0, null, null, "연락 두절"), spaceOwner);
     assertThat(result.actedAs()).isEqualTo("SPACE_OWNER_OVERRIDE");
-    assertThat(count(fx, "operator_notices")).isEqualTo(1);
+    // I3 (#436): the notice is a notification; the old table is no longer written.
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM notifications WHERE event_id = ?"
+                    + " AND kind = 'LIFECYCLE_OVERRIDE' AND target_type = 'EVENT'"
+                    + " AND target_id = event_id AND read_at IS NULL",
+                Integer.class,
+                fx.eventId))
+        .isEqualTo(1);
+    assertThat(count(fx, "operator_notices")).isZero();
   }
 
   @Test
@@ -719,13 +728,13 @@ class LifecycleAndTaskIT {
     lifecycle.end(fx.spaceId, fx.eventId, new LifecycleRequest(0, true, null, "연락 두절"), spaceOwner);
     Integer notices =
         jdbc.queryForObject(
-            "SELECT count(*) FROM operator_notices WHERE event_id = ? AND recipient_user_id = ?",
+            "SELECT count(*) FROM notifications WHERE event_id = ? AND recipient_user_id = ?",
             Integer.class,
             fx.eventId,
             fx.ownerId);
     Integer managerNotices =
         jdbc.queryForObject(
-            "SELECT count(*) FROM operator_notices WHERE event_id = ? AND recipient_user_id = ?",
+            "SELECT count(*) FROM notifications WHERE event_id = ? AND recipient_user_id = ?",
             Integer.class,
             fx.eventId,
             fx.managerId);
@@ -801,7 +810,7 @@ class LifecycleAndTaskIT {
     lifecycle.end(fx.spaceId, fx.eventId, new LifecycleRequest(0, true, null, "재위임"), spaceOwner);
     Integer notices =
         jdbc.queryForObject(
-            "SELECT count(*) FROM operator_notices WHERE event_id = ? AND recipient_user_id = ?",
+            "SELECT count(*) FROM notifications WHERE event_id = ? AND recipient_user_id = ?",
             Integer.class,
             fx.eventId,
             fx.ownerId);

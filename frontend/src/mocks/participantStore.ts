@@ -1,6 +1,7 @@
 import { conditionHolds, type FormField } from "../api/forms";
 import { reversedRange } from "./attendedSlots";
 import { eventFormDetail, formFields, publicForm } from "./formStore";
+import { notifyOperators, operatorsWith, retargetNotifications } from "./notificationStore";
 import { eventById } from "./operatorStore";
 
 type Issued = {
@@ -20,7 +21,130 @@ type Issued = {
   answers: StoredAnswer[];
   /** DEC-084: set while the application is withdrawn. */
   withdrawal?: MockWithdrawal | null;
+  /** DEC-078 §4: who stored this revision and what changed (labels only); null for revision 1. */
+  revisedBy?: "PARTICIPANT" | "OPERATOR" | null;
+  changes?: RevisionChange[];
+  /** Earlier revisions, oldest first; each is SUPERSEDED (#437). */
+  history?: Snapshot[];
 };
+
+type RevisionChange = { key: "NAME" | "FIELD"; fieldId: string; label: string };
+
+type Snapshot = {
+  applicationId: string;
+  revision: number;
+  submittedAt: string;
+  name: string;
+  answers: StoredAnswer[];
+  revisedBy: "PARTICIPANT" | "OPERATOR" | null;
+  changes: RevisionChange[];
+};
+
+const REVISED_TITLE = "님이 신청을 고쳤어요";
+const RESUBMITTED_TITLE = "님이 다시 신청해 내용을 바꿨어요";
+
+/**
+ * Stores changed answers as the next revision, like `ApplicationRevisions.revise`, and tells the
+ * operators with PARTICIPANT_READ (#436): the old row joins `history` as SUPERSEDED, every
+ * notification about the person moves to the new id, then one merged line per operator. Nothing
+ * changed: no revision and no notification.
+ */
+function revise(row: Issued, answers: StoredAnswer[], name: string, kind: "APPLICATION_REVISED" | "APPLICATION_RESUBMITTED" | null): boolean {
+  const fields = formFields(row.eventId, row.formId);
+  const before = new Map(row.answers.map((answer) => [answer.fieldId, JSON.stringify(answer.value)]));
+  const after = new Map(answers.map((answer) => [answer.fieldId, JSON.stringify(answer.value)]));
+  const changes: RevisionChange[] = fields
+    .filter((field) => before.get(field.fieldId) !== after.get(field.fieldId))
+    .map((field) => ({ key: field.systemKey === "NAME" ? "NAME" : "FIELD", fieldId: field.fieldId, label: field.label }));
+  if (changes.length === 0) return false;
+  row.history = [
+    ...(row.history ?? []),
+    {
+      applicationId: row.applicationId,
+      revision: row.revision,
+      submittedAt: row.submittedAt,
+      name: row.name,
+      answers: row.answers,
+      revisedBy: row.revisedBy ?? null,
+      changes: row.changes ?? [],
+    },
+  ];
+  row.applicationId = crypto.randomUUID();
+  row.revision += 1;
+  row.answers = answers;
+  row.name = name.trim();
+  row.submittedAt = new Date().toISOString();
+  row.revisedBy = "PARTICIPANT";
+  row.changes = changes;
+  retargetNotifications(
+    row.eventId,
+    "APPLICATION",
+    row.history.map((old) => old.applicationId),
+    row.applicationId,
+  );
+  if (kind) {
+    notifyOperators(row.eventId, operatorsWith(row.eventId, "PARTICIPANT_READ"), {
+      kind,
+      target: { type: "APPLICATION", id: row.applicationId },
+      title: `${row.name || "참가자"}${kind === "APPLICATION_REVISED" ? REVISED_TITLE : RESUBMITTED_TITLE}`,
+      body: changes.map((change) => change.label).join(", "),
+    });
+  }
+  return true;
+}
+
+/**
+ * Test and demo seam for `PUT /participant/application` (the participant edits their own
+ * application): the answers by field id replace the stored ones. Returns the new application id, or
+ * the same id when nothing changed.
+ */
+export function reviseApplication(eventId: string, applicationId: string, changed: Record<string, Record<string, unknown>>): string | null {
+  const row = issued.find((item) => item.eventId === eventId && item.applicationId === applicationId);
+  if (!row) return null;
+  const answers = row.answers.map((answer) => (answer.fieldId in changed ? { fieldId: answer.fieldId, value: changed[answer.fieldId] } : answer));
+  for (const [fieldId, value] of Object.entries(changed)) {
+    if (!answers.some((answer) => answer.fieldId === fieldId)) answers.push({ fieldId, value });
+  }
+  const fields = formFields(eventId, row.formId);
+  const name = answerFor(fields, answers, "NAME") ?? row.name;
+  revise(row, answers, name, "APPLICATION_REVISED");
+  return row.applicationId;
+}
+
+/** Every revision of the application's participant, newest first, like `…/revisions`. */
+export function applicationRevisions(eventId: string, applicationId: string): {
+  applicationId: string;
+  revision: number;
+  status: string;
+  submittedAt: string;
+  revisedBy: string | null;
+  revisedByUserId: null;
+  changes: RevisionChange[];
+}[] | null {
+  const row = issued.find(
+    (item) => item.eventId === eventId && (item.applicationId === applicationId || (item.history ?? []).some((old) => old.applicationId === applicationId)),
+  );
+  if (!row) return null;
+  const current = {
+    applicationId: row.applicationId,
+    revision: row.revision,
+    status: row.withdrawal ? "WITHDRAWN" : "SUBMITTED",
+    submittedAt: row.submittedAt,
+    revisedBy: row.revisedBy ?? null,
+    revisedByUserId: null,
+    changes: row.changes ?? [],
+  };
+  const older = [...(row.history ?? [])].reverse().map((old) => ({
+    applicationId: old.applicationId,
+    revision: old.revision,
+    status: "SUPERSEDED",
+    submittedAt: old.submittedAt,
+    revisedBy: old.revisedBy,
+    revisedByUserId: null,
+    changes: old.changes,
+  }));
+  return [current, ...older];
+}
 
 export type MockWithdrawal = {
   withdrawnAt: string;
@@ -119,25 +243,12 @@ export function submitPublicApplication(
     if (existing.withdrawal) {
       // DEC-084 §5: the matching number brings a withdrawn application back.
       existing.withdrawal = null;
-      if (JSON.stringify(existing.answers) !== JSON.stringify(answers)) {
-        existing.applicationId = crypto.randomUUID();
-        existing.revision += 1;
-        existing.answers = answers;
-        existing.name = name.trim();
-        existing.submittedAt = new Date().toISOString();
-      }
+      revise(existing, answers, name, null);
       session = { participantId: existing.participantId, eventId };
       return { applicationId: existing.applicationId, participantId: existing.participantId, revision: existing.revision, revised: true, restored: true };
     }
     if (event.lifecycleStatus !== "ACTIVE" || !acceptingEdits(eventId)) return { status: 409, code: "EDITS_CLOSED" };
-    const changed = JSON.stringify(existing.answers) !== JSON.stringify(answers);
-    if (changed) {
-      existing.applicationId = crypto.randomUUID();
-      existing.revision += 1;
-      existing.answers = answers;
-      existing.name = name.trim();
-      existing.submittedAt = new Date().toISOString();
-    }
+    revise(existing, answers, name, "APPLICATION_RESUBMITTED");
     session = { participantId: existing.participantId, eventId };
     return { applicationId: existing.applicationId, participantId: existing.participantId, revision: existing.revision, revised: true };
   }
@@ -366,8 +477,11 @@ export function submittedApplication(
     value: Record<string, unknown>;
   }[];
 } | null {
-  const row = issued.find((item) => item.eventId === eventId && item.applicationId === applicationId);
-  if (!row) return null;
+  const current = issued.find((item) => item.eventId === eventId && item.applicationId === applicationId);
+  const owner = current ?? issued.find((item) => item.eventId === eventId && (item.history ?? []).some((old) => old.applicationId === applicationId));
+  if (!owner) return null;
+  const old = current ? null : owner.history!.find((item) => item.applicationId === applicationId)!;
+  const row = old ? { ...owner, ...old, withdrawal: null } : owner;
   const answers = formFields(eventId, row.formId)
     .flatMap((field) => {
       const answer = row.answers.find((item) => item.fieldId === field.fieldId);
@@ -379,7 +493,7 @@ export function submittedApplication(
   return {
     applicationId: row.applicationId,
     formId: row.formId,
-    status: row.withdrawal ? "WITHDRAWN" : "SUBMITTED",
+    status: old ? "SUPERSEDED" : row.withdrawal ? "WITHDRAWN" : "SUBMITTED",
     submittedAt: row.submittedAt,
     participantId: row.participantId,
     revision: row.revision,
@@ -417,6 +531,7 @@ export function tableApplications(eventId: string): {
   formId: string;
   submittedAt: string;
   revision: number;
+  revisedBy: string | null;
   answers: Record<string, Record<string, unknown>>;
 }[] {
   return active(eventId)
@@ -426,6 +541,7 @@ export function tableApplications(eventId: string): {
       formId: row.formId,
       submittedAt: row.submittedAt,
       revision: row.revision,
+      revisedBy: row.revisedBy ?? null,
       answers: Object.fromEntries(row.answers.map((answer) => [answer.fieldId, answer.value])),
     }));
 }
@@ -571,14 +687,8 @@ export function reviseOwnApplication(body: unknown): ReturnType<typeof ownApplic
   const shown = new Set(fields.map((field) => field.fieldId));
   const kept = row.answers.filter((answer) => !shown.has(answer.fieldId));
   const next = [...answers, ...kept];
-  const sameAnswers = (list: StoredAnswer[]) => JSON.stringify([...list].sort((a, b) => a.fieldId.localeCompare(b.fieldId)));
-  if (sameAnswers(next) !== sameAnswers(row.answers)) {
-    row.applicationId = crypto.randomUUID();
-    row.revision += 1;
-    row.answers = next;
-    row.name = name.trim();
-    row.submittedAt = new Date().toISOString();
-  }
+  // #436: a changed answer is a new revision and tells the operators with PARTICIPANT_READ.
+  revise(row, next, name, "APPLICATION_REVISED");
   return ownApplicationBody(row);
 }
 

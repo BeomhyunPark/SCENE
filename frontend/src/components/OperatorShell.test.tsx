@@ -340,7 +340,7 @@ describe("phone bottom bar (#368)", () => {
       ["홈", "/events/e1"],
       ["현장 운영", "/events/e1/field"],
       ["참가 현황", "/events/e1/participants"],
-      ["알림", "/notifications"],
+      ["알림", "/events/e1/notifications"],
     ]);
     expect(bar().getByRole("link", { name: "현장 운영" })).toHaveAttribute("aria-current", "page");
     expect(bar().getByRole("link", { name: "홈" })).not.toHaveAttribute("aria-current");
@@ -363,7 +363,7 @@ describe("phone bottom bar (#368)", () => {
     expect(barLinks()).toEqual([
       ["홈", "/events/e1"],
       ["현장 운영", "/events/e1/field"],
-      ["알림", "/notifications"],
+      ["알림", "/events/e1/notifications"],
     ]);
     expect(bar().queryAllByRole("link").filter((link) => link.hasAttribute("aria-current"))).toEqual([]);
   });

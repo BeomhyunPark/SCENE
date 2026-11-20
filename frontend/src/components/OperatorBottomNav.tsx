@@ -29,6 +29,11 @@ export function OperatorBottomNav({
               aria-current={item.current ? "page" : undefined}
             >
               <img src={item.icon} alt="" width={24} height={24} />
+              {item.badge ? (
+                <span className="operator-bottom-nav__badge" aria-label={`읽지 않은 알림 ${item.badge}개`}>
+                  {item.badge}
+                </span>
+              ) : null}
               <span className="operator-bottom-nav__label">{item.label}</span>
             </Link>
           </li>

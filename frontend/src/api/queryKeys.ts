@@ -36,6 +36,12 @@ export const queryKeys = {
   applicationTable: (eventId: string) => ["events", eventId, "applications", "table"] as const,
   application: (eventId: string, applicationId: string) =>
     ["events", eventId, "applications", "detail", applicationId] as const,
+  /** Operator refresh check of one event (#436); the badge reads it. */
+  operatorUpdates: (eventId: string) => ["events", eventId, "operator-updates"] as const,
+  /** Every page of the operator's notification list of one event (#436). */
+  operatorNotifications: (eventId: string) => ["events", eventId, "operator-notifications"] as const,
+  applicationRevisions: (eventId: string, applicationId: string) =>
+    ["events", eventId, "applications", "revisions", applicationId] as const,
   publicForm: (eventId: string, formId: string) => ["public", "forms", eventId, formId] as const,
   participantMe: (eventId: string) => ["participant", "me", eventId] as const,
   participantCheckIn: (eventId: string) => ["participant", "check-in", eventId] as const,

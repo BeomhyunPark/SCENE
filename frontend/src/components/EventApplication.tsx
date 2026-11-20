@@ -6,6 +6,8 @@ import { getApplication, getApplicationTable, type ApplicationOperation } from "
 import { getMyPermissions } from "../api/operators";
 import { getMe } from "../api/session";
 import { OperationDrawer } from "./OperationDrawer";
+import { ApplicationRevisionHistory } from "./ApplicationRevisions";
+import { useCurrentApplicationId } from "./useCurrentApplicationId";
 import { isApiError } from "../api/errors";
 import type { EventDetail } from "../api/events";
 import { reloadQuery } from "../api/queryClient";
@@ -46,6 +48,8 @@ function Detail({ event, spaceName, applicationId }: { event: EventDetail; space
   const nameAnswer = application.data?.answers.find((answer) => answer.systemKey === "NAME");
   const nameText = typeof nameAnswer?.value.text === "string" ? nameAnswer.value.text : null;
   const title = application.data ? applicantName(nameText) : "신청 내용";
+  const superseded = application.data?.status === "SUPERSEDED";
+  const currentId = useCurrentApplicationId(eventId, applicationId, superseded);
 
   return (
     <OperatorShell
@@ -81,8 +85,15 @@ function Detail({ event, spaceName, applicationId }: { event: EventDetail; space
             </p>
           </section>
         ) : null}
-        {application.data?.status === "SUPERSEDED" ? (
-          <p className="withdrawn__notice">참가자가 고치기 전의 신청이에요. 지금 신청은 참가 현황에서 열어 주세요.</p>
+        {superseded ? (
+          <p className="withdrawn__notice">
+            참가자가 고치기 전의 신청이에요.{" "}
+            {currentId && currentId !== applicationId ? (
+              <Link to={`/events/${eventId}/participants/${currentId}`}>지금 신청 열기</Link>
+            ) : (
+              "지금 신청은 참가 현황에서 열어 주세요."
+            )}
+          </p>
         ) : null}
         {application.data ? (
           <OperationSection event={event} applicationId={applicationId} operation={application.data.operation} />
@@ -104,6 +115,7 @@ function Detail({ event, spaceName, applicationId }: { event: EventDetail; space
             </dl>
           </section>
         ) : null}
+        {application.data ? <ApplicationRevisionHistory eventId={eventId} applicationId={applicationId} /> : null}
       </div>
     </OperatorShell>
   );

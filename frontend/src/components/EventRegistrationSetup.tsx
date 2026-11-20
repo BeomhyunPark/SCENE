@@ -23,6 +23,7 @@ import { reloadQuery } from "../api/queryClient";
 import { queryKeys } from "../api/queryKeys";
 import { getMe } from "../api/session";
 import { Button } from "./Button";
+import { EditsSwitch } from "./EditsSwitch";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { EventScreen } from "./EventScreen";
 import { OperatorShell } from "./OperatorShell";
@@ -376,6 +377,9 @@ function SetupBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
             )
           ) : null}
         </section>
+        {form.data ? (
+          <EditsSwitch eventId={eventId} form={form.data} canWrite={canWrite} status={event.lifecycleStatus} onSaved={remember} />
+        ) : null}
         {banner ? (
           <p className="registration-setup__alert" role="alert">
             {banner}
