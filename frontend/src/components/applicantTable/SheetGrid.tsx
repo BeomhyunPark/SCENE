@@ -13,6 +13,8 @@ import {
 import { Link } from "react-router";
 import type { TableRow } from "../../api/applications";
 import {
+  editedText,
+  isEdited,
   clampWidth,
   copyText,
   defaultWidth,
@@ -600,6 +602,11 @@ function DataCell({
         <Link tabIndex={-1} to={`/events/${eventId}/participants/${row.applicationId}`}>
           {text}
         </Link>
+        {isEdited(row) ? (
+          <span className="roster__tag roster__tag--edited" title={editedText(row)}>
+            수정됨
+          </span>
+        ) : null}
       </td>
     );
   }
