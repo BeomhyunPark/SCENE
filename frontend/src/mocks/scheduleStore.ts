@@ -98,6 +98,11 @@ export function publishAsOtherOperator(eventId: string, now = new Date()): void 
   publishNow(eventId, localUsers[1].userId, true, now);
 }
 
+/** The working copy's `boardVersion`, which the operator `updates.schedule` carries (I3). */
+export function scheduleBoardVersion(eventId: string): number {
+  return boardOf(eventId).version;
+}
+
 export function scheduleItemIds(eventId: string): string[] {
   return boardOf(eventId).items.map((item) => item.itemId);
 }

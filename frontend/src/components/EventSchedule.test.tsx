@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
 import { MemoryRouter } from "react-router";
 import { describe, expect, it } from "vitest";
 import { App } from "../App";
@@ -6,11 +7,13 @@ import { login } from "../api/session";
 import { localEvent, localUsers } from "../mocks/fixtures/seed";
 import { groupPeople, moveAsOtherOperator, publish as publishGroups, readBoard, seedGroup } from "../mocks/groupStore";
 import { setLifecycle } from "../mocks/operatorStore";
+import { server } from "../mocks/server";
 import {
   editAsOtherOperator,
   publishAsOtherOperator,
   readParticipantSchedule,
   readScheduleBoard,
+  scheduleBoardVersion,
   seedScheduleItem,
   setSchedulePeriod,
 } from "../mocks/scheduleStore";
@@ -186,6 +189,27 @@ describe("operator schedule (C4)", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "공개" }));
     expect(await screen.findByText(/공개했어요/, {}, WAIT)).toBeInTheDocument();
   });
+
+  it("reads the board again when the operator updates.schedule changes", async () => {
+    period();
+    const id = seedScheduleItem(EVENT, { day: 1, startTime: "18:00", title: "저녁" });
+    server.use(
+      http.get("/api/v1/operator/events/:eventId/updates", () =>
+        HttpResponse.json({
+          notifications: { latestSeq: 0, unreadCount: 0 },
+          notices: 0,
+          schedule: scheduleBoardVersion(EVENT),
+          checkIns: 0,
+          pollAfterSeconds: 1,
+          serverTime: new Date().toISOString(),
+        }),
+      ),
+    );
+    await openAs(0);
+    await screen.findByRole("link", { name: "18:00 저녁 고치기" }, WAIT);
+    editAsOtherOperator(EVENT, id, { title: "저녁 식사" });
+    expect(await screen.findByRole("link", { name: "18:00 저녁 식사 고치기" }, { timeout: 6000 })).toBeInTheDocument();
+  }, 10000);
 
   it("lets STAFF read the working copy without writing", async () => {
     period();

@@ -1,17 +1,30 @@
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { isApiError } from "../api/errors";
 import type { LifecycleStatus } from "../api/events";
 import { getMyPermissions } from "../api/operators";
 import { queryKeys } from "../api/queryKeys";
 import { CATEGORY_LABEL, getScheduleBoard, type ScheduleBoard, type ScheduleChanges, type ScheduleItem, type SchedulePublishResult } from "../api/schedule";
 import { getMe } from "../api/session";
+import { useOperatorUpdatesValue } from "./useOperatorUpdates";
 
 /**
  * Shared by the 일정표 board and the item editor (C4). The board is read on entering, on window focus
- * (React Query's default) and after each write. The operator `updates` poll (I3) is not on main yet;
- * once it is, raising `updates.schedule` should invalidate `queryKeys.scheduleBoard(eventId)`.
+ * (React Query's default), after each write, and when the operator `updates.schedule` (the working
+ * copy's `boardVersion`, polled by the shell, I3) changes — so another operator's edit shows up.
+ * The editor keeps its own draft; a reload there only refreshes the days, slots and conflict checks.
  */
 export function useScheduleBoard(eventId: string) {
+  const queryClient = useQueryClient();
+  const version = useOperatorUpdatesValue(eventId)?.schedule;
+  const seen = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    if (version === undefined) return;
+    if (seen.current !== undefined && seen.current !== version) {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.scheduleBoard(eventId) });
+    }
+    seen.current = version;
+  }, [eventId, version, queryClient]);
   return useQuery({
     queryKey: queryKeys.scheduleBoard(eventId),
     queryFn: ({ signal }) => getScheduleBoard(eventId, signal),
