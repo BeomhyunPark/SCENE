@@ -13,6 +13,8 @@ import type { LifecycleStatus } from "../api/events";
 import { getMyPermissions } from "../api/operators";
 import { getMe } from "../api/session";
 import { OperationDrawer } from "./OperationDrawer";
+import { WithdrawnList } from "./ApplicationWithdraw";
+import { statusChangeBlocked } from "./applicationStatus";
 import { ParticipantAddress } from "./ParticipantAddress";
 import { ApplicantTable } from "./applicantTable/ApplicantTable";
 import type { EventDetail } from "../api/events";
@@ -110,6 +112,7 @@ function Applicants({
     enabled: Boolean(me.data?.userId),
   });
   const [editing, setEditing] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   if (table.isPending) {
     return (
@@ -129,7 +132,7 @@ function Applicants({
     );
   }
   const total = table.data.rows.length;
-  if (total === 0) {
+  if (total === 0 && table.data.withdrawn.length === 0) {
     return (
       <>
         {empty}
@@ -144,6 +147,11 @@ function Applicants({
   const editRow = editing ? table.data.rows.find((row) => row.applicationId === editing) : undefined;
   return (
     <>
+      {notice ? (
+        <p className="withdrawn__notice" role="status">
+          {notice}
+        </p>
+      ) : null}
       <ApplicantTable
         eventId={eventId}
         table={table.data}
@@ -152,6 +160,13 @@ function Applicants({
           permissions.isSuccess && !mayEdit
             ? "운영 메모·조 배정을 고칠 권한이 없어 수정 버튼이 없어요. 행사 소유자에게 요청해 주세요."
             : undefined
+        }
+        withdrawnPanel={
+          <WithdrawnList
+            eventId={eventId}
+            withdrawn={table.data.withdrawn}
+            blocked={statusChangeBlocked(eventStatus, effective.includes("PARTICIPANT_WRITE"), permissions.isPending)}
+          />
         }
         actions={
           <>
@@ -173,6 +188,7 @@ function Applicants({
           table={table.data}
           row={editRow}
           onClose={() => setEditing(null)}
+          onWithdrawn={setNotice}
         />
       ) : null}
     </>

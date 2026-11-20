@@ -17,6 +17,7 @@ import { applicantName, formatSubmittedAt } from "./eventFormat";
 import { markEventArea } from "./eventLocalState";
 import { OperatorShell } from "./OperatorShell";
 import "./EventHome.css";
+import "./ApplicationWithdraw.css";
 
 /**
  * One application with every answer. It has its own address under the participation screen, like
@@ -64,6 +65,25 @@ function Detail({ event, spaceName, applicationId }: { event: EventDetail; space
       <div className="event-home">
         {application.isPending ? <p>불러오는 중이에요.</p> : null}
         {application.isError ? <Failure error={application.error} onRetry={() => reloadQuery(application)} /> : null}
+        {application.data?.status === "WITHDRAWN" ? (
+          <section className="withdrawn" aria-labelledby="withdrawn-status-title">
+            <h2 id="withdrawn-status-title" className="withdrawn__title">
+              취소된 신청
+            </h2>
+            <p className="withdrawn__lead">
+              {application.data.withdrawal?.withdrawnAt ? `${formatSubmittedAt(application.data.withdrawal.withdrawnAt)} 취소` : "취소됨"}
+              {application.data.withdrawal?.withdrawnByDisplayName ? ` · ${application.data.withdrawal.withdrawnByDisplayName}` : ""}
+              {application.data.withdrawal?.reapplyBlocked ? " · 다시 신청 막음" : ""}
+            </p>
+            <p className="withdrawn__reason">사유: {application.data.withdrawal?.reason ?? "사유 없음"}</p>
+            <p className="withdrawn__lead">
+              집계·조 편성·체크인·CSV에서 빠져 있어요. 참가 현황의 "취소" 목록에서 되돌릴 수 있어요.
+            </p>
+          </section>
+        ) : null}
+        {application.data?.status === "SUPERSEDED" ? (
+          <p className="withdrawn__notice">참가자가 고치기 전의 신청이에요. 지금 신청은 참가 현황에서 열어 주세요.</p>
+        ) : null}
         {application.data ? (
           <OperationSection event={event} applicationId={applicationId} operation={application.data.operation} />
         ) : null}

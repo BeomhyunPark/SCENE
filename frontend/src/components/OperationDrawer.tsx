@@ -19,6 +19,8 @@ import { Button } from "./Button";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { formatSubmittedAt } from "./eventFormat";
 import { PinReset } from "./PinReset";
+import { WithdrawApplication } from "./ApplicationWithdraw";
+import { statusChangeBlocked } from "./applicationStatus";
 import "./OperationDrawer.css";
 
 const UNASSIGNED = "";
@@ -31,8 +33,8 @@ type Failure =
 /**
  * 현재 운영 정보 수정 (#337, DEC-075, Figma P03-M01 1325:5552 · 1325:5581). One applicant's
  * operator-side values: the memo (saved with a version) and the working-copy group (the board's
- * `group-assignments`). Status and attendance are shown read-only until #338·#339. The participant's
- * original answers never change. Copy is a draft.
+ * `group-assignments`). 현재 참가 상태 offers 신청 취소 (#338, DEC-084); attendance stays read-only
+ * until #339. The participant's original answers never change. Copy is a draft.
  */
 export function OperationDrawer({
   eventId,
@@ -40,12 +42,15 @@ export function OperationDrawer({
   table,
   row,
   onClose,
+  onWithdrawn,
 }: {
   eventId: string;
   eventStatus: LifecycleStatus;
   table: ApplicationTable;
   row: TableRow;
   onClose: () => void;
+  /** Called after a withdraw with the message to show; the drawer closes. */
+  onWithdrawn?: (message: string) => void;
 }) {
   const queryClient = useQueryClient();
   const titleId = useId();
@@ -71,9 +76,13 @@ export function OperationDrawer({
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [askClose, setAskClose] = useState(false);
+  const [withdrawOpen, setWithdrawOpen] = useState(false);
 
   const columns = buildColumns(table);
   const name = columns[0]?.text(row) ?? "";
+  const nameField = table.columns.find((column) => column.systemKey === "NAME");
+  const nameValue = nameField ? row.answers[nameField.fieldId]?.text : undefined;
+  const personName = typeof nameValue === "string" && nameValue.trim() ? nameValue.trim() : name;
   const attendanceField = table.columns.find((column) => column.presetKey === "ATTENDANCE");
   const attendance = attendanceField ? (columns.find((column) => column.id === attendanceField.fieldId)?.text(row) ?? "") : "";
   const slots = table.slots ? slotSummary(table.slots, row.slotIds) : null;
@@ -98,7 +107,7 @@ export function OperationDrawer({
     else onClose();
   }
   useLayoutEffect(() => {
-    nested.current = confirming || askClose;
+    nested.current = confirming || askClose || withdrawOpen;
     requestCloseRef.current = requestClose;
   });
   useEffect(() => {
@@ -227,6 +236,21 @@ export function OperationDrawer({
             <p className="operation-drawer__value">
               신청 접수 · {row.checkedInAt ? `도착 완료 (${formatSubmittedAt(row.checkedInAt)})` : "도착 전"}
             </p>
+            <WithdrawApplication
+              eventId={eventId}
+              row={row}
+              name={personName}
+              blocked={
+                dirty
+                  ? "저장하지 않은 변경이 있어요. 저장하거나 되돌린 뒤 취소해 주세요."
+                  : statusChangeBlocked(eventStatus, effective.includes("PARTICIPANT_WRITE"), permissions.isPending)
+              }
+              onDialog={setWithdrawOpen}
+              onWithdrawn={(message) => {
+                onWithdrawn?.(message);
+                onClose();
+              }}
+            />
           </div>
           <div className="operation-drawer__field">
             <span className="operation-drawer__label">참석 범위</span>
@@ -235,7 +259,7 @@ export function OperationDrawer({
               {slots ? <span className="operation-drawer__sub">참석 일정: {slots}</span> : null}
             </p>
           </div>
-          <p className="operation-drawer__note">참가 상태와 참석 범위는 아직 여기서 바꿀 수 없어요. 다른 사정은 운영 메모에 적어 주세요.</p>
+          <p className="operation-drawer__note">참석 범위는 아직 여기서 바꿀 수 없어요. 다른 사정은 운영 메모에 적어 주세요.</p>
 
           {table.groupVisible ? (
             <div className="operation-drawer__field">
@@ -434,7 +458,7 @@ function groupBlockedReason(status: LifecycleStatus, mayWrite: boolean, pending:
 function memoFailure(error: unknown): string {
   if (isApiError(error, "FORBIDDEN")) return "운영 메모를 고칠 권한이 없어요.";
   if (isApiError(error, "EVENT_ARCHIVED")) return "보관된 행사는 운영 메모를 고칠 수 없어요.";
-  if (isApiError(error, "INVALID_STATE_TRANSITION")) return "철회되었거나 바뀐 신청이라 메모를 저장할 수 없어요.";
+  if (isApiError(error, "INVALID_STATE_TRANSITION")) return "취소되었거나 바뀐 신청이라 메모를 저장할 수 없어요.";
   if (isApiError(error, "VALIDATION_FAILED")) return `운영 메모는 ${OPERATION_MEMO_MAX.toLocaleString("ko-KR")}자까지 쓸 수 있어요.`;
   if (isApiError(error, "RESOURCE_NOT_FOUND")) return "신청을 찾을 수 없어요.";
   return "저장하지 못했어요. 잠시 후 다시 시도해 주세요.";
