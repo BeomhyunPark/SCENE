@@ -262,10 +262,11 @@ class ParticipantHomeHttpIT {
         s -> feedVersions.bump(other.spaceId, other.eventId, FeedArea.MEAL_ORDER));
     assertThat(f.read(HOME, b.session()).get("features").get("mealOrder").asBoolean()).isTrue();
 
-    // A participant whose application is withdrawn but still holds a session is NONE.
+    // A participant whose application is withdrawn no longer has a session at all (DEC-084 §4).
     other.withdraw(b);
-    assertThat(f.read(HOME, b.session()).get("participant").get("applicationStatus").asString())
-        .isEqualTo("NONE");
+    mvc.perform(get(HOME).cookie(b.session()))
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
   }
 
   @Test

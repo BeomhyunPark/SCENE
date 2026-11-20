@@ -27,11 +27,12 @@ import tools.jackson.databind.json.JsonMapper;
  * Operator reads of submitted application source. §7 names {@code APPLICATION_READ} for these
  * routes. That key is already in the permission catalog and is not checked here. Both reads use
  * effective {@code EVENT_READ}, the same allowance as form read. Public submit, revision, and
- * withdraw stay closed. {@code FORM_CLOSED} and {@code APPLICATION_CLOSED} are not returned. The
- * list writes nothing. The detail sends phone answers only with effective {@code
- * PARTICIPANT_CONTACT_READ}, the applicant table's rule (#308, #332), and then writes one {@code
- * APPLICANT_CONTACTS_VIEWED} audit row ({@code count: 1}, {@code applicationId}) as the stand-in
- * for the {@code CONTACT_VIEW} privacy log. {@code Idempotency-Key} is not read.
+ * withdraw are elsewhere ({@link ApplicationWithdrawalService}). {@code FORM_CLOSED} and {@code
+ * APPLICATION_CLOSED} are not returned. The list writes nothing. The detail sends phone answers
+ * only with effective {@code PARTICIPANT_CONTACT_READ}, the applicant table's rule (#308, #332),
+ * and then writes one {@code APPLICANT_CONTACTS_VIEWED} audit row ({@code count: 1}, {@code
+ * applicationId}) as the stand-in for the {@code CONTACT_VIEW} privacy log. {@code Idempotency-Key}
+ * is not read.
  */
 @Service
 public class OperatorApplicationService {
@@ -46,6 +47,7 @@ public class OperatorApplicationService {
   private final JsonMapper json;
   private final Clock clock;
   private final ApplicationRevisions revisions;
+  private final ApplicationStatusChanges statuses;
 
   public OperatorApplicationService(
       EventAccessGate gate,
@@ -55,8 +57,10 @@ public class OperatorApplicationService {
       AuditLogRepository auditLogs,
       JsonMapper json,
       Clock clock,
-      ApplicationRevisions revisions) {
+      ApplicationRevisions revisions,
+      ApplicationStatusChanges statuses) {
     this.revisions = revisions;
+    this.statuses = statuses;
     this.gate = gate;
     this.applications = applications;
     this.permissions = permissions;
@@ -144,7 +148,11 @@ public class OperatorApplicationService {
         answers,
         operations.find(spaceId, eventId, applicationId),
         revision.participantId(),
-        revision.revision());
+        revision.revision(),
+        statuses
+            .withdrawn(spaceId, eventId, applicationId)
+            .map(WithdrawnRow::withdrawal)
+            .orElse(null));
   }
 
   /**

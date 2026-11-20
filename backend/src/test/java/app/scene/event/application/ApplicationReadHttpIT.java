@@ -137,7 +137,9 @@ class ApplicationReadHttpIT {
             "answers",
             "operation",
             "participantId",
-            "revision");
+            "revision",
+            "withdrawal");
+    assertThat(body.get("withdrawal").isNull()).isTrue();
     assertThat(body.get("contactVisible").asBoolean()).isTrue();
     assertThat(body.get("answers")).hasSize(5);
     assertAnswer(body.get("answers").get(0), "SYSTEM", "NAME", "이름", 0, "이름답");
@@ -198,6 +200,8 @@ class ApplicationReadHttpIT {
             "GET /api/v1/operator/events/{eventId}/applications/table",
             "PUT /api/v1/operator/events/{eventId}/applications/{applicationId}/operation",
             "GET /api/v1/operator/events/{eventId}/applications/{applicationId}/revisions",
+            "POST /api/v1/operator/events/{eventId}/applications/{applicationId}/withdraw",
+            "POST /api/v1/operator/events/{eventId}/applications/{applicationId}/restore",
             "POST /api/v1/public/events/{eventId}/forms/{formId}/applications");
 
     String publicBody =

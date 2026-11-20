@@ -37,11 +37,19 @@
     ORDER BY revision DESC
   </select>
 
+  <!-- The current row is SUBMITTED, or WITHDRAWN when a withdrawn participant applies again. -->
   <update id="supersede">
     UPDATE applications SET status = 'SUPERSEDED'
     WHERE space_id = #{spaceId} AND event_id = #{eventId} AND id = #{applicationId}
-      AND status = 'SUBMITTED'
+      AND status = #{fromStatus}
   </update>
+
+  <select id="findLatest" resultType="app.scene.event.application.ApplicationRevisionRow">
+    <include refid="columns"/>
+    WHERE space_id = #{spaceId} AND event_id = #{eventId} AND participant_id = #{participantId}
+    ORDER BY revision DESC
+    LIMIT 1
+  </select>
 
   <insert id="insertRevision">
     INSERT INTO applications (

@@ -114,7 +114,12 @@ class PublicApplicationSubmitHttpIT {
     JsonNode response = json.readTree(created);
     assertThat(response.propertyNames())
         .containsExactly(
-            "applicationId", "participantId", "revision", "revised", "completionNotice");
+            "applicationId",
+            "participantId",
+            "revision",
+            "revised",
+            "completionNotice",
+            "restored");
     assertThat(response.get("completionNotice").isNull()).isTrue();
     UUID applicationId = UUID.fromString(response.get("applicationId").asString());
     UUID participantId = UUID.fromString(response.get("participantId").asString());
