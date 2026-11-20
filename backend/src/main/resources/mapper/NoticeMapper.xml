@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="app.scene.event.notice.mapper.NoticeMapper">
+  <!-- DEC-082. Callers hold the event row lock. -->
+  <insert id="insert">
+    INSERT INTO notices (
+      id, space_id, event_id, title, body, important, pinned, audience, status, version,
+      first_published_at, published_at, created_by, created_at, updated_by, updated_at)
+    VALUES (
+      #{id}, #{spaceId}, #{eventId}, #{title}, #{body}, #{important}, #{pinned},
+      CAST(#{audience} AS jsonb), #{status}, 1, #{publishedAt}, #{publishedAt},
+      #{actorId}, #{at}, #{actorId}, #{at})
+  </insert>
+
+  <update id="update">
+    UPDATE notices
+    SET title = #{title},
+        body = #{body},
+        important = #{important},
+        pinned = #{pinned},
+        audience = CAST(#{audience} AS jsonb),
+        status = #{status},
+        version = version + 1,
+        first_published_at = #{firstPublishedAt},
+        published_at = #{publishedAt},
+        edited_at = #{editedAt},
+        archived_at = #{archivedAt},
+        updated_by = #{actorId},
+        updated_at = #{at}
+    WHERE space_id = #{spaceId} AND event_id = #{eventId} AND id = #{id}
+  </update>
+
+  <delete id="delete">
+    DELETE FROM notices
+    WHERE space_id = #{spaceId} AND event_id = #{eventId} AND id = #{id}
+  </delete>
+
+  <insert id="bumpBoard">
+    INSERT INTO notice_boards (space_id, event_id, version, updated_at)
+    VALUES (#{spaceId}, #{eventId}, 1, #{at})
+    ON CONFLICT (space_id, event_id) DO UPDATE
+      SET version = notice_boards.version + 1,
+          updated_at = EXCLUDED.updated_at
+  </insert>
+</mapper>

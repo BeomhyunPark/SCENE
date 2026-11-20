@@ -3310,7 +3310,7 @@ B2 서버를 만들며 계약 초안과 다르게 정하거나 초안이 열어 
 
 ### Follow-up (2026-11-20, #435)
 
-C2·C3 서버를 만들며 계약 초안과 다르게 정하거나 초안이 열어 둔 것을 정했다. 경로·응답은 [api.md "일정표"](../../backend/docs/api.md#일정표)로 옮겼고, [계약 초안](../architecture/schedule-contract.md)에는 화면 규칙만 남겼다. 새 ErrorCode·권한 키는 없다. 마이그레이션은 `V22__schedule.sql`(추가만, 병합 때 번호를 맞춘다).
+C2·C3 서버를 만들며 계약 초안과 다르게 정하거나 초안이 열어 둔 것을 정했다. 경로·응답은 [api.md "일정표"](../../backend/docs/api.md#일정표)로 옮겼고, [계약 초안](../architecture/schedule-contract.md)에는 화면 규칙만 남겼다. 새 ErrorCode·권한 키는 없다. 마이그레이션은 `V23__schedule.sql`(추가만, 병합 때 번호를 맞춘다).
 
 1. **신청이 없는(취소된) 참가자는 일정을 보지 않는다.** 초안 §8의 "신청 상태는 보지 않는다"를 바꾼다. `ParticipantAudience`는 `ALL`도 활성 참가자(`SUBMITTED` 신청이 있음)로 판정하고(DEC-080 Follow-up 2번), 사용자 기준도 "취소된 사람은 새 기능에서 빠진다"다. DEC-084 §4로 취소된 사람의 세션은 조회에서 끊겨 `401`이 먼저다. 그래도 신청을 먼저 보는 안전장치로 `status: NOT_ELIGIBLE`, `items: []`를 두었다(내 조 `GET /participant/group`의 `NOT_ELIGIBLE`과 같은 모양). 알림 받는 사람에서도 빠진다.
 2. **알림의 `target`은 `{ "type": "SCHEDULE", "id": null }`이다.** 일정은 행사에 하나라 id가 없다. 합치기는 `target_id IS NOT DISTINCT FROM`이라 그대로 된다. 대상으로 읽음 처리하도록 `POST …/notifications/read`의 `target.id`에 명시적 `null`을 받게 했다(공용 코드 `NotificationReadRequest`·`NotificationMapper.markRead`의 작은 변경. `id` 키가 빠지면 지금처럼 `400`).
@@ -3398,6 +3398,29 @@ C2·C3 서버를 만들며 계약 초안과 다르게 정하거나 초안이 열
 ### Evidence
 
 사용자 결정 2026-11-19([#380 댓글](https://github.com/BeomhyunPark/SCENE/issues/380#issuecomment-7002382622), 로드맵 6.1 결정 5). 근거 자료는 DEC-030(공지 대상 경계), DEC-042(공개와 안내 전달 구분), DEC-051(종료 후 후속 공지), DEC-080, API 초안 §9, operator-sidebar-menus-review(#270·#271).
+
+### Follow-up (2026-11-20, #434)
+
+D2 서버를 만들며 [계약 초안](../architecture/notice-contract.md)과 다르게 정하거나 초안이 열어 둔 것을 정했다. 경로는 [api.md "공지"](../../backend/docs/api.md#공지)로 옮겼다.
+
+1. **운영자 범위 값은 `notice_boards.version`이다.** 행사당 한 행이고 대상·상태와 상관없이 공지 쓰기(만들기, 실제로 바뀐 고치기, `DRAFT` 지우기, 발행·보관·보관 해제)마다 같은 트랜잭션에서 1 오른다. 읽는 곳은 `NoticeBoardVersions.read` 하나다. 운영자 `GET …/events/{eventId}/updates`(I3)의 `notices`가 이 값을 쓰고, 그 경로를 먼저 만들지 않았으므로 나중에 병합되는 쪽이 잇는다.
+2. **신청이 취소된 참가자는 `ALL` 공지도 보지 못한다.** 초안 §5는 "`ALL`은 모두"였다. 지금은 두 겹으로 빠진다: DEC-084(A7) 뒤로 취소된 사람의 남은 쿠키는 참가자 경로 전체에서 `401 AUTHENTICATION_REQUIRED`이고, 세션이 있더라도 `ParticipantAudience`가 `ALL`도 활성 참가자(`SUBMITTED` 신청이 있음)로 판정한다(DEC-080 Follow-up 2번). 발행 알림의 받는 사람에서도 빠진다. 다시 신청해 들어오면 다음 읽기부터 보인다(그 사이 발행된 공지의 알림은 없다).
+3. **상태 명령은 "이미 그 상태"를 버전보다 먼저 본다.** 초안 §3 순서(버전 → 상태)대로면 발행을 두 번 누른 두 번째 요청이 `409 CONCURRENT_MODIFICATION`이 된다. 그래서 `publish`·`archive`는 이미 `PUBLISHED`·`ARCHIVED`면 버전과 상관없이 `200 ALREADY_…`이고 아무것도 쓰지 않는다. 그 밖의 판정은 초안 순서다. `unarchive`는 같은 상태 결과가 없어 보관되지 않은 공지는 `409 INVALID_STATE_TRANSITION`이다.
+4. **`409 CONCURRENT_MODIFICATION`의 `notice`는 요약이다**(`noticeId`·`status`·`version`·`updatedAt`·`updatedByDisplayName`). 초안 §8은 "지금 값"이었지만 §9의 "제목·본문은 오류 응답에 넣지 않는다"를 따랐다. 화면은 상세를 다시 읽는다.
+5. **다시 알림(`notify: true`)은 발행된 공지의 내용(제목·본문·중요·대상)이 바뀔 때만 만든다.** 고정만 바꾸면 알리지 않고 audit도 남기지 않는다(초안 §9). 대상이 `STAFF`인 공지를 다시 알리면 운영자 알림 종류는 `STAFF_NOTICE_UPDATED`다(초안 §6 "같은 종류"를 새 종류로 정했다. 결정 대기 1).
+6. **알림 문구.** 참가자: 발행 "새 공지"/"중요 공지", 다시 알림 "공지 수정"/"중요 공지 수정". 운영자: 발행 "운영진 공지"/"중요 운영진 공지", 다시 알림 "공지 수정"/"중요 공지 수정". `body`는 공지 제목이다.
+7. **활성 운영자**(운영진 공지 알림 받는 사람)는 그 행사의 `event_users` 행이 있는 사람에서 인수인계로 소유 권한이 끝난 OWNER(개별 `EVENT_READ` GRANT가 없는)를 뺀 사람이다. 운영자 제거·공간 탈퇴가 행을 지우므로 빠지고, 탈퇴에서 유지한 행사의 운영자는 남는다(`EventAccessGate`와 같은 기준). 작성자는 뺀다.
+8. **목록 페이지.** `before`·`nextBefore`는 해석하지 않는 문자열(순서 키)이다. 순서의 마지막 기준은 `noticeId` 내림차순이다. 참가자 목록은 대상으로 거른 **뒤에** 잘라 페이지가 모자라지 않는다. 운영자 목록에서 발행한 적 없는 보관 공지는 `updatedAt`으로 줄 선다. `pinnedCount`는 거르기와 상관없는 행사 전체 값이다.
+9. **`DRAFT` 보관도 `NOTICE_ARCHIVED`를 남긴다**(초안 §9 "보관이 실제로 일어날 때"). 참가자 갱신 값은 발행됐던 공지일 때만 오른다.
+10. **본문 앞뒤 공백은 자른다.** `bodyPreview`는 줄바꿈(앞뒤 공백 포함)을 공백 하나로 바꾼 앞 80자이고 잘렸으면 `…`를 붙인다. 요청의 모르는 키는 무시한다(나중의 `channels`).
+11. **읽기 비용.** 참가자 목록·상세 한 요청은 SQL 네 문장이다(세션, 대상 판정, 공지, `unread`). 참가자 목록은 본문 앞 81자만 읽는다. 200명이 발행 직후 한 번씩 읽어도 요청마다 네 문장이다(`NoticeCostIT`). 공지·갱신 값·알림은 모두 DB에 있고 서버 메모리에 두는 상태는 없다.
+
+결정 대기 (추천안으로 진행, PR 검토에서 확인):
+
+| # | 질문 | 선택지 | 추천안 | 영향 |
+|---|---|---|---|---|
+| 1 | 운영진 공지를 다시 알릴 때 운영자 알림 종류 | `STAFF_NOTICE_UPDATED` / `STAFF_NOTICE_PUBLISHED`로 합치기 / 운영자에게는 다시 알림 없음 | `STAFF_NOTICE_UPDATED` | I3 운영자 알림 화면이 이 종류를 알아야 누를 수 있다(모르는 종류는 제목·본문만 보이고 누를 수 없다) |
+| 2 | 운영자 공지 목록의 페이지 | 지금처럼 `before`·`limit`(기본 30) / 페이지 없이 전체 | `before`·`limit` | 행사당 공지가 수십 건이라 화면은 첫 페이지면 충분하다. 보관 공지가 쌓여도 응답이 커지지 않는다 |
 
 ---
 
