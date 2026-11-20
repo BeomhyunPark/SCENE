@@ -62,8 +62,25 @@ public class ApplicationRevisions {
     this.json = json;
   }
 
-  /** The stored result of an edit. {@code revised} is false when nothing changed. */
-  public record Result(UUID applicationId, UUID formId, int revision, boolean revised) {}
+  /**
+   * The stored result of an edit. {@code revised} is false when nothing changed. {@code
+   * previousApplicationId} is the row that became {@code SUPERSEDED} (null when not revised),
+   * {@code name} is the participant's name after the edit, and {@code changedLabels} are the labels
+   * of the changed questions in form order, the same as {@code changes} (no values).
+   */
+  public record Result(
+      UUID applicationId,
+      UUID formId,
+      int revision,
+      boolean revised,
+      UUID previousApplicationId,
+      String name,
+      List<String> changedLabels) {
+
+    public Result {
+      changedLabels = List.copyOf(changedLabels);
+    }
+  }
 
   /**
    * Locks the participant and returns the current {@code SUBMITTED} revision, or 404. Callers that
@@ -140,6 +157,7 @@ public class ApplicationRevisions {
       }
     }
     ArrayNode changes = json.createArrayNode();
+    List<String> labels = new ArrayList<>();
     String newName = null;
     for (FieldDefinition field : fields) {
       JsonNode old = before.get(field.fieldId());
@@ -152,12 +170,20 @@ public class ApplicationRevisions {
       change.put("key", isName ? NAME : "FIELD");
       change.put("fieldId", field.fieldId().toString());
       change.put("label", field.label());
+      labels.add(field.label());
       if (isName && next != null) {
         newName = next.path("text").asString();
       }
     }
     if (changes.isEmpty()) {
-      return new Result(current.applicationId(), current.formId(), current.revision(), false);
+      return new Result(
+          current.applicationId(),
+          current.formId(),
+          current.revision(),
+          false,
+          null,
+          currentName,
+          List.of());
     }
     Instant now = clock.instant();
     if (revisions.supersede(spaceId, eventId, current.applicationId(), current.status()) != 1) {
@@ -198,6 +224,8 @@ public class ApplicationRevisions {
     if (newName != null && !newName.equals(currentName)) {
       participants.updateName(spaceId, eventId, current.participantId(), newName, now);
     }
-    return new Result(nextId, current.formId(), nextRevision, true);
+    String name = newName != null ? newName : currentName;
+    return new Result(
+        nextId, current.formId(), nextRevision, true, current.applicationId(), name, labels);
   }
 }

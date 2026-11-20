@@ -12,4 +12,7 @@ public interface NotificationMapper {
   int markRead(NotificationParam param);
 
   int markTargetReadForAll(NotificationParam param);
+
+  /** Moves rows that point at one of {@code ids} to {@code targetId}. */
+  int retarget(NotificationParam param);
 }

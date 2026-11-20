@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="app.scene.event.schedule.mapper.ScheduleMapper">
+
+  <select id="findBoardVersion" resultType="java.lang.Long">
+    SELECT version FROM schedule_boards WHERE space_id = #{spaceId} AND event_id = #{eventId}
+  </select>
+
+  <!-- The caller holds the event row lock, so the read-modify-write is serialized per event. -->
+  <select id="bumpBoardVersion" resultType="long" flushCache="true" useCache="false">
+    INSERT INTO schedule_boards (space_id, event_id, version, updated_at)
+    VALUES (#{spaceId}, #{eventId}, 1, #{at})
+    ON CONFLICT (space_id, event_id)
+    DO UPDATE SET version = schedule_boards.version + 1, updated_at = excluded.updated_at
+    RETURNING version
+  </select>
+
+  <!-- Order: day, start time, sort order, id (schedule-contract §2). -->
+  <select id="findItems" resultType="app.scene.event.schedule.ScheduleItemRow">
+    SELECT si.id AS item_id, si.day, to_char(si.start_time, 'HH24:MI') AS start_time,
+           to_char(si.end_time, 'HH24:MI') AS end_time, si.title, si.place, si.description,
+           si.category, si.audience::text AS audience, si.slot_id, si.sort_order, si.version,
+           si.updated_at, u.display_name AS updated_by_display_name
+    FROM schedule_items si
+    JOIN users u ON u.id = si.updated_by
+    WHERE si.space_id = #{spaceId} AND si.event_id = #{eventId}
+    <if test="itemId != null">AND si.id = #{itemId}</if>
+    ORDER BY si.day, si.start_time, si.sort_order, si.id
+  </select>
+
+  <select id="findSlotOwner" resultType="java.util.UUID">
+    SELECT id FROM schedule_items
+    WHERE space_id = #{spaceId} AND event_id = #{eventId} AND slot_id = #{slotId}
+    <if test="itemId != null">AND id &lt;&gt; #{itemId}</if>
+    LIMIT 1
+  </select>
+
+  <select id="nextSortOrder" resultType="int">
+    SELECT coalesce(max(sort_order) + 1, 0) FROM schedule_items
+    WHERE space_id = #{spaceId} AND event_id = #{eventId}
+      AND day = #{day} AND start_time = CAST(#{startTime} AS time)
+  </select>
+
+  <insert id="insertItem">
+    INSERT INTO schedule_items (
+      id, space_id, event_id, day, start_time, end_time, title, place, description, category,
+      audience, slot_id, sort_order, version, created_by, created_at, updated_by, updated_at)
+    VALUES (
+      #{itemId}, #{spaceId}, #{eventId}, #{day}, CAST(#{startTime} AS time),
+      CAST(#{endTime} AS time), #{title}, #{place}, #{description}, #{category},
+      CAST(#{audience} AS jsonb), #{slotId}, #{sortOrder}, 1, #{actorUserId}, #{at},
+      #{actorUserId}, #{at})
+  </insert>
+
+  <update id="updateItem">
+    UPDATE schedule_items
+    SET day = #{day}, start_time = CAST(#{startTime} AS time), end_time = CAST(#{endTime} AS time),
+        title = #{title}, place = #{place}, description = #{description},
+        category = #{category}, audience = CAST(#{audience} AS jsonb), slot_id = #{slotId},
+        sort_order = #{sortOrder}, version = version + 1, updated_by = #{actorUserId},
+        updated_at = #{at}
+    WHERE space_id = #{spaceId} AND event_id = #{eventId} AND id = #{itemId}
+  </update>
+
+  <delete id="deleteItem">
+    DELETE FROM schedule_items
+    WHERE space_id = #{spaceId} AND event_id = #{eventId} AND id = #{itemId}
+  </delete>
+
+  <select id="findLatestPublication" resultType="app.scene.event.schedule.SchedulePublicationRow">
+    SELECT sp.id AS publication_id, sp.board_version, sp.snapshot::text AS snapshot,
+           sp.published_at, u.display_name AS published_by_display_name
+    FROM schedule_publications sp
+    JOIN users u ON u.id = sp.published_by
+    WHERE sp.space_id = #{spaceId} AND sp.event_id = #{eventId}
+    ORDER BY sp.seq DESC
+    LIMIT 1
+  </select>
+
+  <insert id="insertPublication">
+    INSERT INTO schedule_publications (
+      id, space_id, event_id, board_version, snapshot, changes, published_by, published_at)
+    VALUES (
+      #{publicationId}, #{spaceId}, #{eventId}, #{boardVersion}, CAST(#{snapshot} AS jsonb),
+      CAST(#{changes} AS jsonb), #{actorUserId}, #{at})
+  </insert>
+
+  <!-- Participant read: event period and the latest publication in one statement. -->
+  <select id="findParticipantSchedule" resultType="app.scene.event.schedule.ParticipantScheduleRow">
+    SELECT e.start_date, e.end_date, latest.published_at, latest.snapshot
+    FROM events e
+    LEFT JOIN LATERAL (
+      SELECT sp.published_at, sp.snapshot::text AS snapshot
+      FROM schedule_publications sp
+      WHERE sp.space_id = e.space_id AND sp.event_id = e.id
+      ORDER BY sp.seq DESC
+      LIMIT 1) latest ON true
+    WHERE e.space_id = #{spaceId} AND e.id = #{eventId}
+  </select>
+</mapper>

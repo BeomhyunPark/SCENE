@@ -99,8 +99,9 @@ class PublicFormReadHttpIT {
     assertField(body.get("fields").get(1), "SYSTEM", "PHONE", "전화", 1);
     // Position 2 is the hidden 또래 question, which the public form leaves out.
     assertField(body.get("fields").get(2), "CUSTOM", null, "식사", 3);
+    // A full phone, not "010": the body carries random field ids, and a UUID can hold "010".
     assertThat(listed)
-        .doesNotContain("acceptingApplications", "answers", "accessKey", "이름답", "010");
+        .doesNotContain("acceptingApplications", "answers", "accessKey", "이름답", "010-1234-5678");
 
     String submitted =
         mvc.perform(

@@ -289,6 +289,11 @@ export function operatorsFor(eventId: string, actorId: string): OperatorRow[] | 
 }
 
 /** Event role of one user, or null. Used by the invitation mock. */
+/** User ids of the event's operators (#436 mock notification recipients). */
+export function eventOperatorIds(eventId: string): string[] {
+  return operators.filter((row) => row.eventId === eventId).map((row) => row.userId);
+}
+
 export function eventRoleOf(eventId: string, userId: string): Role | null {
   return operators.find((row) => row.eventId === eventId && row.userId === userId)?.role ?? null;
 }

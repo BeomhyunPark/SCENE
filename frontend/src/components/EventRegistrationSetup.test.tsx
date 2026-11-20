@@ -5,8 +5,8 @@ import { MemoryRouter, Route, Routes } from "react-router";
 import { describe, expect, it } from "vitest";
 import { createQueryClient } from "../api/queryClient";
 import { createEvent } from "../api/events";
-import { addField, createForm, getForm, listForms } from "../api/forms";
-import { markSubmitted } from "../mocks/formStore";
+import { addField, createForm, getForm, listForms, setAccepting } from "../api/forms";
+import { markSubmitted, setAccepting as storeSetAccepting } from "../mocks/formStore";
 import { login } from "../api/session";
 import { localEvent, localSpace, localUsers } from "../mocks/fixtures/seed";
 import { revokePermissions } from "../mocks/taskStore";
@@ -633,5 +633,84 @@ describe("event registration setup", () => {
     // The server answered with a new form; the unsaved card choice is still there.
     expect(screen.getByRole("checkbox", { name: "중그룹" })).toBeChecked();
     expect(screen.getByRole("button", { name: "설정 저장" })).toBeEnabled();
+  });
+});
+
+describe("신청 수정 받기 (#427)", () => {
+  function editsPanel() {
+    return screen.getByRole("region", { name: "신청 수정 받기" });
+  }
+
+  it("closes and reopens edits apart from applications", async () => {
+    setLifecycle(localEvent.eventId, "ACTIVE", 1);
+    await login({ userId: localUsers[0].userId });
+    const form = await createForm(localEvent.eventId);
+    await setAccepting(localEvent.eventId, form.formId, true);
+    renderSetup();
+    expect(await screen.findByText("받는 중")).toBeInTheDocument();
+    expect(within(editsPanel()).getByText(/참가자가 낸 신청을 직접 고칠 수 있어요/)).toBeInTheDocument();
+
+    // Closing applications keeps edits open.
+    fireEvent.click(screen.getByRole("button", { name: "신청 닫기" }));
+    expect(await screen.findByText("공개 전")).toBeInTheDocument();
+    expect(within(editsPanel()).getByText("받는 중")).toBeInTheDocument();
+    expect(within(editsPanel()).getByText(/신청은 닫혔지만 이미 낸 신청은 고칠 수 있어요/)).toBeInTheDocument();
+
+    const mark = operatorRequests.length;
+    fireEvent.click(within(editsPanel()).getByRole("button", { name: "수정 닫기" }));
+    expect(await within(editsPanel()).findByText("받지 않음")).toBeInTheDocument();
+    expect(within(editsPanel()).getByText(/참가자는 낸 신청을 보기만 해요/)).toBeInTheDocument();
+    fireEvent.click(within(editsPanel()).getByRole("button", { name: "수정 받기" }));
+    expect(await within(editsPanel()).findByText("받는 중")).toBeInTheDocument();
+    const bodies = operatorRequests
+      .slice(mark)
+      .filter((request) => request.method === "PATCH" && /\/forms\/[^/]+$/.test(request.url))
+      .map((request) => request.body);
+    expect(bodies).toEqual([{ acceptingEdits: false }, { acceptingEdits: true }]);
+    expect((await getForm(localEvent.eventId, form.formId)).acceptingApplications).toBe(false);
+  });
+
+  it("cannot open edits before the event starts", async () => {
+    await login({ userId: localUsers[0].userId });
+    const form = await createForm(localEvent.eventId);
+    storeSetAccepting(localEvent.eventId, form.formId, localUsers[0].userId, { acceptingEdits: false });
+    renderSetup();
+    expect(await screen.findByText("받지 않음")).toBeInTheDocument();
+    expect(within(editsPanel()).getByRole("button", { name: "수정 받기" })).toBeDisabled();
+    expect(within(editsPanel()).getByText("행사를 시작하면 수정을 받을 수 있어요.")).toBeInTheDocument();
+  });
+
+  it("explains a refusal from the server without its detail", async () => {
+    setLifecycle(localEvent.eventId, "ACTIVE", 1);
+    await login({ userId: localUsers[0].userId });
+    await createForm(localEvent.eventId);
+    server.use(
+      http.patch("/api/v1/operator/events/:eventId/forms/:formId", () =>
+        problem(409, "INVALID_STATE_TRANSITION", { detail: "hidden from the screen" }),
+      ),
+    );
+    renderSetup();
+    fireEvent.click(await within(await screen.findByRole("region", { name: "신청 수정 받기" })).findByRole("button", { name: "수정 닫기" }));
+    expect(await screen.findByText("진행 중인 행사에서만 수정을 받을 수 있어요.")).toBeInTheDocument();
+    expect(screen.queryByText("hidden from the screen")).not.toBeInTheDocument();
+  });
+
+  it("shows the state without a button to an operator without FORM_WRITE, and nothing to change once ended", async () => {
+    await login({ userId: localUsers[0].userId });
+    await createForm(localEvent.eventId);
+    revokePermissions(localEvent.eventId, localUsers[1].userId, ["FORM_WRITE"]);
+    await login({ userId: localUsers[1].userId });
+    renderSetup();
+    expect(await screen.findByText("받는 중")).toBeInTheDocument();
+    await waitFor(() => expect(operatorRequests.some((request) => request.url.includes("/permissions"))).toBe(true));
+    expect(within(editsPanel()).queryByRole("button")).not.toBeInTheDocument();
+
+    cleanup();
+    setLifecycle(localEvent.eventId, "ENDED", 2);
+    await login({ userId: localUsers[0].userId });
+    renderSetup();
+    expect(await screen.findByText("행사가 끝나서 신청을 고칠 수 없어요.", { exact: false })).toBeInTheDocument();
+    expect(within(editsPanel()).getByText("받지 않음")).toBeInTheDocument();
+    expect(within(editsPanel()).queryByRole("button")).not.toBeInTheDocument();
   });
 });

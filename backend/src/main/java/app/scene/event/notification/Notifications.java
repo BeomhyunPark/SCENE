@@ -138,6 +138,26 @@ public class Notifications {
   }
 
   /**
+   * Points every notification of the event that points at one of {@code fromIds} at {@code toId}
+   * instead, read or not, for every recipient, in the caller's transaction. A new revision of an
+   * application is a new {@code applications} row, so the notifications about the participant's
+   * earlier rows move to the current one before the next one merges with them (I3, DEC-080
+   * Follow-up #436). One statement. Returns rows moved.
+   */
+  @Transactional(propagation = Propagation.MANDATORY)
+  public int retarget(
+      UUID spaceId, UUID eventId, String targetType, Collection<UUID> fromIds, UUID toId) {
+    List<UUID> from = new ArrayList<>(new LinkedHashSet<>(fromIds));
+    from.remove(toId);
+    from.remove(null);
+    if (from.isEmpty()) {
+      return 0;
+    }
+    return notifications.retarget(
+        NotificationParam.of(spaceId, eventId).target(targetType, toId).ids(from));
+  }
+
+  /**
    * Which of {@code targetIds} have an unread notification of {@code targetType} for the recipient
    * (DEC-082 §5 {@code unread}). One statement for the whole list.
    */

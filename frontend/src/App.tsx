@@ -6,6 +6,8 @@ import { MockBanner } from "./components/MockBanner";
 import { EventCreate } from "./components/EventCreate";
 import { EventEnd } from "./components/EventEnd";
 import { EventField } from "./components/EventField";
+import { EventNotifications } from "./components/EventNotifications";
+import { OrgNotifications } from "./components/OrgNotifications";
 import { EventGroups } from "./components/EventGroups";
 import { EventHome } from "./components/EventHome";
 import { EventRetrospective } from "./components/EventRetrospective";
@@ -80,7 +82,7 @@ export function App() {
           <Route path="/events" element={<EventList />} />
           <Route path="/members" element={<SpaceMembers />} />
           <Route path="/settings" element={<SpaceSettings />} />
-          <Route path="/notifications" element={<MenuPending title="알림" />} />
+          <Route path="/notifications" element={<OrgNotifications />} />
           <Route path="/history" element={<MenuPending title="기록" />} />
           <Route path="/guides" element={<MenuPending title="안내" />} />
           <Route path="/schedule" element={<MenuPending title="일정" />} />
@@ -97,6 +99,7 @@ export function App() {
             element={<EventMenuPending title="다른 기능 시작" message="이 행사에서 쓸 기능을 고르는 화면은 아직 만들고 있어요." />}
           />
           <Route path="/events/:eventId/field" element={<EventField />} />
+          <Route path="/events/:eventId/notifications" element={<EventNotifications />} />
           <Route path="/events/:eventId/groups" element={<EventGroups />} />
           <Route path="/events/:eventId/end" element={<EventEnd />} />
           <Route path="/events/:eventId/retrospective" element={<EventRetrospective />} />

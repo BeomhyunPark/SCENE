@@ -8,6 +8,7 @@ import { eventFormDetail, eventFormId, formFields, requireEventRead } from "../f
 import { eventById, operatorRequests } from "../operatorStore";
 import { permissionsFor } from "../taskStore";
 import {
+  applicationRevisions,
   resetParticipantPin,
   restoreParticipantApplication,
   submittedApplication,
@@ -126,6 +127,7 @@ export const applicationHandlers = [
           slotIds: form && slots ? attendedSlotIds(form, slots, new Map(Object.entries(row.answers))) : null,
           operation: operationOf(row.applicationId),
           revision: row.revision,
+          revisedBy: row.revisedBy,
         })),
         slots,
         withdrawn: withdrawnApplications(eventId).map((row) => ({
@@ -136,6 +138,20 @@ export const applicationHandlers = [
       },
       { headers: { "Cache-Control": "no-store" } },
     );
+  }),
+
+  // Revisions of the application's participant, newest first (DEC-078 §4, #437). Detail's access.
+  http.get("/api/v1/operator/events/:eventId/applications/:applicationId/revisions", ({ request, params }) => {
+    const operator = currentOperator();
+    if (!operator) return problem(401, "AUTHENTICATION_REQUIRED");
+    operatorRequests.push({ method: "GET", url: new URL(request.url).pathname });
+    const eventId = String(params.eventId);
+    if (!eventById(eventId)) return problem(404, "RESOURCE_NOT_FOUND", { detail: "hidden" });
+    const items = applicationRevisions(eventId, String(params.applicationId));
+    if (!items) return problem(404, "RESOURCE_NOT_FOUND", { detail: "hidden" });
+    const gate = requireEventRead(eventId, operator.userId);
+    if (gate) return problem(gate.status, gate.code, { detail: "hidden" });
+    return HttpResponse.json({ items });
   }),
 
   http.get("/api/v1/operator/events/:eventId/applications/:applicationId", ({ request, params }) => {

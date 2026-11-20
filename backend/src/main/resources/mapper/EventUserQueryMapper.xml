@@ -76,5 +76,17 @@
         <include refid="app.scene.common.mybatis.CommonMapper.ownerAuthorityEnded"/>
     )
   </select>
+  <!-- Recipients of operator notifications: one row per operator, one statement (DEC-080). -->
+  <select id="findAuthorities" resultType="app.scene.space.OperatorAuthority">
+    SELECT o.user_id, o.role,
+      <include refid="app.scene.common.mybatis.CommonMapper.ownerAuthorityEnded"/> AS authority_ended,
+      p.effect AS stored_effect
+    FROM event_users o
+    LEFT JOIN event_user_permissions p
+      ON p.space_id = o.space_id AND p.event_id = o.event_id AND p.user_id = o.user_id
+     AND p.permission = #{permission}
+    WHERE o.space_id = #{spaceId} AND o.event_id = #{eventId}
+    ORDER BY o.user_id
+  </select>
 
 </mapper>

@@ -3,6 +3,9 @@ import { useNavigate, useSearchParams } from "react-router";
 import type { ApplicationTable, TableRow } from "../../api/applications";
 import { Button } from "../Button";
 import {
+  EDITED,
+  EDITED_KEY,
+  isEdited,
   applyFilters,
   bucketsOf,
   buildColumns,
@@ -166,6 +169,7 @@ export function ApplicantTable({
               const next = { ...view.filters };
               delete next.status;
               delete next.group;
+              delete next[EDITED];
               if (chip.filter) next[chip.filter.id] = { kind: "in", keys: [chip.filter.key] };
               update({ filters: next });
             }}
@@ -303,18 +307,28 @@ function chipsFor(table: ApplicationTable, columns: ColumnDef[], filters: Record
   };
   const status = selectedKey("status");
   const group = selectedKey("group");
+  const edited = selectedKey(EDITED);
   const arrived = table.rows.filter((row) => row.checkedInAt).length;
   const chips: Chip[] = [
-    { label: "전체 참가자", count: table.rows.length, selected: !status && !group, filter: null },
-    { label: "도착 완료", count: arrived, selected: status === "arrived" && !group, filter: { id: "status", key: "arrived" } },
-    { label: "도착 전", count: table.rows.length - arrived, selected: status === "waiting" && !group, filter: { id: "status", key: "waiting" } },
+    { label: "전체 참가자", count: table.rows.length, selected: !status && !group && !edited, filter: null },
+    { label: "도착 완료", count: arrived, selected: status === "arrived" && !group && !edited, filter: { id: "status", key: "arrived" } },
+    { label: "도착 전", count: table.rows.length - arrived, selected: status === "waiting" && !group && !edited, filter: { id: "status", key: "waiting" } },
   ];
   if (columns.some((column) => column.id === "group")) {
     chips.push({
       label: "미배정",
       count: table.rows.filter((row) => !row.group).length,
-      selected: group === NONE && !status,
+      selected: group === NONE && !status && !edited,
       filter: { id: "group", key: NONE },
+    });
+  }
+  const editedCount = table.rows.filter(isEdited).length;
+  if (editedCount > 0) {
+    chips.push({
+      label: "수정됨",
+      count: editedCount,
+      selected: edited === EDITED_KEY && !status && !group,
+      filter: { id: EDITED, key: EDITED_KEY },
     });
   }
   return chips;

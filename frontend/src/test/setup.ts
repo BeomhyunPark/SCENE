@@ -1,3 +1,4 @@
+import { resetNotificationStore } from "../mocks/notificationStore";
 import { cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { afterAll, afterEach, beforeAll } from "vitest";
@@ -39,6 +40,7 @@ afterEach(() => {
   resetNoticeStore();
   resetParticipantStore();
   resetParticipantFeedStore();
+  resetNotificationStore();
   resetParticipantCheckInStore();
   resetFormStore();
   resetInvitationStore();

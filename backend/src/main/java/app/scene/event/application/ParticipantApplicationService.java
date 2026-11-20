@@ -43,6 +43,7 @@ public class ParticipantApplicationService {
   private final ApplicationRevisions revisions;
   private final ParticipantRepository participants;
   private final JsonMapper json;
+  private final ApplicationNotices notices;
 
   public ParticipantApplicationService(
       EventRepository events,
@@ -50,13 +51,15 @@ public class ParticipantApplicationService {
       ApplicationRepository applications,
       ApplicationRevisions revisions,
       ParticipantRepository participants,
-      JsonMapper json) {
+      JsonMapper json,
+      ApplicationNotices notices) {
     this.events = events;
     this.forms = forms;
     this.applications = applications;
     this.revisions = revisions;
     this.participants = participants;
     this.json = json;
+    this.notices = notices;
   }
 
   public ParticipantApplication read(ParticipantSelf self) {
@@ -108,6 +111,8 @@ public class ParticipantApplicationService {
             participant.name(),
             ApplicationRevisions.BY_PARTICIPANT,
             null);
+    // DEC-080 §7.2: operators with PARTICIPANT_READ learn of it, in this transaction.
+    notices.revised(self.spaceId(), self.eventId(), result);
     ApplicationRevisionRow stored =
         result.revised()
             ? revisions.findCurrent(self.spaceId(), self.eventId(), self.participantId())

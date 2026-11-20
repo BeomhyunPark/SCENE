@@ -3,7 +3,8 @@ import { readParticipantGroup } from "./groupStore";
 import { eventById } from "./operatorStore";
 import { bumpFeed } from "./participantFeedStore";
 import { checkInCandidates } from "./participantStore";
-import { eventRoleOf, permissionsFor } from "./taskStore";
+import { notifyOperators, operatorsWith } from "./notificationStore";
+import { permissionsFor } from "./taskStore";
 
 /**
  * Shaped like NoticeController and ParticipantNoticeController (DEC-082, api.md "공지", D2 #434).
@@ -50,8 +51,19 @@ let notifications: Notification[] = [];
 let seq = 0;
 let order = 0;
 let clock = 0;
+/** `notice_boards.version`: every real write of the event's notices, whatever the audience (operator `updates.notices`). */
+const boards = new Map<string, number>();
+
+export function noticeBoardVersion(eventId: string): number {
+  return boards.get(eventId) ?? 0;
+}
+
+function bumpBoard(eventId: string): void {
+  boards.set(eventId, noticeBoardVersion(eventId) + 1);
+}
 
 export function resetNoticeStore(): void {
+  boards.clear();
   rows = [];
   notifications = [];
   seq = 0;
@@ -158,8 +170,16 @@ function participantSees(row: Row, participantId: string): boolean {
 /** Notifications for this notice; returns how many rows it made (participants + operators). */
 function notify(row: Row, kind: Notification["kind"], actorId: string): number {
   if (row.audience === "STAFF") {
-    // Operator notifications are I3's; the mock only counts the active operators but the writer.
-    return localUsers.filter((user) => user.userId !== actorId && eventRoleOf(row.eventId, user.userId)).length;
+    const operators = operatorsWith(row.eventId, "EVENT_READ", actorId);
+    const updated = kind === "NOTICE_UPDATED";
+    notifyOperators(row.eventId, operators, {
+      kind: updated ? "STAFF_NOTICE_UPDATED" : "STAFF_NOTICE_PUBLISHED",
+      target: { type: "NOTICE", id: row.noticeId },
+      title: updated ? (row.important ? "중요 공지 수정" : "공지 수정") : row.important ? "중요 운영진 공지" : "운영진 공지",
+      body: row.title,
+      important: row.important,
+    });
+    return operators.length;
   }
   let count = 0;
   for (const person of checkInCandidates(row.eventId)) {
@@ -253,6 +273,7 @@ export function createOperatorNotice(eventId: string, actorId: string, input: un
     order: ++order,
   };
   rows.push(row);
+  bumpBoard(eventId);
   let notifiedCount = 0;
   if (publish) {
     notifiedCount = notify(row, "NOTICE_PUBLISHED", actorId);
@@ -312,6 +333,7 @@ export function patchOperatorNotice(eventId: string, noticeId: string, actorId: 
   row.version += 1;
   row.updatedBy = actorId;
   row.updatedAt = at;
+  bumpBoard(eventId);
   let notifiedCount = 0;
   if (row.status === "PUBLISHED") {
     if (contentChanged) row.editedAt = at;
@@ -333,6 +355,7 @@ export function deleteOperatorNotice(eventId: string, noticeId: string, actorId:
   if (row.version !== expected) return conflict(row);
   if (row.status !== "DRAFT") return { status: 409, code: "INVALID_STATE_TRANSITION", noticeStatus: row.status };
   rows = rows.filter((item) => item !== row);
+  bumpBoard(eventId);
   return null;
 }
 
@@ -385,6 +408,7 @@ export function commandOperatorNotice(
 }
 
 function touch(row: Row, actorId: string, at: string): void {
+  bumpBoard(row.eventId);
   row.version += 1;
   row.updatedBy = actorId;
   row.updatedAt = at;

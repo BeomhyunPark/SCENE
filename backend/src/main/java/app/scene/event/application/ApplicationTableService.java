@@ -164,7 +164,8 @@ public class ApplicationTableService {
               state == null ? null : state.checkedInAt(),
               attended.of(all.getOrDefault(row.applicationId(), Map.of())),
               stored.getOrDefault(row.applicationId(), ApplicationOperation.empty()),
-              state == null ? 1 : state.revision()));
+              state == null ? 1 : state.revision(),
+              state == null ? null : state.revisedBy()));
     }
 
     if (anyContact && !rows.isEmpty()) {
