@@ -204,7 +204,7 @@ class EventOperatorIT {
     UUID memberId = user("Ada");
     member(fx.spaceId, memberId, "MEMBER");
     permissions.replace(
-        fx.ownerId, fx.spaceId, fx.eventId, fx.managerId, List.of("DATA_EXPORT"), List.of());
+        fx.ownerId, fx.spaceId, fx.eventId, fx.managerId, List.of(), List.of("DATA_EXPORT"));
     jdbc.update("UPDATE events SET lifecycle_status = 'ARCHIVED' WHERE id = ?", fx.eventId);
     Cookie owner = login(fx.ownerId);
     int audits = auditRows(fx.eventId);
@@ -261,8 +261,8 @@ class EventOperatorIT {
         fx.spaceId,
         fx.eventId,
         fx.managerId,
-        List.of("DATA_EXPORT"),
-        List.of("TASK_WRITE"));
+        List.of(),
+        List.of("DATA_EXPORT", "TASK_WRITE"));
     UUID taskId = task(fx, fx.managerId);
     String contact = "manager.contact@example.com";
     String token = "raw-invitation-token";
