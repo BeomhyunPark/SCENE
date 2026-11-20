@@ -22,7 +22,7 @@ describe("participant home response", () => {
   it("keeps pollAfterSeconds within 10–300 and drops unknown keys", () => {
     expect(parseUpdates({ pollAfterSeconds: 1 })?.pollAfterSeconds).toBe(10);
     expect(parseUpdates({ pollAfterSeconds: 9000 })?.pollAfterSeconds).toBe(300);
-    expect(parseUpdates({})?.pollAfterSeconds).toBe(30);
+    expect(parseUpdates({})?.pollAfterSeconds).toBe(25);
     expect(parseUpdates({ home: 2, somethingNew: 4, group: "x", mealOrder: 3 })?.versions).toEqual({ home: 2 });
   });
 });

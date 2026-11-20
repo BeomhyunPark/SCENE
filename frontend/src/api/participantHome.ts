@@ -52,7 +52,8 @@ export type ParticipantHome = {
   updates: ParticipantUpdates | null;
 };
 
-export const DEFAULT_POLL_SECONDS = 30;
+/** Server default (DEC-080 Follow-up #425): ±20% keeps a change within 30 s. Used only when absent. */
+export const DEFAULT_POLL_SECONDS = 25;
 const MIN_POLL_SECONDS = 10;
 const MAX_POLL_SECONDS = 300;
 

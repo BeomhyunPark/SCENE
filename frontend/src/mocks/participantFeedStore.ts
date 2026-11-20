@@ -13,12 +13,12 @@ type EventKey = "home" | "schedule" | "notices" | "group" | "rooms";
 
 const versions = new Map<string, Record<EventKey, number>>();
 const signatures = new Map<string, string>();
-let pollAfterSeconds = 30;
+let pollAfterSeconds = 25;
 
 export function resetParticipantFeedStore(): void {
   versions.clear();
   signatures.clear();
-  pollAfterSeconds = 30;
+  pollAfterSeconds = 25;
 }
 
 /** Test and mock-click seam: an area was published (`window.sceneMock.feed.bumpFeed(eventId, "notices")`). */
