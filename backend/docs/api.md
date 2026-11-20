@@ -1757,7 +1757,8 @@ CSRF가 필요하다.
 | --- | --- | --- |
 | `home` | 행사 | 행사 이름 변경(`PATCH …/events/{eventId}`), 상태 전이(`ALREADY_IN_STATE` 제외), 완료 안내 저장 |
 | `group` | 행사 | 조 편성 공개가 `PUBLISHED`일 때만(`ALREADY_PUBLISHED`·작업본 저장은 아님) |
-| `schedule`·`notices`·`rooms`·`mealOrder` | 행사 | 아직 오르는 경로가 없다(일정·공지·숙소가 만든다). `mealOrder`는 1월에는 쓰지 않는다(식사 순서 보류). 키는 남고 늘 0이다 |
+| `notices` | 행사 | 참가자에게 보이는 공지의 발행·수정·고정·보관·보관 해제([공지](#공지)의 갱신 값 표). `DRAFT` 저장과 대상이 `STAFF`뿐인 공지는 오르지 않는다 |
+| `schedule`·`rooms`·`mealOrder` | 행사 | 아직 오르는 경로가 없다(일정·숙소가 만든다). `mealOrder`는 1월에는 쓰지 않는다(식사 순서 보류). 키는 남고 늘 0이다 |
 | `checkIn` | 참가자 | 내 `checkin_logs`의 최대 `seq`(체크인·취소). 없으면 0 |
 | `application` | 참가자 | 내 신청의 최대 `revision`. 없으면 0 |
 | `notifications.latestSeq` | 참가자 | 내 알림의 최대 `seq`. 없으면 0 |
@@ -1795,7 +1796,7 @@ CSRF가 필요하다.
 
 - `seq` 내림차순이다. `before`(양의 정수)가 있으면 그보다 작은 `seq`만 준다. `limit`은 1–50, 기본 30. 벗어나거나 숫자가 아니면 `400 VALIDATION_FAILED`(필드 `before`·`limit`).
 - `nextBefore`는 더 있으면 다음 요청의 `before`, 없으면 `null`이다. `unreadCount`는 100에서 멈춘다. 조회만으로 읽음 처리하지 않는다.
-- `kind`·`target.type`의 값은 [계약 초안 §7.2](../../docs/architecture/participant-home-contract.md)다. 지금 서버에는 참가자 알림을 만드는 경로가 아직 없다(공지·일정·조 공개 알림은 각 기능과 B5가 만든다). 화면은 모르는 `kind`를 받으면 `title`·`body`만 보이고 누를 수 없게 한다.
+- `kind`·`target.type`의 값은 [계약 초안 §7.2](../../docs/architecture/participant-home-contract.md)다. 지금 서버에서 참가자 알림을 만드는 경로는 공지(`NOTICE_PUBLISHED`·`NOTICE_UPDATED`, [공지](#공지))뿐이다(일정·조 공개 알림은 각 기능과 B5가 만든다). 화면은 모르는 `kind`를 받으면 `title`·`body`만 보이고 누를 수 없게 한다.
 - `count`는 합쳐진 수다. 같은 받는 사람에게 같은 `kind`·같은 `target`의 읽지 않은 알림이 있으면 그 행을 지우고 새 행(`seq` 새로, `count` = 이전 + 1)을 넣는다. 읽은 알림은 합치지 않는다.
 
 ### `POST /api/v1/participant/notifications/read`
@@ -1822,6 +1823,245 @@ CSRF가 필요하다. 본문은 셋 중 정확히 하나다.
 - `notifications`: 참가자·운영자 알림 한 테이블. `recipient_kind`가 `PARTICIPANT`면 `recipient_participant_id`, `OPERATOR`면 `recipient_user_id`만 있다. `title` 80자, `body` 200자, `count` ≥ 1, `seq`는 전체에서 늘어나는 번호. 색인은 참가자 목록·참가자 미읽음(부분 색인)·운영자 목록·대상(`event_id`, `target_type`, `target_id`). 보존은 행사 데이터와 같다.
 - 둘 다 DB에만 있다. 서버 메모리에 두는 값은 없다.
 - 운영자 알림 경로(`GET·POST /operator/events/{eventId}/notifications…`, `GET …/updates`)와 `operator_notices` 이전은 아직 없다(I3, 계약 초안 §7.5·§7.6).
+
+## 공지
+
+운영자가 쓰는 공지와 참가자가 보는 공지 목록이다([DEC-082](../../docs/product/PRODUCT_DECISIONS.md)와 그 Follow-up 2026-11-20, [#434](https://github.com/BeomhyunPark/SCENE/issues/434)). 화면 규칙(작성 흐름, "수정됨" 표시, 운영진 공지 카드, 공유 문구)은 [계약 초안](../../docs/architecture/notice-contract.md)에 남아 있다. 컨트롤러는 `event/notice/NoticeController`(운영자)와 `ParticipantNoticeController`(참가자)다.
+
+### 공지 객체 (운영자)
+
+```json
+{
+  "noticeId": "6f1c…",
+  "title": "내일 아침 집회 장소 변경",
+  "body": "소강당이 아니라 대강당입니다.\n7시 50분까지 모여 주세요.",
+  "important": true,
+  "pinned": false,
+  "audience": [{ "type": "ALL" }],
+  "status": "PUBLISHED",
+  "version": 4,
+  "firstPublishedAt": "2027-01-22T12:00:00Z",
+  "publishedAt": "2027-01-22T12:00:00Z",
+  "editedAt": "2027-01-22T12:20:00Z",
+  "archivedAt": null,
+  "createdByDisplayName": "김OO",
+  "updatedByDisplayName": "이OO",
+  "updatedAt": "2027-01-22T12:20:00Z"
+}
+```
+
+| 필드 | 규칙 |
+| --- | --- |
+| `title` | 필수. 앞뒤 공백을 자르고 1–100자 |
+| `body` | 필수. 앞뒤 공백을 자르고 1–5,000자. 일반 글이다. 줄바꿈은 그대로 두고 HTML·마크다운을 해석하지 않는다 |
+| `important` | 불리언, 기본 `false` |
+| `pinned` | 불리언, 기본 `false`. 행사당 `PUBLISHED`이면서 고정인 공지는 3개까지. `DRAFT`의 값은 발행할 때 적용할 값이다. 보관하면 `false`가 된다 |
+| `audience` | 필수. 정확히 한 항목 `[{ "type": "ALL" }]`이고 `type`은 `ALL`·`LEADERS`·`STAFF` 중 하나. 다른 키(`ids` 등)는 받지 않는다 |
+| `status` | `DRAFT`·`PUBLISHED`·`ARCHIVED` |
+| `version` | 실제로 바뀔 때마다 1 오른다. 처음은 1. 같은 값 저장과 `ALREADY_…`는 그대로다 |
+| `firstPublishedAt` | 처음 발행한 시각. 다시 바뀌지 않는다. 발행한 적이 없으면 `null` |
+| `publishedAt` | 목록 순서의 기준 시각. 처음 발행 때 정하고 수정·보관·보관 해제로 바뀌지 않는다 |
+| `editedAt` | **발행된 뒤** 제목·본문·중요·대상을 고친 마지막 시각. 발행 전 수정·고정·보관은 바꾸지 않는다. 없으면 `null` |
+| `archivedAt` | 보관한 시각. 보관 해제하면 `null` |
+| `createdByDisplayName`, `updatedByDisplayName`, `updatedAt` | 처음 쓴 사람, 마지막으로 바꾼 사람과 그 시각(상태 명령 포함) |
+
+### 권한과 판정 순서
+
+| 동작 | 권한 |
+| --- | --- |
+| 목록·상세(모든 상태·대상) | 유효한 `EVENT_READ`, 또는 활성 공간 `OWNER`·`ADMIN`. 기본 역할로는 OWNER·MANAGER·STAFF 모두 |
+| 만들기·고치기·지우기·발행·보관·보관 해제 | 유효한 `NOTICE_WRITE`. 기본 역할로는 OWNER·MANAGER. 개별 `REVOKE`하면 막힌다 |
+
+행사 상태: `DRAFT`·`ACTIVE`·`ENDED`에서 쓴다(`ENDED`의 후속 공지, DEC-051). `ARCHIVED` 행사의 쓰기는 `409 EVENT_ARCHIVED`(`eventStatus`)다. 읽기는 행사 상태로 막지 않는다.
+
+쓰기의 판정 순서: 행사 없음 `404`·접근 끊김 `403 NOT_A_MEMBER` → 권한 `403 FORBIDDEN` → 본문 `400` → 행사 상태 `409` → 공지 없음 `404` → (상태 명령만) 이미 그 상태면 `200 ALREADY_…` → 버전 `409 CONCURRENT_MODIFICATION` → 상태·고정 규칙 `409` → 결과. 쓰기는 행사 행을 잠근다. 같은 행사의 공지 쓰기는 하나씩 커밋된다.
+
+### 오류
+
+| 경우 | 응답 |
+| --- | --- |
+| 필드 형식·길이, `audience` 모양, 쿼리 값 | `400 VALIDATION_FAILED`, `errors[0].field`(`title`·`body`·`important`·`pinned`·`audience`·`publish`·`notify`·`expectedVersion`·`status`·`limit`·`before`). 본문이 JSON 객체가 아니면 필드 `body` |
+| 그 행사의 공지가 아님 | `404 RESOURCE_NOT_FOUND` |
+| `expectedVersion`이 지금과 다름 | `409 CONCURRENT_MODIFICATION`, 확장 필드 `notice`: `{ "noticeId", "status", "version", "updatedAt", "updatedByDisplayName" }`. 제목·본문은 오류 본문에 넣지 않는다. 화면은 상세를 다시 읽는다 |
+| 보관된 공지 고치기·발행, `DRAFT`가 아닌 공지 지우기, 보관되지 않은 공지 보관 해제 | `409 INVALID_STATE_TRANSITION`, `noticeStatus` |
+| 고정 4개째 | `409 CONFLICT`, `reason: "PIN_LIMIT"`, `pinnedNoticeIds`(지금 고정된 발행 공지 id, 최근 발행 순) |
+| `ARCHIVED` 행사의 쓰기 | `409 EVENT_ARCHIVED` |
+
+```json
+{
+  "type": "urn:scene:problem:conflict",
+  "status": 409,
+  "code": "CONFLICT",
+  "reason": "PIN_LIMIT",
+  "pinnedNoticeIds": ["…", "…", "…"],
+  "traceId": "…"
+}
+```
+
+### `GET /api/v1/operator/events/{eventId}/notices?status=&audience=&before=&limit=`
+
+- `status`: `DRAFT`·`PUBLISHED`·`ARCHIVED`를 쉼표로 여럿. 생략하면 `DRAFT,PUBLISHED`.
+- `audience`: `ALL`·`LEADERS`·`STAFF`를 쉼표로 여럿. 생략하면 모두.
+- 순서: 고정된 `PUBLISHED`(최근 발행 먼저) → `DRAFT`(`updatedAt` 내림차순) → 나머지(`publishedAt` 내림차순, 발행한 적 없는 보관 공지는 `updatedAt`). 같은 시각이면 `noticeId` 내림차순.
+- `limit`: 1–50, 기본 30. `before`: 직전 응답의 `nextBefore`를 그대로 보낸다(형식을 해석하지 않는 문자열). 깨진 값은 `400`(필드 `before`).
+
+`200`
+
+```json
+{
+  "items": [ { "noticeId": "…", "title": "…", "status": "PUBLISHED", "…": "공지 객체" } ],
+  "pinnedCount": 1,
+  "nextBefore": null
+}
+```
+
+`pinnedCount`는 거르기와 상관없이 그 행사의 고정된 `PUBLISHED` 공지 수다(3이면 고정 단추를 막는다). 운영자 행사 홈의 "운영진 공지" 카드는 `?status=PUBLISHED&audience=STAFF&limit=3`을 부른다.
+
+### `GET /api/v1/operator/events/{eventId}/notices/{noticeId}`
+
+`200` 본문은 공지 객체다. 다른 행사의 공지는 `404`.
+
+### `POST /api/v1/operator/events/{eventId}/notices`
+
+CSRF가 필요하다.
+
+```json
+{
+  "title": "내일 아침 집회 장소 변경",
+  "body": "소강당이 아니라 대강당입니다.",
+  "important": false,
+  "pinned": false,
+  "audience": [{ "type": "ALL" }],
+  "publish": true
+}
+```
+
+`publish: true`면 만들면서 발행한다. 생략하거나 `false`면 `DRAFT`다. 모르는 키는 무시한다. `201`
+
+```json
+{ "notice": { "…": "공지 객체" }, "notifiedCount": 187 }
+```
+
+`notifiedCount`는 이 요청이 만든 알림 행 수다(참가자 + 운영자). `DRAFT`면 0이다.
+
+### `PATCH /api/v1/operator/events/{eventId}/notices/{noticeId}`
+
+```json
+{ "expectedVersion": 4, "title": "집회 장소 변경 (정정)", "notify": true }
+```
+
+- 바꿀 키만 보낸다: `title`·`body`·`important`·`pinned`·`audience`. `expectedVersion`은 필수. 키를 보내며 `null`을 주면 `400`.
+- `notify`(기본 `false`)는 `PUBLISHED` 공지의 **내용**(제목·본문·중요·대상)이 바뀔 때만 읽는다. `true`면 지금 대상에게 `NOTICE_UPDATED`(대상이 `STAFF`면 운영자에게 `STAFF_NOTICE_UPDATED`)를 만든다. 고정만 바꾸면 알리지 않는다.
+- 값이 모두 그대로면 아무것도 바꾸지 않고 `200`(`version` 그대로, `notifiedCount` 0)이다.
+- `PUBLISHED` 공지의 내용이 바뀌면 `editedAt`이 그 시각이 된다. 대상을 바꾸면 바로 반영된다(넓히면 새로 보이고, 좁히면 사라진다).
+- `ARCHIVED`면 `409 INVALID_STATE_TRANSITION`. `PUBLISHED` 공지를 고정하면 고정 개수를 센다.
+
+`200` 본문은 `{ "notice", "notifiedCount" }`다.
+
+### `DELETE /api/v1/operator/events/{eventId}/notices/{noticeId}?expectedVersion=1`
+
+`DRAFT`만 지운다(행 삭제). 다른 상태는 `409 INVALID_STATE_TRANSITION`(`noticeStatus`). `204`, 본문 없음.
+
+### 상태 명령
+
+모두 본문 `{ "expectedVersion": n }`(필수)이고 CSRF가 필요하다.
+
+| 경로 | 바뀜 | 이미 그 상태 | 그 밖 |
+| --- | --- | --- | --- |
+| `POST …/notices/{noticeId}/publish` | `DRAFT` → `PUBLISHED`. `firstPublishedAt`·`publishedAt` = 지금 | `PUBLISHED`면 `ALREADY_PUBLISHED`(버전을 보지 않는다) | `ARCHIVED`는 `409 INVALID_STATE_TRANSITION`(보관 해제를 쓴다). 고정된 `DRAFT`는 고정 개수를 센다 |
+| `POST …/notices/{noticeId}/archive` | `DRAFT`·`PUBLISHED` → `ARCHIVED`. `pinned` = `false` | `ARCHIVED`면 `ALREADY_ARCHIVED` | |
+| `POST …/notices/{noticeId}/unarchive` | `ARCHIVED` → 발행한 적이 있으면 `PUBLISHED`(`publishedAt` 그대로, 알림 없음), 없으면 `DRAFT`. 고정은 풀린 채 | 없음 | `DRAFT`·`PUBLISHED`는 `409 INVALID_STATE_TRANSITION` |
+
+`200`
+
+```json
+{ "result": "PUBLISHED", "notice": { "…": "공지 객체" }, "notifiedCount": 187 }
+```
+
+`result`는 `PUBLISHED`·`ALREADY_PUBLISHED`·`ARCHIVED`·`ALREADY_ARCHIVED`·`UNARCHIVED`다. `ALREADY_…`는 아무것도 쓰지 않는다(`version`·갱신 값·알림·audit 그대로).
+
+### 갱신 값과 알림
+
+| 일 | 참가자 `updates.notices` | 알림 | 운영자 범위 값 |
+| --- | --- | --- | --- |
+| `DRAFT` 만들기·고치기·지우기 | 그대로 | 없음 | +1 |
+| 발행(만들며 발행 포함) | 대상이 `ALL`·`LEADERS`면 +1 | 대상의 활성 참가자에게 `NOTICE_PUBLISHED`. 대상이 `STAFF`면 작성자를 뺀 활성 운영자에게 `STAFF_NOTICE_PUBLISHED` | +1 |
+| `PUBLISHED` 공지 고치기·고정 바꾸기 | 바뀌기 전이나 뒤의 대상이 참가자를 포함하면 +1 | 내용이 바뀌고 `notify: true`일 때만 `NOTICE_UPDATED`(운영자는 `STAFF_NOTICE_UPDATED`) | +1 |
+| 보관 | 발행된 공지였고 대상이 참가자를 포함하면 +1 | 그 공지를 가리키는 모든 사람의 읽지 않은 알림을 읽음으로 | +1 |
+| 보관 해제 | `PUBLISHED`로 돌아가고 대상이 참가자를 포함하면 +1 | 없음 | +1 |
+| `ALREADY_…`, 같은 값 저장, 오류 | 그대로 | 없음 | 그대로 |
+
+- 값·알림·audit은 변경과 **같은 트랜잭션**에서 쓴다. 변경이 실패하면 아무것도 남지 않는다.
+- 받는 사람은 그 순간 정한다. "활성 참가자"는 지금 `SUBMITTED` 신청이 있는 사람이고(취소된 사람은 빠진다), `LEADERS`는 가장 최근 조 편성 공개본의 조장이다. "활성 운영자"는 그 행사에 운영자 행(`event_users`)이 있는 사람 중, 인수인계로 소유 권한이 끝난 OWNER(개별 `EVENT_READ` GRANT가 없는)를 뺀 사람이다. 운영자 제거와 공간 탈퇴는 그 행을 지우므로 빠지고, 탈퇴에서 유지한 행사의 운영자는 남는다.
+- 알림 문구: `title`은 `NOTICE_PUBLISHED` "새 공지"(중요면 "중요 공지"), `STAFF_NOTICE_PUBLISHED` "운영진 공지"(중요면 "중요 운영진 공지"), `…_UPDATED` "공지 수정"(중요면 "중요 공지 수정"). `body`는 공지 제목(200자 넘으면 자른다), `important`는 공지 값, `target`은 `{ "type": "NOTICE", "id": noticeId }`. 같은 사람에게 같은 종류·같은 공지의 읽지 않은 알림이 있으면 합친다(`count` + 1).
+- **운영자 범위 값**은 `notice_boards.version`이다. 대상·상태와 상관없이 실제 쓰기마다 오른다. 읽는 곳은 `NoticeBoardVersions.read(spaceId, eventId)` 하나다(기본 키 한 문장, 행이 없으면 0). 운영자 `GET …/events/{eventId}/updates`(I3)의 `notices`가 이 값을 쓴다. 그 경로는 아직 없다.
+
+### `GET /api/v1/participant/notices?before=&limit=`
+
+참가자 세션 쿠키가 필요하다. 없거나 저장된 세션이 아니면 `401 AUTHENTICATION_REQUIRED`(운영자 쿠키로는 열리지 않는다), 임시 번호 세션은 `403 PARTICIPANT_PIN_CHANGE_REQUIRED`다. 응답은 `Cache-Control: no-store`, audit 없음, 행사 상태로 막지 않는다.
+
+`PUBLISHED`이고 내가 대상에 드는 공지만 준다: `ALL`은 활성 참가자, `LEADERS`는 가장 최근 조 편성 공개본의 활성 조장, `STAFF`는 아무도 아니다. 판정은 읽을 때마다 한다. 신청이 취소된 사람의 남은 쿠키는 [DEC-084](#참가자-세션)대로 `401`이고, 세션이 있더라도 대상 판정에서 빠진다.
+
+`200`
+
+```json
+{
+  "items": [
+    {
+      "noticeId": "…",
+      "title": "내일 아침 집회 장소 변경",
+      "bodyPreview": "소강당이 아니라 대강당입니다. 7시 50분까지 모여 주세요.",
+      "important": true,
+      "pinned": true,
+      "leadersOnly": false,
+      "publishedAt": "2027-01-22T12:00:00Z",
+      "editedAt": "2027-01-22T12:20:00Z",
+      "unread": true
+    }
+  ],
+  "nextBefore": "MToxNzk…"
+}
+```
+
+- 순서: 고정 → `publishedAt` 내림차순 → `noticeId` 내림차순. `limit` 1–50, 기본 20. `before`는 직전 응답의 `nextBefore`(형식을 해석하지 않는 문자열, 깨지면 `400` 필드 `before`). 대상으로 거른 **뒤에** 자르므로 마지막이 아닌 페이지는 늘 `limit`개다. 고정은 3개까지라 기본 `limit`이면 첫 페이지에 모두 나온다.
+- `bodyPreview`: 본문 앞 80자. 줄바꿈(앞뒤 공백 포함)은 공백 하나로 바꾸고, 잘랐으면 끝에 `…`를 붙인다.
+- `leadersOnly`: 대상이 `LEADERS`면 `true`. `audience` 원본은 없다.
+- `editedAt`: 발행 뒤 내용을 고쳤으면 그 시각. 화면은 "수정됨 HH:mm"을 붙인다.
+- `unread`: 이 공지를 가리키는 내 알림 중 읽지 않은 것이 있으면 `true`. 알림이 없는 공지(나중에 조장이 된 사람 등)는 `false`.
+- 작성자 이름·다른 참가자 정보는 없다.
+
+### `GET /api/v1/participant/notices/{noticeId}`
+
+`200` 본문은 목록 항목에 `body`(전체)를 더한 것이다.
+
+```json
+{
+  "noticeId": "…",
+  "title": "내일 아침 집회 장소 변경",
+  "bodyPreview": "소강당이 아니라 대강당입니다. 7시 50분까지 모여 주세요.",
+  "body": "소강당이 아니라 대강당입니다.\n7시 50분까지 모여 주세요.",
+  "important": true,
+  "pinned": true,
+  "leadersOnly": false,
+  "publishedAt": "2027-01-22T12:00:00Z",
+  "editedAt": null,
+  "unread": true
+}
+```
+
+보이지 않는 공지(없음, 다른 행사, `DRAFT`, `ARCHIVED`, 대상 밖)는 모두 `404 RESOURCE_NOT_FOUND`이고 서로 구분하지 않는다. 조회로 읽음 처리하지 않는다. 화면은 상세를 열 때 [`POST /participant/notifications/read`](#post-apiv1participantnotificationsread) `{ "target": { "type": "NOTICE", "id": "…" } }`를 부른다.
+
+### 읽기 비용
+
+참가자 목록 한 요청은 SQL 네 문장이다(세션 확인, 대상 판정 한 문장, 그 행사의 `PUBLISHED` 공지 한 문장 — 본문은 앞 81자만, 그 페이지의 `unread` 한 문장). 상세도 네 문장이다. `NoticeCostIT`가 참가자 200명이 발행 직후 한 번씩 다시 읽을 때 요청마다 세어 확인한다. 공지 수·참가자 수와 상관없이 문장 수가 같다.
+
+### 저장
+
+`V22__notices.sql`(번호는 병합 때 맞춘다).
+
+- `notices`: 공지 한 건이 한 행. `audience`는 `jsonb`(위 모양 그대로), 상태 `CHECK`, `PUBLISHED`면 `published_at`이 있고 `ARCHIVED`면 고정이 아니다. 색인 `(space_id, event_id, status, published_at DESC)`. 고정 3개는 색인이 아니라 행사 행 잠금 아래에서 센다. 전달 기록 열은 없다(알림 행이 기록이다).
+- `notice_boards`: 행사당 한 행(`space_id`, `event_id`, `version`, `updated_at`). 운영자 범위 값이다. 첫 쓰기 때 만든다.
+- 모두 DB에만 있다. 서버 메모리에 두는 상태는 없다. 이전 본문(수정 이력)은 저장하지 않는다.
 
 ## 체크인
 
@@ -2291,10 +2531,13 @@ audit `GROUPS_PUBLISHED`: detail은 `publicationId`, `boardVersion`, `assignedCo
 | `PARTICIPANT_PIN_RESET` | 운영자가 참가자의 숫자 6자리를 초기화할 때마다. detail은 `participantId`뿐이다(DEC-078) |
 | `APPLICATION_WITHDRAWN` | 운영자가 신청을 취소할 때. detail은 `applicationId`·`participantId`·`groupRemoved`·`reasonGiven`·`blockReapply`이고 사유 본문은 없다(DEC-084) |
 | `APPLICATION_RESTORED` | 운영자가 취소한 신청을 되돌릴 때. detail은 `applicationId`·`participantId`(DEC-084). 참가자의 재신청 복귀는 audit 없이 `application_status_logs`에만 남는다 |
+| `NOTICE_PUBLISHED` | 공지를 발행할 때(만들며 발행 포함, `ALREADY_PUBLISHED` 제외). detail은 `noticeId`·`version`·`audienceTypes`·`important`·`notifiedCount` |
+| `NOTICE_UPDATED` | **발행된** 공지의 제목·본문·중요·대상을 고칠 때. detail은 `noticeId`·`version`·`fields`(바뀐 필드 이름, 고정을 같이 바꿨으면 `pinned` 포함)·`notify`·`notifiedCount` |
+| `NOTICE_ARCHIVED`, `NOTICE_UNARCHIVED` | 보관·보관 해제가 실제로 일어날 때. detail은 `noticeId`·`version` |
 
 이름 상수는 `common/audit/AuditActions`에 있다. 업무 진행의 네 이름은 그 클래스 밖에 있고, `TaskProgressService`가 문자열로 넣는다. `OWNER_TRANSFER_ACCEPTED`도 그 클래스 밖에 있고, `OwnerTransferService`가 문자열로 넣는다. detail은 `transferId`, `toUserId`, `recipientPriorRole`, `deletedOverrides`다. actor는 받는 사람이다.
 
-남기지 않는 명령: 로그인과 로그아웃, 초대 생성·재발송·취소·미리보기·수락, 업무 생성·수정·삭제, 탈퇴 미리보기, 막힌 탈퇴, 소유권 이전의 요청·거절·취소와 다시 수락. 업무 수정으로 `CANCELLED`가 되거나 담당이 바뀌어도 감사 로그는 없다.
+남기지 않는 명령: 공지 `DRAFT` 만들기·고치기·지우기와 고정만 바꾸기(공지 제목·본문은 어느 detail에도 없다), 로그인과 로그아웃, 초대 생성·재발송·취소·미리보기·수락, 업무 생성·수정·삭제, 탈퇴 미리보기, 막힌 탈퇴, 소유권 이전의 요청·거절·취소와 다시 수락. 업무 수정으로 `CANCELLED`가 되거나 담당이 바뀌어도 감사 로그는 없다.
 
 담당이 비워지며 로그가 남는 경우는 운영자 제거와 공간 탈퇴다. `TASK_ASSIGNEE_CLEARED`의 detail은 `taskId`, `previousAssigneeUserId`, `reason`, `version`이다. `version`은 비운 뒤의 값이다. `reason`은 제거면 `운영자 제거`, 탈퇴면 `이탈`이다. `EVENT_ACCESS_REVOKED`의 detail은 대상 `userId`와 지워진 override인 `deletedOverrides`다. 탈퇴의 actor는 떠나는 사람이고, 운영자 제거의 actor는 그 제거를 호출한 사람이다. 유지한 행사에는 두 `action`이 없다.
 
@@ -2309,7 +2552,7 @@ audit `GROUPS_PUBLISHED`: detail은 `publicationId`, `boardVersion`, `assignedCo
 - 비밀번호 로그인
 - SMTP. 초대 링크는 생성·다시 보내기 응답에 한 번 나오고, 메일 포트는 프로세스 메모리에만 담는다
 - 체크 항목 추가
-- 참가자 조회(`GET /api/v1/participant/me`·`application`·`check-in`·`group`·`home`·`updates`·`notifications` 밖)
+- 참가자 조회(`GET /api/v1/participant/me`·`application`·`check-in`·`group`·`home`·`updates`·`notifications`·`notices` 밖)
 - 운영자의 신청 대리 수정·직접 추가(A12), 신청 취소(#338)
 - 회비, 방, 차량
 - 신청자 CSV([신청자 CSV](#post-apiv1operatoreventseventidapplicationsexport)) 밖의 Export, 공간 설정
@@ -2326,7 +2569,6 @@ audit `GROUPS_PUBLISHED`: detail은 `publicationId`, `boardVersion`, `assignedCo
 |---|---|---|---|
 | 운영자 알림·운영자 갱신 확인 | DEC-080 | [participant-home-contract](../../docs/architecture/participant-home-contract.md) §7.5 | `GET·POST /operator/events/{eventId}/notifications…`, `GET /operator/events/{eventId}/updates` (참가자 홈·`updates`·알림은 위 [참가자 홈·갱신 확인·알림](#참가자-홈갱신-확인알림)으로 옮겼다) |
 | 일정표 | DEC-081 | [schedule-contract](../../docs/architecture/schedule-contract.md) | `GET /operator/events/{eventId}/schedule`, `POST·PATCH·DELETE …/schedule/items…`, `POST …/schedule/publish`, `GET …/schedule/published`, `GET /participant/schedule` |
-| 공지 | DEC-082 | [notice-contract](../../docs/architecture/notice-contract.md) | `GET·POST /operator/events/{eventId}/notices`, `GET·PATCH·DELETE …/notices/{noticeId}`, `POST …/notices/{noticeId}/publish·archive·unarchive`, `GET /participant/notices`, `GET /participant/notices/{noticeId}` |
 | 내 조(조원·조장이 보는 범위) | DEC-083 | [participant-group-contract](../../docs/architecture/participant-group-contract.md) | `GET /participant/group`의 새 응답(지금 응답은 위 [조 편성](#get-apiv1participantgroup)), `GET /participant/group/members/{participantId}`, `GET·PUT /operator/events/{eventId}/participant-settings` |
 
 ## 결정 문서와 다른 점
