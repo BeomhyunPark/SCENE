@@ -45,8 +45,12 @@ export function participantHomeHandlers(overrides: Parameters<typeof homeBody>[0
   return [
     http.get("/api/v1/participant/home", () => HttpResponse.json(homeBody(overrides))),
     http.get("/api/v1/participant/updates", () => HttpResponse.json(UPDATES)),
+    EMPTY_NOTICES,
   ];
 }
+
+/** No notices: the 최신 공지 card and 공지 tab read this (D4). */
+export const EMPTY_NOTICES = http.get("/api/v1/participant/notices", () => HttpResponse.json({ items: [], nextBefore: null }));
 
 /** Quiet answers for every card, for tests about something else (sign-in, apply). */
 export function participantCardHandlers() {
