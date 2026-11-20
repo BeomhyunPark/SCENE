@@ -88,7 +88,12 @@ class ParticipantSessionHttpIT {
     JsonNode created = json.readTree(submitted.getResponse().getContentAsString());
     assertThat(created.propertyNames())
         .containsExactly(
-            "applicationId", "participantId", "revision", "revised", "completionNotice");
+            "applicationId",
+            "participantId",
+            "revision",
+            "revised",
+            "completionNotice",
+            "restored");
     assertThat(created.get("revision").asInt()).isEqualTo(1);
     assertThat(created.get("revised").asBoolean()).isFalse();
     assertThat(submitted.getResponse().getContentAsString()).doesNotContain(PIN);
@@ -398,6 +403,42 @@ class ParticipantSessionHttpIT {
                 Boolean.class,
                 person.participantId))
         .isFalse();
+  }
+
+  /** DEC-079 Follow-up 2026-11-20: MANAGER holds PARTICIPANT_WRITE by default. */
+  @Test
+  void managerResetsByDefault() throws Exception {
+    Held event = openEvent("Manager reset owner");
+    Opened form = acceptingForm(event);
+    Submitted person = submit(form, "남", "010-8383-1313");
+    UUID managerId = UUID.randomUUID();
+    jdbc.update("INSERT INTO users (id, display_name) VALUES (?, ?)", managerId, "Manager");
+    jdbc.update(
+        "INSERT INTO members (space_id, user_id, role) VALUES (?, ?, 'MEMBER')",
+        event.spaceId,
+        managerId);
+    jdbc.update(
+        "INSERT INTO event_users (space_id, event_id, user_id, role) VALUES (?, ?, ?, 'MANAGER')",
+        event.spaceId,
+        form.eventId,
+        managerId);
+    mvc.perform(
+            write(
+                post(
+                    "/api/v1/operator/events/"
+                        + form.eventId
+                        + "/participants/"
+                        + person.participantId
+                        + "/pin-reset"),
+                login(managerId),
+                "{}"))
+        .andExpect(status().isOk());
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT pin_temporary FROM participants WHERE id = ?",
+                Boolean.class,
+                person.participantId))
+        .isTrue();
   }
 
   @Test

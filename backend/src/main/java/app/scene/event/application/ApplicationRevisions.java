@@ -28,7 +28,9 @@ import tools.jackson.databind.node.ObjectNode;
  * SUBMITTED} application row with {@code revision} + 1; the previous row becomes {@code
  * SUPERSEDED}. Answers of hidden questions are carried over because the participant cannot see
  * them. The operator memo moves to the new row (DEC-075). Group assignments and check-ins hang on
- * the participant and stay. When nothing changed, no row is written.
+ * the participant and stay. When nothing changed, no row is written. The current row is normally
+ * {@code SUBMITTED}; a withdrawn participant who applies again revises the {@code WITHDRAWN} row
+ * (DEC-084 §5), which then becomes {@code SUPERSEDED} too.
  */
 @Component
 public class ApplicationRevisions {
@@ -75,6 +77,21 @@ public class ApplicationRevisions {
       throw new SceneException(ErrorCode.RESOURCE_NOT_FOUND);
     }
     return current;
+  }
+
+  /**
+   * Locks the participant and returns the latest revision, whatever its status (DEC-084: a
+   * withdrawn participant's latest revision is {@code WITHDRAWN}). Null when there is none.
+   */
+  @Transactional
+  public ApplicationRevisionRow lockLatest(UUID spaceId, UUID eventId, UUID participantId) {
+    revisions.lockParticipant(spaceId, eventId, participantId);
+    return revisions.findLatest(spaceId, eventId, participantId);
+  }
+
+  /** The participant's latest revision, whatever its status, or null. */
+  public ApplicationRevisionRow findLatest(UUID spaceId, UUID eventId, UUID participantId) {
+    return revisions.findLatest(spaceId, eventId, participantId);
   }
 
   public ApplicationRevisionRow findCurrent(UUID spaceId, UUID eventId, UUID participantId) {
@@ -143,7 +160,7 @@ public class ApplicationRevisions {
       return new Result(current.applicationId(), current.formId(), current.revision(), false);
     }
     Instant now = clock.instant();
-    if (revisions.supersede(spaceId, eventId, current.applicationId()) != 1) {
+    if (revisions.supersede(spaceId, eventId, current.applicationId(), current.status()) != 1) {
       throw new SceneException(
           ErrorCode.CONCURRENT_MODIFICATION, Map.of("revision", current.revision()));
     }

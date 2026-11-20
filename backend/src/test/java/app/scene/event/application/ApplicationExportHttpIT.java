@@ -200,16 +200,16 @@ class ApplicationExportHttpIT {
     Form form = seedForm(event);
     application(
         event, form, "SUBMITTED", FIRST, form.answers("{\"text\":\"김\"}", "{\"text\":\"010\"}"));
-    UUID managerId = user("Manager");
-    member(event.spaceId, managerId, "MEMBER");
-    operator(event.spaceId, event.eventId, managerId, "MANAGER");
+    UUID plainStaffId = user("Plain staff");
+    member(event.spaceId, plainStaffId, "MEMBER");
+    operator(event.spaceId, event.eventId, plainStaffId, "STAFF");
     UUID adminId = user("Space admin");
     member(event.spaceId, adminId, "ADMIN");
     UUID spaceOwnerId = user("Space owner");
     member(event.spaceId, spaceOwnerId, "OWNER");
     int audits = auditCount(event.eventId);
 
-    problem(download(login(managerId), event.eventId, "req-manager"), 403, "FORBIDDEN");
+    problem(download(login(plainStaffId), event.eventId, "req-plain-staff"), 403, "FORBIDDEN");
     problem(download(login(adminId), event.eventId, "req-admin"), 403, "FORBIDDEN");
     problem(download(login(spaceOwnerId), event.eventId, "req-space-owner"), 403, "FORBIDDEN");
     assertThat(auditCount(event.eventId)).isEqualTo(audits);
@@ -228,6 +228,28 @@ class ApplicationExportHttpIT {
         event.eventId,
         staffId);
     problem(download(login(staffId), event.eventId, "req-staff-revoked"), 403, "FORBIDDEN");
+    assertThat(auditCount(event.eventId)).isEqualTo(audits + 1);
+  }
+
+  /** DEC-079 Follow-up 2026-11-20: MANAGER downloads by default and a personal REVOKE stops it. */
+  @Test
+  void managerDownloadsByDefaultAndARevokeStopsIt() throws Exception {
+    Held event = openEvent("Manager export owner");
+    Form form = seedForm(event);
+    application(
+        event, form, "SUBMITTED", FIRST, form.answers("{\"text\":\"김\"}", "{\"text\":\"010\"}"));
+    UUID managerId = user("Manager");
+    member(event.spaceId, managerId, "MEMBER");
+    operator(event.spaceId, event.eventId, managerId, "MANAGER");
+    int audits = auditCount(event.eventId);
+
+    MockHttpServletResponse downloaded = download(login(managerId), event.eventId, "req-manager");
+    assertThat(downloaded.getStatus()).isEqualTo(200);
+    assertThat(parse(csv(downloaded))).hasSize(2);
+    assertThat(auditActor(event.eventId)).isEqualTo(managerId);
+
+    effect(event, managerId, "DATA_EXPORT", "REVOKE");
+    problem(download(login(managerId), event.eventId, "req-manager-revoked"), 403, "FORBIDDEN");
     assertThat(auditCount(event.eventId)).isEqualTo(audits + 1);
   }
 

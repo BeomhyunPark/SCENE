@@ -130,7 +130,7 @@ class ParticipantCheckInHttpIT {
   }
 
   @Test
-  void eventStateAndWithdrawalDecideTheStatusAndHideTheValue() throws Exception {
+  void eventStateDecidesTheStatusAndAWithdrawnSessionIsUnauthenticated() throws Exception {
     World w = world();
     Held p = w.participant(NAME, PHONE);
     Held withdrawn = w.participant("철회한 사람", "010-2222-3333");
@@ -138,20 +138,18 @@ class ParticipantCheckInHttpIT {
         "UPDATE applications SET status = 'WITHDRAWN' WHERE participant_id = ?",
         withdrawn.participantId);
 
-    assertStatus(withdrawn.session, "NOT_ELIGIBLE", false);
+    // DEC-084 §4: a session counts only while the participant has a SUBMITTED application.
+    unauthenticated(get(PATH).cookie(withdrawn.session));
     assertStatus(p.session, "AVAILABLE", false);
     qr(w, json.readTree(read(p.session)).get("code").asString(), "qr-state");
     assertStatus(p.session, "AVAILABLE", true);
 
     lifecycle(w.eventId, "DRAFT");
     assertStatus(p.session, "NOT_STARTED", true);
-    assertStatus(withdrawn.session, "NOT_STARTED", false);
     lifecycle(w.eventId, "ENDED");
     assertStatus(p.session, "ENDED", true);
-    assertStatus(withdrawn.session, "ENDED", false);
     lifecycle(w.eventId, "ARCHIVED");
     assertStatus(p.session, "ENDED", true);
-    assertStatus(withdrawn.session, "ENDED", false);
   }
 
   @Test

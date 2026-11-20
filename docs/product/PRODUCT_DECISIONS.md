@@ -778,6 +778,7 @@ Operational Structure Research와 Product Definition Gate를 거치며 확정 �
 - (2026-10-02 보강) 부여·회수는 Event Owner만 한다. OWNER 권한은 override하지 않고, Owner 위임·행사 삭제 요청·개인정보 정리·권한 관리 등 OWNER 전용 권한은 다른 운영자(행사 전용 협력자 포함)에게 부여하지 않는다. role 변경과 운영자 제거 시 해당 운영자의 override는 사라진다. 서버가 모든 요청에서 effective 집합으로 판정하고 변경마다 audit을 남긴다.
 - (2026-10-02 보강, 현 결정 10/2) 운영자 추가·제거·role 변경과 개인별 권한 변경은 Event Owner만 한다. 개인별 권한 조회는 Event Owner·본인·Space OWNER(조회만)만 하고 Space ADMIN은 할 수 없다. 행사 전용 협력자의 연락처 숨김(DEC-060)은 어떤 GRANT로도 풀리지 않는다. Owner 위임 수락 시 받는 사람의 override는 위임 기록에 저장 후 지우고 취소 시 되살린다. ENDED에서는 권한 변경을 허용하고 ARCHIVED에서는 줄이는 변경만 허용한다(#30 L5).
 - (2026-11-19 → [DEC-079](#dec-079--역할-기본-권한은-manager가-일정공지-쓰기까지-staff는-체크인까지이고-나머지는-행사-owner가-운영-멤버-화면에서-사람별로-준다)) MANAGER·STAFF 기본 집합과 권한 설정 화면을 정했다.
+- (2026-11-20 → [DEC-079 Follow-up 2026-11-20](#follow-up-2026-11-20-manager는-owner-전용-둘만-빼고-전부를-기본으로-갖는다-i2)) MANAGER는 OWNER 전용 키(`EVENT_LIFECYCLE`·`EVENT_USER_MANAGE`)만 빼고 모든 키를 기본으로 갖는다. 사람별 권한은 STAFF에게 더하거나 MANAGER에게서 빼는 예외 처리로 남는다.
 - (2026-10-02 보강) 위 OPEN 중 저장 구조·부여자·회수 방식은 해소했다. MANAGER/STAFF 기본 집합은 Backend Lead가 초안을 쓰고 현이 승인한다(현 결정 10/2). 미확정, 백엔드 리드 초안 대기. 예외로 `TASK_WRITE` 기본값은 DEC-062에서 확정한다. OWNER·MANAGER 포함, STAFF 미포함. 업무별 정확한 허용 집합(Permission 키 목록 초안)도 계속 확인이 필요하다. 테이블은 Flyway V1 초기 스키마에 포함하며(SCENE Backend Lead) 상세 계약은 아키텍처 문서의 2026-10-02 절에 둔다.
 
 ### Evidence
@@ -1627,6 +1628,10 @@ Export·보존·삭제·복구를 검토했다.
 - 값을 보낸 응답마다 표와 같은 audit `APPLICANT_CONTACTS_VIEWED`를 남긴다. detail은 `{count: 1, applicationId}`다. 한 건 조회라 대상 신청을 남기고, 번호·이름은 남기지 않는다(security-privacy §6). privacy log `CONTACT_VIEW`가 생기면 표와 함께 옮긴다.
 - 다른 읽기 경로를 훑었다. 신청 목록(이름만), 집계의 카풀·이동 지원 목록(이름·또래·동네), 조 편성판·공개 스냅샷·참가자 조 조회(전화 없음)에는 전화가 없다. 체크인 명단의 끝 4자리(DEC-071, `CHECKIN_WRITE`)와 CSV(`DATA_EXPORT`)는 바꾸지 않는다.
 
+### Follow-up (2026-11-20): MANAGER는 기본으로 명단을 내려받고 연락처를 본다 (I2)
+
+사용자 결정(2026-11-20, [DEC-079 Follow-up 2026-11-20](#follow-up-2026-11-20-manager는-owner-전용-둘만-빼고-전부를-기본으로-갖는다-i2)). `DATA_EXPORT`와 `PARTICIPANT_CONTACT_READ`가 MANAGER 기본값에 들어간다. 위 두 Follow-up의 "행사 OWNER는 기본으로 갖고, 다른 운영자는 개인별 GRANT로 받는다"는 이제 "행사 OWNER와 MANAGER는 기본으로 갖고, STAFF는 개인별 GRANT로 받는다"로 읽는다. 반출 권한이 조회와 별개라는 원칙, 내려받을 때마다 남기는 audit, 연락처를 보낸 응답마다 남기는 `APPLICANT_CONTACTS_VIEWED`는 그대로다. 특정 MANAGER에게서 빼려면 OWNER가 개별 `REVOKE`를 건다. STAFF 기본값에는 넣지 않는다.
+
 ---
 
 ## DEC-055 — Export 생성과 다운로드를 구분하고 반출 범위를 기록한다
@@ -2172,12 +2177,12 @@ AI 없이 출시하는 안은 시장 기대에 맞지 않아 채택하지 않았
 slice (d)를 연다. 위 Decision의 "회고는 draft 전용, 저장 API는 아직 만들지 않는다"는 이 Follow-up으로 대체한다.
 
 - 행사당 회고 글 하나를 서버에 저장한다. `GET`·`PUT /api/v1/operator/events/{eventId}/retrospective`. 응답은 `{ text, version, updatedAt, updatedByDisplayName }`다.
-- 쓰기는 effective `EVENT_UPDATE`(행사 OWNER 기본, 개인별 GRANT 가능)다. 읽기는 effective `EVENT_READ` 또는 활성 공간 `OWNER`·`ADMIN`이다. 회고 전용 권한 키는 만들지 않는다.
+- 쓰기는 effective `EVENT_UPDATE`(행사 OWNER 기본, 개인별 GRANT 가능)다. (2026-11-20 → [DEC-079 Follow-up 2026-11-20](#follow-up-2026-11-20-manager는-owner-전용-둘만-빼고-전부를-기본으로-갖는다-i2): MANAGER도 기본으로 쓴다.) 읽기는 effective `EVENT_READ` 또는 활성 공간 `OWNER`·`ADMIN`이다. 회고 전용 권한 키는 만들지 않는다.
 - 쓰기는 `ENDED`에서만 한다(DEC-051). `ARCHIVED`는 `409 EVENT_ARCHIVED`, `DRAFT`·`ACTIVE`는 `409 INVALID_STATE_TRANSITION`이다. 읽기는 모든 상태에서 된다.
 - `PUT`은 `{ text, expectedVersion }`를 받고 저장된 version과 다르면 `409 CONCURRENT_MODIFICATION`이다. `text`는 0~10,000자(잠정)다.
 - 아직 없는 회고는 `200 { text: "", version: 0, updatedAt: null, updatedByDisplayName: null }`이다.
 - 저장마다 audit `EVENT_RETROSPECTIVE_UPDATED`를 남기고 details에는 새 version만 둔다. 본문은 audit·로그·오류 응답에 넣지 않는다.
-- 버린 안: OWNER만 쓰기(GRANT로 넓힐 수 없음), MANAGER 기본 쓰기(RoleDefaults 변경), `ACTIVE`에서도 쓰기(DEC-051 범위 확대), 운영자별 여러 글·섹션 구조, 없는 회고 `404`, audit 없음.
+- 버린 안: OWNER만 쓰기(GRANT로 넓힐 수 없음), MANAGER 기본 쓰기(RoleDefaults 변경 — 2026-11-20 [DEC-079 Follow-up 2026-11-20](#follow-up-2026-11-20-manager는-owner-전용-둘만-빼고-전부를-기본으로-갖는다-i2)에서 채택), `ACTIVE`에서도 쓰기(DEC-051 범위 확대), 운영자별 여러 글·섹션 구조, 없는 회고 `404`, audit 없음.
 
 현 결정 2026-11-16.
 
@@ -2625,6 +2630,7 @@ SYSTEM 이름·전화는 제목만 고칠 수 있었고 늘 맨 앞에 고정이
 5. **철회자는 읽을 때 뺀다.** `SUBMITTED` 신청이 없는 참가자는 편성판의 활성 명단·미배정 수, 공개본 조회, 조장 명단에서 빠진다(DEC-044). 편성판은 "철회됨 · 이전 조"를 참고로 따로 보여 준다. 신청 철회 경로를 열 때는 그 transaction에서 배정을 지우고 이력에 남겨, 복귀할 때 옛 조가 자동으로 돌아오지 않게 한다.
 6. 🔒 **참가자에게 보이는 범위.** 일반 참가자는 내 조 이름, 조장 이름, 공개 시각만 본다. 조원 명단은 보지 않는다. 조장은 여기에 자기 조원의 이름·또래를 더 본다. 조장의 조원 연락처(DEC-030)는 1차에 보여 주지 않는다. 참가자 상태는 `NOT_PUBLISHED`(준비 중)·`UNASSIGNED`(공개됐지만 미배정)·`ASSIGNED`·`NOT_ELIGIBLE`(신청 없음)이다.
 7. 🔒 **편성과 공개 모두 `GROUP_WRITE`이고, 기본값은 OWNER만이다.** 공개 전용 키는 만들지 않는다. MANAGER·STAFF 기본값에 `GROUP_WRITE`를 넣지 않고, OWNER가 편성 담당에게 개별로 GRANT한다. 작업본 조회는 `GROUP_WRITE` 또는 활성 공간 `OWNER`·`ADMIN`이다. 공개본 조회(운영자)는 `EVENT_READ`다.
+   - (2026-11-20 → [DEC-079 Follow-up 2026-11-20](#follow-up-2026-11-20-manager는-owner-전용-둘만-빼고-전부를-기본으로-갖는다-i2)) 기본값이 OWNER·MANAGER로 바뀌었다(사용자 결정). STAFF는 그대로 개별 GRANT로 받고, MANAGER에게서 막으려면 개별 `REVOKE`한다. 키 하나로 편성·공개를 함께 여는 규칙은 그대로다.
 8. **행사 상태별 동작.**
 
 | 상태 | 편성판·공개본 조회 | 편집·공개 | 참가자 내 조 |
@@ -2658,7 +2664,7 @@ SYSTEM 이름·전화는 제목만 고칠 수 있었고 늘 맨 앞에 고정이
 - 일반 참가자에게 조원 이름 공개: DEC-043은 다른 사람 정보를 자동으로 주지 않는다. 범위는 나중에 넓히기 쉽고 줄이기 어렵다.
 - 조장에게 조원 연락처(DEC-030 그대로): 참가자 링크가 새면 조원 연락처가 같이 새고, 참가자 세션의 연락처 조회 기록이 아직 없다. 연락처는 운영자가 전달한다([#233](https://github.com/BeomhyunPark/SCENE/issues/233)).
 - 공개 전용 키(`GROUP_PUBLISH`): 편성하는 사람이 보통 공개한다. 확인 창과 미배정 경고가 안전장치다. 나중에 키를 나눌 수 있다.
-- MANAGER 기본 `GROUP_WRITE`: 편성은 보통 1–2명이 맡는다. 체크인(STAFF 전원)과 달리 넓게 줄 이유가 없다.
+- ~~MANAGER 기본 `GROUP_WRITE`: 편성은 보통 1–2명이 맡는다. 체크인(STAFF 전원)과 달리 넓게 줄 이유가 없다.~~ → [DEC-079 Follow-up 2026-11-20](#follow-up-2026-11-20-manager는-owner-전용-둘만-빼고-전부를-기본으로-갖는다-i2)에서 채택했다(운영팀이 서로 아는 몇 명이라 사람마다 켜는 일이 번거롭다).
 - DRAFT에서 편성 막기: 신청을 행사 시작 전에 받으므로 행사 전에 편성·공개해야 한다.
 
 ### Reason
@@ -2840,7 +2846,7 @@ DEC-070은 부분·집회만 참석자가 `MEALS`에서 식사·집회 칸을 �
 
 1. **원본은 바꾸지 않는다.** 참가자가 낸 답(`answers`)은 그대로 두고, 운영 값은 새 테이블 `application_operations`(신청당 한 행, `space_id`·`event_id` 테넌트 키, `version`, `updated_by`·`updated_at`)에 따로 저장한다. 읽는 쪽은 "운영 값이 있으면 운영 값, 없으면 원본"을 쓴다. **뒤집기 어렵다: 데이터 모양.**
 2. **1차는 운영 메모 하나다.** 신청마다 글 하나, 0~2,000자(잠정), `expectedVersion`으로 동시 수정을 막는다(회고 저장 DEC-067 Follow-up과 같은 방식). `PUT …/applications/{applicationId}/operation`. 신청 상세와 참가 현황 표가 `operation`으로 함께 준다. 표의 열·거르기는 화면이 한다.
-3. **권한.** 쓰기는 effective `PARTICIPANT_WRITE`(행사 OWNER 기본, 다른 운영자는 개인별 GRANT). **역할 기본값(RoleDefaults)은 바꾸지 않는다** — 바꾸면 배포 즉시 모든 기존 행사에 적용된다. 읽기는 신청 상세·표를 읽을 수 있는 사람(`EVENT_READ` 또는 활성 공간 `OWNER`·`ADMIN`)이다. 현장 STAFF도 예외 메모를 봐야 해서 연락처 권한으로 좁히지 않는다. 참가자 경로와 CSV에는 나가지 않는다.
+3. **권한.** 쓰기는 effective `PARTICIPANT_WRITE`(행사 OWNER 기본, 다른 운영자는 개인별 GRANT). **역할 기본값(RoleDefaults)은 바꾸지 않는다** — 바꾸면 배포 즉시 모든 기존 행사에 적용된다. (2026-11-20 → [DEC-079 Follow-up 2026-11-20](#follow-up-2026-11-20-manager는-owner-전용-둘만-빼고-전부를-기본으로-갖는다-i2): 사용자가 이 경고를 알고 MANAGER 기본값에 `PARTICIPANT_WRITE`를 넣었다. STAFF는 그대로 개별 GRANT다.) 읽기는 신청 상세·표를 읽을 수 있는 사람(`EVENT_READ` 또는 활성 공간 `OWNER`·`ADMIN`)이다. 현장 STAFF도 예외 메모를 봐야 해서 연락처 권한으로 좁히지 않는다. 참가자 경로와 CSV에는 나가지 않는다.
 4. **행사 상태.** `DRAFT`·`ACTIVE`·`ENDED`에서 쓴다(ENDED는 기록 정정, DEC-051). `ARCHIVED`는 `409 EVENT_ARCHIVED`. `SUBMITTED`가 아닌 신청은 `409 INVALID_STATE_TRANSITION`.
 5. **이력.** 저장마다 audit `APPLICATION_OPERATION_UPDATED`(`applicationId`·`version`·`fields`)를 남긴다. 메모에는 개인정보가 들어갈 수 있어 본문은 audit·로그·오류 응답에 넣지 않는다.
 6. **조 배정**은 서버에 새 쓰기를 만들지 않는다. 서랍은 기존 `POST …/group-assignments`(DEC-072)를 부른다. 이를 위해 참가 현황 표 행에 `participantId`를 더한다.
@@ -2854,7 +2860,7 @@ DEC-070은 부분·집회만 참석자가 `MEALS`에서 식사·집회 칸을 �
 
 ### Alternatives
 
-메모 여러 개(스레드), MANAGER 기본 쓰기(RoleDefaults 변경), 메모 전용 권한 키, 메모 읽기를 연락처 권한으로 제한, 원본 답을 직접 고치기, 1차에 참석 범위까지 넣기를 버렸다.
+메모 여러 개(스레드), MANAGER 기본 쓰기(RoleDefaults 변경 — 2026-11-20 [DEC-079 Follow-up 2026-11-20](#follow-up-2026-11-20-manager는-owner-전용-둘만-빼고-전부를-기본으로-갖는다-i2)에서 채택), 메모 전용 권한 키, 메모 읽기를 연락처 권한으로 제한, 원본 답을 직접 고치기, 1차에 참석 범위까지 넣기를 버렸다.
 
 ---
 
@@ -2991,7 +2997,7 @@ DEC-064는 참가자가 신청 완료 화면에 한 번 나오는 링크(fragmen
 - 추측 방지는 전화번호별 잠금이 맡는다. 잠금을 5분 하나로만 두면 번호 하나에 하루 1,440번이고, 이름·전화번호 명단을 가진 사람이 200명을 돌리면 하루 약 4%, 60일이면 누군가는 뚫린다. 그래서 단계적으로 늘린다(5분 → 30분 → 24시간): 번호 하나에 하루 약 15번, 200명 전체로도 하루 0.3% 수준이다. IP 한도 300번/10분은 여러 번호를 한꺼번에 노리는 시도를 하루 약 4만 번으로 묶는 남용 방지선이다.
 - **잠금은 남을 괴롭히는 수단이 될 수 있다**(남의 전화번호로 일부러 틀리기). 첫 잠금은 5분이라 잊어버린 정상 사용자는 잠깐만 기다리면 되고, 더 길어진 잠금은 운영자 초기화로 바로 풀린다. 쿠키가 세션 끝까지 남으므로(§3) 잠금은 새로 들어오는 시도만 막고, 이미 들어와 있는 사람은 영향이 없다. 반복해서 잠그는 사람이 있으면 운영자가 초기화로 풀고, 서버 로그(IP)와 Cloudflare 이벤트로 찾는다.
 
-한계: 시도 횟수·잠금·단계는 서버 메모리에만 있어 배포·재시작 때 사라진다. 숫자는 설정 `scene.participant.*`(`lock-durations`, `lock-escalation-window` 포함)이고 홈서버 `.env`의 `SCENE_PARTICIPANT_*`로 바꾼다. 수련회 당일은 코드 배포를 동결하므로, 와이파이에서 정상 사용자가 `429`를 보면 설정만 올리고 백엔드를 다시 띄운다(카운터·잠금도 풀린다).
+한계: 시도 횟수·잠금·단계는 서버 메모리에만 있어 배포·재시작 때 사라진다. 남길 것이 없어진 항목(잠금이 끝나고 마지막 잠금·실패가 24시간 지난 번호, 창이 지난 IP)은 재시작 없이도 지운다(아래 Follow-up, #418). 숫자는 설정 `scene.participant.*`(`lock-durations`, `lock-escalation-window` 포함)이고 홈서버 `.env`의 `SCENE_PARTICIPANT_*`로 바꾼다. 수련회 당일은 코드 배포를 동결하므로, 와이파이에서 정상 사용자가 `429`를 보면 설정만 올리고 백엔드를 다시 띄운다(카운터·잠금도 풀린다).
 
 시도 횟수와 잠금은 프로세스 메모리에 둔다(`common/ratelimit`, #393에서 초대용으로는 지운 제한기를 이 용도로 다시 둔다). 서버가 다시 뜨면 0부터 센다. 숫자는 잠정이며 설정으로 바꾼다.
 
@@ -3045,6 +3051,15 @@ DEC-064는 참가자가 신청 완료 화면에 한 번 나오는 링크(fragmen
 
 사용자 결정 2026-11-19(로드맵 6.1절 결정 2·6·9·10, 6.3절). [#378](https://github.com/BeomhyunPark/SCENE/issues/378), [#397](https://github.com/BeomhyunPark/SCENE/issues/397).
 
+### Follow-up (2026-11-20, #418)
+
+잠금·시도 기록은 남길 것이 없어지면 메모리에서 지운다. 재시작하면 사라진다는 성질과 잠금 규칙(연속 5번, 24시간 안 5분·30분·24시간, 맞히거나 초기화하면 처음으로)은 그대로다.
+
+- 전화번호 항목은 잠금이 끝났고, 마지막 잠금이 24시간(`lock-escalation-window`)보다 오래됐고, 마지막 실패도 24시간보다 오래됐을 때 지운다. 잠금 중이거나 단계 기록이 남은 항목은 지우지 않으므로 단계가 처음으로 돌아가지 않는다.
+- 하나 달라지는 점: 잠금까지 가지 않은 실패(1~4번)는 24시간 동안 실패가 없으면 세지 않는다. 그 사이 시도는 4번 이하라 단계 잠금이 허용하는 하루 약 15번보다 적고, 추측 방지는 약해지지 않는다.
+- IP 항목(들어오기 실패, 공개 신청)도 마지막 기록이 창(10분)을 지나면 지운다. 그때는 이미 0으로 세므로 한도는 달라지지 않는다.
+- 지우기는 실패·IP 기록 요청 안에서 1분에 한 번 맵을 훑는다(20만 항목에 수 ms). 항목 수 상한은 두지 않는다. 상한을 넘을 때 오래된 항목을 밀어내면 남의 번호를 공격자가 밀어내 잠금 단계를 되돌릴 수 있고, 새 항목을 거절하면 정상 사용자가 막힌다. IP 한도 때문에 한 IP가 남기는 항목은 하루 4만 남짓(약 13 MB)이고 24시간 뒤 지워지므로 메모리는 늘어나기만 하지 않는다.
+
 ### Follow-up (2026-11-20, #427)
 
 A5 화면(내 정보 탭)을 만들었다. 낸 답 보기, 수정이 열려 있을 때 고치기(`expectedRevision`), 전화번호는 읽기만, `409 EDITS_CLOSED`(읽기 전용으로 돌아감)·`409 CONCURRENT_MODIFICATION`(새 revision을 다시 읽어 그 값에서 다시 고치게)·`400`·`404`(신청 없음)를 처리한다. 숫자 6자리 바꾸기와 로그아웃도 이 탭에 있다. 질문 입력·조건부 표시·검사는 신청 화면과 같은 부품(`useAnswerDraft`)을 쓴다.
@@ -3070,10 +3085,10 @@ DEC-029는 운영자마다 권한을 달리 준다고 정했고, 2026-10-02 보�
    | 행사 역할 | 기본 권한 |
    | --- | --- |
    | `OWNER` | 등록된 행사 키 전부(바뀌지 않음) |
-   | `MANAGER` | `EVENT_READ`, `TASK_WRITE`(DEC-062), `CHECKIN_WRITE`(DEC-071), **`SCHEDULE_WRITE`, `NOTICE_WRITE`**(이번에 더함) |
+   | `MANAGER` | ~~`EVENT_READ`, `TASK_WRITE`(DEC-062), `CHECKIN_WRITE`(DEC-071), **`SCHEDULE_WRITE`, `NOTICE_WRITE`**(이번에 더함)~~ → 등록된 행사 키 전부에서 OWNER 전용 키(`EVENT_LIFECYCLE`·`EVENT_USER_MANAGE`)만 뺀 것(아래 Follow-up 2026-11-20) |
    | `STAFF` | `EVENT_READ`, `CHECKIN_WRITE`(DEC-071) |
 
-   그 밖의 키(조 편성, 참가자 정보 수정, 연락처 보기, 명단 내려받기, 숙소 배정, 신청서·행사 정보 고치기 등)는 기본으로 주지 않는다. 행사 OWNER가 사람별 `GRANT`로 준다.
+   ~~그 밖의 키(조 편성, 참가자 정보 수정, 연락처 보기, 명단 내려받기, 숙소 배정, 신청서·행사 정보 고치기 등)는 기본으로 주지 않는다. 행사 OWNER가 사람별 `GRANT`로 준다.~~ → Follow-up 2026-11-20: 그 밖의 키는 MANAGER가 기본으로 갖고, STAFF에게는 행사 OWNER가 사람별 `GRANT`로 준다.
 2. **바로 적용된다.** 기본값은 저장하지 않고 요청마다 계산한다(DEC-075가 경고한 성질). 배포하는 순간 **모든 행사의 기존 MANAGER**가 `SCHEDULE_WRITE`·`NOTICE_WRITE`를 갖는다. 일정·공지 API는 아직 없으므로(로드맵 트랙 C·D) 지금 열리는 쓰기 경로는 없다. 그 API가 열리면 기존 MANAGER가 바로 쓴다. 이 둘을 이미 개별 `GRANT`로 받은 MANAGER의 행은 그대로 남지만 결과는 같다. 다음 저장 때 서버가 기본값과 겹치는 `GRANT`를 정리한다(`normalize`). 특정 MANAGER에게 막으려면 OWNER가 개별로 뺀다(`REVOKE`).
 3. **권한 화면.** 행사 OWNER는 운영 멤버 화면의 운영자 행에서 "권한"을 눌러 그 사람의 권한을 켜고 끈다. 수련회에 쓰는 키만 사람이 읽는 말로 묶어 보인다.
 
@@ -3107,7 +3122,7 @@ DEC-029는 운영자마다 권한을 달리 준다고 정했고, 2026-10-02 보�
 ### Alternatives
 
 - STAFF에도 조 편성 기본: 조 편성은 작업본을 바꾸는 일이라 담당만 하도록 개인별로 둔다.
-- MANAGER에 연락처·CSV 기본: 반출·개인정보 범위가 모든 기존 행사에서 바로 넓어져(DEC-054, DEC-075 경고) 채택하지 않았다.
+- ~~MANAGER에 연락처·CSV 기본: 반출·개인정보 범위가 모든 기존 행사에서 바로 넓어져(DEC-054, DEC-075 경고) 채택하지 않았다.~~ → 아래 Follow-up 2026-11-20에서 사용자가 이 영향을 알고 채택했다.
 - 권한 키를 모두 보이기: 아직 기능이 없는 키(회비·차량 등)가 섞여 판단이 어렵다. 쓰는 키만 보이고 나머지는 보존한다.
 
 ### Reason
@@ -3121,6 +3136,24 @@ DEC-029는 운영자마다 권한을 달리 준다고 정했고, 2026-10-02 보�
 ### Evidence
 
 사용자 결정 2026-11-19(로드맵 결정 7, [#385](https://github.com/BeomhyunPark/SCENE/issues/385)). 근거 결정은 DEC-029, DEC-031, DEC-054, DEC-062, DEC-071, DEC-072, DEC-075다.
+
+### Follow-up (2026-11-20): MANAGER는 OWNER 전용 둘만 빼고 전부를 기본으로 갖는다 (I2)
+
+사용자 결정(2026-11-20): "운영자가 모든 권한을 가져야 편하다. MANAGER에게 전부 준다." 로드맵 트랙 I([#385](https://github.com/BeomhyunPark/SCENE/issues/385)) I2의 Follow-up이다. 위 Decision §1의 표와 "그 밖의 키는 기본으로 주지 않는다", Alternatives의 "MANAGER에 연락처·CSV 기본: 채택하지 않았다"를 바꾼다.
+
+| 행사 역할 | 기본 권한 |
+| --- | --- |
+| `OWNER` | 등록된 행사 키 전부(바뀌지 않음) |
+| `MANAGER` | **등록된 행사 키 전부에서 OWNER 전용 키(`EVENT_LIFECYCLE`, `EVENT_USER_MANAGE`)만 뺀 것** |
+| `STAFF` | `EVENT_READ`, `CHECKIN_WRITE`(바뀌지 않음) |
+
+- **이유.** 지금은 조 편성·참가자 수정·취소·연락처 보기·명단 내려받기를 OWNER 한 사람만 할 수 있고, 맡기려면 사람마다 권한 창에서 하나씩 켜야 한다. 교회 운영팀은 서로 아는 몇 명이라 이 구분이 번거롭기만 하다. 믿고 맡길 사람은 MANAGER로 넣으면 끝난다.
+- **MANAGER가 못 하는 것.** 행사 시작·종료(`EVENT_LIFECYCLE`)와 운영 멤버 추가·역할 변경·제거·권한 편집(`EVENT_USER_MANAGE`)이다. OWNER 전용 키는 `GRANT`해도 MANAGER에게 적용되지 않는다는 기존 규칙(`422 PERMISSION_OWNER_ONLY`)은 그대로다. Owner 넘기기도 그대로 OWNER만이다.
+- **STAFF**는 당일 접수 봉사자처럼 체크인만 하는 사람용으로 그대로 둔다. 사람별 권한 창(§3, #395)은 예외 처리용으로 남는다(예: STAFF 한 명에게 조 편성만 켜기, 특정 MANAGER에게서 명단 내려받기 빼기).
+- **계산값이다.** `RoleDefaults`는 MANAGER를 "전체 키 − OWNER 전용 키"로 계산한다. 기본값은 저장하지 않으므로 **배포 즉시 모든 행사의 기존 MANAGER에게 적용된다**(DEC-075가 경고한 성질을 알고 정했다). 앞으로 새 권한 키를 더하면 MANAGER가 자동으로 갖는다. OWNER 전용으로 둘 키라면 `Permission.ownerOnly()`에 함께 더한다.
+- **기존 override.** 개별 `REVOKE`가 걸려 있던 MANAGER는 그 `REVOKE`가 그대로 유지된다(그 키는 계속 못 한다). 개별 `GRANT`로 받아 둔 키는 이제 기본값과 겹친다. 행은 남지만 결과는 같고, 다음 저장 때 서버가 정리한다(`normalize`).
+- **바뀌는 다른 결정.** DEC-054(`DATA_EXPORT`·`PARTICIPANT_CONTACT_READ`가 MANAGER 기본, #308·#332의 연락처 열람 포함), DEC-072 §7(`GROUP_WRITE`), DEC-075 §3(`PARTICIPANT_WRITE`), DEC-080 결정 대기 1번(신청 변경 알림을 `PARTICIPANT_READ` 보유자가 받으므로 MANAGER도 기본으로 받는다). 각 자리에 메모를 달았다.
+- 새 권한 키, 새 ErrorCode, DB 변경은 없다. 확인은 [#385](https://github.com/BeomhyunPark/SCENE/issues/385)의 I2 하위 이슈다.
 
 ---
 
@@ -3154,7 +3187,7 @@ DEC-029는 운영자마다 권한을 달리 준다고 정했고, 2026-10-02 보�
 
 | # | 질문 | 선택지 | 추천안 | 영향 |
 |---|---|---|---|---|
-| 1 | 신청 수정·재신청·취소 알림을 누가 받나 | 유효한 `PARTICIPANT_READ` 보유자 / 행사 운영자 전원 / 행사 OWNER만 | `PARTICIPANT_READ` 보유자(#385 추천안). 1월 기본값으로는 OWNER이고 개인별 GRANT로 넓힌다 | 기본값만으로는 OWNER만 받는다. MANAGER도 받게 하려면 I2에서 MANAGER 기본값에 `PARTICIPANT_READ`를 넣거나 개별 GRANT한다 |
+| 1 | 신청 수정·재신청·취소 알림을 누가 받나 | 유효한 `PARTICIPANT_READ` 보유자 / 행사 운영자 전원 / 행사 OWNER만 | `PARTICIPANT_READ` 보유자(#385 추천안). 1월 기본값으로는 OWNER이고 개인별 GRANT로 넓힌다 | 기본값만으로는 OWNER만 받는다. MANAGER도 받게 하려면 I2에서 MANAGER 기본값에 `PARTICIPANT_READ`를 넣거나 개별 GRANT한다. (2026-11-20 → [DEC-079 Follow-up 2026-11-20](#follow-up-2026-11-20-manager는-owner-전용-둘만-빼고-전부를-기본으로-갖는다-i2): MANAGER 기본값에 `PARTICIPANT_READ`가 들어가 OWNER와 MANAGER가 기본으로 받는다. STAFF는 개별 GRANT로 받고, MANAGER도 개별 `REVOKE`하면 받지 않는다) |
 | 2 | 행사 유형 기본 영역 | 유형별 기본값 / 모든 행사에 다섯 영역 / 운영자가 켤 때까지 모두 끔 | 유형별 기본값(`RETREAT`·`CAMP`는 모두) | 수련회 행사는 공개 전에도 탭과 빈 카드가 보인다 |
 
 ### 범위 밖
@@ -3191,11 +3224,26 @@ DEC-029는 운영자마다 권한을 달리 준다고 정했고, 2026-10-02 보�
 
 사용자 결정 2026-11-19(로드맵 6.1 결정 5 "참가자가 화면 안에서 알림을 본다", 결정 9 "고치면 운영자에게 알림", 시간표 실시간 공개). 근거 자료는 로드맵(`docs/product/retreat-2027-roadmap.md`) 3절·트랙 B·I, #379, #385, DEC-011(참가자 경험), DEC-042·043, DEC-071(참가자 QR), DEC-072(공개본), api.md "체크인"·"조 편성"·"`operator_notices`", 마이그레이션 V1(`operator_notices`)·V12·V14.
 
+
+### Follow-up (2026-11-20, #423)
+
+B2 서버를 만들며 계약 초안과 다르게 정하거나 초안이 열어 둔 것을 정했다. 계약은 [api.md "참가자 홈·갱신 확인·알림"](../../backend/docs/api.md#참가자-홈갱신-확인알림)으로 옮겼다.
+
+1. **완료 안내는 `completionNotice` 문자열(또는 `null`)이다.** 초안 §3의 `completionMessage: { text, updatedAt }`가 아니다. `forms.completion_notice`는 `text` 열 하나이고 수정 시각 열이 없으며, 행사당 신청서는 하나다(`forms_one_per_event`). 이미 구현·화면에서 쓰는 #413(A8) 모양을 따른다. 바뀌면 `updates.home`이 오른다.
+2. **`applicationStatus: NONE`은 지금 `SUBMITTED` 신청이 없다는 뜻이다.** 신청 취소(A7)가 세션을 끊으면 `401`이 먼저다. 끊지 않아도 취소된 사람은 활성 참가자가 아니므로 `ALL`·`LEADERS` 대상 항목을 보지 못하고 받는 사람에서도 빠진다(`ParticipantAudience`는 `ALL`도 활성 참가자로 판정한다). 활성의 기준은 조 편성·체크인 명단과 같은 "`SUBMITTED` 신청이 있음"이라, A7이 상태를 `WITHDRAWN`으로 바꾸면 저절로 빠진다.
+3. **`features` 3번(공개본이 있으면 켬)은 `participant_feed_versions`의 값이 0보다 큰지로 본다.** 테이블마다 공개본을 세지 않는다. 일정·공지·숙소·식사가 값을 올리기만 하면 저절로 켜지고, `home` 요청이 영역 수만큼 늘지 않는다. 그래서 V20은 이미 조 편성 공개본이 있는 행사의 `groups`를 공개본 수로 채운다. 한계: 공지는 발행 뒤 보관해도 값이 0으로 돌아가지 않으므로 영역이 켜진 채로 남는다(초안의 "공개한 내용이 사라지지 않게"와 같은 방향).
+4. **`home`이 오르는 때는 지금 서버에서 이름 변경·상태 전이·완료 안내 저장이다.** 행사 기간·장소를 고치는 경로가 아직 없다(`PATCH`는 이름만). 그 경로를 만들 때 같은 `bump(…, HOME)`를 부른다. 같은 이름으로 다시 저장해도 오른다(화면이 한 번 더 읽을 뿐이다). `ALREADY_IN_STATE`는 오르지 않는다.
+5. **`updates` 한 요청은 SQL 네 문장이다**(세션 확인, `participant_feed_versions` 기본 키, 알림 요약 한 문장, 내 체크인 최대 `seq`·최대 신청 `revision` 한 문장). `application` 값은 그 참가자의 최대 `revision`이다.
+6. **`scene.participant.poll-after-seconds`가 10–300 밖이면 가까운 끝으로 맞춘다.** 배포 동결 중 `.env` 오타로 서버가 뜨지 못하는 것보다 낫다고 봤다.
+7. **읽음 처리 본문에 키가 없거나 둘 이상이면 필드 `body`다.** 다른 키나 잘못된 값은 그 키가 필드다.
+8. **알림 문구 길이:** 서버가 만드는 문구라 `title` 80자·`body` 200자를 넘으면 오류 대신 잘라 넣는다(긴 공지 제목이 발행을 실패시키지 않게). 같은 받는 사람·종류·대상에 두 공개가 같은 순간 겹치면 읽지 않은 행이 둘 남을 수 있다. 공개 경로는 행사 행을 잠그므로 실제로는 일어나지 않는다.
+9. **알림·갱신 값은 모두 DB에 있다.** 서버 메모리에 두는 상태가 없어 재시작으로 사라지는 것이 없다. 참가자 조회 경로에는 IP 제한을 두지 않았다(서버·nginx·Cloudflare 규칙 모두 참가자 GET을 세지 않는다).
+
 ### Follow-up (2026-11-20, #425)
 
-B3·B4 화면(하위 세션)을 만들며 계약과 다르게 하거나 덧붙인 점이다. 계약 문서는 B2 세션 몫이라 고치지 않았다.
+B3·B4 화면(하위 세션)을 만들며 정하거나 덧붙인 점이다. 경로 계약은 위 #423 Follow-up과 api.md를 따른다.
 
-- **완료 안내 모양:** 화면은 `completionNotice`(문자열, api.md A8)와 `completionMessage.text`(계약 초안)를 모두 읽는다(`api/participantHome.ts`의 `completionText` 한곳). B2가 하나로 정하면 그 함수만 줄인다.
+- **완료 안내 모양:** 위 #423 1번대로 `completionNotice` 문자열만 읽는다(`api/participantHome.ts`의 `completionText` 한곳).
 - **세션이 끊긴 뒤:** 카드나 `updates`가 `401`(또는 `403 PARTICIPANT_PIN_CHANGE_REQUIRED`)이면 참가자 읽기를 모두 지우고, 다시 들어올 때까지 들어오기 화면에 머문다. `/participant/me`가 아직 열려 있다고 답해도 홈으로 돌아가지 않는다(카드 `401`과 `me` 성공이 엇갈리면 홈과 들어오기를 끝없이 오가던 문제를 막는다).
 - **포커스 다시 읽기를 뺐다:** 도착 QR·내 조·`home`·`/participant/me`는 창 포커스·재연결로 다시 읽지 않는다. 다시 보일 때의 `updates` 한 번이 그 일을 맡는다(같은 경로를 두 번 부르지 않기). 카드 쿼리는 `staleTime: Infinity`이고 `updates`가 바뀐 키만 무효화한다.
 - **"신청 수정 받기"를 끄는 것은 `updates` 값을 올리지 않는다(계약 §4 표에 없음).** 화면은 내 정보 탭을 열 때마다 `GET /participant/application`을 다시 읽어 메운다(사람이 누르는 때만이라 부하가 작다). 열린 고치기 화면에서는 저장 때 `409 EDITS_CLOSED`로 읽기 전용이 된다. 결정 대기 3으로 남긴다.
@@ -3406,3 +3454,251 @@ DEC-072 §6은 일반 참가자에게 조원 명단을 주지 않고 조장에�
 ### Evidence
 
 사용자 결정 2026-11-19(로드맵 6.1 결정 3·11, [#382 댓글](https://github.com/BeomhyunPark/SCENE/issues/382#issuecomment-7002472651)). 근거 자료는 DEC-030, DEC-043, DEC-044, DEC-070 Follow-up(새가족), DEC-072 §1·§5·§6과 Alternatives·Consequence, DEC-073 §6(숨긴 보기), DEC-075(운영 메모), api.md "조 편성"(`GET /participant/group`), security-privacy §5, 데이터 모델 초안(privacy action), 마이그레이션 V1(`audit_logs`)·V5·V14.
+
+---
+
+## DEC-084 — 운영자는 신청을 취소하고 되돌리며, 취소하면 같은 트랜잭션에서 조 배정과 참가자 세션이 빠지고, 취소된 사람은 6자리가 맞으면 다시 신청해 돌아온다
+
+**Date:** 2026-11-19
+
+**Status:** CONFIRMED (로드맵 A7 하위 세션의 추천안. 아래 "결정 대기" 다섯 가지는 추천안으로 진행했고 PR 검토에서 사용자 확인을 받는다) — DEC-044·DEC-072 §5·DEC-078을 잇는다
+
+### Context
+
+`applications.status`에는 처음부터 `WITHDRAWN`이 있지만 그 상태로 가는 경로가 없다. 운영자는 못 오게 된 사람, 잘못 낸 신청, 장난 신청을 명단에서 뺄 수 없다. DEC-044는 취소자를 재공개를 기다리지 않고 활성 편성·공개 명단·조장 조회에서 바로 빼고, 복귀 때 옛 조를 자동으로 되살리지 않고 참고로 보여 주라고 했다. DEC-072 §5는 "철회 경로를 열 때 같은 transaction에서 배정을 지우고 이력에 남긴다"고 미리 정했다. DEC-078은 전화번호 하나가 참가자 한 명이고(부분 유일 색인 `applications_one_submitted_per_participant`), 같은 전화의 재신청은 6자리가 맞을 때만 수정이 된다고 정했다. 집계(DEC-073)·편성판·체크인(DEC-071)·CSV·참가 현황 표·참가자 들어오기는 `SUBMITTED` 신청만 읽는다. 질문은 [#338](https://github.com/BeomhyunPark/SCENE/issues/338)의 "함께 정할 것", 작업 단위는 [#419](https://github.com/BeomhyunPark/SCENE/issues/419)(이 결정)·[#420](https://github.com/BeomhyunPark/SCENE/issues/420)(서버)·[#421](https://github.com/BeomhyunPark/SCENE/issues/421)(화면)이다.
+
+### Decision
+
+**1. 취소는 지금 revision의 상태만 바꾼다.** 참가자의 지금(`SUBMITTED`) 신청 행을 `WITHDRAWN`으로 바꾼다. 새 revision을 만들지 않는다(답이 바뀌지 않았으므로). 그 참가자에게는 `SUBMITTED`가 없어지므로 `SUBMITTED`만 읽는 모든 곳에서 바로 빠진다. 신청 행·답·이전 revision·운영 메모(DEC-075)·체크인 기록은 지우지 않는다.
+
+**2. 사유·처리자·시각은 새 기록 테이블에 쌓는다.** `application_status_logs`(추가만 하는 이력: 참가자, 신청, `WITHDRAWN`/`RESTORED`, 사유, 처리자 종류 `OPERATOR`/`PARTICIPANT`와 운영자 id, "다시 신청 막기", 시각)다. 사유는 **선택**이고 200자까지다(체크인 취소 사유와 같다). 사유는 운영 메모처럼 운영자 화면에만 보이고 audit·로그·오류 본문·CSV·참가자 경로에 넣지 않는다. 이 테이블이 운영자 알림(I3)이 읽을 "누가, 누구를, 언제"다(아래 7).
+
+**3. 되돌리기는 같은 행을 다시 `SUBMITTED`로 바꾼다.**
+- 되돌릴 수 있는 것은 그 참가자의 **마지막 revision이 `WITHDRAWN`일 때**뿐이다. 그 사이 다른 `SUBMITTED`가 생길 수는 없다: 전화번호 하나가 참가자 한 명이라 같은 전화의 새 신청은 같은 참가자에게 가고(5), 운영자 직접 추가(A12)도 같은 전화면 같은 참가자를 쓴다. DB의 부분 유일 색인이 마지막 방어선이다(어기면 `409 CONFLICT`).
+- **조 배정은 돌아오지 않는다**(취소 때 지웠으므로, DEC-044). 되돌린 사람은 미배정이고, 응답과 화면이 "이전 조"를 참고로 보여 준다(그 조가 지워졌으면 없다). 조장 표시도 돌아오지 않는다.
+- **공개본에서도 돌아오지 않는다.** 공개 스냅샷에는 취소 전의 조·조장 표시가 그대로 남아 있으므로, 공개본을 읽을 때 "그 공개 뒤에 취소로 배정이 지워진 사람"(`group_assignment_logs` cause `WITHDRAWN`, 공개 시각 이후)을 스냅샷에서 뺀다. 되돌린 사람은 다음 공개 전까지 공개본에서 미배정이고, 참가자 내 조도 `UNASSIGNED`다. 저장된 스냅샷 행은 바꾸지 않는다. (2026-11-20 실제 클릭에서 찾음: 이 규칙이 없으면 되돌린 조장이 공개본에서 예전 조의 조장으로 다시 보였다.)
+- 체크인 기록은 지우지 않았으므로 도착 체크인한 사람을 되돌리면 도착이 다시 보인다.
+- 세션은 돌아오지 않는다. 참가자는 이름·전화번호·6자리로 다시 들어온다. "다시 신청 막기"로 취소했으면 6자리가 무효라 운영자가 6자리를 초기화해 줘야 들어온다(응답 `reapplyBlocked`).
+
+**4. 취소의 부수 효과는 한 트랜잭션이다.** 행사 행을 잠그고(조 편성 쓰기와 같은 잠금), 참가자 행을 잠근 뒤(신청 수정과 같은 잠금):
+- **조 배정**: 작업본 배정 행을 지우고 `group_assignment_logs`에 cause `WITHDRAWN`(이전 조, 조장 전후, 처리자, 시각)을 남긴다. `boardVersion`이 오르고, 조장이었으면 그 조의 `version`도 오른다(조장 표시가 바뀌었으므로). 그 조는 조장이 없는 조가 된다. 그 사람이 가장 최근 공개본에 있었으면 참가자 갱신 값 `GROUPS`(DEC-080 §4)도 올려 다른 조원 화면이 조를 다시 읽게 한다. 화면은 확인 창에서 "○조 조장 표시가 풀려요"를 보여 준다.
+- **공개본**: 공개된 스냅샷은 그대로 둔다(DEC-072 §1). 참가자 내 조·조장 이름·조원 명단·운영자 공개본 조회는 읽을 때 `SUBMITTED`가 없는 사람을 이미 빼므로(DEC-072 §5, DEC-044) 재공개 없이 바로 빠진다. 다음 공개 비교에는 "빠짐"으로 들어간다.
+- **편성판의 "철회됨 · 이전 조"**: 배정 행을 지우므로 이전 조는 `group_assignment_logs`의 마지막 `WITHDRAWN` 기록에서 읽는다.
+- **참가자 세션**: 그 참가자의 세션을 모두 지운다. 그리고 세션 조회 자체가 "그 참가자에게 `SUBMITTED` 신청이 있다"를 함께 본다. 참가자 경로가 쓰는 판정(`ParticipantSessionCookie.require()`)이 한곳에서 읽으므로, 다른 경로(B2·I3)가 따로 확인하지 않아도 취소된 사람의 남은 쿠키는 `401 AUTHENTICATION_REQUIRED`다.
+- **6자리·잠금**: 6자리 해시와 그 전화의 잠금 상태는 그대로 둔다(5의 재신청에 쓴다). "다시 신청 막기"를 고르면 6자리를 아무도 모르는 값으로 바꾼다(운영자에게도 보이지 않는다).
+- **체크인**: 이미 도착 체크인한 사람도 취소할 수 있다. 체크인 행·이력은 그대로이고 현황 숫자·명단·QR·수동 체크인에서는 빠진다(DEC-071 §2: `SUBMITTED`가 없으면 대상이 아니다). 확인 창이 "도착 체크인 기록은 남고 현황에서 빠져요"를 보여 준다.
+- **신청서 잠금(DEC-068)**: "신청이 들어온 신청서"는 `SUBMITTED`와 `WITHDRAWN`을 함께 센다. 모두 취소돼도 되돌릴 답이 남아 있으므로 질문 유형을 바꿀 수 없다.
+
+**5. 취소된 사람의 재신청 (결정 대기 1).** 같은 전화로 공개 신청서에 다시 내면:
+- 6자리가 맞으면 **다시 신청한 것으로 돌아온다.** 답이 바뀌었으면 새 revision(`SUBMITTED`, `revised_by: PARTICIPANT`)을 만들고 취소된 행은 `SUPERSEDED`가 된다. 답이 같으면 취소된 행을 다시 `SUBMITTED`로 바꾼다. 기록 테이블에 `RESTORED`(처리자 `PARTICIPANT`)를 남기고 운영자 알림(I3) 대상이다. 응답은 `200`, `revised: true`, `restored: true`이고 세션이 열린다. 신청서가 닫혀 있으면(`acceptingApplications: false`) 첫 신청처럼 `409 FORM_CLOSED`다(신청 수정 스위치가 아니라 신청 받기 스위치를 본다: 다시 신청하는 것이므로). 조 배정은 돌아오지 않는다.
+- 6자리가 틀리면 지금처럼 `409 APPLICATION_ALREADY_EXISTS`이고 잠금 횟수에 들어간다. 취소 여부는 드러나지 않는다.
+- **장난 신청**은 운영자가 취소할 때 **"다시 신청 막기"**(`blockReapply`)를 고른다. 6자리가 무효가 되어 낸 사람이 다시 살릴 수 없다. 남의 전화번호로 장난 신청이 들어와 진짜 주인이 신청하지 못하면, 운영자가 6자리를 초기화해 임시 번호를 주고 주인이 그 번호로 신청서를 다시 낸다(위 첫 항목대로 주인의 답으로 돌아오고, 들어오면 새 번호를 정한다).
+- 운영 부담: 못 오게 됐다가 다시 오게 된 사람은 운영자를 거치지 않고 돌아온다. 운영자는 알림(I3)으로 안다.
+
+**6. 들어오기.** 취소된 사람의 이름·전화번호·6자리 들어오기는 다른 실패와 같은 `401 PARTICIPANT_LOGIN_FAILED`다(신청이 없는 전화와 구분하지 않는다, DEC-078 §2). 화면 문구 "이름, 전화번호, 숫자 6자리를 다시 확인해 주세요"에 "신청이 취소되었으면 운영진에게 문의해 주세요"를 덧붙인다(결정 대기 4).
+
+**7. 운영자 알림이 붙을 자리 (I3).** `notifications`는 아직 없다(DEC-080, 2주차 I3). 취소·되돌리기·재신청 복귀는 모두 `ApplicationStatusChanges.record(...)` 한 곳을 지나고, 그곳이 `application_status_logs` 한 행과 Spring 이벤트 `ApplicationStatusChanged`(행사, 참가자, 신청, 동작, 처리자 종류·id, 시각)를 같은 트랜잭션에서 낸다. I3는 이 이벤트를 받아(`@TransactionalEventListener`가 아니라 같은 트랜잭션의 리스너로) `APPLICATION_CANCELLED`·`APPLICATION_RESTORED` 알림 행을 만든다. 알림 본문은 이름까지이고 사유는 넣지 않는다(사유는 신청 상세에서 본다). 처리한 운영자 본인에게는 만들지 않는다(DEC-080 §6). 참가자 `updates`(B2)도 없다. 취소는 세션을 끊으므로 참가자 화면은 다음 요청에서 `401`로 끝난다.
+
+**8. 권한·행사 상태·audit·동시 수정.**
+- 권한은 effective `PARTICIPANT_WRITE`다(운영 메모·6자리 초기화와 같다. 행사 OWNER 기본, 다른 사람은 개별 GRANT). 조 배정을 지우지만 `GROUP_WRITE`는 보지 않는다: 취소는 참가 자격의 일이고 배정 정리는 그 결과다(DEC-044).
+- 행사 상태: `DRAFT`·`ACTIVE`에서 된다. `ENDED`는 `409 EVENT_ENDED`, `ARCHIVED`는 `409 EVENT_ARCHIVED`다. 끝난 행사의 참가 기록 정정은 event-lifecycle-review의 별도 정정 경계로 남긴다(조 편성·체크인과 같다).
+- 판정 순서: 404(행사·신청) → 403 → 400 → 409 행사 상태 → 409 신청 상태.
+- audit: `APPLICATION_WITHDRAWN`(detail `{ applicationId, participantId, groupRemoved, reasonGiven, blockReapply }`)·`APPLICATION_RESTORED`(`{ applicationId, participantId }`). **사유 본문은 audit에 넣지 않는다**(운영 메모와 같은 이유: 건강·가정 사정 같은 민감한 글이 들어갈 수 있다). 참가자의 재신청 복귀는 공개 신청처럼 audit를 쓰지 않고 기록 테이블에만 남는다.
+- 동시 수정: 경로의 `applicationId`가 곧 기대값이다(revision마다 id가 다르다). 이미 그 상태면 `200`과 `result: ALREADY_WITHDRAWN`/`ALREADY_SUBMITTED`이고 기록·audit를 더하지 않는다(체크인 취소의 `ALREADY_CANCELLED`와 같다). 그 사이 참가자가 고쳐 그 행이 `SUPERSEDED`면 `409 CONCURRENT_MODIFICATION`이고 확장 필드로 지금 `applicationId`·`status`·`revision`을 준다. `Idempotency-Key`는 쓰지 않는다(같은 요청을 다시 보내도 "이미 그 상태"라 두 번 반영되지 않는다, DEC-047).
+
+**9. 운영자가 취소된 신청을 보는 곳.**
+- 참가 현황 표는 지금처럼 `SUBMITTED`만 `rows`에 두고, 취소된 사람은 따로 `withdrawn[]`(이름, 취소 시각·처리자·사유, 다시 신청 막기, 이전 조, 도착 시각)에 준다. 화면은 기본으로 숨기고 "취소 N" 칩을 누르면 목록과 되돌리기 버튼이 열린다. 표의 숫자(전체·도착·미배정·세기)에는 들어가지 않는다.
+- 신청 상세는 `status`와 `withdrawal`(취소 시각·처리자·사유·다시 신청 막기)을 준다. 화면은 맨 위에 "취소된 신청"을 표시한다.
+- CSV는 지금처럼 `SUBMITTED`만이다. 취소된 사람을 CSV에 넣는 "취소 포함" 선택은 실제 요구가 생기면 더한다.
+
+**10. 참가자 스스로의 취소는 이번 범위 밖이다 (결정 대기 2).** 사용자 결정은 "참가자가 신청을 직접 고친다"까지다. 1월에는 참가자가 운영진에게 연락하고 운영자가 취소한다. 나중에 열면 같은 기록 테이블(처리자 `PARTICIPANT`)과 같은 부수 효과 함수를 쓴다.
+
+### 결정 대기 (추천안으로 진행함)
+
+| # | 질문 | 선택지 | 추천안(적용) | 영향 |
+|---|---|---|---|---|
+| 1 | 취소된 사람이 같은 전화로 다시 신청하면 | 6자리가 맞으면 돌아온다 / 운영자 되돌리기만 | 6자리가 맞으면 돌아오고 운영자가 알림으로 안다. 장난 신청은 취소 때 "다시 신청 막기" | 운영자 되돌리기만이면 다시 오게 된 사람마다 운영자에게 연락해야 하고, 남의 번호로 들어온 장난 신청의 진짜 주인이 신청할 길이 없다 |
+| 2 | 참가자 스스로의 취소 | 지금 연다 / 운영자에게 요청 | 운영자에게 요청(범위 밖) | 참가자 화면에 취소 버튼이 없다. 운영진 연락처는 신청 완료 안내(A8)에 적는다 |
+| 3 | 도착 체크인한 사람의 취소 | 허용하고 기록은 남김 / 막음 / 체크인도 함께 취소 | 허용하고 체크인 기록은 남김(현황에서는 빠짐, 되돌리면 도착이 돌아온다) | 중간에 떠난 사람도 뺄 수 있다. 체크인 이력은 정확하다 |
+| 4 | 취소된 사람이 들어오기를 시도할 때 | 같은 실패 응답 / "취소된 신청" 안내 | 같은 실패 응답 + 실패 문구에 "취소되었으면 운영진에게 문의" | 신청 여부가 드러나지 않는다. 대신 본인도 이유를 화면에서 바로 모른다 |
+| 5 | 취소 사유 | 선택 / 필수 | 선택(200자) | 현장에서 빨리 뺄 수 있다. 사유가 없는 취소는 상세에 "사유 없음" |
+
+### 범위 밖
+
+- 참가자 스스로의 취소(10), 운영자 대리 수정·직접 추가(A12, #339), 알림 화면·알림 행(I3), 참가자 `updates`(B2), 숙소 배정과의 관계(G 트랙이 생긴 뒤: 취소 때 방 배정도 같은 함수에서 정리한다).
+- CSV "취소 포함", 취소된 사람의 일괄 정리(보존 정책 DEC-056의 일).
+
+### Alternatives
+
+- **취소를 새 revision으로:** 답이 같은 행이 하나 더 생기고, `changes`가 빈 revision이 "수정"처럼 보인다. 상태만 바꾸면 revision은 답의 이력으로 남는다.
+- **사유·처리자를 `applications` 열로:** 되돌린 뒤 다시 취소하면 이전 기록을 덮어쓴다. 알림(I3)이 읽을 "언제 무엇이 일어났나"가 남지 않는다.
+- **배정 행을 남기고 읽을 때만 빼기(지금 편성판 방식):** 되돌리면 옛 조가 저절로 돌아온다(DEC-044·DEC-072 §5가 막은 일). 조장 표시가 남아 조당 조장 1명 색인과 얽힌다.
+- **취소 때 공개본을 다시 만들기:** 공개는 운영자가 확인하고 하는 일이다(DEC-040). 읽을 때 빼면 같은 효과가 재공개 없이 난다.
+- **취소 때 세션만 지우고 세션 조회는 그대로:** 지우는 것을 빠뜨린 경로(나중의 대리 취소, 참가자 스스로의 취소)가 생기면 취소된 사람이 계속 들어와 있다. 조회에서 함께 보면 한곳에서 지켜진다.
+- **6자리를 취소 때 늘 무효로:** 다시 오게 된 사람이 늘 운영자를 거쳐야 한다. 장난 신청에만 고르게 했다.
+- **새 ErrorCode(`APPLICATION_WITHDRAWN`):** 같은 전화의 재신청·들어오기에서 취소 여부를 드러낸다. 운영자 경로는 기존 코드(`INVALID_STATE_TRANSITION`, `CONCURRENT_MODIFICATION`)와 `result`로 충분하다.
+
+### Consequence
+
+- 서버: Flyway `V21`이 `application_status_logs`를 만들고 `group_assignment_logs.cause`에 `WITHDRAWN`을 더한다(추가만 하는 모양이라 옛 코드로 되돌려도 동작한다). 경로 `POST …/applications/{applicationId}/withdraw`·`…/restore`, 참가 현황 표의 `withdrawn[]`, 신청 상세의 `withdrawal`, 공개 신청 응답의 `restored`. 계약은 [backend/docs/api.md](../../backend/docs/api.md) "신청 취소와 되돌리기"다.
+- 집계·편성판(작업본·공개본·조장)·체크인(현황·명단·QR·수동)·CSV·참가 현황 표·참가자 들어오기가 같은 결과를 내는지는 통합 테스트 하나(`ApplicationWithdrawalHttpIT`)가 함께 묶는다. 새 읽기 경로를 만들 때 "`SUBMITTED`만 읽는다"를 지키고 이 테스트에 한 줄을 더한다.
+- 참가자 판정 "`SUBMITTED` 신청이 있는 참가자"는 세션 조회(`ParticipantSessionQueryMapper.findByTokenHash`)에도 들어간다. 2주차 참가자 경로는 `ParticipantSessionCookie.require()`만 쓰면 된다.
+- 숙소(DEC-085, G2)는 `ApplicationWithdrawalService.withdraw`의 같은 트랜잭션에서 방 배정 행을 지우고 `room_assignment_logs`에 `WITHDRAWN`을 남긴다(조 배정의 `GroupService.removeWithdrawn`과 같은 모양). 방 공개본을 읽을 때도 §3의 공개본 규칙(공개 뒤 취소로 지워진 사람은 스냅샷에서 뺀다)을 따른다.
+- 운영자 알림(I3)은 `ApplicationStatusChanged` 이벤트를 받는다. [참가자 홈 계약](../architecture/participant-home-contract.md) §7.2 운영자 알림 표에 `APPLICATION_RESTORED`를 더한다.
+
+### Evidence
+
+로드맵 A7(`docs/product/retreat-2027-roadmap.md` 4절, 3절 구조 1·6), [#338](https://github.com/BeomhyunPark/SCENE/issues/338), [#378](https://github.com/BeomhyunPark/SCENE/issues/378). 근거 자료는 DEC-044, DEC-047, DEC-063, DEC-068, DEC-071 §2·§4, DEC-072 §1·§5, DEC-073, DEC-075, DEC-078 §1·§2·§4·§5, DEC-080 §6과 참가자 홈 계약 §7.2, 마이그레이션 V4·V13·V15·V19.
+
+---
+
+## DEC-085 — 숙소는 조 편성과 같은 작업본·공개본 계약으로 사람마다 방 하나를 배정하고, 정원·성별은 막지 않고 경고하며, 참가자는 기본으로 같은 방 사람과 전체 방 배정표를 본다
+
+**Date:** 2026-11-20
+
+**Status:** CONFIRMED (SCENE에서 방 배정·정원·성별 경고, 같은 방 사람과 전체 방 배정표 공개, 참가자끼리 보는 범위, 조와 도메인 분리, "다시 볼 것", 자동 편성 없음은 사용자 결정 2026-11-19 — 로드맵 6.1 결정 4, 구조 2·10. 세부는 로드맵 하위 세션의 추천안이고 PR 검토에서 확인받는다. 결정 대기는 아래에 따로 적었다)
+
+### Context
+
+숙소는 신청 집계(DEC-073)가 밤별 숙박 인원만 센다. 방과 배정이 없고 권한 키 `ROOM_WRITE`와 API 초안 §12(`rooms`, `room_members`, `GET /participant/room`)만 있다. 사용자는 2026-11-19 "SCENE에서 방을 배정한다(방·정원·성별 경고). 같은 방 사람과 다른 방 배정까지 참가자가 봐도 된다"고 정했다(로드맵 결정 4, [#383](https://github.com/BeomhyunPark/SCENE/issues/383)). 지켜야 하는 것은 조 편성과 도메인을 합치지 않기(`participants.room_id` 없음), 신청·조가 바뀌어도 자동으로 바꾸지 않고 "다시 볼 것"으로 표시하기(DEC-045, A11), 자동 편성 안 하기, 참가자끼리는 이름·또래·성별·조·방까지(구조 10)다. 3주차(12/3~)에 서버(G2)·운영자 화면(G3)·참가자 화면(G4)·표·CSV·현장 명단(G5)을 다른 세션이 문서만 보고 만든다. 하위 이슈는 [#424](https://github.com/BeomhyunPark/SCENE/issues/424)다.
+
+### Decision
+
+1. 🔒 **작업본은 테이블, 공개본은 스냅샷이다(DEC-072와 같은 계약 모양).** 작업본은 `rooms`(방)와 `room_assignments`(배정된 참가자당 한 행), 공개하면 `room_publications`에 방 목록(이름·위치·정원·성별·순서)과 방마다 **활성 참가자 id만** 담은 JSON 한 행을 더한다. 참가자·조장·참가 현황 표·현장 명단은 가장 최근 공개본만 본다. 테이블은 조 편성과 따로 둔다.
+2. **방 필드:** 이름(1–50자, 행사 안에서 유일), 위치 메모(0–100자, 참가자에게 보임), 정원(1–50 또는 없음), 성별 구분(`GENDER` 질문의 보기 id 또는 구분 없음), 순서. 방은 행사당 200개(잠정). 방을 지우면 배정된 사람이 미배정이 되고 이력이 남으며, 다시 공개하기 전까지 참가자는 지난 공개본을 본다.
+3. 🔒 **배정은 1월에 행사 전체에 참가자당 방 하나다.** 배정 행에 `night` 열(0 = 행사 전체)을 1월부터 두어 밤별 배정(G6)을 열만 쓰면 더하게 한다. 방 안 순서는 저장하지 않는다(이름 순).
+4. **버전과 동시 수정은 조 편성과 같다.** 행사당 `boardVersion`과 방 `version`(`expectedVersion`). 배정은 사람마다 `fromRoomId`를 보내 하나라도 다르면 아무것도 저장하지 않고 `409 CONCURRENT_MODIFICATION`과 `conflicts[]`, 이미 목적지면 반영된 것으로 본다. 공개는 `expectedBoardVersion`, 같으면 `ALREADY_PUBLISHED`, 미배정 대상이 있으면 `confirmUnassigned`(DEC-041). `Idempotency-Key`는 쓰지 않는다. 배정·이동은 한 트랜잭션이다.
+5. **걸러서 보내기·끌어 놓기·조 단위 일괄 배정은 모두 `POST …/room-assignments`의 `changes[]` 하나다.** 조 단위 일괄 배정은 화면이 그 조의 활성 참가자로 `changes`를 만드는 동작이고, 서버에는 조를 받는 경로가 없다. 조가 바뀌어도 방은 그대로다. 배정판의 조는 **조 편성 공개본**의 조이고, 요청한 운영자에게 `GROUP_WRITE`가 있을 때만 작업본 조 id(`draftGroupId`)를 더 준다.
+6. **배정 대상은 활성 참가자(`SUBMITTED`)이고 숙박 상태를 함께 준다.** 숙박 계산은 신청 집계와 같은 코드다(사람별 판정을 한 함수로 꺼내 집계·DEC-083 `lodgingNights`·숙소가 같이 쓴다). `LODGING`·`UNKNOWN`(판단 불가, 숙박 질문이 없는 행사 포함)은 미배정 수에 들고, `NOT_LODGING`(집회만, 통근 체크, 같은 날 오가기)은 들지 않지만 경고와 함께 배정할 수는 있다. 취소자는 읽을 때 빠지고, 신청 취소 트랜잭션(A7, DEC-084)이 배정 행을 지우고 이력에 남긴다.
+7. **정원 초과·성별 불일치·성별 답 없음·숙박 안 함은 막지 않고 경고한다.** 배정판의 방마다, 그리고 배정 응답에서 이번에 사람이 드나든 방마다 `warnings[{code}]`(`OVER_CAPACITY`, `GENDER_MISMATCH`, `GENDER_UNKNOWN`, `NOT_LODGING`)를 준다. 성별은 보기 id로 비교한다. 공개는 경고로 막거나 확인받지 않는다.
+8. **"다시 볼 것"(A11).** 배정할 때 판단 근거(성별 보기 id, 자는 밤, 참석 칸)를 배정 행에 찍고, 배정판을 읽을 때 지금 값과 달라진 사람에게 `review.reasons`(`NOT_LODGING`, `LODGING_CHANGED`, `ATTENDANCE_CHANGED`, `GENDER_CHANGED`)를 붙인다. 방은 자동으로 바꾸지 않는다. 옮기거나 "확인"하면 근거를 다시 찍는다(확인은 `boardVersion`을 올리지 않는다).
+9. **참가자 경로는 `GET /api/v1/participant/rooms` 하나다.** 상태는 `NOT_ELIGIBLE`·`NOT_PUBLISHED`·`UNASSIGNED`·`ASSIGNED`이고 숙박하지 않는 본인은 `notLodging`으로 안다. 공개 범위는 DEC-083의 `event_participant_settings`에 둔 `roomRosterScope`다: `ALL`(**기본**. 내 방 이름·위치 + 같은 방 사람의 이름·또래·성별 + 전체 방 배정표의 방별 이름·또래), `ROOMMATES`(전체 표 없음), `MY_ROOM`(내 방 이름·위치만). 참가자 id·연락처·신청 답·숙박 밤·참석 칸·정원·운영 메모·미배정 명단은 어떤 범위에서도 없다. 범위를 바꾸면 `updates.rooms`가 오른다.
+10. **조장은 범위와 상관없이 조원의 방 `{name, locationNote}`를 숙소 공개본에서 본다**(DEC-083 `leaderView.members[].room`과 조원 상세). 참가 현황 표·CSV(`방` 열)·현장 체크인 명단도 **공개본** 기준으로 방을 보인다(G5). 작업본의 방은 배정판에서만 보인다.
+11. **갱신과 알림.** 공개(`PUBLISHED`)와 범위 변경이 같은 트랜잭션에서 DEC-080 `participant_feed_versions.rooms`를 올린다. `ROOM_PUBLISHED`는 첫 공개면 배정된 활성 참가자 전원, 그 뒤에는 내 방이 바뀐 사람(새 배정·이동·빠짐)과 내 방의 이름·위치가 바뀐 사람이 받는다. 같은 방 사람이 바뀐 것만으로는 만들지 않는다. 문구는 내 방 이름·위치까지이고 다른 참가자 이름을 넣지 않는다. 운영자가 공개할 때 `notify: false`로 끌 수 있다.
+12. **권한.** 쓰기·공개는 `ROOM_WRITE`. 배정판 조회는 이름·성별·숙박이 있어 조 편성판과 같은 규칙(`ROOM_WRITE` 또는 활성 공간 `OWNER`·`ADMIN`)이다. 운영자 공개본 조회는 `EVENT_READ`. `ROOM_WRITE`는 OWNER 기본이고, MANAGER는 DEC-079 Follow-up이 기본값을 넓히면 갖는다. 새 권한 키는 없다.
+13. **행사 상태.** `DRAFT`·`ACTIVE`에서 쓰고 공개한다. `ENDED`는 `409 EVENT_ENDED`, `ARCHIVED`는 `409 EVENT_ARCHIVED`. 참가자는 어느 상태에서나 마지막 공개본을 본다. 판정 순서는 조 편성과 같다.
+14. **기록.** 공개마다 audit `ROOMS_PUBLISHED`(개수만). 배정 변경은 `room_assignment_logs`(`MOVE`·`ROOM_DELETED`·`WITHDRAWN`). 이름·전화·답은 audit·이력·로그에 없다. 새 ErrorCode는 없다.
+
+경로·요청·응답·오류·테이블 초안·시험 조건과 DEC-080·083·084 계약에 더하는 것은 [숙소 계약 초안](../architecture/room-contract.md)에 있다.
+
+### 결정 대기 (추천안으로 진행, PR 검토에서 확인)
+
+| # | 질문 | 선택지 | 추천안 | 영향 |
+|---|---|---|---|---|
+| 1 | 방 배정표 공개 범위의 기본값 | `ALL`(전체 표까지) / `ROOMMATES` / `MY_ROOM` | `ALL`(사용자 결정 4) | 공개하면 참가자 전원이 모든 방의 이름·또래를 본다. 원하지 않는 행사는 운영자가 줄인다 |
+| 2 | 두 번째 이후 공개의 `ROOM_PUBLISHED` 받는 사람 | 내 방이 바뀐 사람(+방 이름·위치 변경) / 같은 방 사람 구성이 바뀐 사람까지 / 공개할 때마다 배정된 전원 | 내 방이 바뀐 사람과 방 이름·위치가 바뀐 사람 | 룸메이트가 바뀐 사람은 알림 없이 화면에서만 본다. 알림이 200명에게 반복되지 않는다 |
+| 3 | 숙박하지 않는 사람(집회만, 통근)을 방에 넣을 수 있나 | 경고와 함께 허용 / 막음 | 허용, `NOT_LODGING` 경고 | 낮에 쉴 방이 필요한 통근자를 넣을 수 있다. 미배정 수에는 들지 않는다 |
+| 4 | 배정판의 "조"는 어느 편성인가 | 조 편성 공개본(+`GROUP_WRITE`면 작업본 id) / 늘 작업본 | 공개본 + `GROUP_WRITE`가 있을 때만 작업본 | 조를 공개하기 전에는 숙소 담당이 조로 거르지 못한다(`GROUP_WRITE`를 같이 받으면 된다) |
+| 5 | 참가 현황 표·CSV·현장 명단의 방 기준 | 공개본 / 작업본 | 공개본 | 접수대 안내와 참가자 화면이 같다. 공개 전 배정은 표에 보이지 않는다 |
+| 6 | 정원·성별 경고가 있을 때 공개를 확인받나 | 받지 않음(응답에 수만) / 확인을 받음 | 받지 않음. 미배정만 확인 | 경고를 알고도 그대로 쓰는 방(가족방 등)을 매번 확인하지 않는다. 배정판에 경고가 늘 보인다 |
+
+### 범위 밖
+
+- 밤마다 다른 배정(G6, P2. 열은 1월부터 있다), 방 안 순서·침대 자리, 방장·열쇠
+- 자동 배정, 조 단위로 방을 묶어 추천, 성별·정원에 맞춘 자동 채우기
+- 참가자가 방을 고르거나 바꿔 달라고 요청하기
+- 방 대상 공지(`ROOM` 대상, DEC-080 확장 지점), 방별 인쇄물 화면(J11은 공개본 조회로 대신한다)
+- 차량 배정(`RIDE_WRITE`. 같은 계약 모양으로 나중에 만든다)
+
+### Alternatives
+
+- **조 편성 테이블에 방을 함께 저장(조 = 방):** 조와 방은 사람 묶음이 다르고(성별·숙박), 조가 바뀌면 방이 같이 움직인다. 사용자가 금지한 도메인 합치기다.
+- **범용 배정 테이블(`assignments(kind, target_id)`):** data-model 원칙("각 업무가 배정 상태 직접 소유")과 어긋나고, 방의 정원·성별·밤과 조의 조장·순서처럼 업무마다 다른 열을 한 테이블에 섞는다. 공통 부품은 서버 코드에서 나눈다.
+- **`participants.room_id`:** 공개본과 작업본을 나눌 수 없고 밤별 배정을 표현하지 못한다.
+- **정원·성별 불일치를 막기:** 가족·부부·봉사자 방처럼 운영자가 일부러 섞는 경우가 있다. 막으면 정원을 거짓으로 늘리게 된다.
+- **신청이 바뀌면 배정을 자동으로 풀기:** DEC-045와 어긋나고, 운영자가 모르는 사이 공개본과 작업본이 달라진다.
+- **"다시 볼 것"을 신청 수정 시각으로만 판단:** 숙박과 상관없는 답(셀 이름 등)을 고쳐도 표시가 붙는다. 근거 값을 비교하면 숙소에 영향이 있는 변경만 남는다.
+- **참가자에게 전체 표를 늘 공개(스위치 없음):** 사용자 결정의 기본이지만 범위는 넓히기 쉽고 줄이기 어렵다(DEC-072). 행사별로 줄일 수 있게 둔다(구조 10).
+- **참가 현황 표·현장 명단을 작업본 기준으로:** 공개 전에 접수대가 참가자 화면과 다른 방을 안내할 수 있다.
+
+### Reason
+
+1월에 필요한 것은 "숙소 담당 몇 명이 200명을 방에 넣고 경고를 보며 고치고, 확인하고 공개하면, 참가자가 내 방·같은 방 사람·전체 표를 보고 접수대가 같은 방을 안내한다"이다. 조 편성에서 검증한 작업본·스냅샷·사람 단위 충돌 비교를 그대로 써 서버·화면 부품(편성판의 걸러서 보내기·끌어 놓기)을 다시 쓰고, 방만의 규칙(정원·성별·숙박)은 경고로만 둔다. 신청이 바뀌는 일은 근거 비교로 표시하고 사람이 판단한다.
+
+### Consequence
+
+- 서버(G2): Flyway `room_boards`·`rooms`·`room_assignments`·`room_assignment_logs`·`room_publications`와 `event_participant_settings.room_roster_scope`, 운영자 `RoomController`(가칭)·참가자 `ParticipantRoomController`(가칭). 공개는 같은 트랜잭션에서 `participant_feed_versions.rooms`와 `ROOM_PUBLISHED` 알림을 쓴다. 숙박 사람별 판정을 `ApplicationSummaryService`에서 꺼내 같이 쓴다. audit `ROOMS_PUBLISHED`를 더한다. 신청 취소(A7) 트랜잭션이 배정 행을 지운다.
+- 화면(G3): 배정판(조 편성판의 걸러서 보내기·끌어 놓기 부품), 방 목록·정원·성별·경고, 조 단위 일괄 배정, 다시 볼 것 표시와 확인, 공개 확인 창. (G4) 홈 숙소 카드와 전체 방 배정표. (G5) 참가 현황 표·CSV·현장 명단의 방.
+- DEC-080 계약의 숙소 카드·`updates.rooms`·`ROOM_PUBLISHED` 받는 사람, DEC-083 계약의 `room`·`roomRosterScope`는 숙소 계약 초안 §10에 적었고 G2·G4 PR이 그 문서로 옮긴다. API 초안 §12(`room_members`, `/room-moves`, `GET /participant/room`)는 이 결정으로 대신한다.
+- DEC-072 범위 밖의 "방·차량 배정과 조 이동의 의존 안내(DEC-045)"는 방 쪽만 이 결정의 "다시 볼 것"으로 들어온다(조 이동은 방에 영향을 주지 않으므로 표시하지 않는다).
+- **확장 지점:** (1) 밤별 배정(G6)은 `night` 열과 요청·응답의 `nights[]`로 더하고 1월 키는 그대로다. (2) 차량 배정(`RIDE_WRITE`)은 같은 계약 모양의 `ride_*` 테이블과 공통 서버 부품으로 만들고, `night` 자리에 `leg`(가는 길·오는 길)를 둔다. (3) 공지·일정 대상에 `ROOM`을 더한다. (4) 방 안 순서·방장은 배정 행의 열로 더한다. (5) 공개 범위 스위치는 같은 설정 행에 값을 늘린다.
+
+### Evidence
+
+사용자 결정 2026-11-19(로드맵 6.1 결정 4, 구조 2·10, [#383](https://github.com/BeomhyunPark/SCENE/issues/383) 본문). 근거 자료는 DEC-041·043·044·045·046·047, DEC-070·073·074(숙박 밤·칸 계산), DEC-072(작업본·공개본·편성판), DEC-075(운영 값 먼저), DEC-079(권한), DEC-080(`updates`·알림), DEC-083(`event_participant_settings`·`leaderView`), api.md "조 편성"·"신청 집계"·"체크인", 데이터 모델 초안 §2·§4, API 초안 §12, `MealSlots`·`ApplicationSummaryService`, 마이그레이션 V13·V14·V16.
+
+---
+
+## DEC-086 — 식사 순서는 끼니(칸 id) × 조마다 차례 번호와 선택 시각을 두고, 순환 자동 채우기와 손 고치기로 만들며, 일정표와 따로 공개한다
+
+**Date:** 2026-11-20
+
+**Status:** CONFIRMED (조원이 식사 순서를 파악한다는 범위, 끼니마다 QR을 찍지 않는다는 원칙, 칸 id 공통 키, 작업본·공개본 계약은 사용자 결정·로드맵 구조 2·3, 2026-11-19. 순서의 단위·권한·공개 방식은 #384 추천안과 로드맵 하위 세션의 추천안이고 PR 검토에서 확인받는다. 결정 대기는 아래에 따로 적었다)
+
+### Context
+
+식사 순서(조별 배식 차례)는 문서와 코드 어디에도 없다. 사용자는 2026-11-19 수련회의 중요한 일 일곱째로 "조원의 조 현황·숙소·식사 순서 파악"을 꼽았다(로드맵 1절, [#384](https://github.com/BeomhyunPark/SCENE/issues/384)). 식수는 끼니마다 QR을 찍지 않으므로(로드맵 결정 1) 식사 순서는 체크가 아니라 안내다. 끼니는 신청서 설정의 칸 id `opt_d{일차}_{breakfast|lunch|dinner}`로 가리키고(구조 3), 이 id는 식수 집계(DEC-073)·편성판(DEC-072 Follow-up)·일정 항목 `slotId`(DEC-081)가 이미 쓴다. #384는 "조마다 차례 번호와 선택 입력 시각"과 `SCHEDULE_WRITE` 재사용을 추천했고, 일정표 공개와 같이 할지 따로 할지를 H1에 남겼다. H2의 완료 조건은 "조를 지우거나 더하면 순서가 맞춰진다"이다. 3주차(12/3~)에 서버(H2)·운영자 화면(H3)·참가자 화면(H4)을 다른 세션이 문서만 보고 만든다. 하위 이슈는 [#426](https://github.com/BeomhyunPark/SCENE/issues/426)이다.
+
+### Decision
+
+1. **표는 끼니 × 조 → 차례 번호(1부터)·선택 시각(`HH:mm`)이다.** 같은 차례를 여러 조가 가질 수 있다(1차·2차 배식 묶음). 차례 없음(`null`)은 그 끼니에 그 조의 차례가 없다는 뜻이고, 줄이 없는 끼니는 "순서 없음"이다. 차례 번호는 끼니마다 빈틈 없이 1부터 다시 매긴다.
+2. **끼니는 신청서 설정의 식사 칸이다.** `MealSlots`(편성판·집계와 같은 코드)에서 아침·점심·저녁 칸만 쓴다. 집회 칸은 쓰지 않는다. 설정이 없거나 식사 칸이 없는 행사는 표가 비고 쓰기가 `409 CONFLICT NO_MEAL_SLOTS`다. 일정표 작업본에 같은 `slotId`의 식사 항목이 있으면 그 시각·장소를 표에 함께 보인다.
+3. **표의 줄은 조 편성 작업본의 조이고, 참가자에게 보이는 조는 조 편성 공개본에 맞춘다.** 참가자의 조와 조 이름은 가장 최근 조 편성 공개본에서 읽는다. 작업본의 조 목록이 조 편성 공개본과 다르면 식사 순서 공개가 확인(`GROUPS_NOT_PUBLISHED`)을 받는다.
+4. **조를 지우거나 더하면 읽을 때 맞춘다(실효 표).** 지운 조의 줄은 DB에서 함께 지워지고(FK `ON DELETE CASCADE`, 조 편성 코드는 바꾸지 않는다) 남은 차례가 당겨진다. 새 조는 순서가 있는 끼니마다 맨 뒤 차례에 시각 없이 붙는다. 운영자 표·공개·비교·참가자 응답이 모두 이 실효 표를 쓰므로, 조 추가·삭제만으로도 "미공개 변경"이 된다.
+5. **순환 자동 채우기**는 첫 끼니 조 순서(`firstOrder`, 기본 조 순서)를 끼니마다 `shift`(기본 1)칸씩 왼쪽으로 돌려 채운다. `groupsPerTurn`(기본 1)으로 묶고, `intervalMinutes`를 주면 그 끼니의 일정 항목 시작 시각부터 차례마다 시각을 넣는다. 고른 끼니는 통째로 덮어쓴다. 알고리즘 배정이 아니다.
+6. **손으로 고치기는 끼니 하나를 통째로 바꾸는 `PUT …/meal-order/slots/{slotId}`다.** 작업본의 모든 조를 정확히 한 번씩 보내고(아니면 `409 CONFLICT GROUPS_CHANGED`), `entries: []`는 순서 없음이다.
+7. **버전.** 행사당 `boardVersion`과 끼니 `version`. 끼니 저장은 `expectedVersion`, 채우기·공개는 `expectedBoardVersion`이고 다르면 `409 CONCURRENT_MODIFICATION`. 서로 다른 끼니는 충돌하지 않는다. 같은 공개는 `ALREADY_PUBLISHED`이고 `Idempotency-Key`는 쓰지 않는다(DEC-046·047).
+8. 🔒 **일정표와 따로 공개하고, "저장하고 바로 공개"를 둔다.** 공개는 `POST …/meal-order/publish`이고 스냅샷은 순서가 있는 끼니의 조 id·차례·시각만 담는다. 끼니 저장·채우기에 `publish: true`를 붙이면 같은 트랜잭션에서 공개하고, 다른 미공개 변경이 있으면 `confirmOtherChanges`를 받는다(DEC-081 §5와 같은 규칙).
+9. **참가자 경로는 `GET /api/v1/participant/meal-order`다.** 상태는 `NOT_ELIGIBLE`·`NOT_PUBLISHED`·`PUBLISHED`이고, `groupStatus`(`ASSIGNED`·`UNASSIGNED`·`NOT_PUBLISHED`)와 끼니마다 우리 조 차례(`mine`), 내가 그 끼니에 있는지(`attending`, 참석 칸 계산과 같은 코드), 전체 표(`turns`, 조 이름·차례·시각)를 준다. 사람 이름·id·전화·답은 없다. 조가 없거나 조를 공개하지 않은 행사의 참가자는 `mine`이 없고 전체 표는 본다.
+10. **홈 "다음 식사" 카드와 일정표 식사 항목은 화면이 `slotId`로 붙여 계산한다**(DEC-080 §6과 같은 방식). 서버는 "다음 식사"를 따로 주지 않는다. 화면은 `updates.mealOrder` 또는 `updates.group`이 바뀌면 다시 읽는다.
+11. **조장(F4)은 같은 경로로 우리 조 차례를 보고, 끼니별 조원 수는 `leaderView.members[].attendance.slotIds`로 센다.** 식사 순서가 조 단위라 `leaderView.members[]`에 키를 더하지 않는다.
+12. **식수 현황(E3)과는 칸 id만 같다.** 식사 순서는 식수 숫자를 만들지 않는다.
+13. **갱신과 알림.** 공개(`PUBLISHED`)만 같은 트랜잭션에서 `participant_feed_versions.meal_order`를 올린다. `MEAL_ORDER_PUBLISHED`는 첫 공개면 조가 있고 그 조가 차례를 가진 활성 참가자 전원, 그 뒤에는 차례·시각이 바뀐 조의 활성 참가자가 받는다. 문구는 내 조 이름과 끼니 이름까지다. 공개할 때 `notify: false`로 끌 수 있다.
+14. **권한과 행사 상태.** 쓰기·공개는 `SCHEDULE_WRITE`(OWNER·MANAGER 기본, DEC-079). 표 조회는 `EVENT_READ` 또는 활성 공간 `OWNER`·`ADMIN`(개인정보 없음). `DRAFT`·`ACTIVE`에서 쓰고, `ENDED`는 `409 EVENT_ENDED`, `ARCHIVED`는 `409 EVENT_ARCHIVED`. 참가자는 어느 상태에서나 마지막 공개본을 본다. 새 권한 키·ErrorCode는 없다.
+15. **기록.** 공개마다 audit `MEAL_ORDER_PUBLISHED`(개수만). 끼니 저장·채우기는 audit을 남기지 않는다(공개 스냅샷이 기록).
+16. **테이블은 `kind`를 가진 `group_turn_*`이다**(1월은 `MEAL`만). 같은 표를 나중에 청소·설거지 같은 조별 당번(`DUTY`)이 쓴다.
+
+경로·요청·응답·오류·테이블 초안·시험 조건과 DEC-080·083 계약에 더하는 것은 [식사 순서 계약 초안](../architecture/meal-order-contract.md)에 있다.
+
+### 결정 대기 (추천안으로 진행, PR 검토에서 확인)
+
+| # | 질문 | 선택지 | 추천안 | 영향 |
+|---|---|---|---|---|
+| 1 | 공개를 일정표와 같이 하나 따로 하나(#384 H1) | 따로(저장하고 바로 공개 포함) / 일정표 공개에 묶음 | 따로 | 일정 한 줄 공개가 식사 순서 정리 상태에 묶이지 않는다. 운영자는 두 공개 버튼을 본다(화면이 일정 식사 항목 옆에 이어 준다) |
+| 2 | 순서의 단위(#384) | 차례 번호 + 선택 시각 / 조를 묶은 1차·2차 시각만 | 차례 번호 + 선택 시각(같은 차례 여러 조 허용) | 시각을 정하지 않은 현장도 "2번째"로 안내하고, 묶음 배식도 표현한다 |
+| 3 | 참가자에게 다른 조의 순서(전체 표)를 보이나 | 보임 / 우리 조만 | 보임(조 이름·차례·시각만) | 앞 차례 조가 누구인지 알고 움직인다. 사람 정보는 없다 |
+| 4 | 테이블 이름 | `group_turn_*`(`kind`로 당번 확장) / `meal_order_*`(당번은 따로 만든다) | `group_turn_*` | 당번을 더할 때 테이블·코드를 다시 만들지 않는다. 1월에는 `kind = 'MEAL'`만 받는다 |
+| 5 | 순환 자동 채우기의 기본 회전 | 끼니마다 1칸 / 하루마다 1칸 / 회전 없음 | 끼니마다 1칸(`shift` 1, 바꿀 수 있음) | 첫 끼니에 먼저 먹은 조가 다음 끼니에 맨 뒤로 간다 |
+
+### 범위 밖
+
+- 끼니별 체크·식수 숫자(로드맵 결정 1, 트랙 E가 따로 한다)
+- 조 대신 방·또래 단위 순서, 사람 단위 순서
+- 일정 항목 시각이 바뀌면 순서 시각을 자동으로 고치기(표시만 확장 지점)
+- 조별 당번(청소·설거지) 화면과 경로(테이블은 열어 둔다)
+- 공개 취소, 예약 공개
+
+### Alternatives
+
+- **일정 항목에 순서를 넣기(항목 안의 조별 시각):** 일정표 스냅샷이 조 id를 갖게 되고, 조 편성이 바뀔 때마다 일정표를 다시 공개해야 한다. 식사 순서를 정리하는 동안 일정 공개가 막힌다.
+- **일정표 공개에 묶기:** 위와 같은 이유로 공개 단위가 커지고 알림 대상이 섞인다. `slotId`로 화면에서 붙이면 충분하다.
+- **조별 시각만(차례 번호 없음):** 시각을 정하지 않는 현장(줄 서는 순서만 정함)을 표현하지 못한다.
+- **조 편성 공개본의 조만 줄로:** 조를 공개하기 전에 순서를 준비할 수 없다. 작업본의 조로 만들고 공개 때 확인받는다.
+- **조 추가·삭제를 조 편성 경로에서 식사 순서에 반영:** 두 도메인이 서로의 코드를 고친다. 읽을 때 맞추면 조 편성 코드는 그대로다.
+- **새 권한 키(`MEAL_ORDER_WRITE`):** 일정·시각을 맡는 사람이 같고, MANAGER가 이미 `SCHEDULE_WRITE`를 갖는다(DEC-079). 새 키는 꼭 필요할 때만 만든다(구조 9).
+- **서버가 "다음 식사"를 계산:** 일정·순서·참석 칸·현재 시각을 서버가 매 요청 합쳐야 하고, 홈의 다른 계산(DEC-080 §6)과 방식이 갈린다.
+
+### Reason
+
+현장에서 필요한 것은 "끼니마다 어느 조가 몇 번째로, 대략 몇 시에 먹는지"를 한 번에 만들고, 바뀌면 휴대폰에서 고쳐 바로 알리는 것이다. 칸 id로 신청서·일정·식수와 잇고, 조 편성·일정표와 같은 작업본·공개본 계약을 써 서버·화면 코드와 운영자의 이해를 다시 쓴다. 조 변경은 읽을 때 맞춰 도메인을 섞지 않는다.
+
+### Consequence
+
+- 서버(H2): Flyway `group_turn_boards`·`group_turn_slots`·`group_turn_entries`·`group_turn_publications`, `MealOrderController`(가칭)·`ParticipantMealOrderController`(가칭), 실효 표 계산과 순환 채우기, audit `MEAL_ORDER_PUBLISHED`. 공개는 같은 트랜잭션에서 `participant_feed_versions.meal_order`와 알림을 쓴다. 끼니 정의는 `MealSlots`, 참석 칸은 `MealSlots.attended`를 쓴다.
+- 화면(H3): 끼니 × 조 표, 자동 채우기 창, 손 고치기(차례 끌어 놓기·묶기·시각), "조 편성을 먼저 공개" 안내, 공개와 저장하고 바로 공개. (H4) 홈 "다음 식사" 카드와 일정 식사 항목의 우리 조 순서. (F4) 조장 화면의 우리 조 차례와 끼니별 조원 수.
+- DEC-080 계약의 다음 식사 카드·`updates.mealOrder`·`MEAL_ORDER_PUBLISHED` 받는 사람, DEC-083 확장 지점 (3)(식사 순서)은 식사 순서 계약 초안 §10에 적었고 H2·H4 PR이 그 문서로 옮긴다.
+- **확장 지점:** (1) 조별 당번은 `kind = 'DUTY'`와 운영자가 만드는 칸 정의, `/duties` 경로, `features.duties`·`updates.duties`로 더한다. (2) 끼니별 체크(구조 7)가 같은 칸 id로 "우리 조 차례에 왔는지"를 센다. (3) 차례별 인원(조 공개본 × 참석 칸)을 운영자 표나 E3에 화면이 계산해 보인다. (4) 일정 시각이 바뀌면 다시 채우기를 권하는 표시. (5) 조 대신 방·또래 묶음은 줄에 `target_type`을 더한다.
+
+### Evidence
+
+사용자 결정 2026-11-19(로드맵 1절 일곱째·결정 1, 구조 2·3, [#384](https://github.com/BeomhyunPark/SCENE/issues/384) 본문의 구조와 결정 대기). 근거 자료는 DEC-043·045·046·047, DEC-070·073·074(칸 id·참석 칸), DEC-072와 Follow-up(조·공개본·`slots`), DEC-079(MANAGER `SCHEDULE_WRITE`), DEC-080(`updates`·알림·홈 계산), DEC-081(일정 `slotId`·저장하고 바로 공개), DEC-083(`leaderView`), api.md "조 편성"·"신청 집계", `MealSlots`, 마이그레이션 V13·V14·V16.

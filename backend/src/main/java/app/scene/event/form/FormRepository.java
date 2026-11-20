@@ -78,7 +78,10 @@ public class FormRepository {
     return queries.countFields(FormKey.of(spaceId, eventId, formId));
   }
 
-  /** Submitted applications on the form. One or more locks type changes (DEC-068). */
+  /**
+   * Submitted and withdrawn applications on the form. One or more locks type changes (DEC-068); a
+   * withdrawn one counts because it can be restored with its answers (DEC-084 §4).
+   */
   public int countSubmitted(UUID spaceId, UUID eventId, UUID formId) {
     return queries.countSubmitted(FormKey.of(spaceId, eventId, formId));
   }

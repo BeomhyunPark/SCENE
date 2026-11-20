@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { App } from "../App";
 import { login } from "../api/session";
 import { localEvent, localUsers } from "../mocks/fixtures/seed";
+import { revokePermissions } from "../mocks/taskStore";
 import {
   groupAssignmentLogs,
   groupPeople,
@@ -314,7 +315,9 @@ describe("group board (#301)", () => {
 
   it("is read only without GROUP_WRITE and closed to operators who cannot read the board", async () => {
     seedGroup(EVENT, "1조");
-    // Local manager: event MANAGER (no GROUP_WRITE) and space ADMIN (may read the board).
+    // Local manager: event MANAGER with GROUP_WRITE revoked (DEC-079 Follow-up 2026-11-20 gives it by
+    // default) and space ADMIN (may read the board).
+    revokePermissions(EVENT, localUsers[1].userId, ["GROUP_WRITE"]);
     await openAs(1);
     expect(await screen.findByText(/조 편성 권한이 없어 편성판만 볼 수 있어요/, {}, WAIT)).toBeInTheDocument();
     expect(await findCard("1조")).toBeInTheDocument();
@@ -466,6 +469,7 @@ describe("group publish (#302)", () => {
   });
 
   it("keeps the button closed without GROUP_WRITE and says why", async () => {
+    revokePermissions(EVENT, localUsers[1].userId, ["GROUP_WRITE"]);
     await openAs(1);
     await screen.findByText(/조 편성 권한이 없어 편성판만 볼 수 있어요/, {}, WAIT);
     expect(publishButton()).toBeDisabled();

@@ -9,6 +9,7 @@ import { createForm, setAccepting } from "../mocks/formStore";
 import { operatorRequests, setLifecycle } from "../mocks/operatorStore";
 import { submitPublicApplication } from "../mocks/participantStore";
 import { server } from "../mocks/server";
+import { revokePermissions } from "../mocks/taskStore";
 
 const EVENT = localEvent.eventId;
 const OWNER = localUsers[0].userId;
@@ -112,6 +113,8 @@ describe("applicant CSV download", () => {
 
   it("is hidden from an operator with read access only", async () => {
     seedApplicants();
+    // DEC-079 Follow-up 2026-11-20: MANAGER downloads by default, so this one has a REVOKE.
+    revokePermissions(localEvent.eventId, MANAGER, ["DATA_EXPORT"]);
     await login({ userId: MANAGER });
     openApp();
 
@@ -120,6 +123,14 @@ describe("applicant CSV download", () => {
       expect(operatorRequests.some((request) => request.url.includes(`/operators/${MANAGER}/permissions`))).toBe(true),
     );
     expect(screen.queryByRole("button", { name: "CSV 내려받기" })).not.toBeInTheDocument();
+  });
+
+  it("shows to a MANAGER by default (DEC-079 Follow-up 2026-11-20)", async () => {
+    seedApplicants();
+    await login({ userId: MANAGER });
+    openApp();
+
+    expect(await screen.findByRole("button", { name: "CSV 내려받기" })).toBeInTheDocument();
   });
 
   it("is disabled with no applicants", async () => {

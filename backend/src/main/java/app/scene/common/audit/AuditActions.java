@@ -66,5 +66,11 @@ public final class AuditActions {
 
   public static final String PARTICIPANT_PIN_RESET = "PARTICIPANT_PIN_RESET";
 
+  /** An operator withdrew an application (DEC-084). Details carry ids and flags, not the reason. */
+  public static final String APPLICATION_WITHDRAWN = "APPLICATION_WITHDRAWN";
+
+  /** An operator restored a withdrawn application (DEC-084). */
+  public static final String APPLICATION_RESTORED = "APPLICATION_RESTORED";
+
   private AuditActions() {}
 }

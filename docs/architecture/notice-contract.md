@@ -66,7 +66,7 @@ DRAFT ──publish──▶ PUBLISHED ──archive──▶ ARCHIVED
 | 공지 목록·상세(운영자, 모든 상태·대상) | 유효한 `EVENT_READ`, 또는 활성 공간 `OWNER`·`ADMIN` |
 | 만들기·고치기·지우기(DRAFT)·발행·보관·보관 해제·고정 | 유효한 `NOTICE_WRITE` |
 
-기본 역할 중 `NOTICE_WRITE`는 `OWNER`가 갖고, I2(DEC-079, 다른 세션)가 `MANAGER`에 더한다. 공지에는 운영자가 쓴 글만 있어 조회를 업무 권한으로 좁히지 않는다.
+기본 역할 중 `NOTICE_WRITE`는 `OWNER`와 `MANAGER`가 갖는다(DEC-079와 그 Follow-up 2026-11-20). 공지에는 운영자가 쓴 글만 있어 조회를 업무 권한으로 좁히지 않는다.
 
 | 행사 상태 | 조회 | 쓰기 | 참가자 공지 |
 |---|---|---|---|

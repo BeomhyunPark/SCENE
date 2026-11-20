@@ -57,6 +57,17 @@ describe("event owner adds organization members (#363)", () => {
     expect(await within(section).findByText("추가할 수 있는 조직 멤버가 없어요. 모두 이 행사의 운영자예요.")).toBeInTheDocument();
   });
 
+  it("says in one line what MANAGER and STAFF do by default (DEC-079 Follow-up 2026-11-20)", async () => {
+    await login({ userId: OWNER });
+    openApp();
+
+    const section = await addSection();
+    const role = await within(section).findByLabelText("추가할 역할");
+    expect(role).toHaveAccessibleDescription(
+      "Manager: 행사 시작·종료와 운영 멤버 관리만 빼고 모두 할 수 있어요 · Staff: 체크인과 보기만 할 수 있어요",
+    );
+  });
+
   it("adds a member as MANAGER", async () => {
     await login({ userId: OWNER });
     openApp();

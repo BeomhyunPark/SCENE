@@ -33,7 +33,7 @@ class ParticipantPinsTest {
     ParticipantPins pins =
         new ParticipantPins(
             new ParticipantProperties(
-                null, null, null, null, null, null, null, null, null, 4, null));
+                null, null, null, null, null, null, null, null, null, 4, null, null));
     for (int i = 0; i < 200; i++) {
       String pin = pins.temporary(PHONE);
       assertThat(ParticipantPins.accepted(pin, PHONE)).as(pin).isTrue();

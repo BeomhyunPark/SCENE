@@ -18,6 +18,15 @@ type Issued = {
   submittedAt: string;
   name: string;
   answers: StoredAnswer[];
+  /** DEC-084: set while the application is withdrawn. */
+  withdrawal?: MockWithdrawal | null;
+};
+
+export type MockWithdrawal = {
+  withdrawnAt: string;
+  withdrawnByDisplayName: string | null;
+  reason: string | null;
+  reapplyBlocked: boolean;
 };
 
 type StoredAnswer = { fieldId: string; value: Record<string, unknown> };
@@ -38,7 +47,7 @@ export function resetParticipantStore(): void {
   lockedUntil.clear();
 }
 
-export type Submitted = { applicationId: string; participantId: string; revision: number; revised: boolean };
+export type Submitted = { applicationId: string; participantId: string; revision: number; revised: boolean; restored?: boolean };
 
 /** DEC-078 §2: six digits, not one digit repeated, not a run up or down, not inside the phone. */
 export function pinAccepted(pin: unknown, phoneDigits: string): pin is string {
@@ -107,6 +116,19 @@ export function submitPublicApplication(
       return { status: 409, code: "APPLICATION_ALREADY_EXISTS" };
     }
     succeeded(eventId, phoneKey);
+    if (existing.withdrawal) {
+      // DEC-084 §5: the matching number brings a withdrawn application back.
+      existing.withdrawal = null;
+      if (JSON.stringify(existing.answers) !== JSON.stringify(answers)) {
+        existing.applicationId = crypto.randomUUID();
+        existing.revision += 1;
+        existing.answers = answers;
+        existing.name = name.trim();
+        existing.submittedAt = new Date().toISOString();
+      }
+      session = { participantId: existing.participantId, eventId };
+      return { applicationId: existing.applicationId, participantId: existing.participantId, revision: existing.revision, revised: true, restored: true };
+    }
     if (event.lifecycleStatus !== "ACTIVE" || !acceptingEdits(eventId)) return { status: 409, code: "EDITS_CLOSED" };
     const changed = JSON.stringify(existing.answers) !== JSON.stringify(answers);
     if (changed) {
@@ -183,7 +205,7 @@ export function openParticipantSession(eventId: string, body: unknown): Particip
   const locked = lockFailure(eventId, phoneKey);
   if (locked) return locked;
   const row = issued.find((item) => item.eventId === eventId && item.phoneKey === phoneKey);
-  if (!row || row.pin !== body.pin.trim() || foldName(row.name) !== foldName(body.name)) {
+  if (!row || row.withdrawal || row.pin !== body.pin.trim() || foldName(row.name) !== foldName(body.name)) {
     failed(eventId, phoneKey);
     return { status: 401, code: "PARTICIPANT_LOGIN_FAILED" };
   }
@@ -230,7 +252,65 @@ export function resetParticipantPin(eventId: string, participantId: string): str
 }
 
 function sessionRow(): Issued | undefined {
-  return session ? issued.find((row) => row.participantId === session?.participantId) : undefined;
+  // DEC-084 §4: a session counts only while the application is not withdrawn.
+  return session ? issued.find((row) => row.participantId === session?.participantId && !row.withdrawal) : undefined;
+}
+
+function active(eventId: string): Issued[] {
+  return issued.filter((row) => row.eventId === eventId && !row.withdrawal);
+}
+
+/** DEC-084: withdraws the participant's current application. Null when it is not in the event. */
+export function withdrawParticipantApplication(
+  eventId: string,
+  applicationId: string,
+  withdrawal: MockWithdrawal,
+): { participantId: string; already: boolean; withdrawal: MockWithdrawal } | { stale: true; applicationId: string; revision: number } | null {
+  const row = issued.find((item) => item.eventId === eventId && item.applicationId === applicationId);
+  if (!row) return null;
+  if (row.withdrawal) return { participantId: row.participantId, already: true, withdrawal: row.withdrawal };
+  row.withdrawal = withdrawal;
+  if (withdrawal.reapplyBlocked) row.pin = crypto.randomUUID();
+  if (session?.participantId === row.participantId) session = null;
+  return { participantId: row.participantId, already: false, withdrawal };
+}
+
+/** DEC-084 §3: back to SUBMITTED. Null when it is not in the event. */
+export function restoreParticipantApplication(
+  eventId: string,
+  applicationId: string,
+): { participantId: string; already: boolean; reapplyBlocked: boolean } | null {
+  const row = issued.find((item) => item.eventId === eventId && item.applicationId === applicationId);
+  if (!row) return null;
+  if (!row.withdrawal) return { participantId: row.participantId, already: true, reapplyBlocked: false };
+  const reapplyBlocked = row.withdrawal.reapplyBlocked;
+  row.withdrawal = null;
+  return { participantId: row.participantId, already: false, reapplyBlocked };
+}
+
+/** Withdrawn applicants of the event, newest withdraw first, for the table mock. */
+export function withdrawnApplications(eventId: string): {
+  applicationId: string;
+  participantId: string;
+  name: string;
+  submittedAt: string;
+  withdrawal: MockWithdrawal;
+}[] {
+  return issued
+    .filter((row) => row.eventId === eventId && row.withdrawal)
+    .map((row) => ({
+      applicationId: row.applicationId,
+      participantId: row.participantId,
+      name: row.name,
+      submittedAt: row.submittedAt,
+      withdrawal: row.withdrawal as MockWithdrawal,
+    }))
+    .sort((a, b) => b.withdrawal.withdrawnAt.localeCompare(a.withdrawal.withdrawnAt));
+}
+
+/** The withdrawal of one application, or null. */
+export function withdrawalOf(eventId: string, applicationId: string): MockWithdrawal | null {
+  return issued.find((row) => row.eventId === eventId && row.applicationId === applicationId)?.withdrawal ?? null;
 }
 
 /**
@@ -244,8 +324,7 @@ export function submittedApplications(eventId: string): {
   submittedAt: string;
   name: string | null;
 }[] {
-  return issued
-    .filter((row) => row.eventId === eventId)
+  return active(eventId)
     .map((row) => ({
       applicationId: row.applicationId,
       formId: row.formId,
@@ -257,8 +336,7 @@ export function submittedApplications(eventId: string): {
 
 /** Raw stored answers of every submitted application, oldest first, for the summary mock. */
 export function submittedAnswers(eventId: string): { applicationId: string; answers: Map<string, Record<string, unknown>> }[] {
-  return issued
-    .filter((row) => row.eventId === eventId)
+  return active(eventId)
     .map((row) => ({
       applicationId: row.applicationId,
       answers: new Map(row.answers.map((answer) => [answer.fieldId, answer.value])),
@@ -301,7 +379,7 @@ export function submittedApplication(
   return {
     applicationId: row.applicationId,
     formId: row.formId,
-    status: "SUBMITTED",
+    status: row.withdrawal ? "WITHDRAWN" : "SUBMITTED",
     submittedAt: row.submittedAt,
     participantId: row.participantId,
     revision: row.revision,
@@ -316,8 +394,7 @@ export function checkInCandidates(eventId: string): {
   cohort: string | null;
   phoneLast4: string;
 }[] {
-  return issued
-    .filter((row) => row.eventId === eventId)
+  return active(eventId)
     .map((row) => {
       const fields = formFields(row.eventId, row.formId);
       const phone = answerFor(fields, row.answers, "PHONE") ?? "";
@@ -342,8 +419,7 @@ export function tableApplications(eventId: string): {
   revision: number;
   answers: Record<string, Record<string, unknown>>;
 }[] {
-  return issued
-    .filter((row) => row.eventId === eventId)
+  return active(eventId)
     .map((row) => ({
       applicationId: row.applicationId,
       participantId: row.participantId,

@@ -92,7 +92,8 @@ class ServerContractRegressionIT {
     Fixture fx = seed("ACTIVE");
     Cookie owner = login(fx.ownerId);
     Cookie manager = login(fx.managerId);
-    putOk(fx, owner, fx.managerId, "{\"grants\":[\"DATA_EXPORT\"],\"revokes\":[]}");
+    // DEC-079 Follow-up: DATA_EXPORT is a MANAGER default, so the stored override is a REVOKE.
+    putOk(fx, owner, fx.managerId, "{\"grants\":[],\"revokes\":[\"DATA_EXPORT\"]}");
     int audits = auditRows(fx.eventId);
 
     problem(
@@ -144,6 +145,7 @@ class ServerContractRegressionIT {
     JsonNode changed = json.readTree(readOk(fx, owner, fx.managerId));
     assertThat(changed.get("role").asString()).isEqualTo("STAFF");
     assertThat(changed.get("overrides").get("grants")).isEmpty();
+    assertThat(changed.get("overrides").get("revokes")).isEmpty();
     assertThat(changed.get("effective").toString()).doesNotContain("DATA_EXPORT");
     JsonNode roleAudit =
         json.readTree(auditDetail(fx.eventId, AuditActions.EVENT_USER_ROLE_CHANGED));

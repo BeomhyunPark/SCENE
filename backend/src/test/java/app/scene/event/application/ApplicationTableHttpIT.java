@@ -198,7 +198,7 @@ class ApplicationTableHttpIT {
     effect(event, contactId, "PARTICIPANT_CONTACT_READ", "GRANT");
     UUID grouperId = user("Group staff");
     member(event.spaceId, grouperId, "MEMBER");
-    operator(event.spaceId, event.eventId, grouperId, "MANAGER");
+    operator(event.spaceId, event.eventId, grouperId, "STAFF");
     effect(event, grouperId, "GROUP_WRITE", "GRANT");
     int audits = auditCount(event.eventId, "APPLICANT_CONTACTS_VIEWED");
 
@@ -230,6 +230,18 @@ class ApplicationTableHttpIT {
     JsonNode grouper = table(login(grouperId), event.eventId);
     assertThat(grouper.get("groupVisible").asBoolean()).isTrue();
     assertThat(grouper.get("contactVisible").asBoolean()).isFalse();
+
+    // DEC-079 Follow-up 2026-11-20: MANAGER sees contact and group columns by default.
+    UUID managerId = user("Manager");
+    member(event.spaceId, managerId, "MEMBER");
+    operator(event.spaceId, event.eventId, managerId, "MANAGER");
+    JsonNode manager = table(login(managerId), event.eventId);
+    assertThat(manager.get("contactVisible").asBoolean()).isTrue();
+    assertThat(manager.get("groupVisible").asBoolean()).isTrue();
+    assertThat(manager.get("rows").get(0).get("answers").get(id(form, 1)).get("text").asString())
+        .isEqualTo("010-1234-5678");
+    assertThat(manager.get("rows").get(0).get("group").get("name").asString()).isEqualTo("1조");
+    assertThat(auditCount(event.eventId, "APPLICANT_CONTACTS_VIEWED")).isEqualTo(audits + 2);
   }
 
   @Test

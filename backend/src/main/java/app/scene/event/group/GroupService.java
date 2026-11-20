@@ -6,6 +6,8 @@ import app.scene.common.error.ErrorCode;
 import app.scene.common.error.SceneException;
 import app.scene.common.permission.Permission;
 import app.scene.common.permission.PermissionEvaluator;
+import app.scene.event.feed.FeedArea;
+import app.scene.event.feed.ParticipantFeedVersions;
 import app.scene.event.form.FormFieldRow;
 import app.scene.event.form.FormPreset;
 import app.scene.event.form.FormRepository;
@@ -74,6 +76,7 @@ public class GroupService {
   private final FormRepository forms;
   private final JsonMapper json;
   private final Clock clock;
+  private final ParticipantFeedVersions feedVersions;
 
   public GroupService(
       EventAccessGate gate,
@@ -83,7 +86,8 @@ public class GroupService {
       AuditLogRepository auditLogs,
       FormRepository forms,
       JsonMapper json,
-      Clock clock) {
+      Clock clock,
+      ParticipantFeedVersions feedVersions) {
     this.gate = gate;
     this.events = events;
     this.groups = groups;
@@ -92,6 +96,7 @@ public class GroupService {
     this.forms = forms;
     this.json = json;
     this.clock = clock;
+    this.feedVersions = feedVersions;
   }
 
   @Transactional(readOnly = true)
@@ -256,6 +261,8 @@ public class GroupService {
     UUID publicationId = UUID.randomUUID();
     groups.insertPublication(
         spaceId, eventId, publicationId, boardVersion, new Snapshot(snapshotGroups), actorId, now);
+    // DEC-080 §4: participants reload the group card; same transaction as the publication.
+    feedVersions.bump(spaceId, eventId, FeedArea.GROUPS);
     Map<String, Object> detail = new LinkedHashMap<>();
     detail.put("publicationId", publicationId.toString());
     detail.put("boardVersion", boardVersion);
@@ -707,6 +714,66 @@ public class GroupService {
     groups.bumpGroupVersion(spaceId, eventId, groupId, now);
     long boardVersion = groups.bumpBoardVersion(spaceId, eventId, now);
     return new LeadersWritten(group(spaceId, eventId, groupId), leaderIds, boardVersion);
+  }
+
+  /** The assignment a withdraw removed (DEC-084 §4). */
+  public record RemovedAssignment(UUID groupId, String groupName, boolean leader) {}
+
+  /**
+   * Removes the working-copy assignment of a participant whose application is being withdrawn
+   * (DEC-072 §5, DEC-084 §4) and logs it with cause {@code WITHDRAWN}. The board version moves, and
+   * the group version too when the participant was its leader, and the participants' {@code GROUPS}
+   * refresh value when the person is in the latest publication. The caller holds the event row lock
+   * and has checked the event state and its own permission; {@code GROUP_WRITE} is not checked.
+   * Empty when the participant was unassigned.
+   */
+  @Transactional
+  public Optional<RemovedAssignment> removeWithdrawn(
+      UUID spaceId, UUID eventId, UUID participantId, UUID actorId, Instant at) {
+    // The latest publication leaves the person out from now on (DEC-084 §3), so participants who
+    // saw them there read their group again (DEC-080 §4).
+    boolean published =
+        groups
+            .latestPublication(spaceId, eventId)
+            .map(publication -> publication.snapshot().placements().containsKey(participantId))
+            .orElse(false);
+    if (published) {
+      feedVersions.bump(spaceId, eventId, FeedArea.GROUPS);
+    }
+    Assignment current =
+        groups.assignments(spaceId, eventId, List.of(participantId)).stream()
+            .findFirst()
+            .orElse(null);
+    if (current == null || current.groupId() == null) {
+      return Optional.empty();
+    }
+    Group group = group(spaceId, eventId, current.groupId());
+    groups.log(
+        spaceId,
+        eventId,
+        participantId,
+        current.groupId(),
+        null,
+        current.leader(),
+        false,
+        GroupRepository.WITHDRAWN,
+        actorId,
+        at);
+    groups.assign(spaceId, eventId, participantId, null, 0, actorId, at);
+    if (current.leader()) {
+      groups.bumpGroupVersion(spaceId, eventId, current.groupId(), at);
+    }
+    groups.bumpBoardVersion(spaceId, eventId, at);
+    return Optional.of(new RemovedAssignment(group.groupId(), group.name(), current.leader()));
+  }
+
+  /**
+   * The group the participant was in when last withdrawn, when that group still exists (DEC-044:
+   * shown as a reference on restore, never restored by itself).
+   */
+  public Optional<Group> previousGroup(UUID spaceId, UUID eventId, UUID participantId) {
+    UUID groupId = groups.withdrawnFromGroup(spaceId, eventId, participantId);
+    return groupId == null ? Optional.empty() : groups.find(spaceId, eventId, groupId);
   }
 
   private BoardParticipant participant(
