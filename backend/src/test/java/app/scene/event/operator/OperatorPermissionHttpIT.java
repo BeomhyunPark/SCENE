@@ -11,9 +11,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import app.scene.common.audit.AuditActions;
+import app.scene.common.permission.Permission;
 import app.scene.common.web.RequestIdFilter;
 import app.scene.support.PostgresTestcontainer;
 import jakarta.servlet.http.Cookie;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -91,30 +95,38 @@ class OperatorPermissionHttpIT {
   }
 
   /**
-   * DEC-079: MANAGER has schedule and notice writes by default, a GRANT of a default key stores
-   * nothing, and STAFF gets group writes only by a personal GRANT.
+   * DEC-079 Follow-up 2026-11-20: MANAGER has every key but the OWNER-only ones by default, a GRANT
+   * of a default key stores nothing, and STAFF gets group writes only by a personal GRANT.
    */
   @Test
-  void managerDefaultsIncludeScheduleAndNoticeAndStaffGetsGroupWriteByGrant() throws Exception {
+  void managerDefaultsAreEveryKeyButOwnerOnlyAndStaffGetsGroupWriteByGrant() throws Exception {
     Fixture fx = seed();
     Cookie owner = login(fx.ownerId);
-    mvc.perform(get(permissions(fx.eventId, fx.managerId)).cookie(owner))
-        .andExpect(status().isOk())
-        .andExpect(
-            jsonPath("$.roleDefaults")
-                .value(
-                    contains(
-                        "CHECKIN_WRITE",
-                        "EVENT_READ",
-                        "NOTICE_WRITE",
-                        "SCHEDULE_WRITE",
-                        "TASK_WRITE")));
+    List<String> managerDefaults =
+        Arrays.stream(Permission.values())
+            .filter(permission -> !permission.ownerOnly())
+            .map(Permission::name)
+            .sorted()
+            .toList();
+    String managerView =
+        mvc.perform(get(permissions(fx.eventId, fx.managerId)).cookie(owner))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    JsonNode managerBody = json.readTree(managerView);
+    List<String> listed = new ArrayList<>();
+    managerBody.get("roleDefaults").forEach(key -> listed.add(key.asString()));
+    assertThat(listed).containsExactlyElementsOf(managerDefaults);
+    assertThat(managerBody.get("effective").toString())
+        .contains("GROUP_WRITE", "PARTICIPANT_CONTACT_READ", "DATA_EXPORT", "PARTICIPANT_WRITE")
+        .doesNotContain("EVENT_LIFECYCLE", "EVENT_USER_MANAGE");
     mvc.perform(get(permissions(fx.eventId, fx.staffId)).cookie(owner))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.roleDefaults").value(contains("CHECKIN_WRITE", "EVENT_READ")));
 
     String manager =
-        putOk(fx, owner, fx.managerId, "{\"grants\":[\"NOTICE_WRITE\"],\"revokes\":[]}");
+        putOk(fx, owner, fx.managerId, "{\"grants\":[\"GROUP_WRITE\"],\"revokes\":[]}");
     assertThat(json.readTree(manager).get("overrides").get("grants").size()).isZero();
     assertThat(overrideCount(fx.eventId, fx.managerId)).isZero();
 

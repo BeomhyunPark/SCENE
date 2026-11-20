@@ -17,11 +17,13 @@
 - [Export·보존·삭제·복구 검토 결과](product/data-retention-export-review.md)
 - [신청서 질문 유형·조건부 질문 검토](product/form-question-types-review.md)
 - [운영자 사이드바 메뉴 목적지 정리](product/operator-sidebar-menus-review.md)
+- [2027년 1월 수련회 로드맵](product/retreat-2027-roadmap.md)
 - [Research와 원문 Artifact](product/RESEARCH.md)
 - [Figma Workspace Governance](design/figma-workspace-governance.md)
 - [Architecture와 소스 우선순위·검토 필요사항](architecture/architecture-v0.1.md)
 - [Data Model](architecture/data-model-v0.1.md) · [Security / Privacy](architecture/security-privacy-v0.1.md)
 - [API Architecture와 OPEN 항목](architecture/api-architecture-v0.1.md)
+- 계약 초안(아직 서버에 없음): [참가자 홈·갱신 확인·알림](architecture/participant-home-contract.md) · [일정표](architecture/schedule-contract.md) · [공지](architecture/notice-contract.md) · [내 조](architecture/participant-group-contract.md) · [숙소](architecture/room-contract.md) · [식사 순서](architecture/meal-order-contract.md)
 - [홈서버 운영 (1월 수련회)](devops/home-server.md) · [호스팅 비교 기록](devops/hosting-decision.md)
 
 ## 진행 관리

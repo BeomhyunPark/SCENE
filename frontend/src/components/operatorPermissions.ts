@@ -41,6 +41,16 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
   },
 ];
 
+/**
+ * What each role does by default, in one line (DEC-079 Follow-up 2026-11-20). MANAGER has every key
+ * but the OWNER-only ones; STAFF checks in and reads. The editor itself draws from the server's
+ * roleDefaults, so this text is only the summary shown where a role is picked.
+ */
+export const ROLE_SUMMARY: Record<"MANAGER" | "STAFF", string> = {
+  MANAGER: "행사 시작·종료와 운영 멤버 관리만 빼고 모두 할 수 있어요",
+  STAFF: "체크인과 보기만 할 수 있어요",
+};
+
 export const EDITABLE_KEYS = PERMISSION_GROUPS.flatMap((group) => group.items.map((item) => item.key));
 
 export type PermissionSource = "default" | "granted" | "revoked" | "none";

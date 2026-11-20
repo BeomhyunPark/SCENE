@@ -516,25 +516,11 @@ function hasKey(row: OperatorRow, key: string): boolean {
 }
 
 function defaultsFor(role: Role): string[] {
-  // The server gives an event OWNER every event key. The mock lists the keys these screens read.
-  // DEC-071: OWNER, MANAGER and STAFF all check in by default. DEC-072: only OWNER has GROUP_WRITE.
-  if (role === "OWNER") {
-    return [
-      "EVENT_READ",
-      "EVENT_UPDATE",
-      "TASK_WRITE",
-      "FORM_WRITE",
-      "CHECKIN_WRITE",
-      "DATA_EXPORT",
-      "PARTICIPANT_CONTACT_READ",
-      "GROUP_WRITE",
-      // DEC-075: operation memo writes; only OWNER by default, others by GRANT.
-      "PARTICIPANT_WRITE",
-    ];
-  }
-  // DEC-079: MANAGER also writes the schedule and notices by default.
-  if (role === "MANAGER") return ["EVENT_READ", "TASK_WRITE", "CHECKIN_WRITE", "SCHEDULE_WRITE", "NOTICE_WRITE"];
-  return ["EVENT_READ", "CHECKIN_WRITE"];
+  // Mirrors the server RoleDefaults (DEC-079 Follow-up 2026-11-20). OWNER has every event key.
+  // MANAGER has every key but the OWNER-only ones. STAFF reads and checks in (DEC-071).
+  if (role === "OWNER") return [...KNOWN_KEYS].sort();
+  if (role === "MANAGER") return KNOWN_KEYS.filter((key) => !OWNER_ONLY.includes(key)).sort();
+  return ["CHECKIN_WRITE", "EVENT_READ"];
 }
 
 function countsOf(task: TaskRow): { done: number; total: number } {

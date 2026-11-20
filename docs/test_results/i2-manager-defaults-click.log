@@ -1,0 +1,28 @@
+login 1 200
+event 201 cf2405e4-17cb-4cef-a2fb-33553aa21eeb
+add MANAGER 200
+add STAFF 200
+activate 200
+form 201
+open 200
+fields NAME:SHORT_TEXT:true PHONE:SHORT_TEXT:true COHORT:SHORT_TEXT:true
+apply 김하나 201 
+apply 이두리 201 
+apply 박세나 201 
+group 201
+login 2 200
+manager overrides {"grants":[],"revokes":[]} effective has GROUP/CONTACT/EXPORT/WRITE true no owner-only true
+board assigned [["김하나","1조"]]
+contact column true
+csv rows 4 has phone true
+manager sees 권한 buttons 0
+manager PUT permissions 403 FORBIDDEN
+manager PATCH role 403 FORBIDDEN
+manager end 403 FORBIDDEN
+owner dialog manager checked {"연락처 보기":true,"참가자 정보 수정":true,"명단 내려받기":true,"조 편성":true,"숙소 배정":true,"체크인":true,"준비 업무":true,"일정 쓰기":true,"공지 쓰기":true,"신청서 고치기":true,"행사 정보 고치기":true}
+owner dialog staff 조 편성 checked false 체크인 true
+role summary Manager: 행사 시작·종료와 운영 멤버 관리만 빼고 모두 할 수 있어요 · Staff: 체크인과 보기만 할 수 있어요
+login 3 200
+staff checkin summary {"eventStatus":"ACTIVE","total":3,"checkedIn":1,"notCheckedIn":2}
+staff sees phone 0 csv button 0
+staff export 403 FORBIDDEN

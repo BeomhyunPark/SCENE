@@ -355,6 +355,40 @@ class ApplicationReadHttpIT {
     assertThat(auditCount(event.eventId)).isGreaterThanOrEqualTo(audits + 2);
   }
 
+  /** DEC-079 Follow-up 2026-11-20: MANAGER writes the memo by default; a REVOKE stops it. */
+  @Test
+  void managerWritesTheMemoByDefaultAndARevokeStopsIt() throws Exception {
+    Held event = openEvent("Manager memo");
+    Seeded seeded = seed(event);
+    String path = applicationPath(event.eventId, seeded.applicationId);
+    UUID managerId = user("Memo manager");
+    member(event.spaceId, managerId, "MEMBER");
+    operator(event.spaceId, event.eventId, managerId, "MANAGER");
+    Cookie manager = login(managerId);
+
+    assertThat(
+            json.readTree(ok(writeMemo(manager, path, "매니저 메모", 0, "req-manager")))
+                .get("version")
+                .asInt())
+        .isEqualTo(1);
+
+    jdbc.update(
+        """
+        INSERT INTO event_user_permissions (
+          space_id, event_id, user_id, permission, effect, granted_by, granted_at)
+        VALUES (?, ?, ?, 'PARTICIPANT_WRITE', 'REVOKE', ?, now())
+        """,
+        event.spaceId,
+        event.eventId,
+        managerId,
+        managerId);
+    problem(
+        writeMemo(manager, path, "x", 1, "req-manager-revoked"),
+        403,
+        "FORBIDDEN",
+        "req-manager-revoked");
+  }
+
   @Test
   void memoWriteNeedsParticipantWriteAndAnOpenEvent() throws Exception {
     Held event = openEvent("Memo perms");
@@ -362,7 +396,7 @@ class ApplicationReadHttpIT {
     String path = applicationPath(event.eventId, seeded.applicationId);
     UUID staffId = user("Memo staff");
     member(event.spaceId, staffId, "MEMBER");
-    operator(event.spaceId, event.eventId, staffId, "MANAGER");
+    operator(event.spaceId, event.eventId, staffId, "STAFF");
     UUID adminId = user("Memo admin");
     member(event.spaceId, adminId, "ADMIN");
     Cookie staff = login(staffId);

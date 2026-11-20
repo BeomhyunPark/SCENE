@@ -427,8 +427,12 @@ class GroupPublicationHttpIT {
         .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
 
     long version = boardVersion(w);
-    for (String role : List.of("MANAGER", "STAFF")) {
-      Cookie operator = login(w.operator(role, role));
+    // DEC-079 Follow-up 2026-11-20: MANAGER has GROUP_WRITE by default, so the MANAGER here has a
+    // personal REVOKE.
+    UUID revokedManagerId = w.operator("Revoked manager", "MANAGER");
+    revoke(w, revokedManagerId, "GROUP_WRITE");
+    for (UUID operatorId : List.of(w.operator("STAFF", "STAFF"), revokedManagerId)) {
+      Cookie operator = login(operatorId);
       problem(
           publishRequest(operator, w, "{\"expectedBoardVersion\":" + version + "}"),
           403,
@@ -829,6 +833,20 @@ class GroupPublicationHttpIT {
         INSERT INTO event_user_permissions (
           space_id, event_id, user_id, permission, effect, granted_by, granted_at)
         VALUES (?, ?, ?, ?, 'GRANT', ?, now())
+        """,
+        w.spaceId,
+        w.eventId,
+        userId,
+        permission,
+        w.ownerId);
+  }
+
+  private void revoke(World w, UUID userId, String permission) {
+    jdbc.update(
+        """
+        INSERT INTO event_user_permissions (
+          space_id, event_id, user_id, permission, effect, granted_by, granted_at)
+        VALUES (?, ?, ?, ?, 'REVOKE', ?, now())
         """,
         w.spaceId,
         w.eventId,

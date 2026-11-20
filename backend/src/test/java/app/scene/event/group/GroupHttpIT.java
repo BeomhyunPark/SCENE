@@ -745,14 +745,20 @@ class GroupHttpIT {
     assertThat(logCount(w)).isEqualTo(3);
   }
 
+  /**
+   * DEC-079 Follow-up 2026-11-20: OWNER and MANAGER write groups by default. STAFF, and a MANAGER
+   * with a personal REVOKE, do not.
+   */
   @Test
-  void groupWriteIsOwnerOnlyByDefaultAndSpaceOwnerOrAdminMayRead() throws Exception {
+  void groupWriteIsOwnerAndManagerByDefaultAndSpaceOwnerOrAdminMayRead() throws Exception {
     World w = world();
     String g1 = createGroup(w, "1조");
     UUID p = w.participant(NAME, PHONE, "94");
+    UUID revokedManagerId = w.operator("Revoked manager", "MANAGER");
+    revoke(w, revokedManagerId, "GROUP_WRITE");
 
-    for (String role : List.of("MANAGER", "STAFF")) {
-      Cookie operator = login(w.operator(role, role));
+    for (UUID operatorId : List.of(w.operator("STAFF", "STAFF"), revokedManagerId)) {
+      Cookie operator = login(operatorId);
       problem(get(boardPath(w)).cookie(operator), 403, "FORBIDDEN");
       problem(write(post(groupsPath(w)), operator, "{\"name\":\"x\"}"), 403, "FORBIDDEN");
       problem(write(post(groupsPath(w)), operator, "{}"), 403, "FORBIDDEN");
@@ -769,6 +775,13 @@ class GroupHttpIT {
     Cookie granted = login(grantedId);
     ok(get(boardPath(w)).cookie(granted));
     assertThat(assignRequestOk(granted, w, change(p, null, g1)).get("changed").asInt())
+        .isEqualTo(1);
+
+    Cookie manager = login(w.operator("Manager", "MANAGER"));
+    ok(get(boardPath(w)).cookie(manager));
+    assertThat(assignRequestOk(manager, w, change(p, g1, null)).get("changed").asInt())
+        .isEqualTo(1);
+    assertThat(assignRequestOk(manager, w, change(p, null, g1)).get("changed").asInt())
         .isEqualTo(1);
 
     for (String spaceRole : List.of("ADMIN", "OWNER")) {
@@ -1182,6 +1195,20 @@ class GroupHttpIT {
         INSERT INTO event_user_permissions (
           space_id, event_id, user_id, permission, effect, granted_by, granted_at)
         VALUES (?, ?, ?, ?, 'GRANT', ?, now())
+        """,
+        w.spaceId,
+        w.eventId,
+        userId,
+        permission,
+        w.ownerId);
+  }
+
+  private void revoke(World w, UUID userId, String permission) {
+    jdbc.update(
+        """
+        INSERT INTO event_user_permissions (
+          space_id, event_id, user_id, permission, effect, granted_by, granted_at)
+        VALUES (?, ?, ?, ?, 'REVOKE', ?, now())
         """,
         w.spaceId,
         w.eventId,
