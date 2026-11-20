@@ -8,6 +8,7 @@ import { resetInvitationStore } from "../mocks/invitationStore";
 import { resetSpaceInvitationStore } from "../mocks/spaceInvitationStore";
 import { resetOperatorStore } from "../mocks/operatorStore";
 import { resetParticipantStore } from "../mocks/participantStore";
+import { resetParticipantFeedStore } from "../mocks/participantFeedStore";
 import { resetParticipantCheckInStore } from "../mocks/participantCheckInStore";
 import { resetRetrospectiveStore } from "../mocks/retrospectiveStore";
 import { resetOperationStore } from "../mocks/operationStore";
@@ -35,6 +36,7 @@ afterEach(() => {
   resetCheckInStore();
   resetGroupStore();
   resetParticipantStore();
+  resetParticipantFeedStore();
   resetParticipantCheckInStore();
   resetFormStore();
   resetInvitationStore();

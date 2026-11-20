@@ -286,7 +286,7 @@ class ParticipantHomeHttpIT {
     assertThat(u.get("application").asLong()).isEqualTo(1);
     assertThat(u.get("notifications").get("latestSeq").asLong()).isZero();
     assertThat(u.get("notifications").get("unreadCount").asInt()).isZero();
-    assertThat(u.get("pollAfterSeconds").asInt()).isEqualTo(30);
+    assertThat(u.get("pollAfterSeconds").asInt()).isEqualTo(25);
     assertThat(u.get("serverTime").asString()).endsWith("Z");
     assertNoPrivateValues(body, a, b.name(), b.phone());
 

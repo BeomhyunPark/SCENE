@@ -47,7 +47,7 @@ services:
       SCENE_PARTICIPANT_IPFAILUREWINDOW: ${SCENE_PARTICIPANT_IPFAILUREWINDOW:-}
       SCENE_PARTICIPANT_SUBMITIPLIMIT: ${SCENE_PARTICIPANT_SUBMITIPLIMIT:-}
       SCENE_PARTICIPANT_SUBMITIPWINDOW: ${SCENE_PARTICIPANT_SUBMITIPWINDOW:-}
-      # Participant screen refresh interval in seconds (DEC-080, #423). 10-300, empty keeps 30.
+      # Participant screen refresh interval in seconds (DEC-080, #423). 10-300, empty keeps 25.
       SCENE_PARTICIPANT_POLLAFTERSECONDS: ${SCENE_PARTICIPANT_POLLAFTERSECONDS:-}
       TZ: Asia/Seoul
     healthcheck:

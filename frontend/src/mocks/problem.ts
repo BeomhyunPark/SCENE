@@ -19,6 +19,7 @@ export function problem(
     unassignedCount?: number;
     applicationStatus?: string;
     retryAfterSeconds?: number;
+    revision?: number;
   },
 ): Response {
   return HttpResponse.json(

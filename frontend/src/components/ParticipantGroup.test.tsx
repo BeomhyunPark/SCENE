@@ -18,6 +18,7 @@ import {
   withdrawGroupParticipant,
 } from "../mocks/groupStore";
 import { server } from "../mocks/server";
+import { participantHomeHandlers } from "../mocks/participantHomeTestHandlers";
 
 const EVENT = localEvent.eventId;
 const PUBLISHED = "2026-12-20T09:00:00.000Z";
@@ -38,6 +39,7 @@ function signedIn() {
     http.get("/api/v1/participant/check-in", () =>
       HttpResponse.json({ status: "NOT_STARTED", code: null, checkedIn: false, checkedInAt: null }),
     ),
+    ...participantHomeHandlers(),
   ];
 }
 
@@ -62,9 +64,10 @@ function openForm() {
   return form;
 }
 
-function openApp() {
+/** The full 내 조 view is the 내 조 tab (#425); the home has a summary card. */
+function openApp(path = `/participate/${EVENT}/group`) {
   return render(
-    <MemoryRouter initialEntries={[`/participate/${EVENT}`]}>
+    <MemoryRouter initialEntries={[path]}>
       <App />
     </MemoryRouter>,
   );
@@ -79,7 +82,7 @@ describe("participant group", () => {
     vi.restoreAllMocks();
   });
 
-  it("shows the group and leader names with the publish time, after the arrival area", async () => {
+  it("shows the group and leader names with the publish time on the 내 조 tab", async () => {
     const local = vi.spyOn(Storage.prototype, "setItem");
     server.use(...signedIn(), group(ASSIGNED));
     openApp();
@@ -88,8 +91,7 @@ describe("participant group", () => {
     expect(within(region).getByText("김민수님의 조")).toBeInTheDocument();
     expect(within(region).getByText(/조장/)).toHaveTextContent("조장김하늘");
     expect(within(region).getByText("12월 20일 18:00 기준")).toBeInTheDocument();
-    const arrival = screen.getByRole("region", { name: "도착 확인" });
-    expect(arrival.compareDocumentPosition(region) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByRole("link", { name: /내 조/, current: "page" })).toBeInTheDocument();
     expect(local.mock.calls.flat().some((value) => String(value).includes("김하늘"))).toBe(false);
   });
 
@@ -139,9 +141,21 @@ describe("participant group", () => {
     expect(within(groupRegion()).queryByText(/기준$/)).not.toBeInTheDocument();
   });
 
+  it("shows the summary card after the arrival QR on home and opens the 내 조 tab", async () => {
+    server.use(...signedIn(), group(ASSIGNED));
+    openApp(`/participate/${EVENT}`);
+    const card = await screen.findByRole("region", { name: "내 조" });
+    expect(await within(card).findByText("1조")).toBeInTheDocument();
+    expect(within(card).getByText("조장 김하늘")).toBeInTheDocument();
+    const arrival = screen.getByRole("region", { name: "도착 확인" });
+    expect(arrival.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    fireEvent.click(within(card).getByRole("link", { name: "내 조 자세히 보기" }));
+    expect(await screen.findByText("김민수님의 조")).toBeInTheDocument();
+  });
+
   it("hides the group area for a withdrawn application", async () => {
     server.use(...signedIn(), group({ status: "NOT_ELIGIBLE", publishedAt: null, group: null }));
-    openApp();
+    openApp(`/participate/${EVENT}`);
     await screen.findByRole("region", { name: "도착 확인" });
     await screen.findByText("행사가 시작되면 열립니다.");
     await vi.waitFor(() => expect(screen.queryByText("내 조를 불러오는 중이에요.")).not.toBeInTheDocument());
@@ -183,10 +197,20 @@ describe("participant group", () => {
     expect(screen.getByText("1조")).toBeInTheDocument();
   });
 
-  it("asks for the link again on 401 without showing server detail", async () => {
-    server.use(...signedIn(), http.get("/api/v1/participant/group", () => problem(401, "AUTHENTICATION_REQUIRED")));
+  it("goes back to the sign-in screen on 401 without showing server detail", async () => {
+    let inside = true;
+    server.use(
+      http.get("/api/v1/participant/me", () =>
+        inside ? HttpResponse.json({ participantId: "person-1", eventId: EVENT, spaceId: "space-1", name: "김민수" }) : problem(401, "AUTHENTICATION_REQUIRED"),
+      ),
+      http.get("/api/v1/participant/group", () => {
+        inside = false;
+        return problem(401, "AUTHENTICATION_REQUIRED");
+      }),
+      ...signedIn(),
+    );
     openApp();
-    expect(await within(await screen.findByRole("region", { name: "내 조" })).findByText("링크로 다시 들어와 주세요.")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "내 신청 보기" })).toBeInTheDocument();
     expect(screen.queryByText(SECRET)).not.toBeInTheDocument();
   });
 });

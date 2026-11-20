@@ -6,6 +6,7 @@ import { App } from "../App";
 import { login } from "../api/session";
 import { localEvent, localUsers } from "../mocks/fixtures/seed";
 import { server } from "../mocks/server";
+import { participantCardHandlers } from "../mocks/participantHomeTestHandlers";
 
 const EVENT = localEvent.eventId;
 const FORM = "00000000-0000-4000-8000-0000000000aa";
@@ -78,6 +79,7 @@ describe("participant apply", () => {
         return HttpResponse.json({ applicationId: "app-1", participantId: "person-1", revision: 1, revised: false, completionNotice: null }, { status: 201 });
       }),
       http.get("/api/v1/participant/me", () => signedIn()),
+      ...participantCardHandlers(),
     );
     await openApp(`/apply/${EVENT}/${FORM}`);
     await fillNameAndPhone();
@@ -108,7 +110,7 @@ describe("participant apply", () => {
 
     // The submit response opened the session, so the participant page is already signed in.
     fireEvent.click(screen.getByRole("link", { name: "내 신청 보기" }));
-    expect(await screen.findByRole("heading", { name: "김님, 참가 신청이 됐어요." })).toBeInTheDocument();
+    expect(await screen.findByText("김님, 참가 신청이 됐어요.")).toBeInTheDocument();
   });
 
   it("shows the completion notice from the submit response as plain text", async () => {
@@ -274,6 +276,7 @@ describe("participant apply", () => {
         inside = false;
         return new HttpResponse(null, { status: 204 });
       }),
+      ...participantCardHandlers(),
     );
     await openApp(`/participate/${EVENT}`);
     expect(await screen.findByRole("heading", { name: "내 신청 보기" })).toBeInTheDocument();
@@ -285,9 +288,10 @@ describe("participant apply", () => {
     fireEvent.change(screen.getByLabelText("전화번호"), { target: { value: "010-1234-5678" } });
     fireEvent.change(screen.getByLabelText("숫자 6자리"), { target: { value: "73-09-14" } });
     fireEvent.click(screen.getByRole("button", { name: "들어가기" }));
-    expect(await screen.findByRole("heading", { name: "김님, 참가 신청이 됐어요." })).toBeInTheDocument();
+    expect(await screen.findByText("김님, 참가 신청이 됐어요.")).toBeInTheDocument();
     expect(posted).toEqual([{ name: "김", phone: "010-1234-5678", pin: PIN }]);
-    fireEvent.click(screen.getByRole("button", { name: "로그아웃" }));
+    fireEvent.click(screen.getByRole("link", { name: "내 정보" }));
+    fireEvent.click(await screen.findByRole("button", { name: "로그아웃" }));
     expect(await screen.findByRole("heading", { name: "나갔어요" })).toBeInTheDocument();
     expect(screen.getByLabelText("이름")).toBeInTheDocument();
   });
@@ -326,6 +330,7 @@ describe("participant apply", () => {
         temporary = false;
         return new HttpResponse(null, { status: 204 });
       }),
+      ...participantCardHandlers(),
     );
     await openApp(`/participate/${EVENT}`);
     expect(await screen.findByRole("heading", { name: "새 숫자 6자리를 정해 주세요" })).toBeInTheDocument();
@@ -335,7 +340,7 @@ describe("participant apply", () => {
     expect(posted).toEqual([]);
     enterPin("904172");
     fireEvent.click(screen.getByRole("button", { name: "번호 정하기" }));
-    expect(await screen.findByRole("heading", { name: "김님, 참가 신청이 됐어요." })).toBeInTheDocument();
+    expect(await screen.findByText("김님, 참가 신청이 됐어요.")).toBeInTheDocument();
     expect(posted).toEqual([{ newPin: "904172" }]);
   });
 

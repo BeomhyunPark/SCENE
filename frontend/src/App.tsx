@@ -118,7 +118,7 @@ export function App() {
         <Route path="/reset-password" element={<PublicResetPassword />} />
         <Route path="/operator/invitations" element={<InvitationAccept />} />
         <Route path="/apply/:eventId/:formId" element={<PublicApply />} />
-        <Route path="/participate/:eventId" element={<ParticipantEnter />} />
+        <Route path="/participate/:eventId/*" element={<ParticipantEnter />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </QueryClientProvider>

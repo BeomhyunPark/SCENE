@@ -70,7 +70,7 @@ api.md로 옮겼다([참가자 홈·갱신 확인·알림](../../backend/docs/ap
 
 | 상황 | 동작 |
 |---|---|
-| 화면이 보인다(`document.visibilityState === "visible"`) | `pollAfterSeconds` ±20% 무작위(30이면 24–36초)마다 `updates`를 부른다. 200명이 같은 순간에 몰리지 않게 하려는 것이다 |
+| 화면이 보인다(`document.visibilityState === "visible"`) | `pollAfterSeconds` ±20% 무작위(기본 25면 20–30초)마다 `updates`를 부른다. 200명이 같은 순간에 몰리지 않게 하려는 것이다 |
 | 화면이 숨겨진다(다른 앱, 화면 꺼짐, 다른 탭) | 확인을 멈춘다. 타이머를 남기지 않는다 |
 | 다시 보인다 | 바로 한 번 부르고 주기를 다시 시작한다 |
 | `offline` 이벤트 | 멈추고 "연결이 끊겼어요 · 마지막 갱신 HH:mm"을 보인다. `online`이면 바로 부른다 |

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { FieldConfig, FormField, ShowWhen } from "../../api/forms";
-import { problemFor, prune, toAnswerItems, visibleFields, visibleOptions } from "./answerModel";
+import { problemFor, prune, toAnswerItems, toRawAnswers, visibleFields, visibleOptions } from "./answerModel";
 
 function field(
   fieldId: string,
@@ -112,5 +112,35 @@ describe("answer model", () => {
     expect(problemFor(cohort, { text: "9" })).toContain("두 자리");
     expect(problemFor(cohort, { text: "9a" })).not.toBeNull();
     expect(problemFor(cohort, {})).not.toBeNull();
+  });
+});
+
+describe("toRawAnswers (#427)", () => {
+  it("turns stored answers back into inputs that submit the same values", () => {
+    const fields = [
+      field("t", "SHORT_TEXT"),
+      field("s", "SINGLE_CHOICE", { options: [option("a")], allowOther: true }),
+      field("m", "MULTI_CHOICE", { options: [option("a"), option("b")], allowOther: true }),
+      field("d", "DATE"),
+      field("r", "DATE_RANGE"),
+      field("n", "NUMBER"),
+      field("y", "YES_NO"),
+    ];
+    const stored = [
+      { fieldId: "t", value: { text: "김" } },
+      { fieldId: "s", value: { other: "직접" } },
+      { fieldId: "m", value: { optionIds: ["a", "b"], other: "또" } },
+      { fieldId: "d", value: { date: "2027-01-22" } },
+      { fieldId: "r", value: { start: "2027-01-22", end: "2027-01-24" } },
+      { fieldId: "n", value: { number: 3 } },
+      { fieldId: "y", value: { value: false } },
+      { fieldId: "gone", value: { text: "x" } },
+    ];
+    const raw = toRawAnswers(fields, stored);
+    expect(Object.keys(raw)).not.toContain("gone");
+    expect(toAnswerItems(fields, raw)).toEqual([
+      { fieldId: "t", text: "김" },
+      ...stored.slice(1, 7).map(({ fieldId, value }) => ({ fieldId, value })),
+    ]);
   });
 });

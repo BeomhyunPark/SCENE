@@ -1739,7 +1739,7 @@ CSRF가 필요하다.
 
 ### `GET /api/v1/participant/updates`
 
-화면이 주기적으로 불러 바뀐 카드만 다시 읽는다. 200명이 30초마다 부르므로 한 요청이 SQL 네 문장(세션 확인, `participant_feed_versions` 한 행, 알림 요약, 내 체크인·신청 revision)만 읽는다. 공개본·공지·일정 테이블은 읽지 않는다.
+화면이 주기적으로 불러 바뀐 카드만 다시 읽는다. 200명이 25초 안팎마다 부르므로 한 요청이 SQL 네 문장(세션 확인, `participant_feed_versions` 한 행, 알림 요약, 내 체크인·신청 revision)만 읽는다. 공개본·공지·일정 테이블은 읽지 않는다.
 
 `200`
 
@@ -1748,7 +1748,7 @@ CSRF가 필요하다.
   "home": 3, "schedule": 12, "notices": 7, "group": 2, "rooms": 0, "mealOrder": 0,
   "checkIn": 1, "application": 2,
   "notifications": { "latestSeq": 5821, "unreadCount": 2 },
-  "pollAfterSeconds": 30,
+  "pollAfterSeconds": 25,
   "serverTime": "2027-01-22T05:30:12Z"
 }
 ```
@@ -1766,7 +1766,7 @@ CSRF가 필요하다.
 
 - 값은 같은지만 비교한다. 행사 범위 값은 같은 행사의 모든 참가자에게 같다.
 - 값은 각 변경과 **같은 트랜잭션**에서 오른다. 변경이 실패하면 값도 오르지 않는다.
-- `pollAfterSeconds`는 설정 `scene.participant.poll-after-seconds`(기본 30, 10–300 밖은 가까운 끝으로 맞춘다. 홈서버 `.env`의 `SCENE_PARTICIPANT_POLLAFTERSECONDS`)다.
+- `pollAfterSeconds`는 설정 `scene.participant.poll-after-seconds`(기본 25. 화면이 ±20%로 부르므로 20–30초 안에 반영된다, 10–300 밖은 가까운 끝으로 맞춘다. 홈서버 `.env`의 `SCENE_PARTICIPANT_POLLAFTERSECONDS`)다.
 - 요청 로그는 경로·상태·시간만 남긴다(`RequestIdFilter`). 참가자 조회 경로에는 IP 제한이 없다.
 
 ### `GET /api/v1/participant/notifications?before={seq}&limit=30`

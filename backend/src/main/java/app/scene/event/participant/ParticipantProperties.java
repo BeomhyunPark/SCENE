@@ -15,8 +15,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * date, at midnight in {@code zone}. The cookie lives as long; for an event with no end date it
  * lives {@code cookieMaxAgeWithoutEnd} (the server still decides). {@code pollAfterSeconds} is the
  * participant screen's refresh interval sent in {@code GET /participant/updates} (DEC-080 §4,
- * default 30, kept within 10–300 so a typo in {@code .env} cannot stop the server during the deploy
- * freeze).
+ * default 25 so ±20% stays within 30 s, kept within 10–300 so a typo in {@code .env} cannot stop
+ * the server during the deploy freeze).
  */
 @ConfigurationProperties("scene.participant")
 public record ParticipantProperties(
@@ -56,6 +56,6 @@ public record ParticipantProperties(
     cookieMaxAgeWithoutEnd =
         cookieMaxAgeWithoutEnd == null ? Duration.ofDays(180) : cookieMaxAgeWithoutEnd;
     pollAfterSeconds =
-        pollAfterSeconds == null ? 30 : Math.max(POLL_MIN, Math.min(POLL_MAX, pollAfterSeconds));
+        pollAfterSeconds == null ? 25 : Math.max(POLL_MIN, Math.min(POLL_MAX, pollAfterSeconds));
   }
 }
