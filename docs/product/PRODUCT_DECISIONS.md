@@ -3064,7 +3064,7 @@ DEC-064는 참가자가 신청 완료 화면에 한 번 나오는 링크(fragmen
 
 A5 화면(내 정보 탭)을 만들었다. 낸 답 보기, 수정이 열려 있을 때 고치기(`expectedRevision`), 전화번호는 읽기만, `409 EDITS_CLOSED`(읽기 전용으로 돌아감)·`409 CONCURRENT_MODIFICATION`(새 revision을 다시 읽어 그 값에서 다시 고치게)·`400`·`404`(신청 없음)를 처리한다. 숫자 6자리 바꾸기와 로그아웃도 이 탭에 있다. 질문 입력·조건부 표시·검사는 신청 화면과 같은 부품(`useAnswerDraft`)을 쓴다.
 
-운영자 쪽 "신청 수정 받기" 스위치(§6 (d))는 **화면에 없다.** `EventRegistrationSetup.tsx`는 저장할 때 지금 `acceptingEdits` 값을 그대로 실어 보낼 뿐 켜고 끄는 컨트롤이 없다. 운영자 화면은 이 작업 범위 밖이라 #427에 남겼다.
+운영자 쪽 "신청 수정 받기" 스위치(§6 (d))는 신청서 화면(`EventRegistrationSetup`)의 신청 열기·닫기 아래에 따로 둔다(`EditsSwitch`). 신청을 닫아도 수정은 그대로이고, 수정을 닫으면 참가자 내 정보는 탭을 다시 열 때 읽기 전용이 된다. 켜기는 진행 중인 행사에서만 되고(시작 전에는 버튼이 비활성), 끝난 행사는 상태만 보이며, `FORM_WRITE`가 없으면 상태만 보이고 버튼이 없다.
 
 ---
 
@@ -3273,8 +3273,8 @@ I3 운영자 알림과 A6 "수정됨"·변경 전후([#437](https://github.com/B
 4. **취소·복귀(DEC-084 §7):** `ApplicationStatusChanged`를 같은 트랜잭션의 `@EventListener`로 받아 `APPLICATION_CANCELLED`("…님의 신청이 취소됐어요", `important`)와 `APPLICATION_RESTORED`(운영자 되돌리기 "…님의 신청 취소를 되돌렸어요" / 다시 신청 "…님이 취소된 신청으로 다시 신청했어요")를 만든다. 처리한 운영자는 뺀다. 취소된 사람의 다시 신청은 답이 바뀌어도 `RESUBMITTED`가 아니라 `RESTORED` 하나다.
 5. **`LIFECYCLE_OVERRIDE`의 본문**은 "행사를 종료했어요"처럼 바뀐 동작을 적고 `important`다. 받는 사람은 옛 `operator_notices`와 같다(넘긴 권한이 끝나지 않은 OWNER).
 6. **운영자 경로의 판정:** `EventAccessGate` 순서 뒤에 그 행사의 운영자(`event_users` 행)가 아니면 `403 NOT_A_MEMBER`다. 받는 사람별 목록이라 운영자 행이 없는 공간 OWNER·ADMIN에게는 목록이 없다. 화면은 `401`·`403`·`404`를 받으면 주기 확인을 멈추고 배지를 보이지 않는다.
-7. **운영자 `updates`:** `notices`는 D2의 `NoticeBoardVersions.read`, `checkIns`는 그 행사 `checkin_logs` 최대 `seq`, `schedule`은 일정표 서버(C2)가 병합되면 잇는다(지금 0). 한 요청은 SQL 열한 문장이다(Spring Session 셋, 운영자 경로 공통 판정 다섯, 값 셋). `scene.operator.poll-after-seconds`는 기본 15, 10–300 밖은 끝으로 맞춘다(`SCENE_OPERATOR_POLLAFTERSECONDS`).
-8. **`operator_notices`는 이번에 지우지 않는다.** V23(병합 때 번호를 맞춘다)이 행을 읽은 상태로 옮기고 코드는 `notifications`에만 쓴다. 배포가 실패해 옛 코드로 되돌려지면 옛 코드가 그 테이블에 쓰므로 수련회 뒤 마이그레이션에서 남은 행을 한 번 더 옮기고 지운다. 결정 7의 "옮기고 지운다"는 두 단계로 나뉜다.
+7. **운영자 `updates`:** `notices`는 D2의 `NoticeBoardVersions.read`, `checkIns`는 그 행사 `checkin_logs` 최대 `seq`, `schedule`은 C2의 `ScheduleBoards.boardVersion`이다. 한 요청은 SQL 열두 문장이다(Spring Session 셋, 운영자 경로 공통 판정 다섯, 값 넷). `scene.operator.poll-after-seconds`는 기본 15, 10–300 밖은 끝으로 맞춘다(`SCENE_OPERATOR_POLLAFTERSECONDS`).
+8. **`operator_notices`는 이번에 지우지 않는다.** V24가 행을 읽은 상태로 옮기고 코드는 `notifications`에만 쓴다. 배포가 실패해 옛 코드로 되돌려지면 옛 코드가 그 테이블에 쓰므로 수련회 뒤 마이그레이션에서 남은 행을 한 번 더 옮기고 지운다. 결정 7의 "옮기고 지운다"는 두 단계로 나뉜다.
 9. **화면:** 행사 안 메뉴에 "알림"(`/events/:eventId/notifications`)을 행사 홈 아래에 두고, 사이드바와 휴대폰 하단 막대의 알림에 그 행사의 읽지 않은 수를 붙인다("99+"). 행사 밖 조직 메뉴의 "알림"(`/notifications`, #376 구조 유지)은 "알림은 행사 안에서 봐요" 안내와 행사 목록 링크이고 배지가 없다. 주기 확인은 운영자 화면 틀(`OperatorShell`)이 행사 안에서만 돈다(±20%, 숨기면 멈춤, 보이면 바로, 실패하면 두 배·최대 300초). 종류 → 화면 경로 표는 `components/notificationHref.ts` 한곳이고, 공지 종류(`STAFF_NOTICE_PUBLISHED`·`STAFF_NOTICE_UPDATED`)는 운영자 공지 화면(D3)이 한 줄을 더할 때까지 누를 수 없다.
 10. **A6:** 참가 현황 표 행에 `revisedBy`를 더했다(`revision`은 이미 있었다). 표는 이름 옆에 "수정됨" 표시, "수정됨" 칩(거르기), 숨겨 둔 "수정" 열(거르기·세기·정렬)을 둔다. 신청 상세는 변경 이력(몇 번째, 고친 주체, 시각, 바뀐 질문)을 보이고 "변경 전후 보기"를 누르면 그 revision과 앞 revision을 한 건 조회로 읽어 질문마다 이전 → 이후를 보인다. 한 건 조회의 연락처 규칙이 옛 revision에도 같아(`OperatorNotificationHttpIT`), 연락처 권한이 없으면 전후 모두 가려진다. 옛 revision을 열면 "지금 신청 열기" 링크가 있다.
 
@@ -3283,7 +3283,7 @@ I3 운영자 알림과 A6 "수정됨"·변경 전후([#437](https://github.com/B
 | 4 | 열어 둔 운영자 화면의 15초 확인이 운영자 세션(60분 유휴 만료)을 계속 늘려도 되나 | 그대로 둠 / `updates`는 세션 시각을 늘리지 않음 / 화면이 보일 때만 도니 그대로 두되 보안 문서에 적음 | 그대로 두고 적는다(화면이 숨겨지면 멈추므로 열어 둔 채 자리를 뜬 탭만 해당) | 바꾸려면 Spring Session 필터 앞에서 이 경로만 만료 시각 갱신을 빼야 한다 |
 | 5 | 운영자 행이 없는 공간 OWNER·ADMIN도 신청 변경 알림을 받나 | 받지 않음 / `seesEveryEvent`면 받음 | 받지 않음(지금 운영자 경로가 모두 그렇다) | 받게 하려면 받는 사람 계산과 운영자 경로 판정을 함께 바꾼다 |
 
-후속(이번 범위 밖): 들어오기 잠금 경고(DEC-078 표 "잠금")를 운영자 알림으로 보내기, `operator_notices` 삭제 마이그레이션, 여러 행사를 모은 알림 목록, 일정 값(`schedule`) 잇기(C2).
+후속(이번 범위 밖): 들어오기 잠금 경고(DEC-078 표 "잠금")를 운영자 알림으로 보내기, `operator_notices` 삭제 마이그레이션, 여러 행사를 모은 알림 목록.
 ---
 
 ## DEC-081 — 일정표는 조 편성과 같은 작업본·공개본 계약을 쓰고, 운영자는 항목 하나를 "저장하고 바로 공개"하며, 참가자는 24시간 동안 "변경됨"을 본다
@@ -3349,6 +3349,30 @@ I3 운영자 알림과 A6 "수정됨"·변경 전후([#437](https://github.com/B
 ### Evidence
 
 사용자 결정 2026-11-19([#278 댓글](https://github.com/BeomhyunPark/SCENE/issues/278#issuecomment-7000830891), 로드맵 트랙 C). 근거 자료는 DEC-040·043·046·047·048·051, DEC-068(날짜·시간), DEC-070·073·074(칸 id), DEC-072(작업본·공개본 계약), DEC-080, API 초안 §9, api.md "조 편성", 마이그레이션 V13·V14.
+
+
+### Follow-up (2026-11-20, #435)
+
+C2·C3 서버를 만들며 계약 초안과 다르게 정하거나 초안이 열어 둔 것을 정했다. 경로·응답은 [api.md "일정표"](../../backend/docs/api.md#일정표)로 옮겼고, [계약 초안](../architecture/schedule-contract.md)에는 화면 규칙만 남겼다. 새 ErrorCode·권한 키는 없다. 마이그레이션은 `V23__schedule.sql`(추가만, 병합 때 번호를 맞춘다).
+
+1. **신청이 없는(취소된) 참가자는 일정을 보지 않는다.** 초안 §8의 "신청 상태는 보지 않는다"를 바꾼다. `ParticipantAudience`는 `ALL`도 활성 참가자(`SUBMITTED` 신청이 있음)로 판정하고(DEC-080 Follow-up 2번), 사용자 기준도 "취소된 사람은 새 기능에서 빠진다"다. DEC-084 §4로 취소된 사람의 세션은 조회에서 끊겨 `401`이 먼저다. 그래도 신청을 먼저 보는 안전장치로 `status: NOT_ELIGIBLE`, `items: []`를 두었다(내 조 `GET /participant/group`의 `NOT_ELIGIBLE`과 같은 모양). 알림 받는 사람에서도 빠진다.
+2. **알림의 `target`은 `{ "type": "SCHEDULE", "id": null }`이다.** 일정은 행사에 하나라 id가 없다. 합치기는 `target_id IS NOT DISTINCT FROM`이라 그대로 된다. 대상으로 읽음 처리하도록 `POST …/notifications/read`의 `target.id`에 명시적 `null`을 받게 했다(공용 코드 `NotificationReadRequest`·`NotificationMapper.markRead`의 작은 변경. `id` 키가 빠지면 지금처럼 `400`).
+3. **받는 사람.** 첫 공개(`SCHEDULE_PUBLISHED`)는 초안의 "활성 참가자 전원"이 아니라 **항목을 하나라도 볼 수 있는** 활성 참가자다(`ALL` 항목이 있으면 전원, `LEADERS` 항목만 있으면 조장, `STAFF`만 있으면 없음). 그 뒤 공개(`SCHEDULE_CHANGED`)는 추가·변경·삭제된 항목을 **바뀌기 전이나 뒤에** 볼 수 있던 활성 참가자다(대상이 `ALL`→`STAFF`로 바뀐 항목도 참가자에게는 사라진 것이라 알린다).
+4. **`notify: false`는 첫 공개의 알림도 끈다.** 초안은 첫 공개 알림을 `notify`와 상관없이 적었다. 운영자가 "알리지 않음"을 고르면 그대로 따른다(결정 대기 1).
+5. **문구.** 제목 "일정표가 올라왔어요"(본문 없음) / "일정이 바뀌었어요", 본문은 바뀐 항목 제목 최대 셋을 쉼표로 잇고 넘치면 " 외 N건"(예: "오전 집회, 레크리에이션, 산책 외 2건"). 일정 제목만 넣는다. 조장의 본문에는 `LEADERS` 항목 제목도 들어가므로 공개 한 번에 알림 문장이 많아야 두 개(조장, 나머지)다. 200명도 문장 두 개다.
+6. **변경 표시를 24시간 안에서 합친다.** 초안은 "직전 공개본과 비교해 저장"만 적었다. 그러면 10분 간격 두 번의 공개에서 첫 변경(시각)이 사라진다. 그래서 24시간 안의 표시가 있으면 `fields`를 합치고 `previous`는 처음 값을 지키며, 처음 값으로 되돌아간 `day`·`startTime`·`endTime`·`place`는 빠진다(모두 빠지면 표시 없음). `ADDED` 항목은 24시간 안에 고쳐도 `ADDED`이고 `changedAt`이 새 공개 시각이 된다. `ADDED`의 `fields`는 `[]`, `previous`는 `null`이다.
+7. **24시간 판정은 서버가 한다.** 참가자·운영자 공개본 응답은 24시간이 지난 `change`를 `null`로, 지난 `removedItems`를 빼고 준다. 화면은 받은 대로 보이면 된다. 응답에 `serverTime`을 더했다.
+8. **응답에 더한 키.** 운영자 작업본: `startDate`·`endDate`·`timeZone`, 항목 `leadersOnly`, `slots[]`의 `date`·`dayLabel`·`sortOrder`(편성판 `slots`와 같은 모양에 `linkedItemId`). 공개본 조회: `status`·`publishedByDisplayName`·`boardVersion`·`serverTime`, 항목 `leadersOnly`·`change`, `removedItems[].audience`·`date`. 참가자: `serverTime`, `removedItems[].date`, 항목 `sortOrder`.
+9. **작은 규칙.** 공개한 적이 없으면 `hasUnpublishedChanges: true`다(첫 공개는 항목이 없어도 된다). `PATCH`로 일차·시작 시각을 바꾸고 `sortOrder`를 보내지 않으면 새 시각의 맨 뒤로 간다. 행사 기간이 없어도 `PATCH`(일차를 보내지 않을 때)·`DELETE`는 된다. 공개의 기간 확인은 `ALREADY_PUBLISHED` 다음이다. 일차 범위처럼 행사를 봐야 아는 `400`은 행사 상태 `409` 뒤에 나온다. `DELETE`의 `publish`·`confirmOtherChanges`·`notify` 쿼리는 `true`·`false`만 받는다.
+10. **한계.** 대상이 `ALL`→`STAFF`로 바뀐 항목은 참가자 목록에서 그냥 사라지고 "취소됨"으로 보이지 않는다(알림은 간다, 3번).
+11. **비용.** 참가자 `GET /participant/schedule` 한 요청은 SQL 세 문장(세션, 활성·조장 판정, 행사 기간과 최근 공개 한 행)이고 작업본을 읽지 않는다. 200명 × 60항목에서 공개는 수십 ms, 200명이 한꺼번에 읽어도 1초 안이었다(`ParticipantScheduleCostIT`, 로컬 Testcontainers). 상태는 모두 DB에 있고 서버 메모리에 두는 것이 없다. 참가자 조회 경로에는 IP 제한이 없다.
+
+#### 결정 대기 (추천안으로 진행, PR 검토에서 확인)
+
+| # | 질문 | 선택지 | 추천안 | 영향 |
+|---|---|---|---|---|
+| 1 | 첫 공개에서 `notify: false`를 따르나 | 따른다 / 첫 공개는 늘 알린다 | 따른다 | 운영자가 끄면 "일정표가 올라왔어요"도 없다. 참가자 화면은 그래도 30초 안에 바뀐다 |
+| 2 | 24시간 안의 연속 변경 표시 | 합친다 / 마지막 공개만 | 합친다 | "09:00 → 10:00"처럼 처음 값이 남는다. 되돌리면 표시가 사라진다 |
 
 ---
 

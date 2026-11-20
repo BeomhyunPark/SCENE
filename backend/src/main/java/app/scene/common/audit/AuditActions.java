@@ -51,6 +51,13 @@ public final class AuditActions {
   public static final String GROUPS_PUBLISHED = "GROUPS_PUBLISHED";
 
   /**
+   * Schedule publication (#435, DEC-081). Details are {@code publicationId}, {@code boardVersion},
+   * {@code added}, {@code changed}, {@code removed} (counts), {@code notify}, and {@code
+   * notifiedCount}. Not written for {@code ALREADY_PUBLISHED}. Item edits are not audited.
+   */
+  public static final String SCHEDULE_PUBLISHED = "SCHEDULE_PUBLISHED";
+
+  /**
    * Space invitation commands (#361, DEC-076). Rows carry the space and no event. Details are
    * {@code invitationId} and {@code role}; resend adds {@code previousInvitationId}; accept adds
    * {@code outcome} ({@code ACCEPTED} or {@code ALREADY_MEMBER}) and {@code membership} ({@code

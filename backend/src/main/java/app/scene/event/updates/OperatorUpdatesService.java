@@ -4,6 +4,7 @@ import app.scene.event.notice.NoticeBoardVersions;
 import app.scene.event.notification.NotificationRecipient;
 import app.scene.event.notification.Notifications;
 import app.scene.event.notification.OperatorNotificationAccess;
+import app.scene.event.schedule.ScheduleBoards;
 import app.scene.event.updates.mapper.OperatorUpdatesQueryMapper;
 import java.time.Clock;
 import java.util.UUID;
@@ -16,11 +17,9 @@ import org.springframework.stereotype.Service;
  * summary and one for the check-in value. No list or publication is read. Nothing is kept in
  * memory, and there is no address limit (operators share the venue Wi-Fi).
  *
- * <p>{@code notices} is {@link NoticeBoardVersions#read} (D2, one row per event). <b>{@code
- * schedule} is still 0:</b> the schedule server (C2, branch {@code
- * claude/roadmap-c-schedule-server}) is not on main yet; when it merges it fills that field in
- * {@link #read} with its working copy's {@code boardVersion} reader (one indexed statement; keep
- * the count in {@code OperatorUpdatesCostIT}).
+ * <p>{@code notices} is {@link NoticeBoardVersions#read} (D2) and {@code schedule} is the working
+ * copy's {@link ScheduleBoards#boardVersion} (C2); each is one primary-key read (keep the count in
+ * {@code OperatorUpdatesCostIT}).
  */
 @Service
 @EnableConfigurationProperties(OperatorProperties.class)
@@ -31,6 +30,7 @@ public class OperatorUpdatesService {
   private final OperatorUpdatesQueryMapper queries;
   private final OperatorProperties properties;
   private final NoticeBoardVersions noticeVersions;
+  private final ScheduleBoards scheduleBoards;
   private final Clock clock;
 
   public OperatorUpdatesService(
@@ -39,19 +39,21 @@ public class OperatorUpdatesService {
       OperatorUpdatesQueryMapper queries,
       OperatorProperties properties,
       NoticeBoardVersions noticeVersions,
+      ScheduleBoards scheduleBoards,
       Clock clock) {
     this.access = access;
     this.notifications = notifications;
     this.queries = queries;
     this.properties = properties;
     this.noticeVersions = noticeVersions;
+    this.scheduleBoards = scheduleBoards;
     this.clock = clock;
   }
 
   public OperatorUpdates read(UUID actorId, UUID eventId) {
     NotificationRecipient recipient = access.open(actorId, eventId);
     long notices = noticeVersions.read(recipient.spaceId(), eventId);
-    long schedule = 0; // C2 connects the working copy's boardVersion here.
+    long schedule = scheduleBoards.boardVersion(recipient.spaceId(), eventId);
     return new OperatorUpdates(
         notifications.summary(recipient),
         notices,

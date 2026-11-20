@@ -184,7 +184,7 @@ api.md로 옮겼다([운영자 알림·갱신 확인](../../backend/docs/api.md#
 
 `notifications`와 `participant_feed_versions`는 `V20`으로 만들었다. api.md로 옮겼다([저장](../../backend/docs/api.md#참가자-홈갱신-확인알림), #423). 아래는 아직 만들지 않은 부분이다.
 
-- **`operator_notices`와의 관계:** 마이그레이션에서 기존 `operator_notices` 행을 `notifications`(`recipient_kind = 'OPERATOR'`, `kind = 'LIFECYCLE_OVERRIDE'`, `target_type = 'EVENT'`, `target_id = event_id`, `title` "행사 상태를 공간 소유자가 바꿨어요", `read_at` = `created_at`)로 옮긴다. 옮긴 행은 읽은 것으로 둔다(지금까지 보여 준 적이 없는 옛 알림이 한꺼번에 뜨지 않게). 그 뒤 코드는 `notifications`에만 쓰고, `operator_notices`는 다음 마이그레이션에서 지운다. (#436: 옮기기는 `V23`(병합 때 번호를 맞춘다)이 했다. 테이블 삭제는 되돌림에 대비해 이번에 하지 않고 수련회 뒤 마이그레이션으로 남겼다.)
+- **`operator_notices`와의 관계:** 마이그레이션에서 기존 `operator_notices` 행을 `notifications`(`recipient_kind = 'OPERATOR'`, `kind = 'LIFECYCLE_OVERRIDE'`, `target_type = 'EVENT'`, `target_id = event_id`, `title` "행사 상태를 공간 소유자가 바꿨어요", `read_at` = `created_at`)로 옮긴다. 옮긴 행은 읽은 것으로 둔다(지금까지 보여 준 적이 없는 옛 알림이 한꺼번에 뜨지 않게). 그 뒤 코드는 `notifications`에만 쓰고, `operator_notices`는 다음 마이그레이션에서 지운다. (#436: 옮기기는 `V24`가 했다. 테이블 삭제는 되돌림에 대비해 이번에 하지 않고 수련회 뒤 마이그레이션으로 남겼다.)
 - 공개 경로가 알림을 만들 때는 공개와 **같은 트랜잭션**에서 넣는다. 200명에게 200행이다. 실패하면 공개도 되돌린다. 알림 수가 많아져 공개가 느려지면 나중에 따로 떼어 낸다(확장 지점).
 - 보존: 행사 데이터와 같이 지운다(DEC-056). 알림만의 보존 기간은 따로 두지 않는다.
 - 전달 채널(나중): `notification_deliveries(notification_id, channel IN ('WEB_PUSH','ALIMTALK','SMS'), status, attempts, last_error, sent_at)`를 이 행에 붙인다. 공지·일정 쪽은 바꾸지 않는다. 1월에는 만들지 않는다.

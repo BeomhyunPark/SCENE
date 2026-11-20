@@ -102,7 +102,7 @@ class OperatorUpdatesCostIT {
     seen.forEach(sql -> System.out.println("  " + sql.replaceAll("\\s+", " ")));
     assertThat(seen).anyMatch(sql -> sql.contains("notifications"));
     assertThat(seen).anyMatch(sql -> sql.contains("checkin_logs"));
-    // Measured on 2026-11-20: 11 statements. Spring Session's own load, touch and reload (3, the
+    // Measured on 2026-11-20: 12 statements. Spring Session's own load, touch and reload (3, the
     // same on every operator path), the access check of every operator path (5: event, event in
     // space, role, membership, ended handover) and three values (notification summary, notice
     // value,

@@ -211,6 +211,17 @@ export function setAccepting(
   });
 }
 
+/**
+ * "신청 수정 받기" (DEC-078 §6), separate from taking applications. `true` only while the event is
+ * ACTIVE (otherwise `409 INVALID_STATE_TRANSITION`); `false` always. Needs `FORM_WRITE`.
+ */
+export function setAcceptingEdits(eventId: string, formId: string, acceptingEdits: boolean): Promise<FormDetail> {
+  return apiRequest(`/api/v1/operator/events/${eventId}/forms/${formId}`, {
+    method: "PATCH",
+    body: { acceptingEdits },
+  });
+}
+
 export function addField(eventId: string, formId: string, input: FieldInput): Promise<FormDetail> {
   return apiRequest(`/api/v1/operator/events/${eventId}/forms/${formId}/fields`, {
     method: "POST",
