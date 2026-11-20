@@ -175,11 +175,12 @@ class OperatorPermissionIT {
   void roleChangeClearsOverridesAndReAddDoesNotRestoreThem() {
     Fixture fx = seed("ACTIVE");
     permissions.replace(
-        fx.ownerId, fx.spaceId, fx.eventId, fx.managerId, List.of("DATA_EXPORT"), List.of());
+        fx.ownerId, fx.spaceId, fx.eventId, fx.managerId, List.of(), List.of("DATA_EXPORT"));
     OperatorPermissions changed =
         permissions.changeRole(fx.ownerId, fx.spaceId, fx.eventId, fx.managerId, "STAFF");
     assertThat(changed.role()).isEqualTo("STAFF");
     assertThat(changed.grants()).isEmpty();
+    assertThat(changed.revokes()).isEmpty();
     assertThat(changed.effective()).contains("EVENT_READ").doesNotContain("DATA_EXPORT");
     assertThat(auditDetail(fx, AuditActions.EVENT_USER_ROLE_CHANGED))
         .contains("DATA_EXPORT", "grantedBy", "grantedAt", "roleBefore", "roleAfter")
@@ -192,9 +193,10 @@ class OperatorPermissionIT {
     assertThat(added.grants()).isEmpty();
     assertThat(added.revokes()).isEmpty();
     assertThat(overrideCount(fx.eventId, fx.managerId)).isZero();
+    // The stored REVOKE is not restored, so the MANAGER default DATA_EXPORT is back.
     assertThat(added.effective())
-        .contains("TASK_WRITE", "EVENT_READ")
-        .doesNotContain("DATA_EXPORT");
+        .contains("TASK_WRITE", "EVENT_READ", "DATA_EXPORT")
+        .doesNotContain("EVENT_LIFECYCLE", "EVENT_USER_MANAGE");
   }
 
   @Test
@@ -236,31 +238,31 @@ class OperatorPermissionIT {
         contact,
         token,
         fx.ownerId);
-    jdbc.update("UPDATE users SET display_name = ? WHERE id = ?", contact, fx.managerId);
+    jdbc.update("UPDATE users SET display_name = ? WHERE id = ?", contact, fx.staffId);
     permissions.replace(
         fx.ownerId,
         fx.spaceId,
         fx.eventId,
-        fx.managerId,
+        fx.staffId,
         List.of("DATA_EXPORT"),
-        List.of("TASK_WRITE"));
-    UUID taskId = task(fx, fx.managerId);
-    String snapshot = storedPermissions.findSnapshot(fx.spaceId, fx.eventId, fx.managerId);
+        List.of("CHECKIN_WRITE"));
+    UUID taskId = task(fx, fx.staffId);
+    String snapshot = storedPermissions.findSnapshot(fx.spaceId, fx.eventId, fx.staffId);
 
-    permissions.remove(fx.ownerId, fx.spaceId, fx.eventId, fx.managerId);
+    permissions.remove(fx.ownerId, fx.spaceId, fx.eventId, fx.staffId);
 
     assertThat(auditActor(fx, AuditActions.EVENT_ACCESS_REVOKED)).isEqualTo(fx.ownerId);
     assertThat(auditActor(fx, AuditActions.TASK_ASSIGNEE_CLEARED)).isEqualTo(fx.ownerId);
     JsonNode detail = json.readTree(auditDetail(fx, AuditActions.EVENT_ACCESS_REVOKED));
-    assertThat(detail.get("userId").asString()).isEqualTo(fx.managerId.toString());
+    assertThat(detail.get("userId").asString()).isEqualTo(fx.staffId.toString());
     assertThat(detail.get("deletedOverrides")).isEqualTo(json.readTree(snapshot));
-    assertThat(snapshot).contains("DATA_EXPORT", "TASK_WRITE", "GRANT", "REVOKE");
+    assertThat(snapshot).contains("DATA_EXPORT", "CHECKIN_WRITE", "GRANT", "REVOKE");
     String taskDetail = auditDetail(fx, AuditActions.TASK_ASSIGNEE_CLEARED);
-    assertThat(taskDetail).contains(fx.managerId.toString(), "운영자 제거", taskId.toString());
+    assertThat(taskDetail).contains(fx.staffId.toString(), "운영자 제거", taskId.toString());
     assertThat(auditText(fx)).doesNotContain(contact).doesNotContain(token);
-    assertThat(access.eventAccessRevoked(fx.managerId, fx.spaceId, fx.eventId)).isTrue();
+    assertThat(access.eventAccessRevoked(fx.staffId, fx.spaceId, fx.eventId)).isTrue();
     assertThat(access.eventAccessRevoked(fx.ownerId, fx.spaceId, fx.eventId)).isFalse();
-    assertThat(overrideCount(fx.eventId, fx.managerId)).isZero();
+    assertThat(overrideCount(fx.eventId, fx.staffId)).isZero();
   }
 
   @Test

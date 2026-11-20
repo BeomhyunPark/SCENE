@@ -23,29 +23,49 @@ class PermissionEvaluatorTest {
   }
 
   @Test
-  void managerAndStaffDefaultsFollowDec079() {
+  void managerHoldsEveryKeyButTheOwnerOnlyOnesAndStaffKeepsReadAndCheckIn() {
+    EnumSet<Permission> expected = EnumSet.allOf(Permission.class);
+    expected.remove(Permission.EVENT_LIFECYCLE);
+    expected.remove(Permission.EVENT_USER_MANAGE);
+    assertThat(RoleDefaults.of("MANAGER")).containsExactlyInAnyOrderElementsOf(expected);
     assertThat(RoleDefaults.of("MANAGER"))
-        .containsExactlyInAnyOrder(
-            Permission.EVENT_READ,
-            Permission.TASK_WRITE,
-            Permission.CHECKIN_WRITE,
+        .contains(
+            Permission.GROUP_WRITE,
+            Permission.PARTICIPANT_WRITE,
+            Permission.PARTICIPANT_CONTACT_READ,
+            Permission.DATA_EXPORT,
             Permission.SCHEDULE_WRITE,
-            Permission.NOTICE_WRITE);
+            Permission.NOTICE_WRITE)
+        .doesNotContain(Permission.EVENT_LIFECYCLE, Permission.EVENT_USER_MANAGE);
     assertThat(RoleDefaults.of("STAFF"))
         .containsExactlyInAnyOrder(Permission.EVENT_READ, Permission.CHECKIN_WRITE);
     assertThat(RoleDefaults.of("OWNER"))
-        .contains(Permission.DATA_EXPORT, Permission.EVENT_LIFECYCLE);
-    assertThat(RoleDefaults.of("STAFF"))
-        .doesNotContain(Permission.DATA_EXPORT, Permission.FINANCE_READ);
-    for (String role : new String[] {"MANAGER", "STAFF"}) {
-      assertThat(RoleDefaults.of(role))
-          .doesNotContain(
-              Permission.GROUP_WRITE,
-              Permission.PARTICIPANT_WRITE,
-              Permission.PARTICIPANT_CONTACT_READ,
-              Permission.DATA_EXPORT,
-              Permission.ROOM_WRITE);
+        .containsExactlyInAnyOrderElementsOf(Permission.allEventKeys());
+  }
+
+  @Test
+  void managerDefaultFollowsEveryNonOwnerOnlyKey() {
+    for (Permission key : Permission.values()) {
+      assertThat(RoleDefaults.of("MANAGER").contains(key)).isEqualTo(!key.ownerOnly());
     }
+  }
+
+  @Test
+  void managerRevokeStillNarrowsTheWiderDefault() {
+    Set<Permission> effective =
+        PermissionEvaluator.effective("MANAGER", false, Map.of(Permission.DATA_EXPORT, "REVOKE"));
+    assertThat(effective).doesNotContain(Permission.DATA_EXPORT);
+    assertThat(effective).contains(Permission.GROUP_WRITE, Permission.PARTICIPANT_CONTACT_READ);
+  }
+
+  @Test
+  void ownerOnlyGrantDoesNotApplyToManager() {
+    Set<Permission> effective =
+        PermissionEvaluator.effective(
+            "MANAGER",
+            false,
+            Map.of(Permission.EVENT_LIFECYCLE, "GRANT", Permission.EVENT_USER_MANAGE, "GRANT"));
+    assertThat(effective).doesNotContain(Permission.EVENT_LIFECYCLE, Permission.EVENT_USER_MANAGE);
   }
 
   @Test

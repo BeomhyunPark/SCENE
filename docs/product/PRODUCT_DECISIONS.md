@@ -778,6 +778,7 @@ Operational Structure Research와 Product Definition Gate를 거치며 확정 �
 - (2026-10-02 보강) 부여·회수는 Event Owner만 한다. OWNER 권한은 override하지 않고, Owner 위임·행사 삭제 요청·개인정보 정리·권한 관리 등 OWNER 전용 권한은 다른 운영자(행사 전용 협력자 포함)에게 부여하지 않는다. role 변경과 운영자 제거 시 해당 운영자의 override는 사라진다. 서버가 모든 요청에서 effective 집합으로 판정하고 변경마다 audit을 남긴다.
 - (2026-10-02 보강, 현 결정 10/2) 운영자 추가·제거·role 변경과 개인별 권한 변경은 Event Owner만 한다. 개인별 권한 조회는 Event Owner·본인·Space OWNER(조회만)만 하고 Space ADMIN은 할 수 없다. 행사 전용 협력자의 연락처 숨김(DEC-060)은 어떤 GRANT로도 풀리지 않는다. Owner 위임 수락 시 받는 사람의 override는 위임 기록에 저장 후 지우고 취소 시 되살린다. ENDED에서는 권한 변경을 허용하고 ARCHIVED에서는 줄이는 변경만 허용한다(#30 L5).
 - (2026-11-19 → [DEC-079](#dec-079--역할-기본-권한은-manager가-일정공지-쓰기까지-staff는-체크인까지이고-나머지는-행사-owner가-운영-멤버-화면에서-사람별로-준다)) MANAGER·STAFF 기본 집합과 권한 설정 화면을 정했다.
+- (2026-11-20 → [DEC-079 Follow-up 2026-11-20](#follow-up-2026-11-20-manager는-owner-전용-둘만-빼고-전부를-기본으로-갖는다-i2)) MANAGER는 OWNER 전용 키(`EVENT_LIFECYCLE`·`EVENT_USER_MANAGE`)만 빼고 모든 키를 기본으로 갖는다. 사람별 권한은 STAFF에게 더하거나 MANAGER에게서 빼는 예외 처리로 남는다.
 - (2026-10-02 보강) 위 OPEN 중 저장 구조·부여자·회수 방식은 해소했다. MANAGER/STAFF 기본 집합은 Backend Lead가 초안을 쓰고 현이 승인한다(현 결정 10/2). 미확정, 백엔드 리드 초안 대기. 예외로 `TASK_WRITE` 기본값은 DEC-062에서 확정한다. OWNER·MANAGER 포함, STAFF 미포함. 업무별 정확한 허용 집합(Permission 키 목록 초안)도 계속 확인이 필요하다. 테이블은 Flyway V1 초기 스키마에 포함하며(SCENE Backend Lead) 상세 계약은 아키텍처 문서의 2026-10-02 절에 둔다.
 
 ### Evidence
@@ -1627,6 +1628,10 @@ Export·보존·삭제·복구를 검토했다.
 - 값을 보낸 응답마다 표와 같은 audit `APPLICANT_CONTACTS_VIEWED`를 남긴다. detail은 `{count: 1, applicationId}`다. 한 건 조회라 대상 신청을 남기고, 번호·이름은 남기지 않는다(security-privacy §6). privacy log `CONTACT_VIEW`가 생기면 표와 함께 옮긴다.
 - 다른 읽기 경로를 훑었다. 신청 목록(이름만), 집계의 카풀·이동 지원 목록(이름·또래·동네), 조 편성판·공개 스냅샷·참가자 조 조회(전화 없음)에는 전화가 없다. 체크인 명단의 끝 4자리(DEC-071, `CHECKIN_WRITE`)와 CSV(`DATA_EXPORT`)는 바꾸지 않는다.
 
+### Follow-up (2026-11-20): MANAGER는 기본으로 명단을 내려받고 연락처를 본다 (I2)
+
+사용자 결정(2026-11-20, [DEC-079 Follow-up 2026-11-20](#follow-up-2026-11-20-manager는-owner-전용-둘만-빼고-전부를-기본으로-갖는다-i2)). `DATA_EXPORT`와 `PARTICIPANT_CONTACT_READ`가 MANAGER 기본값에 들어간다. 위 두 Follow-up의 "행사 OWNER는 기본으로 갖고, 다른 운영자는 개인별 GRANT로 받는다"는 이제 "행사 OWNER와 MANAGER는 기본으로 갖고, STAFF는 개인별 GRANT로 받는다"로 읽는다. 반출 권한이 조회와 별개라는 원칙, 내려받을 때마다 남기는 audit, 연락처를 보낸 응답마다 남기는 `APPLICANT_CONTACTS_VIEWED`는 그대로다. 특정 MANAGER에게서 빼려면 OWNER가 개별 `REVOKE`를 건다. STAFF 기본값에는 넣지 않는다.
+
 ---
 
 ## DEC-055 — Export 생성과 다운로드를 구분하고 반출 범위를 기록한다
@@ -2172,12 +2177,12 @@ AI 없이 출시하는 안은 시장 기대에 맞지 않아 채택하지 않았
 slice (d)를 연다. 위 Decision의 "회고는 draft 전용, 저장 API는 아직 만들지 않는다"는 이 Follow-up으로 대체한다.
 
 - 행사당 회고 글 하나를 서버에 저장한다. `GET`·`PUT /api/v1/operator/events/{eventId}/retrospective`. 응답은 `{ text, version, updatedAt, updatedByDisplayName }`다.
-- 쓰기는 effective `EVENT_UPDATE`(행사 OWNER 기본, 개인별 GRANT 가능)다. 읽기는 effective `EVENT_READ` 또는 활성 공간 `OWNER`·`ADMIN`이다. 회고 전용 권한 키는 만들지 않는다.
+- 쓰기는 effective `EVENT_UPDATE`(행사 OWNER 기본, 개인별 GRANT 가능)다. (2026-11-20 → [DEC-079 Follow-up 2026-11-20](#follow-up-2026-11-20-manager는-owner-전용-둘만-빼고-전부를-기본으로-갖는다-i2): MANAGER도 기본으로 쓴다.) 읽기는 effective `EVENT_READ` 또는 활성 공간 `OWNER`·`ADMIN`이다. 회고 전용 권한 키는 만들지 않는다.
 - 쓰기는 `ENDED`에서만 한다(DEC-051). `ARCHIVED`는 `409 EVENT_ARCHIVED`, `DRAFT`·`ACTIVE`는 `409 INVALID_STATE_TRANSITION`이다. 읽기는 모든 상태에서 된다.
 - `PUT`은 `{ text, expectedVersion }`를 받고 저장된 version과 다르면 `409 CONCURRENT_MODIFICATION`이다. `text`는 0~10,000자(잠정)다.
 - 아직 없는 회고는 `200 { text: "", version: 0, updatedAt: null, updatedByDisplayName: null }`이다.
 - 저장마다 audit `EVENT_RETROSPECTIVE_UPDATED`를 남기고 details에는 새 version만 둔다. 본문은 audit·로그·오류 응답에 넣지 않는다.
-- 버린 안: OWNER만 쓰기(GRANT로 넓힐 수 없음), MANAGER 기본 쓰기(RoleDefaults 변경), `ACTIVE`에서도 쓰기(DEC-051 범위 확대), 운영자별 여러 글·섹션 구조, 없는 회고 `404`, audit 없음.
+- 버린 안: OWNER만 쓰기(GRANT로 넓힐 수 없음), MANAGER 기본 쓰기(RoleDefaults 변경 — 2026-11-20 [DEC-079 Follow-up 2026-11-20](#follow-up-2026-11-20-manager는-owner-전용-둘만-빼고-전부를-기본으로-갖는다-i2)에서 채택), `ACTIVE`에서도 쓰기(DEC-051 범위 확대), 운영자별 여러 글·섹션 구조, 없는 회고 `404`, audit 없음.
 
 현 결정 2026-11-16.
 
@@ -2625,6 +2630,7 @@ SYSTEM 이름·전화는 제목만 고칠 수 있었고 늘 맨 앞에 고정이
 5. **철회자는 읽을 때 뺀다.** `SUBMITTED` 신청이 없는 참가자는 편성판의 활성 명단·미배정 수, 공개본 조회, 조장 명단에서 빠진다(DEC-044). 편성판은 "철회됨 · 이전 조"를 참고로 따로 보여 준다. 신청 철회 경로를 열 때는 그 transaction에서 배정을 지우고 이력에 남겨, 복귀할 때 옛 조가 자동으로 돌아오지 않게 한다.
 6. 🔒 **참가자에게 보이는 범위.** 일반 참가자는 내 조 이름, 조장 이름, 공개 시각만 본다. 조원 명단은 보지 않는다. 조장은 여기에 자기 조원의 이름·또래를 더 본다. 조장의 조원 연락처(DEC-030)는 1차에 보여 주지 않는다. 참가자 상태는 `NOT_PUBLISHED`(준비 중)·`UNASSIGNED`(공개됐지만 미배정)·`ASSIGNED`·`NOT_ELIGIBLE`(신청 없음)이다.
 7. 🔒 **편성과 공개 모두 `GROUP_WRITE`이고, 기본값은 OWNER만이다.** 공개 전용 키는 만들지 않는다. MANAGER·STAFF 기본값에 `GROUP_WRITE`를 넣지 않고, OWNER가 편성 담당에게 개별로 GRANT한다. 작업본 조회는 `GROUP_WRITE` 또는 활성 공간 `OWNER`·`ADMIN`이다. 공개본 조회(운영자)는 `EVENT_READ`다.
+   - (2026-11-20 → [DEC-079 Follow-up 2026-11-20](#follow-up-2026-11-20-manager는-owner-전용-둘만-빼고-전부를-기본으로-갖는다-i2)) 기본값이 OWNER·MANAGER로 바뀌었다(사용자 결정). STAFF는 그대로 개별 GRANT로 받고, MANAGER에게서 막으려면 개별 `REVOKE`한다. 키 하나로 편성·공개를 함께 여는 규칙은 그대로다.
 8. **행사 상태별 동작.**
 
 | 상태 | 편성판·공개본 조회 | 편집·공개 | 참가자 내 조 |
@@ -2658,7 +2664,7 @@ SYSTEM 이름·전화는 제목만 고칠 수 있었고 늘 맨 앞에 고정이
 - 일반 참가자에게 조원 이름 공개: DEC-043은 다른 사람 정보를 자동으로 주지 않는다. 범위는 나중에 넓히기 쉽고 줄이기 어렵다.
 - 조장에게 조원 연락처(DEC-030 그대로): 참가자 링크가 새면 조원 연락처가 같이 새고, 참가자 세션의 연락처 조회 기록이 아직 없다. 연락처는 운영자가 전달한다([#233](https://github.com/BeomhyunPark/SCENE/issues/233)).
 - 공개 전용 키(`GROUP_PUBLISH`): 편성하는 사람이 보통 공개한다. 확인 창과 미배정 경고가 안전장치다. 나중에 키를 나눌 수 있다.
-- MANAGER 기본 `GROUP_WRITE`: 편성은 보통 1–2명이 맡는다. 체크인(STAFF 전원)과 달리 넓게 줄 이유가 없다.
+- ~~MANAGER 기본 `GROUP_WRITE`: 편성은 보통 1–2명이 맡는다. 체크인(STAFF 전원)과 달리 넓게 줄 이유가 없다.~~ → [DEC-079 Follow-up 2026-11-20](#follow-up-2026-11-20-manager는-owner-전용-둘만-빼고-전부를-기본으로-갖는다-i2)에서 채택했다(운영팀이 서로 아는 몇 명이라 사람마다 켜는 일이 번거롭다).
 - DRAFT에서 편성 막기: 신청을 행사 시작 전에 받으므로 행사 전에 편성·공개해야 한다.
 
 ### Reason
@@ -2840,7 +2846,7 @@ DEC-070은 부분·집회만 참석자가 `MEALS`에서 식사·집회 칸을 �
 
 1. **원본은 바꾸지 않는다.** 참가자가 낸 답(`answers`)은 그대로 두고, 운영 값은 새 테이블 `application_operations`(신청당 한 행, `space_id`·`event_id` 테넌트 키, `version`, `updated_by`·`updated_at`)에 따로 저장한다. 읽는 쪽은 "운영 값이 있으면 운영 값, 없으면 원본"을 쓴다. **뒤집기 어렵다: 데이터 모양.**
 2. **1차는 운영 메모 하나다.** 신청마다 글 하나, 0~2,000자(잠정), `expectedVersion`으로 동시 수정을 막는다(회고 저장 DEC-067 Follow-up과 같은 방식). `PUT …/applications/{applicationId}/operation`. 신청 상세와 참가 현황 표가 `operation`으로 함께 준다. 표의 열·거르기는 화면이 한다.
-3. **권한.** 쓰기는 effective `PARTICIPANT_WRITE`(행사 OWNER 기본, 다른 운영자는 개인별 GRANT). **역할 기본값(RoleDefaults)은 바꾸지 않는다** — 바꾸면 배포 즉시 모든 기존 행사에 적용된다. 읽기는 신청 상세·표를 읽을 수 있는 사람(`EVENT_READ` 또는 활성 공간 `OWNER`·`ADMIN`)이다. 현장 STAFF도 예외 메모를 봐야 해서 연락처 권한으로 좁히지 않는다. 참가자 경로와 CSV에는 나가지 않는다.
+3. **권한.** 쓰기는 effective `PARTICIPANT_WRITE`(행사 OWNER 기본, 다른 운영자는 개인별 GRANT). **역할 기본값(RoleDefaults)은 바꾸지 않는다** — 바꾸면 배포 즉시 모든 기존 행사에 적용된다. (2026-11-20 → [DEC-079 Follow-up 2026-11-20](#follow-up-2026-11-20-manager는-owner-전용-둘만-빼고-전부를-기본으로-갖는다-i2): 사용자가 이 경고를 알고 MANAGER 기본값에 `PARTICIPANT_WRITE`를 넣었다. STAFF는 그대로 개별 GRANT다.) 읽기는 신청 상세·표를 읽을 수 있는 사람(`EVENT_READ` 또는 활성 공간 `OWNER`·`ADMIN`)이다. 현장 STAFF도 예외 메모를 봐야 해서 연락처 권한으로 좁히지 않는다. 참가자 경로와 CSV에는 나가지 않는다.
 4. **행사 상태.** `DRAFT`·`ACTIVE`·`ENDED`에서 쓴다(ENDED는 기록 정정, DEC-051). `ARCHIVED`는 `409 EVENT_ARCHIVED`. `SUBMITTED`가 아닌 신청은 `409 INVALID_STATE_TRANSITION`.
 5. **이력.** 저장마다 audit `APPLICATION_OPERATION_UPDATED`(`applicationId`·`version`·`fields`)를 남긴다. 메모에는 개인정보가 들어갈 수 있어 본문은 audit·로그·오류 응답에 넣지 않는다.
 6. **조 배정**은 서버에 새 쓰기를 만들지 않는다. 서랍은 기존 `POST …/group-assignments`(DEC-072)를 부른다. 이를 위해 참가 현황 표 행에 `participantId`를 더한다.
@@ -2854,7 +2860,7 @@ DEC-070은 부분·집회만 참석자가 `MEALS`에서 식사·집회 칸을 �
 
 ### Alternatives
 
-메모 여러 개(스레드), MANAGER 기본 쓰기(RoleDefaults 변경), 메모 전용 권한 키, 메모 읽기를 연락처 권한으로 제한, 원본 답을 직접 고치기, 1차에 참석 범위까지 넣기를 버렸다.
+메모 여러 개(스레드), MANAGER 기본 쓰기(RoleDefaults 변경 — 2026-11-20 [DEC-079 Follow-up 2026-11-20](#follow-up-2026-11-20-manager는-owner-전용-둘만-빼고-전부를-기본으로-갖는다-i2)에서 채택), 메모 전용 권한 키, 메모 읽기를 연락처 권한으로 제한, 원본 답을 직접 고치기, 1차에 참석 범위까지 넣기를 버렸다.
 
 ---
 
@@ -3073,10 +3079,10 @@ DEC-029는 운영자마다 권한을 달리 준다고 정했고, 2026-10-02 보�
    | 행사 역할 | 기본 권한 |
    | --- | --- |
    | `OWNER` | 등록된 행사 키 전부(바뀌지 않음) |
-   | `MANAGER` | `EVENT_READ`, `TASK_WRITE`(DEC-062), `CHECKIN_WRITE`(DEC-071), **`SCHEDULE_WRITE`, `NOTICE_WRITE`**(이번에 더함) |
+   | `MANAGER` | ~~`EVENT_READ`, `TASK_WRITE`(DEC-062), `CHECKIN_WRITE`(DEC-071), **`SCHEDULE_WRITE`, `NOTICE_WRITE`**(이번에 더함)~~ → 등록된 행사 키 전부에서 OWNER 전용 키(`EVENT_LIFECYCLE`·`EVENT_USER_MANAGE`)만 뺀 것(아래 Follow-up 2026-11-20) |
    | `STAFF` | `EVENT_READ`, `CHECKIN_WRITE`(DEC-071) |
 
-   그 밖의 키(조 편성, 참가자 정보 수정, 연락처 보기, 명단 내려받기, 숙소 배정, 신청서·행사 정보 고치기 등)는 기본으로 주지 않는다. 행사 OWNER가 사람별 `GRANT`로 준다.
+   ~~그 밖의 키(조 편성, 참가자 정보 수정, 연락처 보기, 명단 내려받기, 숙소 배정, 신청서·행사 정보 고치기 등)는 기본으로 주지 않는다. 행사 OWNER가 사람별 `GRANT`로 준다.~~ → Follow-up 2026-11-20: 그 밖의 키는 MANAGER가 기본으로 갖고, STAFF에게는 행사 OWNER가 사람별 `GRANT`로 준다.
 2. **바로 적용된다.** 기본값은 저장하지 않고 요청마다 계산한다(DEC-075가 경고한 성질). 배포하는 순간 **모든 행사의 기존 MANAGER**가 `SCHEDULE_WRITE`·`NOTICE_WRITE`를 갖는다. 일정·공지 API는 아직 없으므로(로드맵 트랙 C·D) 지금 열리는 쓰기 경로는 없다. 그 API가 열리면 기존 MANAGER가 바로 쓴다. 이 둘을 이미 개별 `GRANT`로 받은 MANAGER의 행은 그대로 남지만 결과는 같다. 다음 저장 때 서버가 기본값과 겹치는 `GRANT`를 정리한다(`normalize`). 특정 MANAGER에게 막으려면 OWNER가 개별로 뺀다(`REVOKE`).
 3. **권한 화면.** 행사 OWNER는 운영 멤버 화면의 운영자 행에서 "권한"을 눌러 그 사람의 권한을 켜고 끈다. 수련회에 쓰는 키만 사람이 읽는 말로 묶어 보인다.
 
@@ -3110,7 +3116,7 @@ DEC-029는 운영자마다 권한을 달리 준다고 정했고, 2026-10-02 보�
 ### Alternatives
 
 - STAFF에도 조 편성 기본: 조 편성은 작업본을 바꾸는 일이라 담당만 하도록 개인별로 둔다.
-- MANAGER에 연락처·CSV 기본: 반출·개인정보 범위가 모든 기존 행사에서 바로 넓어져(DEC-054, DEC-075 경고) 채택하지 않았다.
+- ~~MANAGER에 연락처·CSV 기본: 반출·개인정보 범위가 모든 기존 행사에서 바로 넓어져(DEC-054, DEC-075 경고) 채택하지 않았다.~~ → 아래 Follow-up 2026-11-20에서 사용자가 이 영향을 알고 채택했다.
 - 권한 키를 모두 보이기: 아직 기능이 없는 키(회비·차량 등)가 섞여 판단이 어렵다. 쓰는 키만 보이고 나머지는 보존한다.
 
 ### Reason
@@ -3124,6 +3130,24 @@ DEC-029는 운영자마다 권한을 달리 준다고 정했고, 2026-10-02 보�
 ### Evidence
 
 사용자 결정 2026-11-19(로드맵 결정 7, [#385](https://github.com/BeomhyunPark/SCENE/issues/385)). 근거 결정은 DEC-029, DEC-031, DEC-054, DEC-062, DEC-071, DEC-072, DEC-075다.
+
+### Follow-up (2026-11-20): MANAGER는 OWNER 전용 둘만 빼고 전부를 기본으로 갖는다 (I2)
+
+사용자 결정(2026-11-20): "운영자가 모든 권한을 가져야 편하다. MANAGER에게 전부 준다." 로드맵 트랙 I([#385](https://github.com/BeomhyunPark/SCENE/issues/385)) I2의 Follow-up이다. 위 Decision §1의 표와 "그 밖의 키는 기본으로 주지 않는다", Alternatives의 "MANAGER에 연락처·CSV 기본: 채택하지 않았다"를 바꾼다.
+
+| 행사 역할 | 기본 권한 |
+| --- | --- |
+| `OWNER` | 등록된 행사 키 전부(바뀌지 않음) |
+| `MANAGER` | **등록된 행사 키 전부에서 OWNER 전용 키(`EVENT_LIFECYCLE`, `EVENT_USER_MANAGE`)만 뺀 것** |
+| `STAFF` | `EVENT_READ`, `CHECKIN_WRITE`(바뀌지 않음) |
+
+- **이유.** 지금은 조 편성·참가자 수정·취소·연락처 보기·명단 내려받기를 OWNER 한 사람만 할 수 있고, 맡기려면 사람마다 권한 창에서 하나씩 켜야 한다. 교회 운영팀은 서로 아는 몇 명이라 이 구분이 번거롭기만 하다. 믿고 맡길 사람은 MANAGER로 넣으면 끝난다.
+- **MANAGER가 못 하는 것.** 행사 시작·종료(`EVENT_LIFECYCLE`)와 운영 멤버 추가·역할 변경·제거·권한 편집(`EVENT_USER_MANAGE`)이다. OWNER 전용 키는 `GRANT`해도 MANAGER에게 적용되지 않는다는 기존 규칙(`422 PERMISSION_OWNER_ONLY`)은 그대로다. Owner 넘기기도 그대로 OWNER만이다.
+- **STAFF**는 당일 접수 봉사자처럼 체크인만 하는 사람용으로 그대로 둔다. 사람별 권한 창(§3, #395)은 예외 처리용으로 남는다(예: STAFF 한 명에게 조 편성만 켜기, 특정 MANAGER에게서 명단 내려받기 빼기).
+- **계산값이다.** `RoleDefaults`는 MANAGER를 "전체 키 − OWNER 전용 키"로 계산한다. 기본값은 저장하지 않으므로 **배포 즉시 모든 행사의 기존 MANAGER에게 적용된다**(DEC-075가 경고한 성질을 알고 정했다). 앞으로 새 권한 키를 더하면 MANAGER가 자동으로 갖는다. OWNER 전용으로 둘 키라면 `Permission.ownerOnly()`에 함께 더한다.
+- **기존 override.** 개별 `REVOKE`가 걸려 있던 MANAGER는 그 `REVOKE`가 그대로 유지된다(그 키는 계속 못 한다). 개별 `GRANT`로 받아 둔 키는 이제 기본값과 겹친다. 행은 남지만 결과는 같고, 다음 저장 때 서버가 정리한다(`normalize`).
+- **바뀌는 다른 결정.** DEC-054(`DATA_EXPORT`·`PARTICIPANT_CONTACT_READ`가 MANAGER 기본, #308·#332의 연락처 열람 포함), DEC-072 §7(`GROUP_WRITE`), DEC-075 §3(`PARTICIPANT_WRITE`), DEC-080 결정 대기 1번(신청 변경 알림을 `PARTICIPANT_READ` 보유자가 받으므로 MANAGER도 기본으로 받는다). 각 자리에 메모를 달았다.
+- 새 권한 키, 새 ErrorCode, DB 변경은 없다. 확인은 [#385](https://github.com/BeomhyunPark/SCENE/issues/385)의 I2 하위 이슈다.
 
 ---
 
@@ -3157,7 +3181,7 @@ DEC-029는 운영자마다 권한을 달리 준다고 정했고, 2026-10-02 보�
 
 | # | 질문 | 선택지 | 추천안 | 영향 |
 |---|---|---|---|---|
-| 1 | 신청 수정·재신청·취소 알림을 누가 받나 | 유효한 `PARTICIPANT_READ` 보유자 / 행사 운영자 전원 / 행사 OWNER만 | `PARTICIPANT_READ` 보유자(#385 추천안). 1월 기본값으로는 OWNER이고 개인별 GRANT로 넓힌다 | 기본값만으로는 OWNER만 받는다. MANAGER도 받게 하려면 I2에서 MANAGER 기본값에 `PARTICIPANT_READ`를 넣거나 개별 GRANT한다 |
+| 1 | 신청 수정·재신청·취소 알림을 누가 받나 | 유효한 `PARTICIPANT_READ` 보유자 / 행사 운영자 전원 / 행사 OWNER만 | `PARTICIPANT_READ` 보유자(#385 추천안). 1월 기본값으로는 OWNER이고 개인별 GRANT로 넓힌다 | 기본값만으로는 OWNER만 받는다. MANAGER도 받게 하려면 I2에서 MANAGER 기본값에 `PARTICIPANT_READ`를 넣거나 개별 GRANT한다. (2026-11-20 → [DEC-079 Follow-up 2026-11-20](#follow-up-2026-11-20-manager는-owner-전용-둘만-빼고-전부를-기본으로-갖는다-i2): MANAGER 기본값에 `PARTICIPANT_READ`가 들어가 OWNER와 MANAGER가 기본으로 받는다. STAFF는 개별 GRANT로 받고, MANAGER도 개별 `REVOKE`하면 받지 않는다) |
 | 2 | 행사 유형 기본 영역 | 유형별 기본값 / 모든 행사에 다섯 영역 / 운영자가 켤 때까지 모두 끔 | 유형별 기본값(`RETREAT`·`CAMP`는 모두) | 수련회 행사는 공개 전에도 탭과 빈 카드가 보인다 |
 
 ### 범위 밖

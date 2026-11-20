@@ -9,6 +9,7 @@ import { addField, createForm, getForm, listForms } from "../api/forms";
 import { markSubmitted } from "../mocks/formStore";
 import { login } from "../api/session";
 import { localEvent, localSpace, localUsers } from "../mocks/fixtures/seed";
+import { revokePermissions } from "../mocks/taskStore";
 import { setLifecycle } from "../mocks/operatorStore";
 import { operatorRequests } from "../mocks/operatorStore";
 import { problem } from "../mocks/problem";
@@ -287,6 +288,8 @@ describe("event registration setup", () => {
   it("stays read-only without FORM_WRITE", async () => {
     await login({ userId: localUsers[0].userId });
     await createForm(localEvent.eventId);
+    // MANAGER holds FORM_WRITE by default (DEC-079 Follow-up 2026-11-20); this one has a REVOKE.
+    revokePermissions(localEvent.eventId, localUsers[1].userId, ["FORM_WRITE"]);
     await login({ userId: localUsers[1].userId });
     renderSetup();
     expect(await (await questionList()).findByText("이름")).toBeInTheDocument();
