@@ -119,6 +119,10 @@ class SecurityConfiguration {
                 .permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/participant/notifications/read")
                 .permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/participant/notices")
+                .permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/participant/notices/*")
+                .permitAll()
                 .anyRequest()
                 .authenticated());
     return http.build();

@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="app.scene.event.notice.mapper.NoticeQueryMapper">
+  <sql id="columns">
+    n.id, n.space_id, n.event_id, n.title,
+  </sql>
+
+  <sql id="rest">
+    n.important, n.pinned, n.audience::text AS audience, n.status, n.version,
+    n.first_published_at, n.published_at, n.edited_at, n.archived_at,
+    cu.display_name AS created_by_display_name, uu.display_name AS updated_by_display_name,
+    n.updated_at
+    FROM notices n
+    JOIN users cu ON cu.id = n.created_by
+    JOIN users uu ON uu.id = n.updated_by
+  </sql>
+
+  <select id="find" resultType="app.scene.event.notice.NoticeRow">
+    SELECT <include refid="columns"/> n.body, <include refid="rest"/>
+    WHERE n.space_id = #{spaceId} AND n.event_id = #{eventId} AND n.id = #{id}
+  </select>
+
+  <select id="findByStatus" resultType="app.scene.event.notice.NoticeRow">
+    SELECT <include refid="columns"/> n.body, <include refid="rest"/>
+    WHERE n.space_id = #{spaceId} AND n.event_id = #{eventId}
+      AND n.status IN
+      <foreach collection="statuses" item="status" open="(" separator="," close=")">
+        #{status}
+      </foreach>
+  </select>
+
+  <!-- Participant list. Only the head of the body travels; the preview is cut in Java. -->
+  <select id="findPublishedHeads" resultType="app.scene.event.notice.NoticeRow">
+    SELECT <include refid="columns"/> left(n.body, #{headLength}) AS body, <include refid="rest"/>
+    WHERE n.space_id = #{spaceId} AND n.event_id = #{eventId} AND n.status = 'PUBLISHED'
+  </select>
+
+  <select id="findPinnedIds" resultType="java.util.UUID">
+    SELECT id
+    FROM notices
+    WHERE space_id = #{spaceId} AND event_id = #{eventId} AND status = 'PUBLISHED' AND pinned
+    ORDER BY published_at DESC, id DESC
+  </select>
+
+  <select id="findBoardVersion" resultType="long">
+    SELECT version
+    FROM notice_boards
+    WHERE space_id = #{spaceId} AND event_id = #{eventId}
+  </select>
+
+  <select id="findActiveOperatorIds" resultType="java.util.UUID">
+    SELECT o.user_id
+    FROM event_users o
+    WHERE o.space_id = #{spaceId} AND o.event_id = #{eventId}
+      AND (
+        NOT <include refid="app.scene.common.mybatis.CommonMapper.ownerAuthorityEnded"/>
+        OR EXISTS (
+          SELECT 1 FROM event_user_permissions p
+          WHERE p.space_id = o.space_id AND p.event_id = o.event_id AND p.user_id = o.user_id
+            AND p.permission = 'EVENT_READ' AND p.effect = 'GRANT'))
+    ORDER BY o.user_id
+  </select>
+</mapper>

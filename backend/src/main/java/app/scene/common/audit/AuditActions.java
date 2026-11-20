@@ -64,6 +64,21 @@ public final class AuditActions {
 
   public static final String SPACE_INVITATION_ACCEPTED = "SPACE_INVITATION_ACCEPTED";
 
+  /**
+   * Notices (DEC-082, #434). {@code NOTICE_PUBLISHED} details are {@code noticeId}, {@code
+   * version}, {@code audienceTypes}, {@code important}, {@code notifiedCount}; {@code
+   * NOTICE_UPDATED} (a published notice's content changed) {@code noticeId}, {@code version},
+   * {@code fields}, {@code notify}, {@code notifiedCount}; archive and unarchive {@code noticeId}
+   * and {@code version}. Never the title or body.
+   */
+  public static final String NOTICE_PUBLISHED = "NOTICE_PUBLISHED";
+
+  public static final String NOTICE_UPDATED = "NOTICE_UPDATED";
+
+  public static final String NOTICE_ARCHIVED = "NOTICE_ARCHIVED";
+
+  public static final String NOTICE_UNARCHIVED = "NOTICE_UNARCHIVED";
+
   public static final String PARTICIPANT_PIN_RESET = "PARTICIPANT_PIN_RESET";
 
   /** An operator withdrew an application (DEC-084). Details carry ids and flags, not the reason. */
