@@ -10,19 +10,10 @@ import { Button } from "./Button";
 import { CompletionNotice } from "./CompletionNotice";
 import { ParticipantFrame } from "./ParticipantFrame";
 import { AnswerInput } from "./apply/AnswerInput";
-import { RangeSummary } from "./apply/RangeSummary";
-import { optionView } from "./apply/optionView";
-import { ARRIVAL, DEPARTURE, REVERSED_COPY, departureFieldId, rangeProblem } from "./apply/attendanceRange";
 import { PinFields } from "./apply/PinFields";
 import { lockWait, pinProblem } from "./apply/pinRules";
-import {
-  problemFor,
-  prune,
-  toAnswerItems,
-  visibleFields,
-  type RawAnswer,
-  type RawAnswers,
-} from "./apply/answerModel";
+import { toAnswerItems } from "./apply/answerModel";
+import { useAnswerDraft } from "./apply/useAnswerDraft";
 
 export function PublicApply() {
   const { eventId = "", formId = "" } = useParams();
@@ -70,17 +61,12 @@ function ApplyForm({
   fields: FormField[];
   onSubmitted: (submitted: SubmittedApplication) => void;
 }) {
-  const [values, setValues] = useState<RawAnswers>({});
-  const [touched, setTouched] = useState<Set<string>>(new Set());
-  const [showAll, setShowAll] = useState(false);
+  const draft = useAnswerDraft(fields);
+  const { values, shown, firstProblem, showAll, setShowAll } = draft;
   const [failure, setFailure] = useState<string | null>(null);
-  // The server also refuses a departure before the arrival (400). It names no field, so a refusal
-  // while both are answered is shown on 출발 until either one changes.
-  const [rangeRefused, setRangeRefused] = useState(false);
   const [pin, setPin] = useState("");
   const [pinAgain, setPinAgain] = useState("");
   const [pinRefused, setPinRefused] = useState<string | null>(null);
-  const departureId = departureFieldId(fields);
   const submit = useMutation({
     mutationFn: () => submitApplication(eventId, formId, toAnswerItems(fields, values), pin),
     onSuccess: (result) => {
@@ -90,32 +76,13 @@ function ApplyForm({
     onError: (error) => {
       setFailure(submitFailure(error));
       if (isApiError(error, "PARTICIPANT_PIN_WEAK")) setPinRefused("쓸 수 없는 번호예요. 다른 숫자 6자리를 정해 주세요.");
-      if (isApiError(error, "APPLICATION_VALIDATION_FAILED") && departureId && shown.some((field) => field.fieldId === departureId)) {
-        setRangeRefused(true);
-        setShowAll(true);
-      }
+      if (isApiError(error, "APPLICATION_VALIDATION_FAILED")) draft.refuseRange();
     },
   });
-  const shown = visibleFields(fields, values);
-  const problems = new Map(
-    shown.map((field) => {
-      const own = problemFor(field, values[field.fieldId]);
-      if (own || field.fieldId !== departureId) return [field.fieldId, own];
-      return [field.fieldId, rangeProblem(fields, values) ?? (rangeRefused ? REVERSED_COPY : null)];
-    }),
-  );
-  const firstProblem = shown.find((field) => problems.get(field.fieldId));
   const phoneField = fields.find((field) => field.systemKey === "PHONE");
   const phone = phoneField ? String(values[phoneField.fieldId]?.text ?? "") : "";
   const pinError = pinRefused ?? pinProblem(pin, phone);
   const againError = pinAgain.length > 0 && pinAgain !== pin ? "두 번호가 달라요." : pinAgain.length === 0 ? "한 번 더 넣어 주세요." : null;
-
-  function change(fieldId: string, next: RawAnswer) {
-    const key = fields.find((field) => field.fieldId === fieldId)?.presetKey;
-    if (key === ARRIVAL || key === DEPARTURE) setRangeRefused(false);
-    setTouched((current) => new Set(current).add(fieldId));
-    setValues((current) => prune(fields, { ...current, [fieldId]: next }));
-  }
 
   return (
     <ParticipantFrame title="참가 신청">
@@ -140,24 +107,9 @@ function ApplyForm({
         }}
       >
         <div className="participant-gate__fields">
-          {shown.map((field) => {
-            const problem = problems.get(field.fieldId) ?? null;
-            const answered = Object.keys(values[field.fieldId] ?? {}).length > 0;
-            // An out-of-order range shows at once on 출발, wherever it was caused (도착 changed later).
-            const rangeNow = field.fieldId === departureId && rangeProblem(fields, values) !== null;
-            const visibleError = showAll || rangeNow || (touched.has(field.fieldId) && answered) ? problem : null;
-            return (
-              <AnswerInput
-                key={field.fieldId}
-                field={field}
-                {...optionView(field, fields, values)}
-                value={values[field.fieldId]}
-                error={visibleError}
-                onChange={(next) => change(field.fieldId, next)}
-                extra={field.fieldId === departureId ? <RangeSummary fields={fields} values={values} /> : null}
-              />
-            );
-          })}
+          {shown.map((field) => (
+            <AnswerInput key={field.fieldId} {...draft.inputProps(field)} />
+          ))}
         </div>
         <PinFields
           pin={pin}
