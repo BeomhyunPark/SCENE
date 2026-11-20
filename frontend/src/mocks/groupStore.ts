@@ -102,6 +102,11 @@ export function clearBoardSlots(eventId: string): void {
   boardOf(eventId).slots = null;
 }
 
+/** The 식사·집회 칸 of the board, for the schedule mock's `slots` (same ids as the server's MealSlots). */
+export function boardSlotsOf(eventId: string): readonly Slot[] | null {
+  return boardOf(eventId).slots;
+}
+
 /** Test seam: what one person chose in MEALS (null = no answer). */
 export function setChosenSlots(eventId: string, participantId: string, slotIds: string[] | null): void {
   const person = peopleOf(eventId).find((item) => item.participantId === participantId);
