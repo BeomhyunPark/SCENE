@@ -5,21 +5,24 @@ import { reloadQuery } from "../api/queryClient";
 import { queryKeys } from "../api/queryKeys";
 import { Button } from "./Button";
 import { formatSubmittedAt } from "./eventFormat";
+import { useSessionGuard } from "./participant/sessionGuard";
+import { participantCardQuery } from "./participant/updateTargets";
 import "./ParticipantCheckIn.css";
 import { qrPath } from "./qrPath";
 
 /**
  * Arrival QR for the signed-in participant (#284, DEC-071). The value lives only in the query cache:
- * it stays on screen if a later reload fails, and it is never written to web storage. Coming back to
- * the tab reloads (React Query refetches on focus), and the refresh button reloads on demand.
+ * it stays on screen if a later reload fails, and it is never written to web storage. It reloads when
+ * `updates.checkIn` changes (#425: the participant poll checks on focus, so the card does not refetch
+ * on focus by itself), and the refresh button reloads on demand.
  */
 export function ParticipantCheckIn({ eventId }: { eventId: string }) {
   const query = useQuery({
     queryKey: queryKeys.participantCheckIn(eventId),
     queryFn: ({ signal }) => getParticipantCheckIn(signal),
-    refetchOnWindowFocus: "always",
-    refetchOnReconnect: "always",
+    ...participantCardQuery,
   });
+  useSessionGuard(query.error);
 
   const refresh = (
     <Button

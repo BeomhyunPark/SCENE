@@ -8,6 +8,7 @@ import { localEvent, localUsers } from "../mocks/fixtures/seed";
 import { setLifecycle } from "../mocks/operatorStore";
 import { readParticipantCheckIn, setParticipantCheckInSecret } from "../mocks/participantCheckInStore";
 import { server } from "../mocks/server";
+import { participantHomeHandlers } from "../mocks/participantHomeTestHandlers";
 import { qrPath } from "./qrPath";
 
 const EVENT = localEvent.eventId;
@@ -22,9 +23,15 @@ function problem(status: number, code: string) {
 }
 
 function signedIn() {
-  return http.get("/api/v1/participant/me", () =>
-    HttpResponse.json({ participantId: "person-1", eventId: EVENT, spaceId: "space-1", name: "김" }),
-  );
+  return [
+    http.get("/api/v1/participant/me", () =>
+      HttpResponse.json({ participantId: "person-1", eventId: EVENT, spaceId: "space-1", name: "김" }),
+    ),
+    http.get("/api/v1/participant/group", () =>
+      HttpResponse.json({ status: "NOT_PUBLISHED", publishedAt: null, group: null, leader: false, members: null }),
+    ),
+    ...participantHomeHandlers(),
+  ];
 }
 
 function checkIn(body: Record<string, unknown>) {
@@ -52,7 +59,7 @@ describe("participant arrival QR", () => {
 
   it("draws the QR in black on white and keeps the value out of web storage", async () => {
     const local = vi.spyOn(Storage.prototype, "setItem");
-    server.use(signedIn(), checkIn({ code: CODE }));
+    server.use(...signedIn(), checkIn({ code: CODE }));
     openApp();
     const image = await screen.findByRole("img", { name: "도착 QR" });
     const path = image.querySelector("path")!;
@@ -70,14 +77,14 @@ describe("participant arrival QR", () => {
     ["ENDED", "행사가 끝났습니다."],
     ["NOT_ELIGIBLE", "신청이 취소되어 도착 QR이 없어요. 접수처에 이름을 말해 주세요."],
   ])("explains %s without a QR", async (status, text) => {
-    server.use(signedIn(), checkIn({ status }));
+    server.use(...signedIn(), checkIn({ status }));
     openApp();
     expect(await screen.findByText(text)).toBeInTheDocument();
     expect(screen.queryByRole("img", { name: "도착 QR" })).not.toBeInTheDocument();
   });
 
   it("explains a server without a QR secret", async () => {
-    server.use(signedIn(), http.get("/api/v1/participant/check-in", () => problem(404, "RESOURCE_NOT_FOUND")));
+    server.use(...signedIn(), http.get("/api/v1/participant/check-in", () => problem(404, "RESOURCE_NOT_FOUND")));
     openApp();
     expect(await screen.findByText("도착 QR이 아직 준비되지 않았어요. 접수처에 이름을 말해 주세요.")).toBeInTheDocument();
     expect(screen.queryByRole("img", { name: "도착 QR" })).not.toBeInTheDocument();
@@ -85,14 +92,14 @@ describe("participant arrival QR", () => {
   });
 
   it("shows the arrival time once checked in", async () => {
-    server.use(signedIn(), checkIn({ code: CODE, checkedIn: true, checkedInAt: "2027-01-15T01:42:00Z" }));
+    server.use(...signedIn(), checkIn({ code: CODE, checkedIn: true, checkedInAt: "2027-01-15T01:42:00Z" }));
     openApp();
     const status = await screen.findByRole("status");
     expect(status).toHaveTextContent("도착 확인됨 · 2027. 1. 15. 10:42");
   });
 
   it("shows arrival on an ended event too", async () => {
-    server.use(signedIn(), checkIn({ status: "ENDED", checkedIn: true, checkedInAt: "2027-01-15T01:42:00Z" }));
+    server.use(...signedIn(), checkIn({ status: "ENDED", checkedIn: true, checkedInAt: "2027-01-15T01:42:00Z" }));
     openApp();
     expect(await screen.findByText("행사가 끝났습니다.")).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent("도착 확인됨");
@@ -101,7 +108,7 @@ describe("participant arrival QR", () => {
   it("picks up a check-in made while the screen was open", async () => {
     let checked = false;
     server.use(
-      signedIn(),
+      ...signedIn(),
       http.get("/api/v1/participant/check-in", () =>
         HttpResponse.json({
           status: "AVAILABLE",
@@ -122,7 +129,7 @@ describe("participant arrival QR", () => {
   it("lets the participant retry a failed load", async () => {
     let fail = true;
     server.use(
-      signedIn(),
+      ...signedIn(),
       http.get("/api/v1/participant/check-in", () =>
         fail ? HttpResponse.error() : HttpResponse.json({ status: "AVAILABLE", code: CODE, checkedIn: false, checkedInAt: null }),
       ),
@@ -137,7 +144,7 @@ describe("participant arrival QR", () => {
   it("keeps the QR on screen when a reload fails", async () => {
     let fail = false;
     server.use(
-      signedIn(),
+      ...signedIn(),
       http.get("/api/v1/participant/check-in", () =>
         fail ? HttpResponse.error() : HttpResponse.json({ status: "AVAILABLE", code: CODE, checkedIn: false, checkedInAt: null }),
       ),
