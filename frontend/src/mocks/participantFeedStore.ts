@@ -101,7 +101,6 @@ export function readHome(eventId: string, participant: { participantId: string; 
       name: participant.name,
       applicationStatus: currentApplicationRevision(participant.participantId) === null ? "NONE" : "SUBMITTED",
     },
-    // api.md (A8) shape; the contract draft's `completionMessage` is also read by the screen.
     completionNotice: completionNotice(eventId),
     features: readFeatures(eventId),
     updates,

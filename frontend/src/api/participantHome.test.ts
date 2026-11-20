@@ -6,11 +6,10 @@ const EVENT = { eventId: "e", name: "수련회", status: "ACTIVE", startDate: nu
 describe("participant home response", () => {
   it.each([
     [{ completionNotice: "참가비 3만원" }, "참가비 3만원"],
-    [{ completionMessage: { text: "참가비 3만원", updatedAt: "2026-12-10T03:00:00Z" } }, "참가비 3만원"],
     [{ completionNotice: "  " }, null],
     [{ completionNotice: null }, null],
     [{}, null],
-  ])("reads the completion notice in either draft shape (%j)", (extra, text) => {
+  ])("reads the completion notice as a string (%j)", (extra, text) => {
     expect(parseHome({ event: EVENT, ...extra }).completionNotice).toBe(text);
   });
 

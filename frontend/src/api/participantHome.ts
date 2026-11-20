@@ -46,7 +46,7 @@ export type ParticipantHome = {
     timeZone: string;
   };
   participant: { name: string; applicationStatus: "SUBMITTED" | "NONE" };
-  /** The form's completion notice now, plain text, or null. See `completionText`. */
+  /** The form's completion notice now, plain text, or null. */
   completionNotice: string | null;
   features: ParticipantFeatures;
   updates: ParticipantUpdates | null;
@@ -101,18 +101,12 @@ export function parseHome(value: unknown): ParticipantHome {
 }
 
 /**
- * The one place that reads the completion notice from `home`. The contract draft has
- * `completionMessage: { text, updatedAt }`, api.md (A8) has `completionNotice: string | null`; B2
- * settles one. Both are read until then; a blank text is no notice.
+ * The one place that reads the completion notice from `home`: `completionNotice`, a string or null
+ * (api.md, DEC-080 Follow-up #423). A blank text is no notice.
  */
 export function completionText(home: Record<string, unknown>): string | null {
   const plain = home.completionNotice;
-  if (typeof plain === "string") return plain.trim().length > 0 ? plain : null;
-  const message = home.completionMessage;
-  if (isRecord(message) && typeof message.text === "string") {
-    return message.text.trim().length > 0 ? message.text : null;
-  }
-  return null;
+  return typeof plain === "string" && plain.trim().length > 0 ? plain : null;
 }
 
 export function parseUpdates(value: unknown): ParticipantUpdates | null {
