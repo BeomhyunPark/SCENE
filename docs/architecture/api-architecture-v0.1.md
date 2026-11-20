@@ -190,7 +190,7 @@ DELETE /api/v1/operator/spaces/{spaceId}/members/{memberId}
 - 후보 Permission: `EVENT_READ`, `EVENT_UPDATE`, `EVENT_LIFECYCLE`, `EVENT_USER_READ`, `EVENT_USER_MANAGE`.
 - Event role: `OWNER / MANAGER / STAFF`.
 - Event lifecycle 제품 전이는 #8/DEC-049~053을 따른다. 활성화·종료·ENDED 재개·ENDED 보관·ARCHIVED 해제를 구분한다. ACTIVE 직접 보관과 ARCHIVED 직접 재개는 허용하지 않는다. command·Owner 이전·본인 이탈 계약은 [2026-10-02 절](#2026-10-02-행사-lifecycle-command-30-dec-063)을 따른다.
-- Event OWNER cardinality / transfer, Space role과 Event role의 상세 Permission mapping은 OPEN 또는 원문 대조 필요. (2026-10-02 현 결정: Event 권한은 role 기본 집합 + 사람별 `event_user_permissions` GRANT/REVOKE. MANAGER/STAFF 기본 집합은 2026-11-19 DEC-079로 확정. 그 전 기록: 미확정, 백엔드 리드 초안 대기(현 결정 10/2: Backend Lead 초안, 현 승인). 예외: `TASK_WRITE` 기본값은 2026-10-02 DEC-062로 확정([§8](#2026-10-02-업무-체크리스트-저장-계약-31-dec-062)). [아래 절](#2026-10-02-개인별-권한-현-결정-dec-029-정합))
+- Event OWNER cardinality / transfer, Space role과 Event role의 상세 Permission mapping은 OPEN 또는 원문 대조 필요. (2026-10-02 현 결정: Event 권한은 role 기본 집합 + 사람별 `event_user_permissions` GRANT/REVOKE. MANAGER/STAFF 기본 집합은 2026-11-19 DEC-079로 확정, 2026-11-20 DEC-079 Follow-up에서 MANAGER를 OWNER 전용 키만 뺀 전부로 넓혔다. 그 전 기록: 미확정, 백엔드 리드 초안 대기(현 결정 10/2: Backend Lead 초안, 현 승인). 예외: `TASK_WRITE` 기본값은 2026-10-02 DEC-062로 확정([§8](#2026-10-02-업무-체크리스트-저장-계약-31-dec-062)). [아래 절](#2026-10-02-개인별-권한-현-결정-dec-029-정합))
 
 ```http
 POST   /api/v1/operator/spaces/{spaceId}/events
@@ -1028,7 +1028,7 @@ PUT /api/v1/operator/events/{eventId}/operators/{userId}/permissions
 }
 ```
 
-- 위 `roleDefaults` 값은 형태 예시다. MANAGER/STAFF 기본 집합은 미확정이다(아래 키 목록).
+- 위 `roleDefaults` 값은 형태 예시다(STAFF). ~~MANAGER/STAFF 기본 집합은 미확정이다(아래 키 목록).~~ → DEC-079와 그 Follow-up(2026-11-20)으로 정했다(아래 키 목록).
 - PUT body `{"grants": [...], "revokes": [...]}`는 해당 운영자의 override 전체를 대체한다(SET). 두 배열이 모두 비면 override를 모두 지운다. 응답은 200이며 GET과 같은 형태다. 같은 body를 반복하면 같은 결과·같은 응답이고, 바뀐 것이 없으면 행·`granted_at`을 갱신하지 않고 audit도 남기지 않는다. 바뀌지 않은 키는 기존 `granted_by`·`granted_at`을 유지한다.
 - 정규화: role 기본값에 이미 있는 키의 GRANT와 기본값에 없는 키의 REVOKE는 효과가 없으므로 저장하지 않고 응답 `overrides`에서 빠진다(오류 아님). 배열은 키 이름순으로 돌려준다.
 - role 기본 mapping 변경은 리뷰 대상 변경이다. 정규화 때문에 기본값과 같은 GRANT는 저장되지 않으므로, mapping에서 키를 빼면 그 키를 따로 받았던 운영자도 effective에서 조용히 잃고 키를 넣으면 조용히 얻는다. 그래서 mapping 변경은 별도 PR 리뷰를 거치고, 변경 전후 mapping과 영향받는 행사·운영자 수를 담은 자체 audit 기록과 release note를 함께 낸다.
@@ -1080,7 +1080,7 @@ Permission 키 목록 (초안)
 | 구분 | 키 | 근거 |
 |---|---|---|
 | GRANT/REVOKE 가능 | `EVENT_UPDATE`, `EVENT_USER_READ`, `PARTICIPANT_READ`, `PARTICIPANT_CONTACT_READ`, `PARTICIPANT_WRITE`, `FORM_WRITE`, `APPLICATION_READ`, `APPLICATION_MANAGE`, `TASK_WRITE`, `SCHEDULE_WRITE`, `NOTICE_WRITE`, `FINANCE_READ`, `FINANCE_WRITE`, `GROUP_WRITE`, `ROOM_WRITE`, `RIDE_WRITE`, `CLASS_WRITE`, `CHECKIN_WRITE`, `MISSION_WRITE`, `GUARDIAN_WRITE`, `GUARDIAN_CONTACT_READ`, `PRIVACY_LOG_READ`, `AUDIT_LOG_READ` | §18 후보. DEC-029(조 편성·정산 등 업무별 차등), access-policy-review(참가자 수정·조 편성·일정·공지·체크인·정산). 준비 중 편성 조회는 `GROUP_WRITE`에 포함(DEC-043). 행사 전용 협력자에게는 GRANT해도 DEC-060 연락처 숨김이 앞선다(현 결정 10/2) |
-| GRANT/REVOKE 가능, MANAGER/STAFF 기본값에 넣지 않음 | `DATA_EXPORT` | DEC-054 "명시적 Export 권한을 받은 운영자" |
+| GRANT/REVOKE 가능, ~~MANAGER/STAFF 기본값에 넣지 않음~~ → MANAGER 기본, STAFF 기본 아님(DEC-079 Follow-up 2026-11-20, 사용자 결정) | `DATA_EXPORT` | DEC-054 "명시적 Export 권한을 받은 운영자" |
 | 운영자 기본, REVOKE 불가 | `EVENT_READ` | 행사 접근 자체. 회수는 운영자 제거 |
 | OWNER 전용 (GRANT 불가) | `EVENT_LIFECYCLE` | #30 L1: 활성화·종료·재개·보관·보관 해제는 Event OWNER (role) only |
 | 보류 | `DATA_RETENTION_MANAGE` | 보류 (현 결정 D23 대기) |
@@ -1088,7 +1088,7 @@ Permission 키 목록 (초안)
 | 대상 아님 (Space 범위) | `SPACE_READ`, `SPACE_UPDATE`, `MEMBER_READ`, `MEMBER_MANAGE`, `EVENT_CREATE` | Membership·Space role로 판정. override 시 400 `UNKNOWN_PERMISSION` |
 
 - OWNER 기본 집합은 Event 범위 키 전체다.
-- MANAGER/STAFF 기본 집합 (현 결정 10/2): Backend Lead가 초안을 쓰고 현이 승인한다. `DATA_EXPORT`와 OWNER 전용 키는 넣지 않는다. **미확정, 백엔드 리드 초안 대기.** 예외로 `TASK_WRITE`만 2026-10-02 #31 DEC-062로 확정한다. OWNER·MANAGER 포함, STAFF 미포함([§8](#2026-10-02-업무-체크리스트-저장-계약-31-dec-062)). 그 외 기본 집합의 구체 키에 기대는 회귀 행은 아래 표에 보류(pending)로 표시했다. (2026-11-19 [DEC-079](../product/PRODUCT_DECISIONS.md)로 확정: MANAGER는 `EVENT_READ`·`TASK_WRITE`·`CHECKIN_WRITE`·`SCHEDULE_WRITE`·`NOTICE_WRITE`, STAFF는 `EVENT_READ`·`CHECKIN_WRITE`. 보류 행 3·21의 K는 MANAGER `SCHEDULE_WRITE`, STAFF `CHECKIN_WRITE`로 읽는다.)
+- MANAGER/STAFF 기본 집합 (현 결정 10/2): Backend Lead가 초안을 쓰고 현이 승인한다. `DATA_EXPORT`와 OWNER 전용 키는 넣지 않는다. **미확정, 백엔드 리드 초안 대기.** 예외로 `TASK_WRITE`만 2026-10-02 #31 DEC-062로 확정한다. OWNER·MANAGER 포함, STAFF 미포함([§8](#2026-10-02-업무-체크리스트-저장-계약-31-dec-062)). 그 외 기본 집합의 구체 키에 기대는 회귀 행은 아래 표에 보류(pending)로 표시했다. (2026-11-19 [DEC-079](../product/PRODUCT_DECISIONS.md)로 확정: MANAGER는 `EVENT_READ`·`TASK_WRITE`·`CHECKIN_WRITE`·`SCHEDULE_WRITE`·`NOTICE_WRITE`, STAFF는 `EVENT_READ`·`CHECKIN_WRITE`. 보류 행 3·21의 K는 MANAGER `SCHEDULE_WRITE`, STAFF `CHECKIN_WRITE`로 읽는다.) (2026-11-20 DEC-079 Follow-up, 사용자 결정: MANAGER는 Event 범위 키 전부에서 OWNER 전용 `EVENT_LIFECYCLE`·`EVENT_USER_MANAGE`를 뺀 것이다. `DATA_EXPORT`도 MANAGER 기본에 들어간다. 키를 더하면 MANAGER도 기본으로 갖는다. STAFF는 그대로다.)
 - Space OWNER의 조직 관리·복구 권한(DEC-028·DEC-035·DEC-049·DEC-061)은 이 테이블과 별개이며 override 대상이 아니다.
 
 회귀 테스트
