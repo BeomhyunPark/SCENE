@@ -47,7 +47,6 @@ export const queryKeys = {
   participantSchedule: (eventId: string) => ["participant", "schedule", eventId] as const,
   participantNotices: (eventId: string) => ["participant", "notices", eventId] as const,
   participantRooms: (eventId: string) => ["participant", "rooms", eventId] as const,
-  participantMealOrder: (eventId: string) => ["participant", "meal-order", eventId] as const,
   participantApplication: (eventId: string) => ["participant", "application", eventId] as const,
   participantNotifications: (eventId: string) => ["participant", "notifications", eventId] as const,
   /** Every participant read of the event, removed on logout. */

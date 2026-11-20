@@ -3,7 +3,7 @@ import type { ParticipantFeatures } from "../api/participantHome";
 
 /** Test seams (#425): static participant home answers for screen tests. Not used by the mock app. */
 
-export const ALL_FEATURES: ParticipantFeatures = { schedule: true, notices: true, groups: true, rooms: true, mealOrder: true };
+export const ALL_FEATURES: ParticipantFeatures = { schedule: true, notices: true, groups: true, rooms: true };
 
 export const UPDATES = {
   home: 1,
@@ -34,7 +34,7 @@ export function homeBody(overrides: { features?: Partial<ParticipantFeatures>; e
     },
     participant: { name: "김", applicationStatus: "SUBMITTED" },
     completionNotice: null,
-    features: { ...ALL_FEATURES, ...features },
+    features: { ...ALL_FEATURES, mealOrder: true, ...features },
     updates: UPDATES,
     ...rest,
   };

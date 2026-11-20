@@ -5,7 +5,8 @@ import { ApiError } from "./errors";
  * `GET /participant/home` and `GET /participant/updates` (DEC-080, participant-home-contract §3·§4).
  * The screen decides tabs and cards from `features` and `updates` only, never from the event type.
  */
-export type ParticipantFeatureKey = "schedule" | "notices" | "groups" | "rooms" | "mealOrder";
+/** `mealOrder` is not read: meal order is out of the January scope (user decision 2026-11-20). */
+export type ParticipantFeatureKey = "schedule" | "notices" | "groups" | "rooms";
 export type ParticipantFeatures = Record<ParticipantFeatureKey, boolean>;
 
 export type ParticipantEventStatus = "DRAFT" | "ACTIVE" | "ENDED" | "ARCHIVED";
@@ -20,7 +21,6 @@ export const FEED_KEYS = [
   "notices",
   "group",
   "rooms",
-  "mealOrder",
   "checkIn",
   "application",
 ] as const;
@@ -94,7 +94,6 @@ export function parseHome(value: unknown): ParticipantHome {
       notices: features.notices === true,
       groups: features.groups === true,
       rooms: features.rooms === true,
-      mealOrder: features.mealOrder === true,
     },
     updates: parseUpdates(value.updates),
   };

@@ -13,9 +13,9 @@ describe("participant home response", () => {
     expect(parseHome({ event: EVENT, ...extra }).completionNotice).toBe(text);
   });
 
-  it("turns a missing or unknown area off and keeps the home without updates", () => {
-    const home = parseHome({ event: EVENT, features: { schedule: true, groups: "yes", future: true } });
-    expect(home.features).toEqual({ schedule: true, notices: false, groups: false, rooms: false, mealOrder: false });
+  it("turns a missing or unknown area off, ignores meal order and keeps the home without updates", () => {
+    const home = parseHome({ event: EVENT, features: { schedule: true, groups: "yes", future: true, mealOrder: true } });
+    expect(home.features).toEqual({ schedule: true, notices: false, groups: false, rooms: false });
     expect(home.updates).toBeNull();
   });
 
@@ -23,6 +23,6 @@ describe("participant home response", () => {
     expect(parseUpdates({ pollAfterSeconds: 1 })?.pollAfterSeconds).toBe(10);
     expect(parseUpdates({ pollAfterSeconds: 9000 })?.pollAfterSeconds).toBe(300);
     expect(parseUpdates({})?.pollAfterSeconds).toBe(30);
-    expect(parseUpdates({ home: 2, somethingNew: 4, group: "x" })?.versions).toEqual({ home: 2 });
+    expect(parseUpdates({ home: 2, somethingNew: 4, group: "x", mealOrder: 3 })?.versions).toEqual({ home: 2 });
   });
 });

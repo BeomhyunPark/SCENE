@@ -6,9 +6,9 @@ import { queryKeys } from "../../api/queryKeys";
  * Which reads an `updates` key reloads (participant-home-contract §4). This table is the only place
  * that joins the two; the poll hook invalidates exactly these keys when a value differs.
  *
- * Adding a card (C5 일정, D4 공지, G4 숙소, H4 식사, B5 알림함): put the card's `useQuery` under the
+ * Adding a card (C5 일정, D4 공지, G4 숙소, B5 알림함): put the card's `useQuery` under the
  * key already listed here — `queryKeys.participantSchedule(eventId)`, `participantNotices(eventId)`,
- * `participantRooms`, `participantMealOrder`, `participantNotifications` — or under a key that starts
+ * `participantRooms`, `participantNotifications` — or under a key that starts
  * with it (`[...queryKeys.participantNotices(eventId), "detail", id]`). Nothing else needs to change:
  * invalidation matches by prefix, reloads the queries on screen now, and marks the rest stale so they
  * load when their tab opens. Give those queries `staleTime: Infinity` (see `participantCardQuery`) so
@@ -24,8 +24,8 @@ export const UPDATE_TARGETS: Record<FeedKey, (eventId: string) => readonly Query
     queryKeys.participantNotices(eventId),
     queryKeys.participantSchedule(eventId),
   ],
-  rooms: (eventId) => [queryKeys.participantRooms(eventId)],
-  mealOrder: (eventId) => [queryKeys.participantMealOrder(eventId)],
+  // A leader's member list shows each member's room (room-contract §10.2); a room publication does not raise `group`.
+  rooms: (eventId) => [queryKeys.participantRooms(eventId), queryKeys.participantGroup(eventId)],
   checkIn: (eventId) => [queryKeys.participantCheckIn(eventId)],
   application: (eventId) => [queryKeys.participantApplication(eventId)],
 };

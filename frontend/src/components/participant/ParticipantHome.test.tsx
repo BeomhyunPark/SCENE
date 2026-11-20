@@ -59,13 +59,14 @@ describe("participant home (#425)", () => {
     vi.restoreAllMocks();
   });
 
-  it("shows the five tabs in order and every card when every area is on", async () => {
+  it("shows the five tabs in order and every card when every area is on, without a meal card", async () => {
     server.use(me(), home(), ...cards());
     openApp();
     expect(await screen.findByText("2027 청년부 겨울수련회")).toBeInTheDocument();
     expect(tabNames()).toEqual(["홈", "일정", "공지", "내 조", "내 정보"]);
     expect(screen.getByRole("link", { name: "홈", current: "page" })).toBeInTheDocument();
-    expect(cardTitles()).toEqual(["행사", "지금·다음 일정", "최신 공지", "도착 QR", "내 조", "숙소", "다음 식사"]);
+    expect(cardTitles()).toEqual(["행사", "지금·다음 일정", "최신 공지", "도착 QR", "내 조", "숙소"]);
+    expect(screen.queryByText(/식사/)).not.toBeInTheDocument();
     expect(screen.getByText("2027년 1월 22일 – 2027년 1월 24일 · 양평 수양관")).toBeInTheDocument();
     expect(screen.getByText("일정이 올라오면 여기에 보여요.")).toBeInTheDocument();
     expect(screen.getByText("공지가 올라오면 여기에 보여요.")).toBeInTheDocument();
@@ -73,7 +74,7 @@ describe("participant home (#425)", () => {
   });
 
   it("leaves out the tabs and cards of areas that are off", async () => {
-    server.use(me(), home({ features: { groups: false, rooms: false, mealOrder: false, notices: false } }), ...cards());
+    server.use(me(), home({ features: { groups: false, rooms: false, notices: false } }), ...cards());
     openApp();
     await screen.findByText("2027 청년부 겨울수련회");
     expect(tabNames()).toEqual(["홈", "일정", "내 정보"]);

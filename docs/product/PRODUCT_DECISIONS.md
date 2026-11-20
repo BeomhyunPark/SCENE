@@ -3244,6 +3244,7 @@ B2 서버를 만들며 계약 초안과 다르게 정하거나 초안이 열어 
 B3·B4 화면(하위 세션)을 만들며 정하거나 덧붙인 점이다. 경로 계약은 위 #423 Follow-up과 api.md를 따른다.
 
 - **완료 안내 모양:** 위 #423 1번대로 `completionNotice` 문자열만 읽는다(`api/participantHome.ts`의 `completionText` 한곳).
+- **다음 식사 카드는 없다.** 사용자 결정(2026-11-20)으로 식사 순서(트랙 H)가 1월 범위에서 빠졌다. 화면은 `features.mealOrder`와 `updates.mealOrder`를 서버가 보내도 무시한다. 숙소 카드는 빈 상태("숙소가 정해지면 여기에 보여요", room-contract §10.1)로 남고, `updates.rooms`가 바뀌면 조장 화면의 방 때문에 `group`도 다시 읽는다(§10.2).
 - **세션이 끊긴 뒤:** 카드나 `updates`가 `401`(또는 `403 PARTICIPANT_PIN_CHANGE_REQUIRED`)이면 참가자 읽기를 모두 지우고, 다시 들어올 때까지 들어오기 화면에 머문다. `/participant/me`가 아직 열려 있다고 답해도 홈으로 돌아가지 않는다(카드 `401`과 `me` 성공이 엇갈리면 홈과 들어오기를 끝없이 오가던 문제를 막는다).
 - **포커스 다시 읽기를 뺐다:** 도착 QR·내 조·`home`·`/participant/me`는 창 포커스·재연결로 다시 읽지 않는다. 다시 보일 때의 `updates` 한 번이 그 일을 맡는다(같은 경로를 두 번 부르지 않기). 카드 쿼리는 `staleTime: Infinity`이고 `updates`가 바뀐 키만 무효화한다.
 - **"신청 수정 받기"를 끄는 것은 `updates` 값을 올리지 않는다(계약 §4 표에 없음).** 화면은 내 정보 탭을 열 때마다 `GET /participant/application`을 다시 읽어 메운다(사람이 누르는 때만이라 부하가 작다). 열린 고치기 화면에서는 저장 때 `409 EDITS_CLOSED`로 읽기 전용이 된다. 결정 대기 3으로 남긴다.

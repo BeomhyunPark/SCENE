@@ -7,10 +7,9 @@ import { currentApplicationRevision } from "./participantStore";
 /**
  * Shaped like GET /participant/home and /participant/updates (participant-home-contract §3·§4, B2).
  * Event-scope values rise when what they cover changes: the mock compares a signature on each read
- * instead of hooking every write path. Areas without a store yet (schedule, notices, rooms, meal
- * order) stay 0 unless a test or a mock click raises them with `bumpFeed`.
+ * instead of hooking every write path. Areas without a store yet (schedule, notices, rooms) stay 0 unless a test or a mock click raises them with `bumpFeed`.
  */
-type EventKey = "home" | "schedule" | "notices" | "group" | "rooms" | "mealOrder";
+type EventKey = "home" | "schedule" | "notices" | "group" | "rooms";
 
 const versions = new Map<string, Record<EventKey, number>>();
 const signatures = new Map<string, string>();
@@ -34,7 +33,7 @@ export function setPollAfterSeconds(seconds: number): void {
 
 function rowOf(eventId: string): Record<EventKey, number> {
   let row = versions.get(eventId);
-  if (!row) versions.set(eventId, (row = { home: 0, schedule: 0, notices: 0, group: 0, rooms: 0, mealOrder: 0 }));
+  if (!row) versions.set(eventId, (row = { home: 0, schedule: 0, notices: 0, group: 0, rooms: 0 }));
   return row;
 }
 
@@ -56,7 +55,6 @@ export function readFeatures(eventId: string) {
     notices: true,
     groups: all || publicationCount(eventId) > 0,
     rooms: all,
-    mealOrder: all,
   };
 }
 
