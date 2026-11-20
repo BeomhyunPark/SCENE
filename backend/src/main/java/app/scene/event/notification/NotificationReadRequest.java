@@ -83,7 +83,10 @@ public record NotificationReadRequest(
         || type.asString().length() > NotificationDraft.TARGET_TYPE_MAX) {
       throw invalid("target");
     }
-    return new Notification.Target(type.asString(), uuid(node.get("id"), "target"));
+    JsonNode id = node.get("id");
+    // An explicit null id is a target without one (the event's schedule, {"type": "SCHEDULE"}).
+    return new Notification.Target(
+        type.asString(), id != null && id.isNull() ? null : uuid(id, "target"));
   }
 
   private static UUID uuid(JsonNode node, String field) {

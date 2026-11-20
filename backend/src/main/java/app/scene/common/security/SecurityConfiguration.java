@@ -119,6 +119,8 @@ class SecurityConfiguration {
                 .permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/participant/notifications/read")
                 .permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/participant/schedule")
+                .permitAll()
                 .anyRequest()
                 .authenticated());
     return http.build();
