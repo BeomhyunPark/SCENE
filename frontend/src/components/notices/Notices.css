@@ -84,6 +84,8 @@
 .notices__rows,
 .staff-notices__rows,
 .notice-form__pinned {
+  box-sizing: border-box;
+  width: 100%;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -94,6 +96,9 @@
 
 .notice-row,
 .staff-notices__row {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -368,4 +373,17 @@
   .notice-form__actions > * {
     flex: 1 1 auto;
   }
+}
+
+/*
+ * On a phone the bottom bar hides while a text field has focus and comes back on blur, so a tap on a
+ * button where the bar returns would land on the bar. The editor's buttons stay above that space.
+ */
+.notice-form .notice-form__actions {
+  position: sticky;
+  bottom: var(--operator-bottom-nav-space, 0px);
+  z-index: 1;
+  margin: 0 -4px;
+  padding: 12px 4px;
+  background: var(--color-bg-canvas);
 }
