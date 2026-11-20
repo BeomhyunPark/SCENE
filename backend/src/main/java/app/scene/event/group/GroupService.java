@@ -6,6 +6,8 @@ import app.scene.common.error.ErrorCode;
 import app.scene.common.error.SceneException;
 import app.scene.common.permission.Permission;
 import app.scene.common.permission.PermissionEvaluator;
+import app.scene.event.feed.FeedArea;
+import app.scene.event.feed.ParticipantFeedVersions;
 import app.scene.event.form.FormFieldRow;
 import app.scene.event.form.FormPreset;
 import app.scene.event.form.FormRepository;
@@ -74,6 +76,7 @@ public class GroupService {
   private final FormRepository forms;
   private final JsonMapper json;
   private final Clock clock;
+  private final ParticipantFeedVersions feedVersions;
 
   public GroupService(
       EventAccessGate gate,
@@ -83,7 +86,8 @@ public class GroupService {
       AuditLogRepository auditLogs,
       FormRepository forms,
       JsonMapper json,
-      Clock clock) {
+      Clock clock,
+      ParticipantFeedVersions feedVersions) {
     this.gate = gate;
     this.events = events;
     this.groups = groups;
@@ -92,6 +96,7 @@ public class GroupService {
     this.forms = forms;
     this.json = json;
     this.clock = clock;
+    this.feedVersions = feedVersions;
   }
 
   @Transactional(readOnly = true)
@@ -256,6 +261,8 @@ public class GroupService {
     UUID publicationId = UUID.randomUUID();
     groups.insertPublication(
         spaceId, eventId, publicationId, boardVersion, new Snapshot(snapshotGroups), actorId, now);
+    // DEC-080 §4: participants reload the group card; same transaction as the publication.
+    feedVersions.bump(spaceId, eventId, FeedArea.GROUPS);
     Map<String, Object> detail = new LinkedHashMap<>();
     detail.put("publicationId", publicationId.toString());
     detail.put("boardVersion", boardVersion);

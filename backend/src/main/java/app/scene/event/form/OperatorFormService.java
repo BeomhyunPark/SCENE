@@ -7,6 +7,8 @@ import app.scene.common.permission.PermissionEvaluator;
 import app.scene.common.web.ItemPage;
 import app.scene.common.web.PageRequest;
 import app.scene.common.web.Sorts;
+import app.scene.event.feed.FeedArea;
+import app.scene.event.feed.ParticipantFeedVersions;
 import app.scene.event.form.param.FieldValues;
 import app.scene.event.lifecycle.EventAccessGate;
 import app.scene.event.lifecycle.EventLocation;
@@ -54,18 +56,21 @@ public class OperatorFormService {
   private final EventUserPermissionRepository permissions;
   private final EventRepository events;
   private final JsonMapper json;
+  private final ParticipantFeedVersions feedVersions;
 
   public OperatorFormService(
       EventAccessGate gate,
       FormRepository forms,
       EventUserPermissionRepository permissions,
       EventRepository events,
-      JsonMapper json) {
+      JsonMapper json,
+      ParticipantFeedVersions feedVersions) {
     this.gate = gate;
     this.forms = forms;
     this.events = events;
     this.permissions = permissions;
     this.json = json;
+    this.feedVersions = feedVersions;
   }
 
   public ItemPage<FormListItem> list(
@@ -500,6 +505,8 @@ public class OperatorFormService {
     if (forms.updateCompletionNotice(spaceId, eventId, formId, notice) != 1) {
       throw new IllegalStateException("completion notice was not stored");
     }
+    // DEC-080 §4: the participant home shows the current notice.
+    feedVersions.bump(spaceId, eventId, FeedArea.HOME);
     return detail(spaceId, eventId, formId);
   }
 
