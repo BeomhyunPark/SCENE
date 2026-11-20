@@ -13,6 +13,8 @@ import {
 import { Link } from "react-router";
 import type { TableRow } from "../../api/applications";
 import {
+  editedText,
+  isEdited,
   clampWidth,
   copyText,
   defaultWidth,
@@ -309,7 +311,9 @@ export function SheetGrid({
   const edit = useCallback((row: TableRow) => onEditRef.current?.(row), []);
   const editable = Boolean(onEdit);
 
-  const total = columns.reduce((sum, column) => sum + width(column), 0) + (onEdit ? 128 : 72);
+  // 상세 + 수정 need about 134px with the cell padding; 128 clipped 수정 behind the cell edge (#421).
+  const actionsWidth = onEdit ? 144 : 72;
+  const total = columns.reduce((sum, column) => sum + width(column), 0) + actionsWidth;
   const multi = range.top !== range.bottom || range.left !== range.right;
 
   return (
@@ -328,7 +332,7 @@ export function SheetGrid({
             {columns.map((column) => (
               <col key={column.id} style={{ width: width(column) }} />
             ))}
-            <col style={{ width: editable ? 128 : 72 }} />
+            <col style={{ width: actionsWidth }} />
           </colgroup>
           <thead>
             <tr aria-rowindex={1}>
@@ -598,6 +602,11 @@ function DataCell({
         <Link tabIndex={-1} to={`/events/${eventId}/participants/${row.applicationId}`}>
           {text}
         </Link>
+        {isEdited(row) ? (
+          <span className="roster__tag roster__tag--edited" title={editedText(row)}>
+            수정됨
+          </span>
+        ) : null}
       </td>
     );
   }

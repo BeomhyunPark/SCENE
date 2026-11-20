@@ -28,7 +28,9 @@ import tools.jackson.databind.node.ObjectNode;
  * SUBMITTED} application row with {@code revision} + 1; the previous row becomes {@code
  * SUPERSEDED}. Answers of hidden questions are carried over because the participant cannot see
  * them. The operator memo moves to the new row (DEC-075). Group assignments and check-ins hang on
- * the participant and stay. When nothing changed, no row is written.
+ * the participant and stay. When nothing changed, no row is written. The current row is normally
+ * {@code SUBMITTED}; a withdrawn participant who applies again revises the {@code WITHDRAWN} row
+ * (DEC-084 §5), which then becomes {@code SUPERSEDED} too.
  */
 @Component
 public class ApplicationRevisions {
@@ -60,8 +62,25 @@ public class ApplicationRevisions {
     this.json = json;
   }
 
-  /** The stored result of an edit. {@code revised} is false when nothing changed. */
-  public record Result(UUID applicationId, UUID formId, int revision, boolean revised) {}
+  /**
+   * The stored result of an edit. {@code revised} is false when nothing changed. {@code
+   * previousApplicationId} is the row that became {@code SUPERSEDED} (null when not revised),
+   * {@code name} is the participant's name after the edit, and {@code changedLabels} are the labels
+   * of the changed questions in form order, the same as {@code changes} (no values).
+   */
+  public record Result(
+      UUID applicationId,
+      UUID formId,
+      int revision,
+      boolean revised,
+      UUID previousApplicationId,
+      String name,
+      List<String> changedLabels) {
+
+    public Result {
+      changedLabels = List.copyOf(changedLabels);
+    }
+  }
 
   /**
    * Locks the participant and returns the current {@code SUBMITTED} revision, or 404. Callers that
@@ -75,6 +94,21 @@ public class ApplicationRevisions {
       throw new SceneException(ErrorCode.RESOURCE_NOT_FOUND);
     }
     return current;
+  }
+
+  /**
+   * Locks the participant and returns the latest revision, whatever its status (DEC-084: a
+   * withdrawn participant's latest revision is {@code WITHDRAWN}). Null when there is none.
+   */
+  @Transactional
+  public ApplicationRevisionRow lockLatest(UUID spaceId, UUID eventId, UUID participantId) {
+    revisions.lockParticipant(spaceId, eventId, participantId);
+    return revisions.findLatest(spaceId, eventId, participantId);
+  }
+
+  /** The participant's latest revision, whatever its status, or null. */
+  public ApplicationRevisionRow findLatest(UUID spaceId, UUID eventId, UUID participantId) {
+    return revisions.findLatest(spaceId, eventId, participantId);
   }
 
   public ApplicationRevisionRow findCurrent(UUID spaceId, UUID eventId, UUID participantId) {
@@ -123,6 +157,7 @@ public class ApplicationRevisions {
       }
     }
     ArrayNode changes = json.createArrayNode();
+    List<String> labels = new ArrayList<>();
     String newName = null;
     for (FieldDefinition field : fields) {
       JsonNode old = before.get(field.fieldId());
@@ -135,15 +170,23 @@ public class ApplicationRevisions {
       change.put("key", isName ? NAME : "FIELD");
       change.put("fieldId", field.fieldId().toString());
       change.put("label", field.label());
+      labels.add(field.label());
       if (isName && next != null) {
         newName = next.path("text").asString();
       }
     }
     if (changes.isEmpty()) {
-      return new Result(current.applicationId(), current.formId(), current.revision(), false);
+      return new Result(
+          current.applicationId(),
+          current.formId(),
+          current.revision(),
+          false,
+          null,
+          currentName,
+          List.of());
     }
     Instant now = clock.instant();
-    if (revisions.supersede(spaceId, eventId, current.applicationId()) != 1) {
+    if (revisions.supersede(spaceId, eventId, current.applicationId(), current.status()) != 1) {
       throw new SceneException(
           ErrorCode.CONCURRENT_MODIFICATION, Map.of("revision", current.revision()));
     }
@@ -181,6 +224,8 @@ public class ApplicationRevisions {
     if (newName != null && !newName.equals(currentName)) {
       participants.updateName(spaceId, eventId, current.participantId(), newName, now);
     }
-    return new Result(nextId, current.formId(), nextRevision, true);
+    String name = newName != null ? newName : currentName;
+    return new Result(
+        nextId, current.formId(), nextRevision, true, current.applicationId(), name, labels);
   }
 }

@@ -27,8 +27,9 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 /**
  * Three filter chains. The operator chain stores its session in Spring Session JDBC. The
- * participant chain does not load that session or the in-memory stand-in. {@code /participant/me},
- * {@code /participant/check-in}, {@code /participant/group}, and logout read a separate cookie.
+ * participant chain does not load that session or the in-memory stand-in. The listed participant
+ * paths ({@code me}, {@code check-in}, {@code group}, {@code application}, {@code pin}, {@code
+ * home}, {@code updates}, {@code notifications}, logout) read a separate cookie in the controller.
  * Every other participant path stays unauthenticated. Public does not require either session.
  */
 @Configuration(proxyBeanMethods = false)
@@ -109,6 +110,20 @@ class SecurityConfiguration {
                 .requestMatchers(HttpMethod.GET, "/api/v1/participant/application")
                 .permitAll()
                 .requestMatchers(HttpMethod.PUT, "/api/v1/participant/application")
+                .permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/participant/home")
+                .permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/participant/updates")
+                .permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/participant/notifications")
+                .permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/participant/notifications/read")
+                .permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/participant/schedule")
+                .permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/participant/notices")
+                .permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/participant/notices/*")
                 .permitAll()
                 .anyRequest()
                 .authenticated());

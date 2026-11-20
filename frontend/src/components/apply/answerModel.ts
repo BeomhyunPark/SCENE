@@ -151,6 +151,50 @@ export function toAnswerItems(fields: FormField[], raw: RawAnswers): AnswerItem[
   return items;
 }
 
+/**
+ * Stored answers (the `answers[].value` shape) back into what the inputs hold, for editing a submitted
+ * application (#427). The inverse of `toAnswerItems`; answers to unknown questions are dropped.
+ */
+export function toRawAnswers(fields: FormField[], answers: { fieldId: string; value: Record<string, unknown> }[]): RawAnswers {
+  const raw: RawAnswers = {};
+  for (const { fieldId, value } of answers) {
+    const field = fields.find((item) => item.fieldId === fieldId);
+    if (!field) continue;
+    const answer = rawAnswer(field, value);
+    if (answer) raw[fieldId] = answer;
+  }
+  return raw;
+}
+
+function rawAnswer(field: FormField, value: Record<string, unknown>): RawAnswer | null {
+  const text = (key: string) => (typeof value[key] === "string" ? (value[key] as string) : undefined);
+  switch (field.answerType) {
+    case "SHORT_TEXT":
+    case "LONG_TEXT":
+      return text("text") === undefined ? null : { text: text("text") };
+    case "SINGLE_CHOICE":
+    case "DROPDOWN":
+      if (text("optionId")) return { optionId: text("optionId") };
+      if (text("other") !== undefined) return { otherOn: true, other: text("other") };
+      return null;
+    case "MULTI_CHOICE": {
+      const optionIds = Array.isArray(value.optionIds) ? value.optionIds.filter((id): id is string => typeof id === "string") : [];
+      const other = text("other");
+      return other !== undefined ? { optionIds, otherOn: true, other } : { optionIds };
+    }
+    case "DATE": {
+      const date = text("date") ?? text("dateTime");
+      return date === undefined ? null : { date };
+    }
+    case "DATE_RANGE":
+      return text("start") && text("end") ? { start: text("start"), end: text("end") } : null;
+    case "NUMBER":
+      return typeof value.number === "number" ? { number: String(value.number) } : null;
+    case "YES_NO":
+      return typeof value.value === "boolean" ? { bool: value.value } : null;
+  }
+}
+
 /** `undefined` means "typed but not a valid value" (e.g. "1.5" for a whole number). */
 function storedValue(field: FormField, answer: RawAnswer | undefined): Stored | undefined {
   if (!answer) return null;

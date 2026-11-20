@@ -9,6 +9,7 @@ import { EventScreen } from "./EventScreen";
 import { OperatorShell } from "./OperatorShell";
 import { eventContext, lifecycleLabel } from "./eventFormat";
 import { readEventAreas } from "./eventLocalState";
+import { StaffNoticesCard } from "./notices/StaffNoticesCard";
 import "./EventHome.css";
 
 const starts = [
@@ -86,6 +87,8 @@ function EventHomeBody({
             <span className="event-home__field-detail">식수·숙박·차량·카풀 인원을 한 화면에서 봐요.</span>
           </Link>
         )}
+        {/* 운영진 공지 (DEC-082 §5): every state, an archived event reads. */}
+        <StaffNoticesCard eventId={eventId} />
         {closed ? (
           <section className="event-home__ended">
             <h2>{event.lifecycleStatus === "ARCHIVED" ? "보관된 행사예요" : "행사가 종료됐어요"}</h2>
@@ -107,6 +110,11 @@ function EventHomeBody({
                 <span className="event-home__field-detail">QR 스캔이나 이름으로 참가자 도착을 체크인해요.</span>
               </Link>
             ) : null}
+            {/* On a phone the sidebar is hidden; this is the short way to fix a time on site (C4). */}
+            <Link className="event-home__field" to={`/events/${eventId}/schedule`}>
+              <span className="event-home__field-title">일정표</span>
+              <span className="event-home__field-detail">시각·장소를 고쳐 바로 공개해요.</span>
+            </Link>
             <section className="event-home__welcome">
               <span className="event-home__mark" aria-hidden="true">
                 <img src={calendarCheck} alt="" />
@@ -135,7 +143,9 @@ function EventHomeBody({
                       ? () => navigate(`/events/${eventId}/participants`)
                       : item.title === "준비 업무" && eventId
                         ? () => navigate(`/events/${eventId}/tasks`)
-                        : undefined
+                        : item.title === "일정 정리" && eventId
+                          ? () => navigate(`/events/${eventId}/schedule`)
+                          : undefined
                   }
                 >
                   <span className="event-home__chip">{item.badge}</span>

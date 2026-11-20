@@ -13,7 +13,10 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * More than {@code submitIpLimit} public submits from one address inside {@code submitIpWindow}
  * answer 429. Sessions end {@code sessionDaysAfterEnd} days after the day after the event's end
  * date, at midnight in {@code zone}. The cookie lives as long; for an event with no end date it
- * lives {@code cookieMaxAgeWithoutEnd} (the server still decides).
+ * lives {@code cookieMaxAgeWithoutEnd} (the server still decides). {@code pollAfterSeconds} is the
+ * participant screen's refresh interval sent in {@code GET /participant/updates} (DEC-080 §4,
+ * default 25 so ±20% stays within 30 s, kept within 10–300 so a typo in {@code .env} cannot stop
+ * the server during the deploy freeze).
  */
 @ConfigurationProperties("scene.participant")
 public record ParticipantProperties(
@@ -27,7 +30,13 @@ public record ParticipantProperties(
     Integer sessionDaysAfterEnd,
     String zone,
     Integer bcryptStrength,
-    Duration cookieMaxAgeWithoutEnd) {
+    Duration cookieMaxAgeWithoutEnd,
+    Integer pollAfterSeconds) {
+
+  /** Bounds of {@code pollAfterSeconds} (DEC-080 §4). A value outside is pulled inside. */
+  public static final int POLL_MIN = 10;
+
+  public static final int POLL_MAX = 300;
 
   public ParticipantProperties {
     lockFailures = lockFailures == null ? 5 : lockFailures;
@@ -46,5 +55,7 @@ public record ParticipantProperties(
     bcryptStrength = bcryptStrength == null ? 10 : bcryptStrength;
     cookieMaxAgeWithoutEnd =
         cookieMaxAgeWithoutEnd == null ? Duration.ofDays(180) : cookieMaxAgeWithoutEnd;
+    pollAfterSeconds =
+        pollAfterSeconds == null ? 25 : Math.max(POLL_MIN, Math.min(POLL_MAX, pollAfterSeconds));
   }
 }

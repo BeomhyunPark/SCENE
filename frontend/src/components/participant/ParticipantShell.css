@@ -1,0 +1,293 @@
+/* Participant home (#425): phone first (390px, one hand), a narrow centred column on desktop. */
+.participant-shell {
+  --participant-tabs-height: 60px;
+  min-height: 100vh;
+  background: var(--color-bg-canvas);
+  color: var(--color-text-primary);
+  word-break: keep-all;
+}
+
+.participant-shell__header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-sizing: border-box;
+  height: 56px;
+  padding: 0 20px;
+  background: var(--color-bg-surface);
+  border-bottom: 1px solid var(--color-border-default);
+}
+
+.participant-shell__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.participant-shell__status {
+  margin: 0;
+  padding: 8px 20px;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-surface);
+  border-bottom: 1px solid var(--color-border-default);
+  font: var(--scene-body-s);
+  letter-spacing: 0;
+  text-align: center;
+}
+
+.participant-shell__main {
+  box-sizing: border-box;
+  width: min(560px, 100%);
+  margin: 0 auto;
+  padding: 16px 16px calc(var(--participant-tabs-height) + 24px + env(safe-area-inset-bottom, 0px));
+}
+
+.participant-home,
+.participant-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.participant-tab__title {
+  margin: 4px 0 0;
+  font: var(--scene-heading-m);
+  letter-spacing: 0;
+}
+
+.participant-tab__done {
+  margin: 0;
+  color: var(--color-text-brand);
+  font: var(--scene-label-m);
+  letter-spacing: 0;
+}
+
+.participant-tab__form {
+  padding: 20px;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: 12px;
+  box-sizing: border-box;
+}
+
+.participant-tab__logout {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+/* Cards */
+.participant-card {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  padding: 18px 20px;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: 12px;
+}
+
+.participant-card__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.participant-card__title {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font: var(--scene-label-m);
+  letter-spacing: 0;
+}
+
+.participant-card__failed {
+  color: var(--color-danger-fg);
+  font: var(--scene-label-s);
+  letter-spacing: 0;
+}
+
+.participant-card__action {
+  margin-left: auto;
+}
+
+.participant-card__link {
+  color: var(--color-text-brand);
+  font: var(--scene-label-m);
+  letter-spacing: 0;
+  text-decoration: none;
+}
+
+.participant-card__link:hover {
+  text-decoration: underline;
+}
+
+.participant-card__link:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.participant-card__greeting {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font: var(--scene-body-s);
+  letter-spacing: 0;
+}
+
+.participant-card__event {
+  margin: 0;
+  font: var(--scene-heading-s, var(--scene-heading-m));
+  letter-spacing: 0;
+}
+
+.participant-card__meta,
+.participant-card__empty {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font: var(--scene-body-m);
+  letter-spacing: 0;
+}
+
+.participant-card__ended {
+  margin: 0;
+  padding: 4px 10px;
+  color: var(--color-text-primary);
+  background: var(--color-bg-canvas);
+  border-radius: 999px;
+  font: var(--scene-label-s);
+  letter-spacing: 0;
+}
+
+.participant-card__notice {
+  width: 100%;
+}
+
+.participant-card__notice > summary {
+  color: var(--color-text-brand);
+  font: var(--scene-label-m);
+  letter-spacing: 0;
+  cursor: pointer;
+}
+
+.participant-card__notice-text {
+  margin: 8px 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: var(--scene-body-m);
+  letter-spacing: 0;
+}
+
+/* The QR and 내 조 views keep their own look inside a card. */
+.participant-card .participant-checkin,
+.participant-card .participant-group {
+  width: 100%;
+}
+
+/* 내 신청 answers */
+.participant-answers {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  margin: 0;
+}
+
+.participant-answers__row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.participant-answers__label {
+  color: var(--color-text-secondary);
+  font: var(--scene-label-s);
+  letter-spacing: 0;
+}
+
+.participant-answers__value {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: var(--scene-body-m);
+  letter-spacing: 0;
+}
+
+/* Bottom tabs: like the operator bottom bar (#368), above the safe area. */
+.participant-tabs {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 10;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background: var(--color-bg-surface);
+  border-top: 1px solid var(--color-border-default);
+}
+
+.participant-tabs__list {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  margin: 0 auto;
+  padding: 0;
+  max-width: 560px;
+  list-style: none;
+}
+
+.participant-tabs__item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  box-sizing: border-box;
+  width: 100%;
+  height: var(--participant-tabs-height);
+  padding: 6px 4px;
+  color: var(--color-text-secondary);
+  font: var(--scene-label-s);
+  letter-spacing: 0;
+  text-decoration: none;
+}
+
+.participant-tabs__label {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.participant-tabs__item--current {
+  color: var(--color-text-brand);
+}
+
+.participant-tabs__item--current::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 25%;
+  right: 25%;
+  height: 2px;
+  border-radius: 0 0 2px 2px;
+  background: var(--color-text-brand);
+}
+
+.participant-tabs__item:focus {
+  outline: none;
+}
+
+.participant-tabs__item:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: -4px;
+  border-radius: 8px;
+}

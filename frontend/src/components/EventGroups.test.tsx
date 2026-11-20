@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { App } from "../App";
 import { login } from "../api/session";
 import { localEvent, localUsers } from "../mocks/fixtures/seed";
+import { revokePermissions } from "../mocks/taskStore";
 import {
   groupAssignmentLogs,
   groupPeople,
@@ -314,7 +315,9 @@ describe("group board (#301)", () => {
 
   it("is read only without GROUP_WRITE and closed to operators who cannot read the board", async () => {
     seedGroup(EVENT, "1조");
-    // Local manager: event MANAGER (no GROUP_WRITE) and space ADMIN (may read the board).
+    // Local manager: event MANAGER with GROUP_WRITE revoked (DEC-079 Follow-up 2026-11-20 gives it by
+    // default) and space ADMIN (may read the board).
+    revokePermissions(EVENT, localUsers[1].userId, ["GROUP_WRITE"]);
     await openAs(1);
     expect(await screen.findByText(/조 편성 권한이 없어 편성판만 볼 수 있어요/, {}, WAIT)).toBeInTheDocument();
     expect(await findCard("1조")).toBeInTheDocument();
@@ -353,6 +356,8 @@ describe("group board (#301)", () => {
     expect(await screen.findByText(/종료된 행사라 조 편성을 바꿀 수 없어요/, {}, WAIT)).toBeInTheDocument();
   });
 
+  // 150 people render many cards: about 3.5 s locally and over 5 s once on a busy CI runner. A wider
+  // limit keeps it from flaking without checking less (#427).
   it("handles a retreat-sized board: 150 people in 15 groups, choosing everyone visible at once", async () => {
     seedLargeGroupBoard(EVENT, 150, 15);
     await openAs(0);
@@ -377,7 +382,7 @@ describe("group board (#301)", () => {
     fireEvent.click(within(card("3조")).getByRole("button", { name: `고른 ${count}명 이 조로 보내기` }));
     expect(await screen.findByText(`${count}명을 3조로 보냈어요.`, {}, WAIT)).toBeInTheDocument();
     await waitFor(() => expect(summary()).toContain(`배정 ${count}`), WAIT);
-  });
+  }, 15_000);
 });
 
 describe("group publish (#302)", () => {
@@ -466,6 +471,7 @@ describe("group publish (#302)", () => {
   });
 
   it("keeps the button closed without GROUP_WRITE and says why", async () => {
+    revokePermissions(EVENT, localUsers[1].userId, ["GROUP_WRITE"]);
     await openAs(1);
     await screen.findByText(/조 편성 권한이 없어 편성판만 볼 수 있어요/, {}, WAIT);
     expect(publishButton()).toBeDisabled();

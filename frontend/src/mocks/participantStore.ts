@@ -1,6 +1,7 @@
 import { conditionHolds, type FormField } from "../api/forms";
 import { reversedRange } from "./attendedSlots";
 import { eventFormDetail, formFields, publicForm } from "./formStore";
+import { notifyOperators, operatorsWith, retargetNotifications } from "./notificationStore";
 import { eventById } from "./operatorStore";
 
 type Issued = {
@@ -18,6 +19,138 @@ type Issued = {
   submittedAt: string;
   name: string;
   answers: StoredAnswer[];
+  /** DEC-084: set while the application is withdrawn. */
+  withdrawal?: MockWithdrawal | null;
+  /** DEC-078 §4: who stored this revision and what changed (labels only); null for revision 1. */
+  revisedBy?: "PARTICIPANT" | "OPERATOR" | null;
+  changes?: RevisionChange[];
+  /** Earlier revisions, oldest first; each is SUPERSEDED (#437). */
+  history?: Snapshot[];
+};
+
+type RevisionChange = { key: "NAME" | "FIELD"; fieldId: string; label: string };
+
+type Snapshot = {
+  applicationId: string;
+  revision: number;
+  submittedAt: string;
+  name: string;
+  answers: StoredAnswer[];
+  revisedBy: "PARTICIPANT" | "OPERATOR" | null;
+  changes: RevisionChange[];
+};
+
+const REVISED_TITLE = "님이 신청을 고쳤어요";
+const RESUBMITTED_TITLE = "님이 다시 신청해 내용을 바꿨어요";
+
+/**
+ * Stores changed answers as the next revision, like `ApplicationRevisions.revise`, and tells the
+ * operators with PARTICIPANT_READ (#436): the old row joins `history` as SUPERSEDED, every
+ * notification about the person moves to the new id, then one merged line per operator. Nothing
+ * changed: no revision and no notification.
+ */
+function revise(row: Issued, answers: StoredAnswer[], name: string, kind: "APPLICATION_REVISED" | "APPLICATION_RESUBMITTED" | null): boolean {
+  const fields = formFields(row.eventId, row.formId);
+  const before = new Map(row.answers.map((answer) => [answer.fieldId, JSON.stringify(answer.value)]));
+  const after = new Map(answers.map((answer) => [answer.fieldId, JSON.stringify(answer.value)]));
+  const changes: RevisionChange[] = fields
+    .filter((field) => before.get(field.fieldId) !== after.get(field.fieldId))
+    .map((field) => ({ key: field.systemKey === "NAME" ? "NAME" : "FIELD", fieldId: field.fieldId, label: field.label }));
+  if (changes.length === 0) return false;
+  row.history = [
+    ...(row.history ?? []),
+    {
+      applicationId: row.applicationId,
+      revision: row.revision,
+      submittedAt: row.submittedAt,
+      name: row.name,
+      answers: row.answers,
+      revisedBy: row.revisedBy ?? null,
+      changes: row.changes ?? [],
+    },
+  ];
+  row.applicationId = crypto.randomUUID();
+  row.revision += 1;
+  row.answers = answers;
+  row.name = name.trim();
+  row.submittedAt = new Date().toISOString();
+  row.revisedBy = "PARTICIPANT";
+  row.changes = changes;
+  retargetNotifications(
+    row.eventId,
+    "APPLICATION",
+    row.history.map((old) => old.applicationId),
+    row.applicationId,
+  );
+  if (kind) {
+    notifyOperators(row.eventId, operatorsWith(row.eventId, "PARTICIPANT_READ"), {
+      kind,
+      target: { type: "APPLICATION", id: row.applicationId },
+      title: `${row.name || "참가자"}${kind === "APPLICATION_REVISED" ? REVISED_TITLE : RESUBMITTED_TITLE}`,
+      body: changes.map((change) => change.label).join(", "),
+    });
+  }
+  return true;
+}
+
+/**
+ * Test and demo seam for `PUT /participant/application` (the participant edits their own
+ * application): the answers by field id replace the stored ones. Returns the new application id, or
+ * the same id when nothing changed.
+ */
+export function reviseApplication(eventId: string, applicationId: string, changed: Record<string, Record<string, unknown>>): string | null {
+  const row = issued.find((item) => item.eventId === eventId && item.applicationId === applicationId);
+  if (!row) return null;
+  const answers = row.answers.map((answer) => (answer.fieldId in changed ? { fieldId: answer.fieldId, value: changed[answer.fieldId] } : answer));
+  for (const [fieldId, value] of Object.entries(changed)) {
+    if (!answers.some((answer) => answer.fieldId === fieldId)) answers.push({ fieldId, value });
+  }
+  const fields = formFields(eventId, row.formId);
+  const name = answerFor(fields, answers, "NAME") ?? row.name;
+  revise(row, answers, name, "APPLICATION_REVISED");
+  return row.applicationId;
+}
+
+/** Every revision of the application's participant, newest first, like `…/revisions`. */
+export function applicationRevisions(eventId: string, applicationId: string): {
+  applicationId: string;
+  revision: number;
+  status: string;
+  submittedAt: string;
+  revisedBy: string | null;
+  revisedByUserId: null;
+  changes: RevisionChange[];
+}[] | null {
+  const row = issued.find(
+    (item) => item.eventId === eventId && (item.applicationId === applicationId || (item.history ?? []).some((old) => old.applicationId === applicationId)),
+  );
+  if (!row) return null;
+  const current = {
+    applicationId: row.applicationId,
+    revision: row.revision,
+    status: row.withdrawal ? "WITHDRAWN" : "SUBMITTED",
+    submittedAt: row.submittedAt,
+    revisedBy: row.revisedBy ?? null,
+    revisedByUserId: null,
+    changes: row.changes ?? [],
+  };
+  const older = [...(row.history ?? [])].reverse().map((old) => ({
+    applicationId: old.applicationId,
+    revision: old.revision,
+    status: "SUPERSEDED",
+    submittedAt: old.submittedAt,
+    revisedBy: old.revisedBy,
+    revisedByUserId: null,
+    changes: old.changes,
+  }));
+  return [current, ...older];
+}
+
+export type MockWithdrawal = {
+  withdrawnAt: string;
+  withdrawnByDisplayName: string | null;
+  reason: string | null;
+  reapplyBlocked: boolean;
 };
 
 type StoredAnswer = { fieldId: string; value: Record<string, unknown> };
@@ -38,7 +171,7 @@ export function resetParticipantStore(): void {
   lockedUntil.clear();
 }
 
-export type Submitted = { applicationId: string; participantId: string; revision: number; revised: boolean };
+export type Submitted = { applicationId: string; participantId: string; revision: number; revised: boolean; restored?: boolean };
 
 /** DEC-078 §2: six digits, not one digit repeated, not a run up or down, not inside the phone. */
 export function pinAccepted(pin: unknown, phoneDigits: string): pin is string {
@@ -107,15 +240,15 @@ export function submitPublicApplication(
       return { status: 409, code: "APPLICATION_ALREADY_EXISTS" };
     }
     succeeded(eventId, phoneKey);
-    if (event.lifecycleStatus !== "ACTIVE" || !acceptingEdits(eventId)) return { status: 409, code: "EDITS_CLOSED" };
-    const changed = JSON.stringify(existing.answers) !== JSON.stringify(answers);
-    if (changed) {
-      existing.applicationId = crypto.randomUUID();
-      existing.revision += 1;
-      existing.answers = answers;
-      existing.name = name.trim();
-      existing.submittedAt = new Date().toISOString();
+    if (existing.withdrawal) {
+      // DEC-084 §5: the matching number brings a withdrawn application back.
+      existing.withdrawal = null;
+      revise(existing, answers, name, null);
+      session = { participantId: existing.participantId, eventId };
+      return { applicationId: existing.applicationId, participantId: existing.participantId, revision: existing.revision, revised: true, restored: true };
     }
+    if (event.lifecycleStatus !== "ACTIVE" || !acceptingEdits(eventId)) return { status: 409, code: "EDITS_CLOSED" };
+    revise(existing, answers, name, "APPLICATION_RESUBMITTED");
     session = { participantId: existing.participantId, eventId };
     return { applicationId: existing.applicationId, participantId: existing.participantId, revision: existing.revision, revised: true };
   }
@@ -183,7 +316,7 @@ export function openParticipantSession(eventId: string, body: unknown): Particip
   const locked = lockFailure(eventId, phoneKey);
   if (locked) return locked;
   const row = issued.find((item) => item.eventId === eventId && item.phoneKey === phoneKey);
-  if (!row || row.pin !== body.pin.trim() || foldName(row.name) !== foldName(body.name)) {
+  if (!row || row.withdrawal || row.pin !== body.pin.trim() || foldName(row.name) !== foldName(body.name)) {
     failed(eventId, phoneKey);
     return { status: 401, code: "PARTICIPANT_LOGIN_FAILED" };
   }
@@ -230,7 +363,65 @@ export function resetParticipantPin(eventId: string, participantId: string): str
 }
 
 function sessionRow(): Issued | undefined {
-  return session ? issued.find((row) => row.participantId === session?.participantId) : undefined;
+  // DEC-084 §4: a session counts only while the application is not withdrawn.
+  return session ? issued.find((row) => row.participantId === session?.participantId && !row.withdrawal) : undefined;
+}
+
+function active(eventId: string): Issued[] {
+  return issued.filter((row) => row.eventId === eventId && !row.withdrawal);
+}
+
+/** DEC-084: withdraws the participant's current application. Null when it is not in the event. */
+export function withdrawParticipantApplication(
+  eventId: string,
+  applicationId: string,
+  withdrawal: MockWithdrawal,
+): { participantId: string; already: boolean; withdrawal: MockWithdrawal } | { stale: true; applicationId: string; revision: number } | null {
+  const row = issued.find((item) => item.eventId === eventId && item.applicationId === applicationId);
+  if (!row) return null;
+  if (row.withdrawal) return { participantId: row.participantId, already: true, withdrawal: row.withdrawal };
+  row.withdrawal = withdrawal;
+  if (withdrawal.reapplyBlocked) row.pin = crypto.randomUUID();
+  if (session?.participantId === row.participantId) session = null;
+  return { participantId: row.participantId, already: false, withdrawal };
+}
+
+/** DEC-084 §3: back to SUBMITTED. Null when it is not in the event. */
+export function restoreParticipantApplication(
+  eventId: string,
+  applicationId: string,
+): { participantId: string; already: boolean; reapplyBlocked: boolean } | null {
+  const row = issued.find((item) => item.eventId === eventId && item.applicationId === applicationId);
+  if (!row) return null;
+  if (!row.withdrawal) return { participantId: row.participantId, already: true, reapplyBlocked: false };
+  const reapplyBlocked = row.withdrawal.reapplyBlocked;
+  row.withdrawal = null;
+  return { participantId: row.participantId, already: false, reapplyBlocked };
+}
+
+/** Withdrawn applicants of the event, newest withdraw first, for the table mock. */
+export function withdrawnApplications(eventId: string): {
+  applicationId: string;
+  participantId: string;
+  name: string;
+  submittedAt: string;
+  withdrawal: MockWithdrawal;
+}[] {
+  return issued
+    .filter((row) => row.eventId === eventId && row.withdrawal)
+    .map((row) => ({
+      applicationId: row.applicationId,
+      participantId: row.participantId,
+      name: row.name,
+      submittedAt: row.submittedAt,
+      withdrawal: row.withdrawal as MockWithdrawal,
+    }))
+    .sort((a, b) => b.withdrawal.withdrawnAt.localeCompare(a.withdrawal.withdrawnAt));
+}
+
+/** The withdrawal of one application, or null. */
+export function withdrawalOf(eventId: string, applicationId: string): MockWithdrawal | null {
+  return issued.find((row) => row.eventId === eventId && row.applicationId === applicationId)?.withdrawal ?? null;
 }
 
 /**
@@ -244,8 +435,7 @@ export function submittedApplications(eventId: string): {
   submittedAt: string;
   name: string | null;
 }[] {
-  return issued
-    .filter((row) => row.eventId === eventId)
+  return active(eventId)
     .map((row) => ({
       applicationId: row.applicationId,
       formId: row.formId,
@@ -257,8 +447,7 @@ export function submittedApplications(eventId: string): {
 
 /** Raw stored answers of every submitted application, oldest first, for the summary mock. */
 export function submittedAnswers(eventId: string): { applicationId: string; answers: Map<string, Record<string, unknown>> }[] {
-  return issued
-    .filter((row) => row.eventId === eventId)
+  return active(eventId)
     .map((row) => ({
       applicationId: row.applicationId,
       answers: new Map(row.answers.map((answer) => [answer.fieldId, answer.value])),
@@ -288,8 +477,11 @@ export function submittedApplication(
     value: Record<string, unknown>;
   }[];
 } | null {
-  const row = issued.find((item) => item.eventId === eventId && item.applicationId === applicationId);
-  if (!row) return null;
+  const current = issued.find((item) => item.eventId === eventId && item.applicationId === applicationId);
+  const owner = current ?? issued.find((item) => item.eventId === eventId && (item.history ?? []).some((old) => old.applicationId === applicationId));
+  if (!owner) return null;
+  const old = current ? null : owner.history!.find((item) => item.applicationId === applicationId)!;
+  const row = old ? { ...owner, ...old, withdrawal: null } : owner;
   const answers = formFields(eventId, row.formId)
     .flatMap((field) => {
       const answer = row.answers.find((item) => item.fieldId === field.fieldId);
@@ -301,7 +493,7 @@ export function submittedApplication(
   return {
     applicationId: row.applicationId,
     formId: row.formId,
-    status: "SUBMITTED",
+    status: old ? "SUPERSEDED" : row.withdrawal ? "WITHDRAWN" : "SUBMITTED",
     submittedAt: row.submittedAt,
     participantId: row.participantId,
     revision: row.revision,
@@ -316,8 +508,7 @@ export function checkInCandidates(eventId: string): {
   cohort: string | null;
   phoneLast4: string;
 }[] {
-  return issued
-    .filter((row) => row.eventId === eventId)
+  return active(eventId)
     .map((row) => {
       const fields = formFields(row.eventId, row.formId);
       const phone = answerFor(fields, row.answers, "PHONE") ?? "";
@@ -340,16 +531,17 @@ export function tableApplications(eventId: string): {
   formId: string;
   submittedAt: string;
   revision: number;
+  revisedBy: string | null;
   answers: Record<string, Record<string, unknown>>;
 }[] {
-  return issued
-    .filter((row) => row.eventId === eventId)
+  return active(eventId)
     .map((row) => ({
       applicationId: row.applicationId,
       participantId: row.participantId,
       formId: row.formId,
       submittedAt: row.submittedAt,
       revision: row.revision,
+      revisedBy: row.revisedBy ?? null,
       answers: Object.fromEntries(row.answers.map((answer) => [answer.fieldId, answer.value])),
     }));
 }
@@ -428,6 +620,85 @@ export function currentParticipant(): {
   const row = sessionRow();
   if (!row) return null;
   return { participantId: row.participantId, eventId: row.eventId, spaceId: row.spaceId, name: row.name, pinChangeRequired: row.pinTemporary };
+}
+
+/** The current revision of a participant's application, or null without one (feed mock). */
+export function currentApplicationRevision(participantId: string): number | null {
+  return issued.find((row) => row.participantId === participantId)?.revision ?? null;
+}
+
+/** Public-form shape of the fields: hidden questions and hidden options left out (api.md "참가자 신청"). */
+function publicFields(row: Issued): FormField[] {
+  return formFields(row.eventId, row.formId)
+    .filter((field) => !field.hidden)
+    .map((field) =>
+      field.config.options
+        ? { ...field, config: { ...field.config, options: field.config.options.filter((option) => !option.hidden) } }
+        : field,
+    )
+    .sort((a, b) => a.position - b.position);
+}
+
+function ownApplicationBody(row: Issued) {
+  const fields = publicFields(row);
+  const shown = new Set(fields.map((field) => field.fieldId));
+  const event = eventById(row.eventId);
+  return {
+    applicationId: row.applicationId,
+    formId: row.formId,
+    revision: row.revision,
+    submittedAt: row.submittedAt,
+    acceptingEdits: event?.lifecycleStatus === "ACTIVE" && acceptingEdits(row.eventId),
+    fields,
+    answers: row.answers.filter((answer) => shown.has(answer.fieldId)),
+  };
+}
+
+/** GET /participant/application (A4). Null when the session has no application. */
+export function readOwnApplication(): ReturnType<typeof ownApplicationBody> | null {
+  const row = sessionRow();
+  return row ? ownApplicationBody(row) : null;
+}
+
+/**
+ * PUT /participant/application (A4, DEC-078 §4): closed edits → 409 EDITS_CLOSED, a stale revision →
+ * 409 CONCURRENT_MODIFICATION with the current `revision`, then the same answer checks as the public
+ * submit. The phone must keep its digits. Answers to hidden questions carry over; nothing changed
+ * makes no new revision.
+ */
+export function reviseOwnApplication(body: unknown): ReturnType<typeof ownApplicationBody> | (ParticipantFailure & { revision?: number }) {
+  const row = sessionRow();
+  if (!row) return { status: 401, code: "AUTHENTICATION_REQUIRED" };
+  const event = eventById(row.eventId);
+  if (event?.lifecycleStatus !== "ACTIVE" || !acceptingEdits(row.eventId)) return { status: 409, code: "EDITS_CLOSED" };
+  if (!isRecord(body) || typeof body.expectedRevision !== "number") return { status: 400, code: "VALIDATION_FAILED" };
+  if (body.expectedRevision !== row.revision) return { status: 409, code: "CONCURRENT_MODIFICATION", revision: row.revision };
+  const fields = publicFields(row);
+  const read = readAnswers(body);
+  const answers = read && keepShown(fields, read);
+  if (!answers) return { status: 400, code: "APPLICATION_VALIDATION_FAILED" };
+  const name = answerFor(fields, answers, "NAME");
+  const phone = answerFor(fields, answers, "PHONE");
+  if (!name || !phone || phone.replace(/\D/g, "") !== row.phoneKey) return { status: 400, code: "APPLICATION_VALIDATION_FAILED" };
+  const detail = eventFormDetail(row.eventId);
+  if (detail && reversedRange(detail, new Map(answers.map((answer) => [answer.fieldId, answer.value])))) {
+    return { status: 400, code: "APPLICATION_VALIDATION_FAILED" };
+  }
+  const shown = new Set(fields.map((field) => field.fieldId));
+  const kept = row.answers.filter((answer) => !shown.has(answer.fieldId));
+  const next = [...answers, ...kept];
+  // #436: a changed answer is a new revision and tells the operators with PARTICIPANT_READ.
+  revise(row, next, name, "APPLICATION_REVISED");
+  return ownApplicationBody(row);
+}
+
+/** Test seam: another device or an operator saved a newer revision. */
+export function reviseAsSomeoneElse(participantId: string, fieldId: string, value: Record<string, unknown>): void {
+  const row = issued.find((item) => item.participantId === participantId);
+  if (!row) return;
+  row.answers = [...row.answers.filter((answer) => answer.fieldId !== fieldId), { fieldId, value }];
+  row.applicationId = crypto.randomUUID();
+  row.revision += 1;
 }
 
 export function clearParticipant(): void {

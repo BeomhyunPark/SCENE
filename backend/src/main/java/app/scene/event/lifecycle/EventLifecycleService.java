@@ -4,10 +4,16 @@ import app.scene.common.audit.AuditActions;
 import app.scene.common.audit.AuditLogRepository;
 import app.scene.common.error.ErrorCode;
 import app.scene.common.error.SceneException;
+import app.scene.event.feed.FeedArea;
+import app.scene.event.feed.ParticipantFeedVersions;
+import app.scene.event.notification.NotificationDraft;
+import app.scene.event.notification.Notifications;
+import app.scene.event.notification.OperatorRecipients;
 import app.scene.event.task.TaskRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -23,26 +29,32 @@ public class EventLifecycleService {
   private final EventRepository events;
   private final TaskRepository tasks;
   private final EventInvitationRepository invitations;
-  private final OperatorNoticeRepository notices;
+  private final Notifications notifications;
+  private final OperatorRecipients recipients;
   private final AuditLogRepository auditLogs;
   private final JsonMapper json;
   private final Clock clock;
+  private final ParticipantFeedVersions feedVersions;
 
   public EventLifecycleService(
       EventRepository events,
       TaskRepository tasks,
       EventInvitationRepository invitations,
-      OperatorNoticeRepository notices,
+      Notifications notifications,
+      OperatorRecipients recipients,
       AuditLogRepository auditLogs,
       JsonMapper json,
-      Clock clock) {
+      Clock clock,
+      ParticipantFeedVersions feedVersions) {
     this.events = events;
     this.tasks = tasks;
     this.invitations = invitations;
-    this.notices = notices;
+    this.notifications = notifications;
+    this.recipients = recipients;
     this.auditLogs = auditLogs;
     this.json = json;
     this.clock = clock;
+    this.feedVersions = feedVersions;
   }
 
   @Transactional
@@ -135,8 +147,10 @@ public class EventLifecycleService {
     if (command == LifecycleCommand.ARCHIVE) {
       invitations.updateRevoked(spaceId, eventId, now);
     }
+    // DEC-080 §4: the participant home shows the event status.
+    feedVersions.bump(spaceId, eventId, FeedArea.HOME);
     if ("SPACE_OWNER_OVERRIDE".equals(actedAs)) {
-      notices.saveForOwners(spaceId, eventId, "LIFECYCLE_OVERRIDE", now);
+      overrideNotice(spaceId, eventId, command);
     }
     auditLogs.save(
         spaceId,
@@ -147,6 +161,39 @@ public class EventLifecycleService {
         now);
     return new LifecycleResult(
         "TRANSITIONED", command.toStatus(), row.lifecycleVersion() + 1, actedAs);
+  }
+
+  /**
+   * DEC-080 §7.2 {@code LIFECYCLE_OVERRIDE}: the event OWNERs whose handover has not ended, the
+   * same people {@code operator_notices} had. Since I3 (#436) it is a row in {@code notifications};
+   * the old table is no longer written and is dropped by a later migration.
+   */
+  private void overrideNotice(UUID spaceId, UUID eventId, LifecycleCommand command) {
+    List<UUID> owners = recipients.owners(spaceId, eventId);
+    if (owners.isEmpty()) {
+      return;
+    }
+    notifications.toOperators(
+        spaceId,
+        eventId,
+        owners,
+        new NotificationDraft(
+            "LIFECYCLE_OVERRIDE",
+            "EVENT",
+            eventId,
+            "행사 상태를 공간 소유자가 바꿨어요",
+            overrideBody(command),
+            true));
+  }
+
+  private static String overrideBody(LifecycleCommand command) {
+    return switch (command) {
+      case ACTIVATE -> "행사를 시작했어요";
+      case END -> "행사를 종료했어요";
+      case REOPEN -> "행사를 다시 열었어요";
+      case ARCHIVE -> "행사를 보관했어요";
+      case UNARCHIVE -> "행사 보관을 풀었어요";
+    };
   }
 
   private static String action(LifecycleCommand command) {

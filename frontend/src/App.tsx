@@ -6,9 +6,13 @@ import { MockBanner } from "./components/MockBanner";
 import { EventCreate } from "./components/EventCreate";
 import { EventEnd } from "./components/EventEnd";
 import { EventField } from "./components/EventField";
+import { EventNotifications } from "./components/EventNotifications";
+import { OrgNotifications } from "./components/OrgNotifications";
 import { EventGroups } from "./components/EventGroups";
 import { EventHome } from "./components/EventHome";
 import { EventRetrospective } from "./components/EventRetrospective";
+import { EventSchedule } from "./components/EventSchedule";
+import { EventScheduleItem } from "./components/EventScheduleItem";
 import { EventSettings } from "./components/EventSettings";
 import { EventList } from "./components/EventList";
 import { EventApplication } from "./components/EventApplication";
@@ -39,6 +43,9 @@ import { PublicResetPassword } from "./components/PublicResetPassword";
 import { PublicVerifyEmail } from "./components/PublicVerifyEmail";
 import { LoginDone } from "./components/LoginDone";
 import { MenuPending } from "./components/MenuPending";
+import { EventNotices } from "./components/notices/EventNotices";
+import { NoticeDetail } from "./components/notices/NoticeDetail";
+import { NoticeEditor } from "./components/notices/NoticeEditor";
 import { prototypeScreensEnabled } from "./prototypeScreens";
 
 function Home() {
@@ -77,7 +84,7 @@ export function App() {
           <Route path="/events" element={<EventList />} />
           <Route path="/members" element={<SpaceMembers />} />
           <Route path="/settings" element={<SpaceSettings />} />
-          <Route path="/notifications" element={<MenuPending title="알림" />} />
+          <Route path="/notifications" element={<OrgNotifications />} />
           <Route path="/history" element={<MenuPending title="기록" />} />
           <Route path="/guides" element={<MenuPending title="안내" />} />
           <Route path="/schedule" element={<MenuPending title="일정" />} />
@@ -94,7 +101,10 @@ export function App() {
             element={<EventMenuPending title="다른 기능 시작" message="이 행사에서 쓸 기능을 고르는 화면은 아직 만들고 있어요." />}
           />
           <Route path="/events/:eventId/field" element={<EventField />} />
+          <Route path="/events/:eventId/notifications" element={<EventNotifications />} />
           <Route path="/events/:eventId/groups" element={<EventGroups />} />
+          <Route path="/events/:eventId/schedule" element={<EventSchedule />} />
+          <Route path="/events/:eventId/schedule/:itemId" element={<EventScheduleItem />} />
           <Route path="/events/:eventId/end" element={<EventEnd />} />
           <Route path="/events/:eventId/retrospective" element={<EventRetrospective />} />
           <Route path="/events/:eventId/tasks/:taskId" element={<TaskDetail />} />
@@ -102,6 +112,10 @@ export function App() {
           <Route path="/events/:eventId/participants/setup" element={<EventRegistrationSetup />} />
           <Route path="/events/:eventId/participants/summary" element={<EventApplicationSummary />} />
           <Route path="/events/:eventId/operators" element={<EventOperators />} />
+          <Route path="/events/:eventId/notices" element={<EventNotices />} />
+          <Route path="/events/:eventId/notices/new" element={<NoticeEditor />} />
+          <Route path="/events/:eventId/notices/:noticeId/edit" element={<NoticeEditor />} />
+          <Route path="/events/:eventId/notices/:noticeId" element={<NoticeDetail />} />
           <Route path="/events/:eventId/participants/:applicationId" element={<EventApplication />} />
           <Route path="/events/:eventId/participants" element={<EventParticipation />} />
           <Route path="/events/:eventId" element={<EventHome />} />
@@ -118,7 +132,7 @@ export function App() {
         <Route path="/reset-password" element={<PublicResetPassword />} />
         <Route path="/operator/invitations" element={<InvitationAccept />} />
         <Route path="/apply/:eventId/:formId" element={<PublicApply />} />
-        <Route path="/participate/:eventId" element={<ParticipantEnter />} />
+        <Route path="/participate/:eventId/*" element={<ParticipantEnter />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </QueryClientProvider>

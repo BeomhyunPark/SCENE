@@ -35,7 +35,8 @@ import tools.jackson.databind.node.ObjectNode;
  * participant with the bcrypt hash of the chosen six-digit number and the first revision. A phone
  * that already applied becomes an edit (new revision) only when the number matches; otherwise
  * {@code APPLICATION_ALREADY_EXISTS} with no previous answers, counted as a failure for the phone.
- * Both open a participant session. Every submit counts toward the address limit (#401). Answers are
+ * Both open a participant session. A phone whose application was withdrawn comes back with the
+ * matching number (DEC-084 §5). Every submit counts toward the address limit (#401). Answers are
  * checked by {@link AnswerEvaluator} (DEC-068). No audit row is written.
  */
 @Service
@@ -44,40 +45,47 @@ public class PublicApplicationService {
   private static final String NAME = "NAME";
   private static final String PHONE = "PHONE";
   private static final String SUBMITTED = "SUBMITTED";
+  private static final String WITHDRAWN = "WITHDRAWN";
   private static final String ACTIVE = "ACTIVE";
 
   private final EventRepository events;
   private final FormRepository forms;
   private final ApplicationRepository applications;
   private final ApplicationRevisions revisions;
+  private final ApplicationStatusChanges statuses;
   private final ParticipantRepository participants;
   private final ParticipantSessionService sessions;
   private final ParticipantPins pins;
   private final ParticipantGuard guard;
   private final Clock clock;
   private final JsonMapper json;
+  private final ApplicationNotices notices;
 
   public PublicApplicationService(
       EventRepository events,
       FormRepository forms,
       ApplicationRepository applications,
       ApplicationRevisions revisions,
+      ApplicationStatusChanges statuses,
       ParticipantRepository participants,
       ParticipantSessionService sessions,
       ParticipantPins pins,
       ParticipantGuard guard,
       Clock clock,
-      JsonMapper json) {
+      JsonMapper json,
+      ApplicationNotices notices) {
     this.events = events;
     this.forms = forms;
     this.applications = applications;
     this.revisions = revisions;
+    this.statuses = statuses;
     this.participants = participants;
     this.sessions = sessions;
     this.pins = pins;
     this.guard = guard;
     this.clock = clock;
     this.json = json;
+    this.notices = notices;
   }
 
   /** The response body, the raw session token for the cookie, and whether a participant is new. */
@@ -149,7 +157,8 @@ public class PublicApplicationService {
         rows);
     ParticipantSessionService.Issued token = sessions.open(spaceId, eventId, participantId);
     return new Submission(
-        new SubmittedApplication(applicationId, participantId, 1, false, form.completionNotice()),
+        new SubmittedApplication(
+            applicationId, participantId, 1, false, form.completionNotice(), false),
         token,
         true);
   }
@@ -165,11 +174,14 @@ public class PublicApplicationService {
       String address) {
     UUID eventId = location.id();
     guard.requirePhoneOpen(eventId, phoneKey);
-    if (!pins.matches(pin, participant.pinHash()) || participant.applicationId() == null) {
+    if (!pins.matches(pin, participant.pinHash())) {
       guard.failed(eventId, phoneKey, address);
       throw new SceneException(ErrorCode.APPLICATION_ALREADY_EXISTS);
     }
     guard.succeeded(eventId, phoneKey);
+    if (participant.applicationId() == null) {
+      return reapply(location, form, fields, answers, participant);
+    }
     if (!ACTIVE.equals(location.lifecycleStatus()) || !form.acceptingEdits()) {
       throw new SceneException(ErrorCode.EDITS_CLOSED);
     }
@@ -185,6 +197,8 @@ public class PublicApplicationService {
             participant.name(),
             ApplicationRevisions.BY_PARTICIPANT,
             null);
+    // DEC-080 §7.2: an edit through a resubmit is its own kind, in this transaction.
+    notices.resubmitted(location.spaceId(), eventId, result);
     ParticipantSessionService.Issued token =
         sessions.open(location.spaceId(), eventId, participant.id());
     return new Submission(
@@ -193,7 +207,71 @@ public class PublicApplicationService {
             participant.id(),
             result.revision(),
             true,
-            form.completionNotice()),
+            form.completionNotice(),
+            false),
+        token,
+        false);
+  }
+
+  /**
+   * A withdrawn participant applies again with the matching number (DEC-084 §5). Changed answers
+   * become a new revision and the withdrawn row turns {@code SUPERSEDED}; the same answers turn the
+   * withdrawn row back to {@code SUBMITTED}. The group does not come back. The form being open is
+   * enough: this is applying, so the edit switch is not read. A participant with no withdrawn row
+   * keeps the old answer {@code APPLICATION_ALREADY_EXISTS}.
+   */
+  private Submission reapply(
+      EventLocation location,
+      FormRow form,
+      List<FieldDefinition> fields,
+      List<AnswerEvaluator.Answer> answers,
+      ParticipantIdentity participant) {
+    UUID spaceId = location.spaceId();
+    UUID eventId = location.id();
+    ApplicationRevisionRow latest = revisions.lockLatest(spaceId, eventId, participant.id());
+    if (latest == null || !WITHDRAWN.equals(latest.status())) {
+      throw new SceneException(ErrorCode.APPLICATION_ALREADY_EXISTS);
+    }
+    ApplicationRevisions.Result result =
+        revisions.revise(
+            spaceId,
+            eventId,
+            latest,
+            fields,
+            answers,
+            participant.name(),
+            ApplicationRevisions.BY_PARTICIPANT,
+            null);
+    if (!result.revised()) {
+      try {
+        if (!statuses.setStatus(spaceId, eventId, latest.applicationId(), WITHDRAWN, SUBMITTED)) {
+          throw new SceneException(ErrorCode.APPLICATION_ALREADY_EXISTS);
+        }
+      } catch (DuplicateKeyException exception) {
+        throw new SceneException(ErrorCode.CONFLICT);
+      }
+    }
+    statuses.record(
+        new ApplicationStatusChanged(
+            spaceId,
+            eventId,
+            participant.id(),
+            result.applicationId(),
+            ApplicationStatusChanged.RESTORED,
+            ApplicationStatusChanged.BY_PARTICIPANT,
+            null,
+            clock.instant()),
+        null,
+        false);
+    ParticipantSessionService.Issued token = sessions.open(spaceId, eventId, participant.id());
+    return new Submission(
+        new SubmittedApplication(
+            result.applicationId(),
+            participant.id(),
+            result.revision(),
+            true,
+            form.completionNotice(),
+            true),
         token,
         false);
   }

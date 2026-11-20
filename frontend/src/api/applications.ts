@@ -23,6 +23,8 @@ export type SubmittedApplication = {
   revised: boolean;
   /** The form's completion notice at submit time, plain text, or null (#406). */
   completionNotice: string | null;
+  /** True when the phone's application had been withdrawn and the matching number brought it back (DEC-084 §5). */
+  restored: boolean;
 };
 
 /** Operator list item. Name is the SYSTEM NAME answer, or null. Phone stays on the detail only. */
@@ -71,6 +73,20 @@ export const OPERATION_MEMO_MAX = 2_000;
 
 export const EMPTY_OPERATION: ApplicationOperation = { memo: "", version: 0, updatedAt: null, updatedByDisplayName: null };
 
+/**
+ * Who withdrew an application, when and why (DEC-084 §2). `reason` is operator text shown to
+ * operators only. `reapplyBlocked` means the six-digit number was made unusable at withdraw.
+ */
+export type ApplicationWithdrawal = {
+  withdrawnAt: string | null;
+  withdrawnByDisplayName: string | null;
+  reason: string | null;
+  reapplyBlocked: boolean;
+};
+
+/** Provisional server limit (DEC-084), the same as a check-in cancel reason. */
+export const WITHDRAW_REASON_MAX = 200;
+
 export type ApplicationDetail = {
   applicationId: string;
   formId: string;
@@ -80,7 +96,69 @@ export type ApplicationDetail = {
   contactVisible: boolean;
   answers: ApplicationAnswer[];
   operation: ApplicationOperation;
+  /** Set while this is the participant's latest, withdrawn application (DEC-084 §9). */
+  withdrawal: ApplicationWithdrawal | null;
+  /** Counts edits from 1 (DEC-078 §4). 1 from an older server. */
+  revision: number;
 };
+
+/** One changed question of a revision, titled as it was when stored. No values (DEC-078 §4). */
+export type RevisionChange = { key: "NAME" | "FIELD"; fieldId: string; label: string };
+
+/**
+ * One revision of the participant's application, newest first (#437). `revisedBy` is null for the
+ * first application, `PARTICIPANT` or `OPERATOR` after. Values come from each revision's detail.
+ */
+export type ApplicationRevision = {
+  applicationId: string;
+  revision: number;
+  status: string;
+  submittedAt: string;
+  revisedBy: "PARTICIPANT" | "OPERATOR" | null;
+  changes: RevisionChange[];
+};
+
+/** Every revision of the application's participant (DEC-078 §4). Same access as the detail. */
+export function getApplicationRevisions(
+  eventId: string,
+  applicationId: string,
+  signal?: AbortSignal,
+): Promise<ApplicationRevision[]> {
+  return apiRequest<unknown>(`/api/v1/operator/events/${eventId}/applications/${applicationId}/revisions`, {
+    signal,
+  }).then(parseRevisions);
+}
+
+function parseRevisions(value: unknown): ApplicationRevision[] {
+  if (!isRecord(value) || !Array.isArray(value.items)) throw new ApiError({ status: 200, code: "UNEXPECTED" });
+  const out: ApplicationRevision[] = [];
+  for (const item of value.items) {
+    if (
+      !isRecord(item) ||
+      typeof item.applicationId !== "string" ||
+      typeof item.revision !== "number" ||
+      typeof item.status !== "string" ||
+      typeof item.submittedAt !== "string"
+    ) {
+      throw new ApiError({ status: 200, code: "UNEXPECTED" });
+    }
+    const changes: RevisionChange[] = [];
+    for (const change of Array.isArray(item.changes) ? item.changes : []) {
+      if (isRecord(change) && typeof change.fieldId === "string" && typeof change.label === "string") {
+        changes.push({ key: change.key === "NAME" ? "NAME" : "FIELD", fieldId: change.fieldId, label: change.label });
+      }
+    }
+    out.push({
+      applicationId: item.applicationId,
+      revision: item.revision,
+      status: item.status,
+      submittedAt: item.submittedAt,
+      revisedBy: item.revisedBy === "PARTICIPANT" || item.revisedBy === "OPERATOR" ? item.revisedBy : null,
+      changes,
+    });
+  }
+  return out;
+}
 
 export function listApplications(
   eventId: string,
@@ -142,6 +220,10 @@ export type TableRow = {
   /** Slot ids the person attends, in `slots` order (DEC-074). Null is "모름", and always null without `slots`. */
   slotIds: string[] | null;
   operation: ApplicationOperation;
+  /** Counts edits from 1; above 1 the table marks "수정됨" and `submittedAt` is the last edit (#437). */
+  revision: number;
+  /** Who stored the current revision; null for revision 1 or from an older server. */
+  revisedBy: "PARTICIPANT" | "OPERATOR" | null;
 };
 
 /** One meal or service slot, the same shape as the group board's `slots`. */
@@ -156,6 +238,21 @@ export type TableSlot = {
   sortOrder: number;
 };
 
+/**
+ * A withdrawn applicant (DEC-084 §9). Kept apart from `rows`, so no count of the table includes
+ * them. `previousGroup` is the group the withdraw removed (a reference; restoring does not bring it
+ * back), null when the group is gone or the reader cannot see groups.
+ */
+export type WithdrawnApplicant = {
+  applicationId: string;
+  participantId: string;
+  name: string;
+  submittedAt: string;
+  withdrawal: ApplicationWithdrawal;
+  previousGroup: { groupId: string; name: string } | null;
+  checkedInAt: string | null;
+};
+
 export type ApplicationTable = {
   formId: string | null;
   contactVisible: boolean;
@@ -164,11 +261,13 @@ export type ApplicationTable = {
   rows: TableRow[];
   /** Null when the form has no setup or no slot. */
   slots: TableSlot[] | null;
+  /** Newest withdraw first. Empty from an older server. */
+  withdrawn: WithdrawnApplicant[];
 };
 
 /**
  * 참가 현황 table (#308): every SUBMITTED applicant with every answer the reader may see, in one
- * response. The screen filters, sorts and counts. Phone columns come only with
+ * response, plus the withdrawn applicants apart (DEC-084). The screen filters, sorts and counts. Phone columns come only with
  * `PARTICIPANT_CONTACT_READ`; groups only with `GROUP_WRITE` or a space OWNER/ADMIN.
  */
 export function getApplicationTable(eventId: string, signal?: AbortSignal): Promise<ApplicationTable> {
@@ -193,6 +292,99 @@ export function saveApplicationOperation(
     if (!operation) throw new ApiError({ status: 200, code: "UNEXPECTED" });
     return operation;
   });
+}
+
+export type WithdrawResult = {
+  result: "WITHDRAWN" | "ALREADY_WITHDRAWN";
+  withdrawal: ApplicationWithdrawal;
+  removedGroup: { groupId: string; name: string; leader: boolean } | null;
+};
+
+/**
+ * 신청 취소 (DEC-084). Needs effective PARTICIPANT_WRITE; DRAFT and ACTIVE only. In one
+ * transaction the server removes the working-copy group, ends the participant's sessions and keeps
+ * the check-in record. A participant edit in between is `409 CONCURRENT_MODIFICATION`.
+ */
+export function withdrawApplication(
+  eventId: string,
+  applicationId: string,
+  input: { reason: string; blockReapply: boolean },
+): Promise<WithdrawResult> {
+  return apiRequest<unknown>(`/api/v1/operator/events/${eventId}/applications/${applicationId}/withdraw`, {
+    method: "POST",
+    body: { reason: input.reason.trim() || null, blockReapply: input.blockReapply },
+  }).then((value) => {
+    if (!isRecord(value) || (value.result !== "WITHDRAWN" && value.result !== "ALREADY_WITHDRAWN")) {
+      throw new ApiError({ status: 200, code: "UNEXPECTED" });
+    }
+    const removed = value.removedGroup;
+    return {
+      result: value.result,
+      withdrawal: parseWithdrawal(value.withdrawal) ?? EMPTY_WITHDRAWAL,
+      removedGroup:
+        isRecord(removed) && typeof removed.groupId === "string" && typeof removed.name === "string"
+          ? { groupId: removed.groupId, name: removed.name, leader: removed.leader === true }
+          : null,
+    };
+  });
+}
+
+export type RestoreResult = {
+  result: "RESTORED" | "ALREADY_SUBMITTED";
+  previousGroup: { groupId: string; name: string } | null;
+  reapplyBlocked: boolean;
+};
+
+/** 되돌리기 (DEC-084 §3). The group does not come back; `previousGroup` is a reference. */
+export function restoreApplication(eventId: string, applicationId: string): Promise<RestoreResult> {
+  return apiRequest<unknown>(`/api/v1/operator/events/${eventId}/applications/${applicationId}/restore`, {
+    method: "POST",
+  }).then((value) => {
+    if (!isRecord(value) || (value.result !== "RESTORED" && value.result !== "ALREADY_SUBMITTED")) {
+      throw new ApiError({ status: 200, code: "UNEXPECTED" });
+    }
+    return {
+      result: value.result,
+      previousGroup: parseGroupRef(value.previousGroup),
+      reapplyBlocked: value.reapplyBlocked === true,
+    };
+  });
+}
+
+const EMPTY_WITHDRAWAL: ApplicationWithdrawal = { withdrawnAt: null, withdrawnByDisplayName: null, reason: null, reapplyBlocked: false };
+
+function parseWithdrawal(value: unknown): ApplicationWithdrawal | null {
+  if (!isRecord(value)) return null;
+  return {
+    withdrawnAt: typeof value.withdrawnAt === "string" ? value.withdrawnAt : null,
+    withdrawnByDisplayName: typeof value.withdrawnByDisplayName === "string" ? value.withdrawnByDisplayName : null,
+    reason: typeof value.reason === "string" ? value.reason : null,
+    reapplyBlocked: value.reapplyBlocked === true,
+  };
+}
+
+function parseGroupRef(value: unknown): { groupId: string; name: string } | null {
+  return isRecord(value) && typeof value.groupId === "string" && typeof value.name === "string"
+    ? { groupId: value.groupId, name: value.name }
+    : null;
+}
+
+function parseWithdrawn(value: unknown): WithdrawnApplicant[] {
+  if (!Array.isArray(value)) return [];
+  const out: WithdrawnApplicant[] = [];
+  for (const item of value) {
+    if (!isRecord(item) || typeof item.applicationId !== "string" || typeof item.participantId !== "string") continue;
+    out.push({
+      applicationId: item.applicationId,
+      participantId: item.participantId,
+      name: typeof item.name === "string" ? item.name : "",
+      submittedAt: typeof item.submittedAt === "string" ? item.submittedAt : "",
+      withdrawal: parseWithdrawal(item.withdrawal) ?? EMPTY_WITHDRAWAL,
+      previousGroup: parseGroupRef(item.previousGroup),
+      checkedInAt: typeof item.checkedInAt === "string" ? item.checkedInAt : null,
+    });
+  }
+  return out;
 }
 
 /** Null when the value is not an operation; an older server without it reads as nothing saved. */
@@ -234,12 +426,17 @@ function parseForm(value: unknown): PublicForm {
   if (!isRecord(value) || typeof value.formId !== "string" || !Array.isArray(value.fields)) {
     throw new ApiError({ status: 200, code: "UNEXPECTED" });
   }
+  return { formId: value.formId, fields: parseFormFields(value.fields) };
+}
+
+/** Public form fields, also used by the participant's own application (#427). */
+export function parseFormFields(value: unknown[]): FormField[] {
   const fields: FormField[] = [];
-  for (const field of value.fields) {
+  for (const field of value) {
     if (!isField(field)) throw new ApiError({ status: 200, code: "UNEXPECTED" });
     fields.push(withDefaults(field));
   }
-  return { formId: value.formId, fields };
+  return fields;
 }
 
 function parseSubmitted(value: unknown): SubmittedApplication {
@@ -258,6 +455,7 @@ function parseSubmitted(value: unknown): SubmittedApplication {
     revision: value.revision,
     revised: value.revised,
     completionNotice: typeof value.completionNotice === "string" ? value.completionNotice : null,
+    restored: value.restored === true,
   };
 }
 
@@ -330,6 +528,8 @@ function parseDetail(value: unknown): ApplicationDetail {
     contactVisible: value.contactVisible !== false,
     answers,
     operation: parseOperation(value.operation) ?? EMPTY_OPERATION,
+    withdrawal: parseWithdrawal(value.withdrawal),
+    revision: typeof value.revision === "number" ? value.revision : 1,
   };
 }
 
@@ -385,6 +585,8 @@ function parseTable(value: unknown): ApplicationTable {
       checkedInAt: typeof row.checkedInAt === "string" ? row.checkedInAt : null,
       slotIds: Array.isArray(row.slotIds) ? row.slotIds.filter((id): id is string => typeof id === "string") : null,
       operation: parseOperation(row.operation) ?? EMPTY_OPERATION,
+      revision: typeof row.revision === "number" ? row.revision : 1,
+      revisedBy: row.revisedBy === "PARTICIPANT" || row.revisedBy === "OPERATOR" ? row.revisedBy : null,
     });
   }
   return {
@@ -394,6 +596,7 @@ function parseTable(value: unknown): ApplicationTable {
     columns,
     rows,
     slots: parseSlots(value.slots),
+    withdrawn: parseWithdrawn(value.withdrawn),
   };
 }
 

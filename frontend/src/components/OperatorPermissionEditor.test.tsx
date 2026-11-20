@@ -57,7 +57,7 @@ describe("event owner edits an operator's permissions (DEC-079, #395)", () => {
     expect(dialog).toHaveTextContent("행사 보기는 항상 켜져 있어요");
   });
 
-  it("MANAGER defaults include schedule and notice writes", async () => {
+  it("MANAGER defaults are every key but the OWNER-only ones (DEC-079 Follow-up 2026-11-20)", async () => {
     await login({ userId: OWNER });
     openApp();
 
@@ -66,7 +66,10 @@ describe("event owner edits an operator's permissions (DEC-079, #395)", () => {
     const dialog = await screen.findByRole("dialog", { name: "Local manager님의 권한" });
     expect(await within(dialog).findByRole("checkbox", { name: "일정 쓰기" })).toBeChecked();
     expect(within(dialog).getByRole("checkbox", { name: "공지 쓰기" })).toBeChecked();
-    expect(within(dialog).getByRole("checkbox", { name: "조 편성" })).not.toBeChecked();
+    for (const name of ["조 편성", "연락처 보기", "참가자 정보 수정", "명단 내려받기", "신청서 고치기", "행사 정보 고치기"]) {
+      expect(within(dialog).getByRole("checkbox", { name })).toBeChecked();
+    }
+    expect(dialog).toHaveTextContent("Manager는 기본으로 행사 시작·종료와 운영 멤버 관리만 빼고 모두 할 수 있어요.");
   });
 
   it("grants group writes to STAFF and revokes a default, keeping the stored override of an unlisted key", async () => {

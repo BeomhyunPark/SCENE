@@ -1,9 +1,9 @@
 package app.scene.common.permission;
 
 /**
- * Effective {@link Permission#TASK_WRITE}. OWNER and MANAGER include it. STAFF does not. A stored
- * GRANT or REVOKE changes that, except an active OWNER's stored override is ignored. An OWNER whose
- * handover has ended keeps the permission only through GRANT.
+ * Effective {@link Permission#TASK_WRITE}. OWNER and MANAGER include it by default. STAFF does not.
+ * A stored GRANT or REVOKE changes that, except an active OWNER's stored override is ignored. An
+ * OWNER whose handover has ended keeps the permission only through GRANT.
  */
 public final class TaskWrite {
 

@@ -1,3 +1,4 @@
+import { resetNotificationStore } from "../mocks/notificationStore";
 import { cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { afterAll, afterEach, beforeAll } from "vitest";
@@ -8,11 +9,14 @@ import { resetInvitationStore } from "../mocks/invitationStore";
 import { resetSpaceInvitationStore } from "../mocks/spaceInvitationStore";
 import { resetOperatorStore } from "../mocks/operatorStore";
 import { resetParticipantStore } from "../mocks/participantStore";
+import { resetParticipantFeedStore } from "../mocks/participantFeedStore";
 import { resetParticipantCheckInStore } from "../mocks/participantCheckInStore";
 import { resetRetrospectiveStore } from "../mocks/retrospectiveStore";
 import { resetOperationStore } from "../mocks/operationStore";
 import { resetCheckInStore } from "../mocks/checkInStore";
 import { resetGroupStore } from "../mocks/groupStore";
+import { resetScheduleStore } from "../mocks/scheduleStore";
+import { resetNoticeStore } from "../mocks/noticeStore";
 import { resetTaskStore } from "../mocks/taskStore";
 import { deliveryTiming } from "../components/checkInDelivery";
 
@@ -34,7 +38,11 @@ afterEach(() => {
   resetOperationStore();
   resetCheckInStore();
   resetGroupStore();
+  resetScheduleStore();
+  resetNoticeStore();
   resetParticipantStore();
+  resetParticipantFeedStore();
+  resetNotificationStore();
   resetParticipantCheckInStore();
   resetFormStore();
   resetInvitationStore();

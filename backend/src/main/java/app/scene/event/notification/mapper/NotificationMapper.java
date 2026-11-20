@@ -1,0 +1,18 @@
+package app.scene.event.notification.mapper;
+
+import app.scene.event.notification.param.NotificationParam;
+import org.apache.ibatis.annotations.Mapper;
+
+@Mapper
+public interface NotificationMapper {
+
+  /** Merges and inserts one row per recipient in one statement. Returns inserted rows. */
+  int insertMerged(NotificationParam param);
+
+  int markRead(NotificationParam param);
+
+  int markTargetReadForAll(NotificationParam param);
+
+  /** Moves rows that point at one of {@code ids} to {@code targetId}. */
+  int retarget(NotificationParam param);
+}

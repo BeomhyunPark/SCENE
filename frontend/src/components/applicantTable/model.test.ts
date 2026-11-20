@@ -87,6 +87,8 @@ function row(id: string, answers: Record<string, Record<string, unknown>>, extra
     checkedInAt: null,
     slotIds: null,
     operation: EMPTY_OPERATION,
+    revision: 1,
+    revisedBy: null,
     ...extra,
   };
 }
@@ -134,6 +136,7 @@ const TABLE: ApplicationTable = {
   columns: COLUMNS,
   rows: ROWS,
   slots: null,
+  withdrawn: [],
 };
 const COLS = buildColumns(TABLE);
 const col = (id: string): ColumnDef => COLS.find((item) => item.id === id)!;
@@ -158,6 +161,7 @@ describe("columns", () => {
       "동의",
       "메모 (숨김)",
       "운영 메모",
+      "수정",
       "제출 시각",
     ]);
     expect(visibleColumns(COLS, null).map((item) => item.id)).toEqual([

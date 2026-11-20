@@ -104,7 +104,7 @@ function NavItem({
   item,
   onNavigate,
 }: {
-  item: { label: string; icon: string; caret?: boolean; current?: boolean; to?: string };
+  item: { label: string; icon: string; caret?: boolean; current?: boolean; to?: string; badge?: string | null };
   onNavigate?: () => void;
 }) {
   const current = item.current ?? false;
@@ -115,6 +115,11 @@ function NavItem({
         <img src={item.icon} alt="" />
         <span className="operator-shell__label">{item.label}</span>
       </span>
+      {item.badge ? (
+        <span className="operator-shell__badge" aria-label={`읽지 않은 알림 ${item.badge}개`}>
+          {item.badge}
+        </span>
+      ) : null}
       {item.caret ? <img src={caret} alt="" /> : null}
     </>
   );
@@ -123,7 +128,7 @@ function NavItem({
       <Link
         className={className}
         to={item.to}
-        title={item.label}
+        title={item.badge ? `${item.label} (읽지 않음 ${item.badge})` : item.label}
         aria-current={current ? "page" : undefined}
         onClick={onNavigate}
       >

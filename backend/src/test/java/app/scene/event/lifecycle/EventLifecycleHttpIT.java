@@ -674,12 +674,14 @@ class EventLifecycleHttpIT {
 
   private int noticeCount(Fixture fx) {
     return jdbc.queryForObject(
-        "SELECT count(*) FROM operator_notices WHERE event_id = ?", Integer.class, fx.eventId);
+        "SELECT count(*) FROM notifications WHERE event_id = ? AND kind = 'LIFECYCLE_OVERRIDE'",
+        Integer.class,
+        fx.eventId);
   }
 
   private java.util.List<UUID> noticeRecipients(Fixture fx) {
     return jdbc.query(
-        "SELECT recipient_user_id FROM operator_notices WHERE event_id = ?",
+        "SELECT recipient_user_id FROM notifications WHERE event_id = ? AND kind = 'LIFECYCLE_OVERRIDE'",
         (rs, row) -> rs.getObject(1, UUID.class),
         fx.eventId);
   }

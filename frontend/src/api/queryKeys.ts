@@ -27,6 +27,8 @@ export const queryKeys = {
   checkInRosterAll: (eventId: string) => ["events", eventId, "check-ins", "roster-all"] as const,
   publishedGroups: (eventId: string) => ["events", eventId, "groups", "published"] as const,
   groupBoard: (eventId: string) => ["events", eventId, "group-board"] as const,
+  /** Schedule working copy (C4). The editor reads the same entry for days, slots and the item. */
+  scheduleBoard: (eventId: string) => ["events", eventId, "schedule"] as const,
   forms: (eventId: string, page: number) => ["events", eventId, "forms", page] as const,
   form: (eventId: string, formId: string) => ["events", eventId, "forms", formId] as const,
   applications: (eventId: string, page: number) => ["events", eventId, "applications", page] as const,
@@ -34,8 +36,33 @@ export const queryKeys = {
   applicationTable: (eventId: string) => ["events", eventId, "applications", "table"] as const,
   application: (eventId: string, applicationId: string) =>
     ["events", eventId, "applications", "detail", applicationId] as const,
+  /** Every notice list and detail of an event: one invalidation after any notice write (D3). */
+  notices: (eventId: string) => ["events", eventId, "notices"] as const,
+  noticeList: (eventId: string, filter: string) => ["events", eventId, "notices", "list", filter] as const,
+  notice: (eventId: string, noticeId: string) => ["events", eventId, "notices", "detail", noticeId] as const,
+  /** The 운영진 공지 card on the operator event home (STAFF audience, published, 3). */
+  staffNotices: (eventId: string) => ["events", eventId, "notices", "staff"] as const,
+  /** Operator refresh check of one event (#436); the badge reads it. */
+  operatorUpdates: (eventId: string) => ["events", eventId, "operator-updates"] as const,
+  /** Every page of the operator's notification list of one event (#436). */
+  operatorNotifications: (eventId: string) => ["events", eventId, "operator-notifications"] as const,
+  applicationRevisions: (eventId: string, applicationId: string) =>
+    ["events", eventId, "applications", "revisions", applicationId] as const,
   publicForm: (eventId: string, formId: string) => ["public", "forms", eventId, formId] as const,
   participantMe: (eventId: string) => ["participant", "me", eventId] as const,
   participantCheckIn: (eventId: string) => ["participant", "check-in", eventId] as const,
   participantGroup: (eventId: string) => ["participant", "group", eventId] as const,
+  /**
+   * Participant home cards (DEC-080). A card reading more than one request keeps this key as the
+   * prefix, e.g. `[...queryKeys.participantNotices(eventId), "detail", noticeId]`, so the one
+   * invalidation from `participant/updateTargets.ts` reloads all of them.
+   */
+  participantHome: (eventId: string) => ["participant", "home", eventId] as const,
+  participantSchedule: (eventId: string) => ["participant", "schedule", eventId] as const,
+  participantNotices: (eventId: string) => ["participant", "notices", eventId] as const,
+  participantRooms: (eventId: string) => ["participant", "rooms", eventId] as const,
+  participantApplication: (eventId: string) => ["participant", "application", eventId] as const,
+  participantNotifications: (eventId: string) => ["participant", "notifications", eventId] as const,
+  /** Every participant read of the event, removed on logout. */
+  participantAll: ["participant"] as const,
 };

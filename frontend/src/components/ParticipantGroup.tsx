@@ -1,26 +1,20 @@
-import { useQuery } from "@tanstack/react-query";
 import { isApiError } from "../api/errors";
-import { getParticipantGroup, type ParticipantGroup as GroupState } from "../api/participantGroup";
+import type { ParticipantGroup as GroupState } from "../api/participantGroup";
 import { reloadQuery } from "../api/queryClient";
-import { queryKeys } from "../api/queryKeys";
 import { Button } from "./Button";
 import { formatPublishedAt } from "./eventFormat";
 import { participantLabel } from "./participantLabel";
+import { useParticipantGroupQuery } from "./participant/groupQuery";
 import "./ParticipantGroup.css";
 
 /**
  * "내 조" from the latest publication (#303, DEC-072), laid out after Figma P18 · group · 내 조 (667:75530)
  * and P18 · unpublished · 내 조 (667:75584). It sits under the arrival QR so the QR stays first on the day.
- * A republish can move people, so coming back to the tab reloads and "새로 고침" reloads on demand. The value
- * lives only in the query cache and is never written to web storage. Wording is a draft.
+ * A republish can move people, so it reloads when `updates.group` changes (#425) and "새로 고침" reloads on
+ * demand. The value lives only in the query cache and is never written to web storage. Wording is a draft.
  */
 export function ParticipantGroup({ eventId, name }: { eventId: string; name: string }) {
-  const query = useQuery({
-    queryKey: queryKeys.participantGroup(eventId),
-    queryFn: ({ signal }) => getParticipantGroup(signal),
-    refetchOnWindowFocus: "always",
-    refetchOnReconnect: "always",
-  });
+  const query = useParticipantGroupQuery(eventId);
 
   // A withdrawn application has no group to show; the arrival area already explains the withdrawal.
   if (query.data?.status === "NOT_ELIGIBLE") return null;

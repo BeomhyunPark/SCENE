@@ -576,3 +576,45 @@ a.operator-shell__item {
     padding-bottom: 0;
   }
 }
+
+/* Unread notifications of the current event (#436). */
+.operator-shell__badge,
+.operator-bottom-nav__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  box-sizing: border-box;
+  border-radius: 9px;
+  background: var(--color-danger-fg, #d92d20);
+  color: #fff;
+  font: var(--scene-label-s);
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.operator-shell__badge {
+  margin-left: auto;
+}
+
+.operator-shell--collapsed .operator-shell__item {
+  position: relative;
+}
+
+.operator-shell--collapsed .operator-shell__badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-width: 8px;
+  height: 8px;
+  padding: 0;
+  font-size: 0;
+}
+
+.operator-bottom-nav__badge {
+  position: absolute;
+  top: 4px;
+  left: calc(50% + 4px);
+}

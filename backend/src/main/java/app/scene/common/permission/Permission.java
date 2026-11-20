@@ -10,7 +10,9 @@ import java.util.stream.Collectors;
 /**
  * Event-scoped permission keys from the architecture draft. Space keys and the deferred {@code
  * DATA_RETENTION_MANAGE} key are absent, so a request that names them is an unknown key. Role
- * defaults live in {@link RoleDefaults}, not in a permissions table.
+ * defaults live in {@link RoleDefaults}, not in a permissions table. A key added here is held by
+ * OWNER and, unless {@link #ownerOnly()} names it, by MANAGER by default (DEC-079 Follow-up
+ * 2026-11-20).
  */
 public enum Permission {
   EVENT_UPDATE,

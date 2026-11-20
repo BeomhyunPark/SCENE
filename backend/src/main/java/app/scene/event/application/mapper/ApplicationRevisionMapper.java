@@ -40,7 +40,14 @@ public interface ApplicationRevisionMapper {
   int supersede(
       @Param("spaceId") UUID spaceId,
       @Param("eventId") UUID eventId,
-      @Param("applicationId") UUID applicationId);
+      @Param("applicationId") UUID applicationId,
+      @Param("fromStatus") String fromStatus);
+
+  /** The participant's latest revision, whatever its status. */
+  ApplicationRevisionRow findLatest(
+      @Param("spaceId") UUID spaceId,
+      @Param("eventId") UUID eventId,
+      @Param("participantId") UUID participantId);
 
   int insertRevision(
       @Param("id") UUID id,

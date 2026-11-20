@@ -3,6 +3,9 @@ import { useNavigate, useSearchParams } from "react-router";
 import type { ApplicationTable, TableRow } from "../../api/applications";
 import { Button } from "../Button";
 import {
+  EDITED,
+  EDITED_KEY,
+  isEdited,
   applyFilters,
   bucketsOf,
   buildColumns,
@@ -27,7 +30,7 @@ import "./ApplicantTable.css";
 /** A text column offers value checkboxes when it has at most this many distinct answers (또래, 셀). */
 const VALUE_LIST_MAX = 40;
 
-type Panel = "sort" | "filter" | "columns" | null;
+type Panel = "sort" | "filter" | "columns" | "withdrawn" | null;
 
 /**
  * 참가 현황 (#308, Figma P03-01 1325:5059). One table of every applicant: filter by any question,
@@ -40,6 +43,7 @@ export function ApplicantTable({
   actions,
   onEdit,
   editNote,
+  withdrawnPanel,
 }: {
   eventId: string;
   table: ApplicationTable;
@@ -48,6 +52,8 @@ export function ApplicantTable({
   onEdit?: (row: TableRow) => void;
   /** Why there is no 수정 button, shown above the table. */
   editNote?: string;
+  /** 취소된 신청 (DEC-084 §9), opened by the "취소 N" chip; hidden by default and in no count. */
+  withdrawnPanel?: ReactNode;
 }) {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
@@ -163,6 +169,7 @@ export function ApplicantTable({
               const next = { ...view.filters };
               delete next.status;
               delete next.group;
+              delete next[EDITED];
               if (chip.filter) next[chip.filter.id] = { kind: "in", keys: [chip.filter.key] };
               update({ filters: next });
             }}
@@ -170,6 +177,16 @@ export function ApplicantTable({
             {chip.label} <span className="roster__chip-count">{chip.count}</span>
           </button>
         ))}
+        {withdrawnPanel && table.withdrawn.length > 0 ? (
+          <button
+            type="button"
+            className="roster__chip"
+            aria-expanded={panel === "withdrawn"}
+            onClick={() => setPanel(panel === "withdrawn" ? null : "withdrawn")}
+          >
+            취소 <span className="roster__chip-count">{table.withdrawn.length}</span>
+          </button>
+        ) : null}
         <button
           type="button"
           className="roster__chip roster__chip--add"
@@ -180,6 +197,7 @@ export function ApplicantTable({
         </button>
       </div>
 
+      {panel === "withdrawn" ? withdrawnPanel : null}
       {panel === "sort" ? <SortPanel columns={columns} sorts={view.sorts} onChange={(sorts) => update({ sorts })} /> : null}
       {panel === "filter" ? (
         <FilterPanel columns={columns} rows={table.rows} filters={filters} onChange={setFilter} onClear={clearAll} />
@@ -289,18 +307,28 @@ function chipsFor(table: ApplicationTable, columns: ColumnDef[], filters: Record
   };
   const status = selectedKey("status");
   const group = selectedKey("group");
+  const edited = selectedKey(EDITED);
   const arrived = table.rows.filter((row) => row.checkedInAt).length;
   const chips: Chip[] = [
-    { label: "전체 참가자", count: table.rows.length, selected: !status && !group, filter: null },
-    { label: "도착 완료", count: arrived, selected: status === "arrived" && !group, filter: { id: "status", key: "arrived" } },
-    { label: "도착 전", count: table.rows.length - arrived, selected: status === "waiting" && !group, filter: { id: "status", key: "waiting" } },
+    { label: "전체 참가자", count: table.rows.length, selected: !status && !group && !edited, filter: null },
+    { label: "도착 완료", count: arrived, selected: status === "arrived" && !group && !edited, filter: { id: "status", key: "arrived" } },
+    { label: "도착 전", count: table.rows.length - arrived, selected: status === "waiting" && !group && !edited, filter: { id: "status", key: "waiting" } },
   ];
   if (columns.some((column) => column.id === "group")) {
     chips.push({
       label: "미배정",
       count: table.rows.filter((row) => !row.group).length,
-      selected: group === NONE && !status,
+      selected: group === NONE && !status && !edited,
       filter: { id: "group", key: NONE },
+    });
+  }
+  const editedCount = table.rows.filter(isEdited).length;
+  if (editedCount > 0) {
+    chips.push({
+      label: "수정됨",
+      count: editedCount,
+      selected: edited === EDITED_KEY && !status && !group,
+      filter: { id: EDITED, key: EDITED_KEY },
     });
   }
   return chips;

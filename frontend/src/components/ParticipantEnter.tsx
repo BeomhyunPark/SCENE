@@ -1,33 +1,57 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "react-router";
 import { isApiError } from "../api/errors";
-import { changeParticipantPin, getParticipantMe, logoutParticipant, signInParticipant } from "../api/participant";
+import { changeParticipantPin, getParticipantMe, signInParticipant } from "../api/participant";
 import { reloadQuery } from "../api/queryClient";
 import { queryKeys } from "../api/queryKeys";
 import { Button } from "./Button";
-import { ParticipantCheckIn } from "./ParticipantCheckIn";
 import { ParticipantFrame } from "./ParticipantFrame";
-import { ParticipantGroup } from "./ParticipantGroup";
+import { ParticipantShell } from "./participant/ParticipantShell";
 import { PinFields } from "./apply/PinFields";
 import { lockWait, pinInput, pinProblem } from "./apply/pinRules";
 
 /**
  * The event's one participant address (DEC-078 §8). Without a session the person signs in with
  * name, phone and the six-digit number they chose; right after applying they are already in. A
- * session opened with an operator's temporary number must set a new number first.
+ * session opened with an operator's temporary number must set a new number first. Inside, the
+ * participant home (#425) has five tabs with their own addresses under `/participate/{eventId}/…`.
  */
 export function ParticipantEnter() {
   const { eventId = "" } = useParams();
   const [left, setLeft] = useState(false);
-  const [logoutError, setLogoutError] = useState(false);
+  // After logout or a lost session the sign-in screen stays until the person signs in again, even if
+  // `/participant/me` would still answer: a card's 401 must not loop back into the home.
+  const [out, setOut] = useState(false);
   const queryClient = useQueryClient();
   const me = useQuery({
     queryKey: queryKeys.participantMe(eventId),
     queryFn: ({ signal }) => getParticipantMe(signal),
     retry: false,
+    // The home poll notices a lost session (401); focus does not need to ask again.
+    refetchOnWindowFocus: false,
   });
+  // Logout or a lost session: no participant read of this person stays in the cache.
+  const leave = useCallback(
+    (loggedOut: boolean) => {
+      const meKey = JSON.stringify(queryKeys.participantMe(eventId));
+      queryClient.removeQueries({
+        queryKey: queryKeys.participantAll,
+        predicate: (query) => JSON.stringify(query.queryKey) !== meKey,
+      });
+      setLeft(loggedOut);
+      setOut(true);
+    },
+    [eventId, queryClient],
+  );
 
+  const signedIn = () => {
+    setLeft(false);
+    setOut(false);
+    void queryClient.resetQueries({ queryKey: queryKeys.participantMe(eventId) });
+  };
+
+  if (out) return <SignIn eventId={eventId} left={left} onSignedIn={signedIn} />;
   if (me.isPending) {
     return (
       <ParticipantFrame title="들어가는 중이에요">
@@ -38,14 +62,7 @@ export function ParticipantEnter() {
   if (me.isError) {
     if (isApiError(me.error, "AUTHENTICATION_REQUIRED")) {
       return (
-        <SignIn
-          eventId={eventId}
-          left={left}
-          onSignedIn={() => {
-            setLeft(false);
-            void queryClient.invalidateQueries({ queryKey: queryKeys.participantMe(eventId) });
-          }}
-        />
+        <SignIn eventId={eventId} left={left} onSignedIn={signedIn} />
       );
     }
     return (
@@ -65,32 +82,7 @@ export function ParticipantEnter() {
     );
   }
 
-  const name = me.data.name.trim();
-  return (
-    <ParticipantFrame title={name.length > 0 ? `${name}님, 참가 신청이 됐어요.` : "참가 신청이 됐어요."}>
-      <ParticipantCheckIn eventId={eventId} />
-      <ParticipantGroup eventId={eventId} name={name} />
-      {logoutError ? <p className="participant-gate__error">나가지 못했어요. 잠시 후 다시 시도해 주세요.</p> : null}
-      <Button
-        type="button"
-        variant="secondary"
-        size={40}
-        onClick={() => {
-          setLogoutError(false);
-          void logoutParticipant()
-            .then(() => {
-              queryClient.removeQueries({ queryKey: queryKeys.participantCheckIn(eventId) });
-              queryClient.removeQueries({ queryKey: queryKeys.participantGroup(eventId) });
-              setLeft(true);
-              return queryClient.resetQueries({ queryKey: queryKeys.participantMe(eventId) });
-            })
-            .catch(() => setLogoutError(true));
-        }}
-      >
-        로그아웃
-      </Button>
-    </ParticipantFrame>
-  );
+  return <ParticipantShell eventId={eventId} name={me.data.name.trim()} onLeave={leave} />;
 }
 
 function SignIn({ eventId, left, onSignedIn }: { eventId: string; left: boolean; onSignedIn: () => void }) {
@@ -231,7 +223,8 @@ function NewPin({ name, onDone }: { name: string; onDone: () => void }) {
 }
 
 function signInFailure(error: unknown): string {
-  if (isApiError(error, "PARTICIPANT_LOGIN_FAILED")) return "이름, 전화번호, 숫자 6자리를 다시 확인해 주세요.";
+  if (isApiError(error, "PARTICIPANT_LOGIN_FAILED"))
+    return "이름, 전화번호, 숫자 6자리를 다시 확인해 주세요. 신청이 취소되었다면 운영진에게 문의해 주세요.";
   if (isApiError(error, "PARTICIPANT_LOGIN_LOCKED")) {
     return `여러 번 틀려서 잠겼어요. ${lockWait(error.extensions.retryAfterSeconds)} 뒤에 다시 해 주세요. 번호를 잊었다면 운영진에게 초기화를 부탁해 주세요.`;
   }

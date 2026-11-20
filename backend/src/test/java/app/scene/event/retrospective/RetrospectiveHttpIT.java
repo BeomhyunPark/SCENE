@@ -160,15 +160,22 @@ class RetrospectiveHttpIT {
     Cookie o = e.owner;
     UUID id = e.eventId;
     lifecycle(id, "ENDED");
+    UUID staffId = user("Staff");
+    member(e.spaceId, staffId, "MEMBER");
+    operator(e.spaceId, id, staffId, "STAFF");
+    Cookie staff = login(staffId);
+
+    problem(write(staff, id, "스태프", 0, "r-staff"), 403, "FORBIDDEN", "r-staff");
+    grant(e.spaceId, id, staffId, "EVENT_UPDATE", e.ownerId);
+    JsonNode granted = json.readTree(ok(write(staff, id, "부여 뒤", 0, "r-grant")));
+    assertThat(granted.get("updatedByDisplayName").asString()).isEqualTo("Staff");
+
+    // DEC-079 Follow-up 2026-11-20: MANAGER holds EVENT_UPDATE by default.
     UUID managerId = user("Manager");
     member(e.spaceId, managerId, "MEMBER");
     operator(e.spaceId, id, managerId, "MANAGER");
-    Cookie manager = login(managerId);
-
-    problem(write(manager, id, "매니저", 0, "r-manager"), 403, "FORBIDDEN", "r-manager");
-    grant(e.spaceId, id, managerId, "EVENT_UPDATE", e.ownerId);
-    JsonNode granted = json.readTree(ok(write(manager, id, "부여 뒤", 0, "r-grant")));
-    assertThat(granted.get("updatedByDisplayName").asString()).isEqualTo("Manager");
+    JsonNode managed = json.readTree(ok(write(login(managerId), id, "매니저", 1, "r-manager")));
+    assertThat(managed.get("updatedByDisplayName").asString()).isEqualTo("Manager");
 
     UUID memberId = user("Member");
     member(e.spaceId, memberId, "MEMBER");
@@ -183,7 +190,7 @@ class RetrospectiveHttpIT {
     String tooLong = "가".repeat(RetrospectiveService.TEXT_MAX + 1);
     ResultActions longText = problem(write(o, id, tooLong, 1, "r-long"), 400, BAD, "r-long");
     longText.andExpect(jsonPath("$.errors[0].field").value("text"));
-    ok(write(o, id, "가".repeat(RetrospectiveService.TEXT_MAX), 1, "r-max"));
+    ok(write(o, id, "가".repeat(RetrospectiveService.TEXT_MAX), 2, "r-max"));
   }
 
   private MockHttpServletRequestBuilder write(

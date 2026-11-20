@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="app.scene.event.notification.mapper.NotificationQueryMapper">
+  <sql id="recipient">
+    n.space_id = #{spaceId} AND n.event_id = #{eventId}
+    <choose>
+      <when test="participantId != null">AND n.recipient_participant_id = #{participantId}</when>
+      <otherwise>AND n.recipient_user_id = #{userId}</otherwise>
+    </choose>
+  </sql>
+
+  <!-- One statement: newest seq and unread rows counted up to 101 (DEC-080 §4). -->
+  <select id="findSummary" resultType="app.scene.event.notification.NotificationSummaryRow">
+    SELECT
+      (SELECT max(n.seq) FROM notifications n WHERE <include refid="recipient"/>) AS latest_seq,
+      (SELECT count(*) FROM (
+         SELECT 1 FROM notifications n
+         WHERE <include refid="recipient"/> AND n.read_at IS NULL
+         LIMIT 101) u) AS unread_count
+  </select>
+
+  <!-- limit is the page size + 1, so the caller knows whether another page exists. -->
+  <select id="findPage" resultType="app.scene.event.notification.NotificationRow">
+    SELECT n.id, n.seq, n.kind, n.target_type, n.target_id, n.title, n.body, n.important,
+           n.count, n.created_at, n.read_at
+    FROM notifications n
+    WHERE <include refid="recipient"/>
+      <if test="before != null">AND n.seq &lt; #{before}</if>
+    ORDER BY n.seq DESC
+    LIMIT #{limit}
+  </select>
+
+  <select id="findUnreadTargets" resultType="java.util.UUID">
+    SELECT DISTINCT n.target_id
+    FROM notifications n
+    WHERE <include refid="recipient"/>
+      AND n.read_at IS NULL
+      AND n.target_type = #{targetType}
+      AND n.target_id IN
+      <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+  </select>
+</mapper>

@@ -129,7 +129,7 @@ age -d -i scene-backup.key scene-YYYYMMDD-HHMMSS.sql.gz.age | gunzip | docker co
 
 ### 공개 신청·참가자 들어오기 요청 제한 (#401, DEC-078)
 
-서버가 먼저 막는다(설정 `scene.participant.*`, 숫자는 잠정, 서버 메모리라 재시작하면 0부터).
+서버가 먼저 막는다(설정 `scene.participant.*`, 숫자는 잠정, 서버 메모리라 재시작하면 0부터). 배포 동결 중처럼 재시작이 없어도, 잠금이 끝나고 마지막 잠금·실패가 24시간 지난 전화번호와 창(10분)이 지난 IP 기록은 실패·신청 요청이 올 때 1분에 한 번 지운다. 잠금 중이거나 24시간 안 단계 기록이 남은 번호는 남는다(#418). 그래서 없는 번호로 틀린 시도가 계속 와도 백엔드 메모리는 하루치 남짓에서 멈춘다(한 IP당 약 13 MB).
 
 | 대상 | 서버 제한 |
 |---|---|
@@ -137,6 +137,10 @@ age -d -i scene-backup.key scene-YYYYMMDD-HHMMSS.sql.gz.age | gunzip | docker co
 | 참가자 들어오기 POST `/api/v1/public/events/*/participant-sessions` | 같은 IP 실패 10분 300번 초과 → `429`. 전화번호별 연속 5번 실패 → 잠금 5분·30분·24시간(24시간 안 단계, 운영자 초기화로 풀림). 마지막 단계·IP 초과는 백엔드 로그 경고(`docker compose logs backend | grep 'over limit\|last stage'`) |
 
 **현장에서 한도 올리기(배포 없이).** 숫자는 `deploy/home/.env`의 `SCENE_PARTICIPANT_*`로 바꾼다(비우면 기본값). 수련회 당일 와이파이에서 여러 사람이 `429`("요청이 너무 많아요", "시도가 너무 많아요")를 보면 `.env`에 예를 들어 `SCENE_PARTICIPANT_IPFAILURELIMIT=1000`, `SCENE_PARTICIPANT_SUBMITIPLIMIT=5000`을 넣고 `cd ~/scene/deploy/home && docker compose up -d backend`를 실행한다. 백엔드만 다시 뜨고(약 1분) 코드는 바뀌지 않으므로 배포 동결 중에도 된다. 카운터와 잠금은 다시 뜨면서 모두 풀린다. 한 사람의 잠금만 풀려면 운영자가 참가 현황에서 6자리를 초기화한다.
+
+**참가자 화면 갱신 주기(배포 없이).** 참가자 화면은 `GET /api/v1/participant/updates`를 `pollAfterSeconds`(기본 25초, 화면이 ±20%로 불러 20–30초) 안팎마다 부른다(DEC-080, #423, #425). 서버가 느리면 `.env`에 `SCENE_PARTICIPANT_POLLAFTERSECONDS=60`처럼 넣고(10–300, 밖의 값은 가까운 끝으로 맞춘다) `docker compose up -d backend`를 실행한다. 화면은 다음 확인부터 새 주기를 쓴다. 참가자 조회 경로(`/api/v1/participant/**` GET)에는 IP 제한이 없다(서버·nginx·위 Cloudflare 규칙 모두). 200명이 같은 와이파이에서 25초 안팎마다 불러도(초당 8건 안팎) 막히지 않는다.
+
+**운영자 화면 갱신 주기(배포 없이).** 운영자 화면은 보이는 동안 `GET /api/v1/operator/events/{eventId}/updates`를 `pollAfterSeconds`(기본 15초) 안팎마다 불러 알림 배지를 갱신한다(DEC-080 §7.5, #436). 바꾸려면 `.env`에 `SCENE_OPERATOR_POLLAFTERSECONDS=30`처럼 넣고(10–300) `docker compose up -d backend`를 실행한다. 이 경로에도 IP 제한이 없다(운영진도 같은 와이파이를 쓴다).
 
 IP는 nginx가 넘기는 `CF-Connecting-IP`(→ `X-Forwarded-For`, `SERVER_FORWARD_HEADERS_STRATEGY=framework`)다. Cloudflare를 거치지 않는 요청은 없으므로 이 값을 믿는다.
 

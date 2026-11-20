@@ -79,8 +79,11 @@ const FEMALE = { optionId: "opt_female", label: "여" };
 const MALE = { optionId: "opt_male", label: "남" };
 
 let boards = new Map<string, Board>();
+/** DEC-084: the group a withdraw removed, by `${eventId}:${participantId}`. */
+const withdrawnFrom = new Map<string, string>();
 
 export function resetGroupStore(): void {
+  withdrawnFrom.clear();
   boards = new Map([[localEvent.eventId, newBoard(seedPeople(), retreatSlots())]]);
 }
 resetGroupStore();
@@ -97,6 +100,11 @@ export function seedLargeGroupBoard(eventId: string, count: number, groups: numb
 /** Test seam: the form has no setup slots (or none on any day), so the board sends `slots: null`. */
 export function clearBoardSlots(eventId: string): void {
   boardOf(eventId).slots = null;
+}
+
+/** The 식사·집회 칸 of the board, for the schedule mock's `slots` (same ids as the server's MealSlots). */
+export function boardSlotsOf(eventId: string): readonly Slot[] | null {
+  return boardOf(eventId).slots;
 }
 
 /** Test seam: what one person chose in MEALS (null = no answer). */
@@ -136,6 +144,36 @@ export function renameAsOtherOperator(eventId: string, groupId: string, name: st
   group.name = name;
   group.version += 1;
   board.version += 1;
+}
+
+/**
+ * DEC-084 §4: a withdraw removes the working-copy assignment (the board version moves) and keeps the
+ * group as "이전 조". Returns the removed group, or null when unassigned.
+ */
+export function withdrawFromBoard(eventId: string, participantId: string): { groupId: string; name: string; leader: boolean } | null {
+  const board = boardOf(eventId);
+  const person = board.people.find((item) => item.participantId === participantId);
+  if (person) person.submitted = false;
+  const removed = workingGroupOf(eventId, participantId);
+  if (!removed) return null;
+  board.assignments.delete(participantId);
+  withdrawnFrom.set(`${eventId}:${participantId}`, removed.groupId);
+  board.version += 1;
+  return removed;
+}
+
+/** DEC-084 §3: back on the board, unassigned. Returns the previous group when it still exists. */
+export function restoreToBoard(eventId: string, participantId: string): { groupId: string; name: string } | null {
+  const board = boardOf(eventId);
+  const person = board.people.find((item) => item.participantId === participantId);
+  if (person) person.submitted = true;
+  return previousGroupOf(eventId, participantId);
+}
+
+export function previousGroupOf(eventId: string, participantId: string): { groupId: string; name: string } | null {
+  const groupId = withdrawnFrom.get(`${eventId}:${participantId}`);
+  const group = groupId ? boardOf(eventId).groups.find((row) => row.groupId === groupId) : undefined;
+  return group ? { groupId: group.groupId, name: group.name } : null;
 }
 
 /** Test seam: the application was withdrawn after the board was loaded. */
@@ -189,11 +227,14 @@ export function readBoard(eventId: string, actorId: string) {
       };
     }),
     withdrawn: people
-      .filter((person) => !person.submitted && board.assignments.has(person.participantId))
+      .filter(
+        (person) =>
+          !person.submitted && (board.assignments.has(person.participantId) || withdrawnFrom.has(`${eventId}:${person.participantId}`)),
+      )
       .map((person) => ({
         participantId: person.participantId,
         name: person.name,
-        groupId: assignmentOf(board, person.participantId).groupId,
+        groupId: assignmentOf(board, person.participantId).groupId ?? withdrawnFrom.get(`${eventId}:${person.participantId}`) ?? null,
       })),
     publication: {
       lastPublishedAt: latest?.publishedAt ?? null,
@@ -275,6 +316,11 @@ export function publish(eventId: string, actorId: string, body: unknown, now = n
     unassignedCount,
     changedParticipantCount: diff.people,
   };
+}
+
+/** How many times the event's groups were published (`PUBLISHED` only), for the participant feed mock. */
+export function publicationCount(eventId: string): number {
+  return boardOf(eventId).publications.length;
 }
 
 export type ParticipantGroupBody = {
