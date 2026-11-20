@@ -49,6 +49,8 @@ function useApplicationQuery(eventId: string) {
     queryKey: queryKeys.participantApplication(eventId),
     queryFn: ({ signal }) => getParticipantApplication(signal),
     ...participantCardQuery,
+    // Closing edits raises no `updates` value (only a new revision does), so opening the tab reads again.
+    refetchOnMount: "always",
   });
   useSessionGuard(query.error);
   return query;
