@@ -57,8 +57,12 @@ export function participantHomeHandlers(overrides: Parameters<typeof homeBody>[0
     http.get("/api/v1/participant/updates", () => HttpResponse.json(UPDATES)),
     // The 지금·다음 card reads the schedule on every home screen.
     http.get("/api/v1/participant/schedule", () => HttpResponse.json(SCHEDULE_NOT_PUBLISHED)),
+    EMPTY_NOTICES,
   ];
 }
+
+/** No notices: the 최신 공지 card and 공지 tab read this (D4). */
+export const EMPTY_NOTICES = http.get("/api/v1/participant/notices", () => HttpResponse.json({ items: [], nextBefore: null }));
 
 /** Quiet answers for every card, for tests about something else (sign-in, apply). */
 export function participantCardHandlers() {

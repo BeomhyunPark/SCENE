@@ -36,6 +36,12 @@ export const queryKeys = {
   applicationTable: (eventId: string) => ["events", eventId, "applications", "table"] as const,
   application: (eventId: string, applicationId: string) =>
     ["events", eventId, "applications", "detail", applicationId] as const,
+  /** Every notice list and detail of an event: one invalidation after any notice write (D3). */
+  notices: (eventId: string) => ["events", eventId, "notices"] as const,
+  noticeList: (eventId: string, filter: string) => ["events", eventId, "notices", "list", filter] as const,
+  notice: (eventId: string, noticeId: string) => ["events", eventId, "notices", "detail", noticeId] as const,
+  /** The 운영진 공지 card on the operator event home (STAFF audience, published, 3). */
+  staffNotices: (eventId: string) => ["events", eventId, "notices", "staff"] as const,
   /** Operator refresh check of one event (#436); the badge reads it. */
   operatorUpdates: (eventId: string) => ["events", eventId, "operator-updates"] as const,
   /** Every page of the operator's notification list of one event (#436). */

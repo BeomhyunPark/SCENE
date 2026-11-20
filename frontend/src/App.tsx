@@ -43,6 +43,9 @@ import { PublicResetPassword } from "./components/PublicResetPassword";
 import { PublicVerifyEmail } from "./components/PublicVerifyEmail";
 import { LoginDone } from "./components/LoginDone";
 import { MenuPending } from "./components/MenuPending";
+import { EventNotices } from "./components/notices/EventNotices";
+import { NoticeDetail } from "./components/notices/NoticeDetail";
+import { NoticeEditor } from "./components/notices/NoticeEditor";
 import { prototypeScreensEnabled } from "./prototypeScreens";
 
 function Home() {
@@ -109,6 +112,10 @@ export function App() {
           <Route path="/events/:eventId/participants/setup" element={<EventRegistrationSetup />} />
           <Route path="/events/:eventId/participants/summary" element={<EventApplicationSummary />} />
           <Route path="/events/:eventId/operators" element={<EventOperators />} />
+          <Route path="/events/:eventId/notices" element={<EventNotices />} />
+          <Route path="/events/:eventId/notices/new" element={<NoticeEditor />} />
+          <Route path="/events/:eventId/notices/:noticeId/edit" element={<NoticeEditor />} />
+          <Route path="/events/:eventId/notices/:noticeId" element={<NoticeDetail />} />
           <Route path="/events/:eventId/participants/:applicationId" element={<EventApplication />} />
           <Route path="/events/:eventId/participants" element={<EventParticipation />} />
           <Route path="/events/:eventId" element={<EventHome />} />

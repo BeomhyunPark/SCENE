@@ -98,4 +98,15 @@ export function useOperatorUpdatesPolling(eventId: string | undefined): void {
     }
     seen.current = latestSeq;
   }, [eventId, latestSeq, queryClient]);
+
+  // A notice write by anyone (D3): the notice list, detail and the 운영진 공지 card read again.
+  const notices = data?.notices;
+  const seenNotices = useRef<number | null>(null);
+  useEffect(() => {
+    if (!eventId || notices === undefined) return;
+    if (seenNotices.current !== null && seenNotices.current !== notices) {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.notices(eventId) });
+    }
+    seenNotices.current = notices;
+  }, [eventId, notices, queryClient]);
 }

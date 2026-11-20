@@ -1,6 +1,7 @@
 import { checkInLogsOf } from "./checkInStore";
 import { completionNoticeOf, eventFormId } from "./formStore";
 import { publicationCount } from "./groupStore";
+import { participantNotificationSummary } from "./noticeStore";
 import { eventById } from "./operatorStore";
 import { currentApplicationRevision } from "./participantStore";
 
@@ -75,7 +76,7 @@ export function readUpdates(eventId: string, participantId: string) {
     ...row,
     checkIn: checkInLogsOf(eventId).filter((log) => log.participantId === participantId).length,
     application: currentApplicationRevision(participantId) ?? 0,
-    notifications: { latestSeq: 0, unreadCount: 0 },
+    notifications: participantNotificationSummary(participantId),
     pollAfterSeconds,
     serverTime: new Date().toISOString(),
   };

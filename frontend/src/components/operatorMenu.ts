@@ -62,6 +62,7 @@ export type MenuKey =
   | "settings"
   | "event"
   | "groups"
+  | "notices"
   | "areas";
 
 export type MenuItem = { key: MenuKey; label: string; icon: string; to?: string; current: boolean; badge?: string | null };
@@ -103,6 +104,7 @@ export function operatorMenuSections(menu: OperatorMenu, pathname: string): Menu
         item("field", "현장 운영", chartLine, `${eventHref}/field`),
         item("groups", "조 편성", people, `${eventHref}/groups`),
         item("schedule", "일정", calendar, `${eventHref}/schedule`),
+        item("notices", "공지", envelope, `${eventHref}/notices`),
         item("operators", "운영 멤버", briefcase, `${eventHref}/operators`),
       ],
     });

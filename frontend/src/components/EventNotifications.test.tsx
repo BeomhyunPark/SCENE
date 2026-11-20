@@ -64,13 +64,14 @@ describe("polling and badge helpers (#436)", () => {
     expect(badgeText(100)).toBe("99+");
   });
 
-  it("opens applications and the event, and leaves unknown kinds and notices closed", () => {
+  it("opens applications, the event and staff notices, and leaves unknown kinds closed", () => {
     const base = { notificationId: "n", seq: 1, title: "t", body: null, important: false, count: 1, createdAt: "", readAt: null };
     expect(notificationHref("e", { ...base, kind: "APPLICATION_REVISED", target: { type: "APPLICATION", id: "a" } })).toBe(
       "/events/e/participants/a",
     );
     expect(notificationHref("e", { ...base, kind: "LIFECYCLE_OVERRIDE", target: { type: "EVENT", id: "e" } })).toBe("/events/e");
-    expect(notificationHref("e", { ...base, kind: "STAFF_NOTICE_PUBLISHED", target: { type: "NOTICE", id: "x" } })).toBeNull();
+    expect(notificationHref("e", { ...base, kind: "STAFF_NOTICE_PUBLISHED", target: { type: "NOTICE", id: "x" } })).toBe("/events/e/notices/x");
+    expect(notificationHref("e", { ...base, kind: "STAFF_NOTICE_UPDATED", target: { type: "NOTICE", id: "x" } })).toBe("/events/e/notices/x");
     expect(notificationHref("e", { ...base, kind: "SOMETHING_NEW", target: { type: "APPLICATION", id: "a" } })).toBeNull();
   });
 
@@ -141,7 +142,8 @@ describe("운영자 알림 (#436)", () => {
     openApp(`/events/${EVENT}/notifications`);
 
     const list = await screen.findByRole("list", { name: "알림 목록" }, WAIT);
-    expect(within(list).queryAllByRole("link")).toHaveLength(0);
+    // The staff notice opens the notice (D3); the unknown kind stays plain text.
+    expect(within(list).queryAllByRole("link")).toHaveLength(1);
     expect(within(list).getByText("운영진 공지")).toBeInTheDocument();
     expect(within(list).getByText("새 종류")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "모두 읽음" }));

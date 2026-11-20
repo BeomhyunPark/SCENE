@@ -1,6 +1,7 @@
 import { http, HttpResponse } from "msw";
 import { csrfMatches } from "../csrf";
 import { checkInValue, markRead, pageOf, summaryOf } from "../notificationStore";
+import { noticeBoardVersion } from "../noticeStore";
 import { eventById } from "../operatorStore";
 import { problem } from "../problem";
 import { eventRoleOf } from "../taskStore";
@@ -57,7 +58,7 @@ export const notificationHandlers = [
     return HttpResponse.json(
       {
         notifications: summaryOf(eventId, opened.userId),
-        notices: 0,
+        notices: noticeBoardVersion(eventId),
         schedule: scheduleBoardVersion(eventId),
         checkIns: checkInValue(eventId),
         pollAfterSeconds: MOCK_OPERATOR_POLL_SECONDS,
