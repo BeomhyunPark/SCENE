@@ -1,0 +1,15 @@
+신청 → 신청했어요(세션 쿠키)
+홈(home·updates는 브라우저 stub): 탭 홈·일정·공지·내 조·내 정보 / 행사 정보 실패 문구 false
+내 정보 고치기 → PUT 200, 또래 97
+운영자가 신청·수정을 닫음 → 내 정보 다시 열면 읽기 전용(고치기 없음)
+닫힌 뒤 고치기 주소로 직접 가면 내 정보로 돌아가 안내
+로그아웃 → 나갔어요
+다시 들어오기 → /participate/7a86724e-3213-41c5-8373-a85f0115c9ca/me
+participant API 응답:
+  GET /api/v1/participant/me 200
+  GET /api/v1/participant/home 200
+  GET /api/v1/participant/check-in 200
+  GET /api/v1/participant/group 200
+  GET /api/v1/participant/application 200
+  PUT /api/v1/participant/application 200
+  POST /api/v1/participant/auth/logout 204
