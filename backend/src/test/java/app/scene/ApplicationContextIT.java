@@ -40,7 +40,7 @@ class ApplicationContextIT {
   void flywayAppliedBaselineMigration() {
     MigrationInfo current = flyway.info().current();
     assertThat(current).isNotNull();
-    assertThat(current.getVersion().getVersion()).isEqualTo("20");
+    assertThat(current.getVersion().getVersion()).isEqualTo("21");
 
     Integer baseline =
         jdbcTemplate.queryForObject(

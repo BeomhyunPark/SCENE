@@ -722,13 +722,24 @@ public class GroupService {
   /**
    * Removes the working-copy assignment of a participant whose application is being withdrawn
    * (DEC-072 §5, DEC-084 §4) and logs it with cause {@code WITHDRAWN}. The board version moves, and
-   * the group version too when the participant was its leader. The caller holds the event row lock
+   * the group version too when the participant was its leader, and the participants' {@code GROUPS}
+   * refresh value when the person is in the latest publication. The caller holds the event row lock
    * and has checked the event state and its own permission; {@code GROUP_WRITE} is not checked.
    * Empty when the participant was unassigned.
    */
   @Transactional
   public Optional<RemovedAssignment> removeWithdrawn(
       UUID spaceId, UUID eventId, UUID participantId, UUID actorId, Instant at) {
+    // The latest publication leaves the person out from now on (DEC-084 §3), so participants who
+    // saw them there read their group again (DEC-080 §4).
+    boolean published =
+        groups
+            .latestPublication(spaceId, eventId)
+            .map(publication -> publication.snapshot().placements().containsKey(participantId))
+            .orElse(false);
+    if (published) {
+      feedVersions.bump(spaceId, eventId, FeedArea.GROUPS);
+    }
     Assignment current =
         groups.assignments(spaceId, eventId, List.of(participantId)).stream()
             .findFirst()

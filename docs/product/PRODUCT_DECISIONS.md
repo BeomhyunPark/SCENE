@@ -3462,7 +3462,7 @@ DEC-072 §6은 일반 참가자에게 조원 명단을 주지 않고 조장에�
 - 세션은 돌아오지 않는다. 참가자는 이름·전화번호·6자리로 다시 들어온다. "다시 신청 막기"로 취소했으면 6자리가 무효라 운영자가 6자리를 초기화해 줘야 들어온다(응답 `reapplyBlocked`).
 
 **4. 취소의 부수 효과는 한 트랜잭션이다.** 행사 행을 잠그고(조 편성 쓰기와 같은 잠금), 참가자 행을 잠근 뒤(신청 수정과 같은 잠금):
-- **조 배정**: 작업본 배정 행을 지우고 `group_assignment_logs`에 cause `WITHDRAWN`(이전 조, 조장 전후, 처리자, 시각)을 남긴다. `boardVersion`이 오르고, 조장이었으면 그 조의 `version`도 오른다(조장 표시가 바뀌었으므로). 그 조는 조장이 없는 조가 된다. 화면은 확인 창에서 "○조 조장 표시가 풀려요"를 보여 준다.
+- **조 배정**: 작업본 배정 행을 지우고 `group_assignment_logs`에 cause `WITHDRAWN`(이전 조, 조장 전후, 처리자, 시각)을 남긴다. `boardVersion`이 오르고, 조장이었으면 그 조의 `version`도 오른다(조장 표시가 바뀌었으므로). 그 조는 조장이 없는 조가 된다. 그 사람이 가장 최근 공개본에 있었으면 참가자 갱신 값 `GROUPS`(DEC-080 §4)도 올려 다른 조원 화면이 조를 다시 읽게 한다. 화면은 확인 창에서 "○조 조장 표시가 풀려요"를 보여 준다.
 - **공개본**: 공개된 스냅샷은 그대로 둔다(DEC-072 §1). 참가자 내 조·조장 이름·조원 명단·운영자 공개본 조회는 읽을 때 `SUBMITTED`가 없는 사람을 이미 빼므로(DEC-072 §5, DEC-044) 재공개 없이 바로 빠진다. 다음 공개 비교에는 "빠짐"으로 들어간다.
 - **편성판의 "철회됨 · 이전 조"**: 배정 행을 지우므로 이전 조는 `group_assignment_logs`의 마지막 `WITHDRAWN` 기록에서 읽는다.
 - **참가자 세션**: 그 참가자의 세션을 모두 지운다. 그리고 세션 조회 자체가 "그 참가자에게 `SUBMITTED` 신청이 있다"를 함께 본다. 참가자 경로가 쓰는 판정(`ParticipantSessionCookie.require()`)이 한곳에서 읽으므로, 다른 경로(B2·I3)가 따로 확인하지 않아도 취소된 사람의 남은 쿠키는 `401 AUTHENTICATION_REQUIRED`다.
@@ -3521,7 +3521,7 @@ DEC-072 §6은 일반 참가자에게 조원 명단을 주지 않고 조장에�
 
 ### Consequence
 
-- 서버: Flyway `V20`이 `application_status_logs`를 만들고 `group_assignment_logs.cause`에 `WITHDRAWN`을 더한다(추가만 하는 모양이라 옛 코드로 되돌려도 동작한다). 경로 `POST …/applications/{applicationId}/withdraw`·`…/restore`, 참가 현황 표의 `withdrawn[]`, 신청 상세의 `withdrawal`, 공개 신청 응답의 `restored`. 계약은 [backend/docs/api.md](../../backend/docs/api.md) "신청 취소와 되돌리기"다.
+- 서버: Flyway `V21`이 `application_status_logs`를 만들고 `group_assignment_logs.cause`에 `WITHDRAWN`을 더한다(추가만 하는 모양이라 옛 코드로 되돌려도 동작한다). 경로 `POST …/applications/{applicationId}/withdraw`·`…/restore`, 참가 현황 표의 `withdrawn[]`, 신청 상세의 `withdrawal`, 공개 신청 응답의 `restored`. 계약은 [backend/docs/api.md](../../backend/docs/api.md) "신청 취소와 되돌리기"다.
 - 집계·편성판(작업본·공개본·조장)·체크인(현황·명단·QR·수동)·CSV·참가 현황 표·참가자 들어오기가 같은 결과를 내는지는 통합 테스트 하나(`ApplicationWithdrawalHttpIT`)가 함께 묶는다. 새 읽기 경로를 만들 때 "`SUBMITTED`만 읽는다"를 지키고 이 테스트에 한 줄을 더한다.
 - 참가자 판정 "`SUBMITTED` 신청이 있는 참가자"는 세션 조회(`ParticipantSessionQueryMapper.findByTokenHash`)에도 들어간다. 2주차 참가자 경로는 `ParticipantSessionCookie.require()`만 쓰면 된다.
 - 숙소(DEC-085, G2)는 `ApplicationWithdrawalService.withdraw`의 같은 트랜잭션에서 방 배정 행을 지우고 `room_assignment_logs`에 `WITHDRAWN`을 남긴다(조 배정의 `GroupService.removeWithdrawn`과 같은 모양). 방 공개본을 읽을 때도 §3의 공개본 규칙(공개 뒤 취소로 지워진 사람은 스냅샷에서 뺀다)을 따른다.

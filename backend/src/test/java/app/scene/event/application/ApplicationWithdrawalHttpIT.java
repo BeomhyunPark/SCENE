@@ -113,6 +113,7 @@ class ApplicationWithdrawalHttpIT {
     long boardVersion = board(form).get("boardVersion").asLong();
     int groupVersion = groupVersion(form, g1);
     int audits = auditCount(form.eventId);
+    long groupFeed = updates(garam).get("group").asLong();
 
     // Withdraw the leader who already arrived.
     JsonNode withdrawn =
@@ -229,8 +230,23 @@ class ApplicationWithdrawalHttpIT {
     mvc.perform(get("/api/v1/participant/me").cookie(narae.session))
         .andExpect(status().isUnauthorized())
         .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
+    // Every participant path, the home and notification paths (DEC-080) included.
+    for (String path :
+        List.of(
+            "/api/v1/participant/home",
+            "/api/v1/participant/updates",
+            "/api/v1/participant/notifications",
+            "/api/v1/participant/group",
+            "/api/v1/participant/check-in",
+            "/api/v1/participant/application")) {
+      mvc.perform(get(path).cookie(narae.session))
+          .andExpect(status().isUnauthorized())
+          .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
+    }
     assertThat(sessionCount(narae)).isZero();
     signIn(form, "나래", 2, PIN, 401);
+    // The others read their group again: the withdrawn leader left the publication.
+    assertThat(updates(garam).get("group").asLong()).isEqualTo(groupFeed + 1);
 
     // History and audit: the reason stays out of audit.
     Map<String, Object> history =
@@ -735,6 +751,10 @@ class ApplicationWithdrawalHttpIT {
   private String statusOf(Person person) {
     return jdbc.queryForObject(
         "SELECT status FROM applications WHERE id = ?::uuid", String.class, person.applicationId);
+  }
+
+  private JsonNode updates(Person person) throws Exception {
+    return json.readTree(ok(get("/api/v1/participant/updates").cookie(person.session)));
   }
 
   private int sessionCount(Person person) {

@@ -1293,7 +1293,7 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
 같은 transaction에서:
 
 1. 참가자의 지금 `SUBMITTED` 행을 `WITHDRAWN`으로 바꾼다. 새 revision은 없다. 답·이전 revision·운영 메모·체크인 기록은 그대로다.
-2. 작업본 조 배정 행을 지우고 `group_assignment_logs`에 cause `WITHDRAWN`을 남긴다. `boardVersion`이 오르고, 조장이었으면 그 조의 `version`도 오른다. 공개본은 그대로이고 읽을 때 빠진다.
+2. 작업본 조 배정 행을 지우고 `group_assignment_logs`에 cause `WITHDRAWN`을 남긴다. `boardVersion`이 오르고, 조장이었으면 그 조의 `version`도 오른다. 공개본은 그대로이고 읽을 때 빠진다. 그 사람이 가장 최근 공개본에 있었으면 참가자 갱신 값 `updates.group`(DEC-080 §4)이 오른다(다른 조원의 조장 이름·명단이 바뀌므로).
 3. 그 참가자의 세션을 모두 지운다.
 4. `blockReapply: true`면 6자리를 아무도 모르는 값으로 바꾼다(같은 전화의 재신청이 6자리로 돌아오지 못한다).
 5. `application_status_logs`에 `WITHDRAWN`(사유, 처리자, 시각, `block_reapply`)을 남긴다.
@@ -1732,7 +1732,7 @@ CSRF가 필요하다.
 ```
 
 - `event.status`는 `DRAFT`·`ACTIVE`·`ENDED`·`ARCHIVED`다. `startDate`·`endDate`·`place`는 없으면 `null`이다. `timeZone`은 설정 `scene.participant.zone`(기본 `Asia/Seoul`)이다.
-- `participant.name`은 지금 이름이다. `applicationStatus`는 `SUBMITTED` 또는 `NONE`(지금 `SUBMITTED` 신청이 없음)이다.
+- `participant.name`은 지금 이름이다. `applicationStatus`는 `SUBMITTED` 또는 `NONE`(지금 `SUBMITTED` 신청이 없음)이다. 실제로는 `SUBMITTED` 신청이 없으면 세션 조회가 먼저 `401`이므로(DEC-084 §4) `NONE`은 나오지 않는다.
 - `completionNotice`는 신청서(행사당 하나)의 **지금** 완료 안내 문자열이고 없으면 `null`이다. 모양은 [`PUT …/completion-notice`](#put-apiv1operatoreventseventidformsformidcompletion-notice)와 같고 글자 그대로 그린다.
 - `features`: 행사 유형이 `RETREAT`·`CAMP`면 다섯 영역 모두, 그 밖과 유형 없음은 `schedule`·`notices`만 켠다. 그와 상관없이 그 영역의 갱신 값(아래 `participant_feed_versions`)이 0보다 크면(무엇이든 공개된 적이 있으면) 켠다. 운영자가 저장하는 값(I5)은 아직 없다.
 - 전화·숫자 6자리·접근 키·다른 참가자 정보는 없다.

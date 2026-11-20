@@ -8,7 +8,7 @@
 | 문서 작성 | DEC-084, api.md "신청 취소와 되돌리기"·표·상세·공개 신청·참가자 세션·편성판·audit, 참가자 홈 계약 §7.2 | 작성. 결정 대기 5개는 사용자 확인 필요 |
 | 서버 검증 | `./gradlew check` (Testcontainers PostgreSQL 17). 새 `ApplicationWithdrawalHttpIT` 3개가 집계(식수·숙박·이동)·편성판(작업본·공개본·조장)·체크인(현황·명단·QR·수동)·CSV·참가 현황 표·들어오기의 일치와 되돌리기, 재신청 복귀, 다시 신청 막기를 묶는다 | origin/main 병합 뒤 482개 통과, 실패 0 |
 | 화면 검증 | `pnpm lint`·`typecheck`·`test`·`build` | origin/main 병합 뒤 테스트 545개 통과, lint·typecheck·build 성공 |
-| 실제 클릭 | 로컬 서버(local 프로필, PostgreSQL 17, 새 DB에 Flyway V1~V20) + Vite `VITE_API_MOCK=0`, Playwright `withdraw-click.mjs` | 아래 단계 모두 통과(origin/main 병합 직전 코드). 기록은 `click-log.txt` |
+| 실제 클릭 | 로컬 서버(local 프로필, PostgreSQL 17, 새 DB에 Flyway V1~V20 — 그때 이 PR의 마이그레이션 번호가 V20이었고, main의 B2 병합 뒤 V21로 옮겼다) + Vite `VITE_API_MOCK=0`, Playwright `withdraw-click.mjs` | 아래 단계 모두 통과(origin/main 병합 직전 코드). 기록은 `click-log.txt` |
 | 운영 서버 | 하지 않았다 | 사용자 확인 필요 |
 
 행사·신청서·신청 3명·조 배정·조장·공개·도착 체크인은 HTTP API로 만들고(같은 운영자 세션, 신청은 사람마다 다른 휴대폰 컨텍스트), 취소·목록·되돌리기·참가자 들어오기는 화면에서 눌렀다.
