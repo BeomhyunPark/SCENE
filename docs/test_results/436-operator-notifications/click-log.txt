@@ -1,0 +1,10 @@
+event a3fa2c80-094c-4184-a3d8-4b10d4b713b8 form da83afb2-5f61-4e8e-9558-2fc87f26daeb open
+participant applied: revision 1
+badge before edit: 0
+badge 1 appeared 16.4s after the edit (limit 30s)
+list rows: 1, text: 읽지 않음 김하나님이 신청을 고쳤어요2번 이동 수단 2026. 11. 20. 12:54
+diff: 이동 수단 변경 전 자가용 → 변경 후 기차
+after opening: badge gone (read)
+table shows 수정됨: 1 row(s)
+phone bottom bar badge: 1
+phone 모두 읽음: badge gone
