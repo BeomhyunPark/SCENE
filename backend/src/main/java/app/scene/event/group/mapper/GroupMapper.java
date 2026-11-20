@@ -38,6 +38,8 @@ public interface GroupMapper {
 
   UUID findWithdrawnFromGroup(GroupParam param);
 
+  List<UUID> findWithdrawnSince(GroupParam param);
+
   List<Assignment> findAssignments(GroupParam param);
 
   List<Assignment> findMembers(GroupParam param);

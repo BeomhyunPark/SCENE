@@ -284,6 +284,15 @@ class ApplicationWithdrawalHttpIT {
       }
     }
     assertThat(boardBack.get("withdrawn").size()).isZero();
+    // The old publication does not give the restored person the group or the leader mark back.
+    JsonNode publishedBack =
+        json.readTree(ok(get(groupsPath(form) + "/published").cookie(form.owner)));
+    assertThat(ids(publishedBack.get("groups").get(0).get("members")))
+        .containsExactlyInAnyOrder(garam.id(), dasom.id());
+    assertThat(publishedBack.get("groups").get(0).get("leaders").size()).isZero();
+    assertThat(ids(publishedBack.get("unassigned"))).containsExactly(narae.id());
+    JsonNode mineBack = json.readTree(ok(get("/api/v1/participant/group").cookie(garam.session)));
+    assertThat(mineBack.get("group").get("leaders").size()).isZero();
     assertThat(checkInSummary(form).get("checkedIn").asLong()).isEqualTo(1);
     assertThat(export(form).getHeader("X-Export-Count")).isEqualTo("3");
     JsonNode tableBack = table(form);

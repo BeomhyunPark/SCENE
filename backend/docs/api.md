@@ -1337,6 +1337,7 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
 
 - 이미 `SUBMITTED`면 `result: ALREADY_SUBMITTED`이고 다른 값은 `null`·`false`다.
 - **조 배정은 돌아오지 않는다**(DEC-044). 되돌린 사람은 미배정이다. `previousGroup`은 마지막 취소 때의 조이고, 그 조가 지워졌으면 `null`이다. 참고로만 보여 준다.
+- 공개본도 마찬가지다. 공개본을 읽는 모든 곳(운영자 공개본, 참가자 내 조·조장 이름·조원, 편성판의 공개 비교)은 그 공개 뒤에 취소로 배정이 지워진 사람을 스냅샷에서 뺀다. 되돌린 사람은 다음 공개 전까지 공개본의 `unassigned`이고 내 조는 `UNASSIGNED`다.
 - 체크인 기록은 지우지 않았으므로 도착 체크인한 사람은 도착이 다시 센다.
 - 세션은 돌아오지 않는다. 참가자는 이름·전화번호·6자리로 다시 들어온다. `reapplyBlocked`가 `true`면 6자리가 무효이므로 [6자리 초기화](#post-apiv1operatoreventseventidparticipantsparticipantidpin-reset)를 해 줘야 들어온다.
 

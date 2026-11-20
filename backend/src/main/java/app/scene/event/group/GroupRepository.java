@@ -3,8 +3,11 @@ package app.scene.event.group;
 import app.scene.event.group.mapper.GroupMapper;
 import app.scene.event.group.param.GroupParam;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.json.JsonMapper;
@@ -190,11 +193,34 @@ public class GroupRepository {
     return groups.findActive(GroupParam.of(spaceId, eventId).participants(participantIds));
   }
 
-  /** The latest publication by insertion order, or empty before the first one. */
+  /**
+   * The latest publication by insertion order, or empty before the first one. Members whose
+   * assignment a withdraw removed after that publication are left out of the snapshot read back
+   * (DEC-084 §3, DEC-044): a restored person must not get the old group or leader mark back from
+   * the old publication. The stored row is unchanged.
+   */
   public Optional<Publication> latestPublication(UUID spaceId, UUID eventId) {
     PublicationRow row = groups.findLatestPublication(GroupParam.of(spaceId, eventId));
     if (row == null) {
       return Optional.empty();
+    }
+    Snapshot snapshot = json.readValue(row.snapshot(), Snapshot.class);
+    Set<UUID> removed =
+        new HashSet<>(
+            groups.findWithdrawnSince(GroupParam.of(spaceId, eventId).at(row.publishedAt())));
+    if (!removed.isEmpty()) {
+      List<Snapshot.SnapshotGroup> kept = new ArrayList<>();
+      for (Snapshot.SnapshotGroup group : snapshot.groups()) {
+        List<Snapshot.SnapshotMember> members = new ArrayList<>();
+        for (Snapshot.SnapshotMember member : group.members()) {
+          if (!removed.contains(member.participantId())) {
+            members.add(member);
+          }
+        }
+        kept.add(
+            new Snapshot.SnapshotGroup(group.groupId(), group.name(), group.sortOrder(), members));
+      }
+      snapshot = new Snapshot(kept);
     }
     return Optional.of(
         new Publication(
@@ -202,7 +228,7 @@ public class GroupRepository {
             row.boardVersion(),
             row.publishedAt(),
             row.publishedByDisplayName(),
-            json.readValue(row.snapshot(), Snapshot.class)));
+            snapshot));
   }
 
   public void insertPublication(

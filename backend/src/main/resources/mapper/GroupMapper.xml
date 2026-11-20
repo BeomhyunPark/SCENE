@@ -206,6 +206,14 @@
     LIMIT 1
   </sql>
 
+  <!-- Participants whose assignment a withdraw removed after #{at} (a publication time). -->
+  <select id="findWithdrawnSince" resultType="java.util.UUID">
+    SELECT DISTINCT participant_id
+    FROM group_assignment_logs
+    WHERE space_id = #{spaceId} AND event_id = #{eventId} AND cause = 'WITHDRAWN'
+      AND created_at &gt;= #{at}
+  </select>
+
   <!-- From group of the participant's latest WITHDRAWN history row, or no row. -->
   <select id="findWithdrawnFromGroup" resultType="java.util.UUID">
     SELECT wl.from_group_id
