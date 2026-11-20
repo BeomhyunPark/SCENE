@@ -180,15 +180,38 @@
     ORDER BY p.name COLLATE "C", p.id
   </select>
 
-  <!-- Assignment rows whose participant has no SUBMITTED application. -->
+  <!--
+    Withdrawn participants with their previous group: an assignment row left from before DEC-084,
+    or the from group of their latest WITHDRAWN history row (a withdraw deletes the assignment).
+  -->
   <select id="findWithdrawn" resultType="app.scene.event.group.WithdrawnParticipant">
-    SELECT p.id AS participant_id, p.name, ga.group_id
-    FROM group_assignments ga
-    JOIN participants p
-      ON p.space_id = ga.space_id AND p.event_id = ga.event_id AND p.id = ga.participant_id
-    WHERE ga.space_id = #{spaceId} AND ga.event_id = #{eventId}
+    SELECT p.id AS participant_id, p.name, coalesce(ga.group_id, wl.from_group_id) AS group_id
+    FROM participants p
+    LEFT JOIN group_assignments ga
+      ON ga.space_id = p.space_id AND ga.event_id = p.event_id AND ga.participant_id = p.id
+    LEFT JOIN LATERAL (<include refid="withdrawnLog"/>) wl ON true
+    WHERE p.space_id = #{spaceId} AND p.event_id = #{eventId}
       AND NOT <include refid="submitted"/>
+      AND (ga.group_id IS NOT NULL OR wl.from_group_id IS NOT NULL)
     ORDER BY p.name COLLATE "C", p.id
+  </select>
+
+  <!-- Latest WITHDRAWN history row of participant p. -->
+  <sql id="withdrawnLog">
+    SELECT l.from_group_id
+    FROM group_assignment_logs l
+    WHERE l.space_id = p.space_id AND l.event_id = p.event_id AND l.participant_id = p.id
+      AND l.cause = 'WITHDRAWN'
+    ORDER BY l.seq DESC
+    LIMIT 1
+  </sql>
+
+  <!-- From group of the participant's latest WITHDRAWN history row, or no row. -->
+  <select id="findWithdrawnFromGroup" resultType="java.util.UUID">
+    SELECT wl.from_group_id
+    FROM participants p
+    JOIN LATERAL (<include refid="withdrawnLog"/>) wl ON true
+    WHERE p.space_id = #{spaceId} AND p.event_id = #{eventId} AND p.id = #{participantId}
   </select>
 
   <sql id="assignmentColumns">

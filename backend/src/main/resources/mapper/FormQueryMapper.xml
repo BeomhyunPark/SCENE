@@ -64,7 +64,7 @@
     WHERE space_id = #{spaceId}
       AND event_id = #{eventId}
       AND form_id = #{formId}
-      AND status = 'SUBMITTED'
+      AND status IN ('SUBMITTED', 'WITHDRAWN')
   </select>
 
   <select id="maxPosition" resultType="int">

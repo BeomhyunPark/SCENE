@@ -320,11 +320,9 @@ class GroupPublicationHttpIT {
     assertThat(names(json.readTree(otherBody).get("members"))).containsExactly("바남조장", "사남조원");
     assertThat(otherBody).doesNotContain("가조장").doesNotContain("나조원");
 
-    JsonNode gone = myGroup(quit);
-    assertThat(gone.get("status").asString()).isEqualTo("NOT_ELIGIBLE");
-    assertThat(gone.get("publishedAt").isNull()).isTrue();
-    assertThat(gone.get("group").isNull()).isTrue();
-    assertThat(myGroup(quitLead).get("status").asString()).isEqualTo("NOT_ELIGIBLE");
+    // Withdrawn people have no session any more (DEC-084 §4).
+    problem(get(MY_GROUP).cookie(quit.session), 401, "AUTHENTICATION_REQUIRED");
+    problem(get(MY_GROUP).cookie(quitLead.session), 401, "AUTHENTICATION_REQUIRED");
 
     // The operator view leaves withdrawn people out and lists leaders first, then names.
     JsonNode view = published(w);
@@ -342,9 +340,9 @@ class GroupPublicationHttpIT {
     assertThat(view.get("unassigned").size()).isZero();
     assertThat(view.toString()).doesNotContain("010-").doesNotContain("철회");
 
-    // Withdrawing later makes a member not eligible as well.
+    // Withdrawing later ends the member's session (DEC-084 §4).
     w.withdraw(mate.id);
-    assertThat(myGroup(mate).get("status").asString()).isEqualTo("NOT_ELIGIBLE");
+    problem(get(MY_GROUP).cookie(mate.session), 401, "AUTHENTICATION_REQUIRED");
   }
 
   @Test

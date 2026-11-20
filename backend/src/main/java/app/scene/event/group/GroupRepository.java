@@ -19,6 +19,7 @@ public class GroupRepository {
   static final String MOVE = "MOVE";
   static final String LEADER = "LEADER";
   static final String GROUP_DELETED = "GROUP_DELETED";
+  static final String WITHDRAWN = "WITHDRAWN";
 
   private final GroupMapper groups;
   private final JsonMapper json;
@@ -88,6 +89,12 @@ public class GroupRepository {
 
   public List<WithdrawnParticipant> withdrawn(UUID spaceId, UUID eventId) {
     return groups.findWithdrawn(GroupParam.of(spaceId, eventId));
+  }
+
+  /** From group of the participant's latest withdraw history row (DEC-084), or null. */
+  public UUID withdrawnFromGroup(UUID spaceId, UUID eventId, UUID participantId) {
+    return groups.findWithdrawnFromGroup(
+        GroupParam.of(spaceId, eventId).participant(participantId));
   }
 
   /** Participants of the event among {@code participantIds}. Unknown ids have no item. */

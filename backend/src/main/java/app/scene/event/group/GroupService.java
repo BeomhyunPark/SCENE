@@ -709,6 +709,55 @@ public class GroupService {
     return new LeadersWritten(group(spaceId, eventId, groupId), leaderIds, boardVersion);
   }
 
+  /** The assignment a withdraw removed (DEC-084 §4). */
+  public record RemovedAssignment(UUID groupId, String groupName, boolean leader) {}
+
+  /**
+   * Removes the working-copy assignment of a participant whose application is being withdrawn
+   * (DEC-072 §5, DEC-084 §4) and logs it with cause {@code WITHDRAWN}. The board version moves, and
+   * the group version too when the participant was its leader. The caller holds the event row lock
+   * and has checked the event state and its own permission; {@code GROUP_WRITE} is not checked.
+   * Empty when the participant was unassigned.
+   */
+  @Transactional
+  public Optional<RemovedAssignment> removeWithdrawn(
+      UUID spaceId, UUID eventId, UUID participantId, UUID actorId, Instant at) {
+    Assignment current =
+        groups.assignments(spaceId, eventId, List.of(participantId)).stream()
+            .findFirst()
+            .orElse(null);
+    if (current == null || current.groupId() == null) {
+      return Optional.empty();
+    }
+    Group group = group(spaceId, eventId, current.groupId());
+    groups.log(
+        spaceId,
+        eventId,
+        participantId,
+        current.groupId(),
+        null,
+        current.leader(),
+        false,
+        GroupRepository.WITHDRAWN,
+        actorId,
+        at);
+    groups.assign(spaceId, eventId, participantId, null, 0, actorId, at);
+    if (current.leader()) {
+      groups.bumpGroupVersion(spaceId, eventId, current.groupId(), at);
+    }
+    groups.bumpBoardVersion(spaceId, eventId, at);
+    return Optional.of(new RemovedAssignment(group.groupId(), group.name(), current.leader()));
+  }
+
+  /**
+   * The group the participant was in when last withdrawn, when that group still exists (DEC-044:
+   * shown as a reference on restore, never restored by itself).
+   */
+  public Optional<Group> previousGroup(UUID spaceId, UUID eventId, UUID participantId) {
+    UUID groupId = groups.withdrawnFromGroup(spaceId, eventId, participantId);
+    return groupId == null ? Optional.empty() : groups.find(spaceId, eventId, groupId);
+  }
+
   private BoardParticipant participant(
       BoardRow row, Snapshot.Placement published, JsonNode setup, List<MealSlots.Day> days) {
     BoardParticipant.Gender gender =

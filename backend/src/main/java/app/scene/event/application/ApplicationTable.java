@@ -14,6 +14,9 @@ import tools.jackson.databind.JsonNode;
  * <p>{@code contactVisible} is true when phone questions are in {@code columns}; without {@code
  * PARTICIPANT_CONTACT_READ} those columns and their answers are left out. {@code groupVisible} is
  * true when each row carries its working-copy {@code group}; otherwise every {@code group} is null.
+ *
+ * <p>{@code withdrawn} lists the withdrawn applicants apart from {@code rows} (DEC-084 §9), so no
+ * count of the screen includes them; the screen hides them until asked.
  */
 public record ApplicationTable(
     UUID formId,
@@ -21,7 +24,23 @@ public record ApplicationTable(
     boolean groupVisible,
     List<Column> columns,
     List<Row> rows,
-    List<Slot> slots) {
+    List<Slot> slots,
+    List<Withdrawn> withdrawn) {
+
+  /**
+   * A participant whose latest revision is withdrawn, newest withdraw first. {@code previousGroup}
+   * is the group the withdraw removed when it still exists, only with {@code groupVisible}; it is a
+   * reference and is not restored (DEC-044). {@code checkedInAt} is a kept arrival check-in that no
+   * longer counts.
+   */
+  public record Withdrawn(
+      UUID applicationId,
+      UUID participantId,
+      String name,
+      Instant submittedAt,
+      ApplicationWithdrawal withdrawal,
+      WithdrawnRow.PreviousGroup previousGroup,
+      Instant checkedInAt) {}
 
   /**
    * One question in position order, with its current type, hidden flag and config (the same fields

@@ -8,6 +8,7 @@ import app.scene.event.group.PublicationRow;
 import app.scene.event.group.WithdrawnParticipant;
 import app.scene.event.group.param.GroupParam;
 import java.util.List;
+import java.util.UUID;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
@@ -34,6 +35,8 @@ public interface GroupMapper {
   List<BoardRow> findBoardParticipants(GroupParam param);
 
   List<WithdrawnParticipant> findWithdrawn(GroupParam param);
+
+  UUID findWithdrawnFromGroup(GroupParam param);
 
   List<Assignment> findAssignments(GroupParam param);
 
