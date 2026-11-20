@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="app.scene.event.home.mapper.ParticipantHomeQueryMapper">
+  <!-- DEC-080 §3. One form per event (forms_one_per_event); its notice is the current one. -->
+  <select id="findHome" resultType="app.scene.event.home.HomeRow">
+    SELECT e.id AS event_id, e.name, e.lifecycle_status, e.start_date, e.end_date, e.place,
+           e.event_type, f.completion_notice,
+           EXISTS (
+             SELECT 1 FROM applications a
+             WHERE a.space_id = e.space_id AND a.event_id = e.id
+               AND a.participant_id = #{participantId} AND a.status = 'SUBMITTED') AS submitted
+    FROM events e
+    LEFT JOIN forms f ON f.space_id = e.space_id AND f.event_id = e.id
+    WHERE e.id = #{eventId} AND e.space_id = #{spaceId}
+  </select>
+
+  <!--
+    DEC-080 §4 "읽기 비용" 4: one statement, one index each (checkin_logs_participant,
+    applications_participant_revision).
+  -->
+  <select id="findValues" resultType="app.scene.event.home.ParticipantValuesRow">
+    SELECT
+      (SELECT max(l.seq) FROM checkin_logs l
+       WHERE l.space_id = #{spaceId} AND l.event_id = #{eventId}
+         AND l.participant_id = #{participantId}) AS check_in,
+      (SELECT max(a.revision) FROM applications a
+       WHERE a.space_id = #{spaceId} AND a.event_id = #{eventId}
+         AND a.participant_id = #{participantId}) AS application
+  </select>
+</mapper>

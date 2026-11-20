@@ -9,6 +9,8 @@ import app.scene.common.tenant.SpaceMembership;
 import app.scene.common.web.ItemPage;
 import app.scene.common.web.PageRequest;
 import app.scene.common.web.Sorts;
+import app.scene.event.feed.FeedArea;
+import app.scene.event.feed.ParticipantFeedVersions;
 import app.scene.event.lifecycle.EventAccessGate;
 import app.scene.event.lifecycle.EventListRow;
 import app.scene.event.lifecycle.EventProfile;
@@ -49,18 +51,21 @@ public class OperatorEventCommandService {
   private final EventRepository events;
   private final EventUserRepository eventUsers;
   private final EventUserPermissionRepository permissions;
+  private final ParticipantFeedVersions feedVersions;
 
   public OperatorEventCommandService(
       OperatorAccess access,
       EventAccessGate gate,
       EventRepository events,
       EventUserRepository eventUsers,
-      EventUserPermissionRepository permissions) {
+      EventUserPermissionRepository permissions,
+      ParticipantFeedVersions feedVersions) {
     this.access = access;
     this.gate = gate;
     this.events = events;
     this.eventUsers = eventUsers;
     this.permissions = permissions;
+    this.feedVersions = feedVersions;
   }
 
   @Transactional
@@ -156,6 +161,8 @@ public class OperatorEventCommandService {
     if (events.updateName(spaceId, eventId, name) != 1) {
       throw new IllegalStateException("event name was not stored");
     }
+    // DEC-080 §4: the participant home header reloads.
+    feedVersions.bump(spaceId, eventId, FeedArea.HOME);
     EventProfile stored =
         events
             .findProfile(eventId)
