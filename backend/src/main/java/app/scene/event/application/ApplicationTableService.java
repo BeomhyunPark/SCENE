@@ -46,7 +46,8 @@ import tools.jackson.databind.json.JsonMapper;
  *   <li>The operator memo (#335, DEC-075) is readable by every table reader.
  * </ul>
  *
- * Rows are the submitted applications in list order, the same rows as the CSV.
+ * Rows are the submitted applications in list order, the same rows as the CSV. Withdrawn applicants
+ * come apart in {@code withdrawn} with who withdrew them, when and why (DEC-084 §9).
  */
 @Service
 public class ApplicationTableService {
@@ -56,6 +57,7 @@ public class ApplicationTableService {
   private final ApplicationRepository applications;
   private final ApplicationTableMapper tables;
   private final ApplicationOperationRepository operations;
+  private final ApplicationStatusChanges statuses;
   private final EventUserPermissionRepository permissions;
   private final AuditLogRepository auditLogs;
   private final JsonMapper json;
@@ -67,6 +69,7 @@ public class ApplicationTableService {
       ApplicationRepository applications,
       ApplicationTableMapper tables,
       ApplicationOperationRepository operations,
+      ApplicationStatusChanges statuses,
       EventUserPermissionRepository permissions,
       AuditLogRepository auditLogs,
       JsonMapper json,
@@ -76,6 +79,7 @@ public class ApplicationTableService {
     this.applications = applications;
     this.tables = tables;
     this.operations = operations;
+    this.statuses = statuses;
     this.permissions = permissions;
     this.auditLogs = auditLogs;
     this.json = json;
@@ -172,8 +176,20 @@ public class ApplicationTableService {
           "{\"count\":" + rows.size() + "}",
           clock.instant());
     }
+    List<ApplicationTable.Withdrawn> withdrawn = new ArrayList<>();
+    for (WithdrawnRow row : statuses.withdrawn(spaceId, eventId)) {
+      withdrawn.add(
+          new ApplicationTable.Withdrawn(
+              row.applicationId(),
+              row.participantId(),
+              row.name(),
+              row.submittedAt(),
+              row.withdrawal(),
+              groupVisible ? row.previousGroup() : null,
+              row.checkedInAt()));
+    }
     return new ApplicationTable(
-        formId, anyContact, groupVisible, columns, rows, slots(attended.days()));
+        formId, anyContact, groupVisible, columns, rows, slots(attended.days()), withdrawn);
   }
 
   private static List<ApplicationTable.Slot> slots(List<MealSlots.Day> days) {

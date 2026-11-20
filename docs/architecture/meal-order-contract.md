@@ -1,5 +1,7 @@
 # 식사 순서(조별 배식 차례) 계약 초안
 
+> **1월 범위 밖으로 보류됐다. 구현하지 않는다.** 사용자 결정 2026-11-20("식사 순서는 일단 전부 빼자. 현장에서 관리 가능하다"), [DEC-086](../product/PRODUCT_DECISIONS.md) Follow-up, 로드맵 6.1 결정 14. 아래 본문은 다시 할 때의 출발점으로 그대로 둔다. 참가자 홈의 `features.mealOrder`·`updates.mealOrder` 키는 응답에 남고 1월에는 늘 꺼짐·0이다.
+
 > **아직 서버에 없다. 계약 초안이다.** 지금 서버가 받는 계약은 [backend/docs/api.md](../../backend/docs/api.md)다. 이 문서의 경로는 [#384](https://github.com/BeomhyunPark/SCENE/issues/384) H2(서버)·H3(운영자 화면)·H4(참가자 화면)에서 만든다. 만든 경로는 api.md로 옮기고 이 문서에서 지운다.
 
 - 정책: [DEC-086](../product/PRODUCT_DECISIONS.md) (H1, [#426](https://github.com/BeomhyunPark/SCENE/issues/426))

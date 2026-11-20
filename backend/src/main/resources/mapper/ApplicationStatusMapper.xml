@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="app.scene.event.application.mapper.ApplicationStatusMapper">
+
+  <!-- Withdraw and restore (DEC-084). Only SUBMITTED <-> WITHDRAWN; from guards a stale write. -->
+  <update id="setStatus">
+    UPDATE applications SET status = #{to}
+    WHERE space_id = #{spaceId} AND event_id = #{eventId} AND id = #{applicationId}
+      AND status = #{from}
+  </update>
+
+  <insert id="insertLog">
+    INSERT INTO application_status_logs (
+      id, space_id, event_id, participant_id, application_id, action, reason, block_reapply,
+      actor_kind, actor_user_id, created_at)
+    VALUES (
+      #{id}, #{spaceId}, #{eventId}, #{participantId}, #{applicationId}, #{action}, #{reason},
+      #{blockReapply}, #{actorKind}, #{actorUserId}, #{createdAt})
+  </insert>
+
+  <!-- Latest revision of participant p; a withdrawn participant's latest one is WITHDRAWN. -->
+  <sql id="latestRevision">
+    SELECT a.id, a.submitted_at, a.status
+    FROM applications a
+    WHERE a.space_id = p.space_id AND a.event_id = p.event_id AND a.participant_id = p.id
+    ORDER BY a.revision DESC
+    LIMIT 1
+  </sql>
+
+  <!-- Latest WITHDRAWN log of participant p with the operator's display name. -->
+  <sql id="latestWithdrawal">
+    SELECT l.created_at, l.reason, l.block_reapply, u.display_name
+    FROM application_status_logs l
+    LEFT JOIN users u ON u.id = l.actor_user_id
+    WHERE l.space_id = p.space_id AND l.event_id = p.event_id AND l.participant_id = p.id
+      AND l.action = 'WITHDRAWN'
+    ORDER BY l.seq DESC
+    LIMIT 1
+  </sql>
+
+  <sql id="withdrawnColumns">
+    SELECT latest.id AS application_id, p.id AS participant_id, p.name,
+           latest.submitted_at, w.created_at AS withdrawn_at,
+           w.display_name AS withdrawn_by_display_name, w.reason,
+           coalesce(w.block_reapply, false) AS reapply_blocked,
+           g.id AS previous_group_id, g.name AS previous_group_name,
+           c.checked_in_at
+    FROM participants p
+    JOIN LATERAL (<include refid="latestRevision"/>) latest ON true
+    LEFT JOIN LATERAL (<include refid="latestWithdrawal"/>) w ON true
+    LEFT JOIN LATERAL (
+      SELECT gl.from_group_id
+      FROM group_assignment_logs gl
+      WHERE gl.space_id = p.space_id AND gl.event_id = p.event_id AND gl.participant_id = p.id
+        AND gl.cause = 'WITHDRAWN'
+      ORDER BY gl.seq DESC
+      LIMIT 1) wl ON true
+    LEFT JOIN groups g
+      ON g.space_id = p.space_id AND g.event_id = p.event_id AND g.id = wl.from_group_id
+    LEFT JOIN checkins c
+      ON c.space_id = p.space_id AND c.event_id = p.event_id AND c.participant_id = p.id
+     AND c.status = 'CHECKED_IN'
+  </sql>
+
+  <!-- Participants whose latest revision is WITHDRAWN, newest withdraw first. -->
+  <select id="listWithdrawn" resultType="app.scene.event.application.WithdrawnRow">
+    <include refid="withdrawnColumns"/>
+    WHERE p.space_id = #{spaceId} AND p.event_id = #{eventId} AND latest.status = 'WITHDRAWN'
+    ORDER BY w.created_at DESC NULLS LAST, p.id
+  </select>
+
+  <!-- The withdrawn state of one application, or no row when it is not the latest WITHDRAWN one. -->
+  <select id="findWithdrawn" resultType="app.scene.event.application.WithdrawnRow">
+    <include refid="withdrawnColumns"/>
+    WHERE p.space_id = #{spaceId} AND p.event_id = #{eventId} AND latest.status = 'WITHDRAWN'
+      AND latest.id = #{applicationId}
+  </select>
+
+</mapper>

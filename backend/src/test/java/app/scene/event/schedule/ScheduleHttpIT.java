@@ -539,9 +539,10 @@ class ScheduleHttpIT {
     JsonNode forMember = w.schedule(member);
     assertThat(forMember.get("items")).hasSize(1);
     assertThat(forMember.toString()).doesNotContain("조장 모임").doesNotContain("운영진 회의");
-    JsonNode forGone = w.schedule(gone);
-    assertThat(forGone.get("status").asString()).isEqualTo("NOT_ELIGIBLE");
-    assertThat(forGone.get("items")).isEmpty();
+    // A withdrawn participant's session no longer counts (DEC-084 §4): 401 before the schedule.
+    f.mvc
+        .perform(get("/api/v1/participant/schedule").cookie(gone.session()))
+        .andExpect(status().isUnauthorized());
     assertThat(w.notificationsOf(gone)).isZero();
 
     // The operator published view has every item with its audience.

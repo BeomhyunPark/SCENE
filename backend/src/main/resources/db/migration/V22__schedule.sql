@@ -1,4 +1,4 @@
--- Schedule working copy and publication snapshots (#435, DEC-081, schedule-contract §11).
+-- Schedule working copy and publication snapshots (#435, DEC-081, api.md "일정표").
 -- Adds tables only; older server code ignores them.
 
 -- One row per event, written on the first change. boardVersion is 0 until then.

@@ -222,7 +222,12 @@ class ParticipantHomeHttpIT {
     JsonNode features = home.get("features");
     assertThat(features.propertyNames())
         .containsExactly("schedule", "notices", "groups", "rooms", "mealOrder");
-    features.forEach(value -> assertThat(value.asBoolean()).isTrue());
+    assertThat(features.get("schedule").asBoolean()).isTrue();
+    assertThat(features.get("notices").asBoolean()).isTrue();
+    assertThat(features.get("groups").asBoolean()).isTrue();
+    assertThat(features.get("rooms").asBoolean()).isTrue();
+    // Meal order is out of the January scope (DEC-086 on hold): never on by type default.
+    assertThat(features.get("mealOrder").asBoolean()).isFalse();
     assertThat(home.get("updates").propertyNames())
         .containsExactly(
             "home",
@@ -252,11 +257,16 @@ class ParticipantHomeHttpIT {
     assertThat(f.read(HOME, b.session()).get("features").get("groups").asBoolean()).isTrue();
     tx.executeWithoutResult(s -> feedVersions.bump(other.spaceId, other.eventId, FeedArea.ROOMS));
     assertThat(f.read(HOME, b.session()).get("features").get("rooms").asBoolean()).isTrue();
+    // Rule 2 still holds for meal order, though nothing bumps it in January.
+    tx.executeWithoutResult(
+        s -> feedVersions.bump(other.spaceId, other.eventId, FeedArea.MEAL_ORDER));
+    assertThat(f.read(HOME, b.session()).get("features").get("mealOrder").asBoolean()).isTrue();
 
-    // A participant whose application is withdrawn but still holds a session is NONE.
+    // A participant whose application is withdrawn no longer has a session at all (DEC-084 §4).
     other.withdraw(b);
-    assertThat(f.read(HOME, b.session()).get("participant").get("applicationStatus").asString())
-        .isEqualTo("NONE");
+    mvc.perform(get(HOME).cookie(b.session()))
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
   }
 
   @Test

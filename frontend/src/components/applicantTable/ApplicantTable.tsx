@@ -27,7 +27,7 @@ import "./ApplicantTable.css";
 /** A text column offers value checkboxes when it has at most this many distinct answers (또래, 셀). */
 const VALUE_LIST_MAX = 40;
 
-type Panel = "sort" | "filter" | "columns" | null;
+type Panel = "sort" | "filter" | "columns" | "withdrawn" | null;
 
 /**
  * 참가 현황 (#308, Figma P03-01 1325:5059). One table of every applicant: filter by any question,
@@ -40,6 +40,7 @@ export function ApplicantTable({
   actions,
   onEdit,
   editNote,
+  withdrawnPanel,
 }: {
   eventId: string;
   table: ApplicationTable;
@@ -48,6 +49,8 @@ export function ApplicantTable({
   onEdit?: (row: TableRow) => void;
   /** Why there is no 수정 button, shown above the table. */
   editNote?: string;
+  /** 취소된 신청 (DEC-084 §9), opened by the "취소 N" chip; hidden by default and in no count. */
+  withdrawnPanel?: ReactNode;
 }) {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
@@ -170,6 +173,16 @@ export function ApplicantTable({
             {chip.label} <span className="roster__chip-count">{chip.count}</span>
           </button>
         ))}
+        {withdrawnPanel && table.withdrawn.length > 0 ? (
+          <button
+            type="button"
+            className="roster__chip"
+            aria-expanded={panel === "withdrawn"}
+            onClick={() => setPanel(panel === "withdrawn" ? null : "withdrawn")}
+          >
+            취소 <span className="roster__chip-count">{table.withdrawn.length}</span>
+          </button>
+        ) : null}
         <button
           type="button"
           className="roster__chip roster__chip--add"
@@ -180,6 +193,7 @@ export function ApplicantTable({
         </button>
       </div>
 
+      {panel === "withdrawn" ? withdrawnPanel : null}
       {panel === "sort" ? <SortPanel columns={columns} sorts={view.sorts} onChange={(sorts) => update({ sorts })} /> : null}
       {panel === "filter" ? (
         <FilterPanel columns={columns} rows={table.rows} filters={filters} onChange={setFilter} onClear={clearAll} />
