@@ -5,6 +5,7 @@ import { noticeBoardVersion } from "../noticeStore";
 import { eventById } from "../operatorStore";
 import { problem } from "../problem";
 import { eventRoleOf } from "../taskStore";
+import { scheduleBoardVersion } from "../scheduleStore";
 import { currentOperator } from "./session";
 
 /** Mirrors `scene.operator.poll-after-seconds` (default 15). */
@@ -58,7 +59,7 @@ export const notificationHandlers = [
       {
         notifications: summaryOf(eventId, opened.userId),
         notices: noticeBoardVersion(eventId),
-        schedule: 0,
+        schedule: scheduleBoardVersion(eventId),
         checkIns: checkInValue(eventId),
         pollAfterSeconds: MOCK_OPERATOR_POLL_SECONDS,
         serverTime: new Date().toISOString(),

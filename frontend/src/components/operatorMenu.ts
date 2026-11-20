@@ -103,6 +103,7 @@ export function operatorMenuSections(menu: OperatorMenu, pathname: string): Menu
         ...(eventAreas.includes("participants") ? [item("participants", "참가 현황", address, participantsHref)] : []),
         item("field", "현장 운영", chartLine, `${eventHref}/field`),
         item("groups", "조 편성", people, `${eventHref}/groups`),
+        item("schedule", "일정", calendar, `${eventHref}/schedule`),
         item("notices", "공지", envelope, `${eventHref}/notices`),
         item("operators", "운영 멤버", briefcase, `${eventHref}/operators`),
       ],

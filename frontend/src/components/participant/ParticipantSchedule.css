@@ -1,0 +1,212 @@
+/* 일정 tab and 지금·다음 card (C5). Same card frame and type scale as the other participant tabs. */
+.participant-schedule__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+}
+
+.participant-schedule__updated {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font: var(--scene-body-s);
+  letter-spacing: 0;
+}
+
+.participant-schedule__days {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.participant-schedule__day {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 96px;
+  min-height: 52px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-chip-default-border);
+  border-radius: 10px;
+  background: var(--color-chip-default-bg);
+  color: var(--color-chip-default-text);
+  font: var(--scene-label-m);
+  letter-spacing: 0;
+  cursor: pointer;
+}
+
+.participant-schedule__day--current {
+  border-color: var(--color-chip-selected-border);
+  background: var(--color-chip-selected-bg);
+  color: var(--color-chip-selected-text);
+}
+
+.participant-schedule__day:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.participant-schedule__day-date {
+  font: var(--scene-body-s);
+  letter-spacing: 0;
+}
+
+.participant-schedule__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.participant-schedule__item {
+  display: grid;
+  grid-template-columns: 92px 1fr;
+  gap: 4px 12px;
+  padding: 14px 16px;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: 12px;
+}
+
+.participant-schedule__item--now {
+  border-color: var(--color-border-selected);
+  background: var(--color-bg-selected);
+}
+
+.participant-schedule__item--removed {
+  color: var(--color-text-tertiary);
+}
+
+.participant-schedule__time {
+  color: var(--color-text-secondary);
+  font: var(--scene-label-m);
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.participant-schedule__main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.participant-schedule__title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  margin: 0;
+  font: var(--scene-label-l, var(--scene-label-m));
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+.participant-schedule__place,
+.participant-schedule__description {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font: var(--scene-body-s);
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+.participant-schedule__description {
+  white-space: pre-line;
+}
+
+.participant-schedule__previous {
+  margin: 2px 0 0;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--color-warning-bg);
+  color: var(--color-warning-fg);
+  font: var(--scene-body-s);
+  letter-spacing: 0;
+  list-style: none;
+}
+
+.participant-schedule__badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--color-bg-subtle);
+  color: var(--color-text-secondary);
+  font: var(--scene-label-s);
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+.participant-schedule__badge--now {
+  background: var(--color-action-primary-bg);
+  color: var(--color-action-primary-on);
+}
+
+.participant-schedule__badge--next {
+  background: var(--color-info-bg);
+  color: var(--color-info-fg);
+}
+
+.participant-schedule__badge--changed {
+  background: var(--color-warning-bg);
+  color: var(--color-warning-fg);
+}
+
+.participant-schedule__badge--removed {
+  background: var(--color-danger-bg);
+  color: var(--color-danger-fg);
+}
+
+/* 지금·다음 card rows */
+.participant-nownext {
+  display: grid;
+  grid-template-columns: 52px 1fr;
+  gap: 8px;
+  width: 100%;
+}
+
+.participant-nownext + .participant-nownext {
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border-default);
+}
+
+.participant-nownext__label {
+  color: var(--color-text-tertiary);
+  font: var(--scene-label-s);
+  letter-spacing: 0;
+}
+
+.participant-nownext--current .participant-nownext__label {
+  color: var(--color-text-brand);
+}
+
+.participant-nownext__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.participant-nownext__time {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--color-text-secondary);
+  font: var(--scene-label-m);
+  letter-spacing: 0;
+}
+
+.participant-nownext__title {
+  margin: 0;
+  font: var(--scene-label-l, var(--scene-label-m));
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}

@@ -27,6 +27,8 @@ export const queryKeys = {
   checkInRosterAll: (eventId: string) => ["events", eventId, "check-ins", "roster-all"] as const,
   publishedGroups: (eventId: string) => ["events", eventId, "groups", "published"] as const,
   groupBoard: (eventId: string) => ["events", eventId, "group-board"] as const,
+  /** Schedule working copy (C4). The editor reads the same entry for days, slots and the item. */
+  scheduleBoard: (eventId: string) => ["events", eventId, "schedule"] as const,
   forms: (eventId: string, page: number) => ["events", eventId, "forms", page] as const,
   form: (eventId: string, formId: string) => ["events", eventId, "forms", formId] as const,
   applications: (eventId: string, page: number) => ["events", eventId, "applications", page] as const,

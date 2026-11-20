@@ -9,7 +9,7 @@ import { assign, createGroup, publish, readBoard } from "../../mocks/groupStore"
 import { setLifecycle } from "../../mocks/operatorStore";
 import { submitPublicApplication } from "../../mocks/participantStore";
 import { server } from "../../mocks/server";
-import { EMPTY_NOTICES, homeBody, UPDATES } from "../../mocks/participantHomeTestHandlers";
+import { EMPTY_NOTICES, homeBody, SCHEDULE_NOT_PUBLISHED, UPDATES } from "../../mocks/participantHomeTestHandlers";
 
 const EVENT = localEvent.eventId;
 
@@ -28,6 +28,7 @@ function cards() {
       HttpResponse.json({ status: "ASSIGNED", publishedAt: null, group: { name: "1조", leaders: [{ name: "김하늘" }] }, leader: false, members: null }),
     ),
     http.get("/api/v1/participant/updates", () => HttpResponse.json(UPDATES)),
+    http.get("/api/v1/participant/schedule", () => HttpResponse.json(SCHEDULE_NOT_PUBLISHED)),
     EMPTY_NOTICES,
   ];
 }
@@ -69,7 +70,7 @@ describe("participant home (#425)", () => {
     expect(cardTitles()).toEqual(["행사", "지금·다음 일정", "최신 공지", "도착 QR", "내 조", "숙소"]);
     expect(screen.queryByText(/식사/)).not.toBeInTheDocument();
     expect(screen.getByText("2027년 1월 22일 – 2027년 1월 24일 · 양평 수양관")).toBeInTheDocument();
-    expect(screen.getByText("일정이 올라오면 여기에 보여요.")).toBeInTheDocument();
+    expect(await screen.findByText("일정이 올라오면 여기에 보여요.")).toBeInTheDocument();
     expect(await screen.findByText("공지가 올라오면 여기에 보여요.")).toBeInTheDocument();
     expect(screen.queryByText("행사가 끝났어요")).not.toBeInTheDocument();
   });
