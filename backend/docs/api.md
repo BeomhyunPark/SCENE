@@ -1633,7 +1633,7 @@ CSRF가 필요하다.
   },
   "participant": { "name": "김", "applicationStatus": "SUBMITTED" },
   "completionNotice": "참가비 계좌: …\n문의: …",
-  "features": { "schedule": true, "notices": true, "groups": true, "rooms": true, "mealOrder": true },
+  "features": { "schedule": true, "notices": true, "groups": true, "rooms": true, "mealOrder": false },
   "updates": { "…": "아래 updates와 같은 객체" }
 }
 ```
@@ -1641,7 +1641,7 @@ CSRF가 필요하다.
 - `event.status`는 `DRAFT`·`ACTIVE`·`ENDED`·`ARCHIVED`다. `startDate`·`endDate`·`place`는 없으면 `null`이다. `timeZone`은 설정 `scene.participant.zone`(기본 `Asia/Seoul`)이다.
 - `participant.name`은 지금 이름이다. `applicationStatus`는 `SUBMITTED` 또는 `NONE`(지금 `SUBMITTED` 신청이 없음)이다.
 - `completionNotice`는 신청서(행사당 하나)의 **지금** 완료 안내 문자열이고 없으면 `null`이다. 모양은 [`PUT …/completion-notice`](#put-apiv1operatoreventseventidformsformidcompletion-notice)와 같고 글자 그대로 그린다.
-- `features`: 행사 유형이 `RETREAT`·`CAMP`면 다섯 영역 모두, 그 밖과 유형 없음은 `schedule`·`notices`만 켠다. 그와 상관없이 그 영역의 갱신 값(아래 `participant_feed_versions`)이 0보다 크면(무엇이든 공개된 적이 있으면) 켠다. 운영자가 저장하는 값(I5)은 아직 없다.
+- `features`: 행사 유형이 `RETREAT`·`CAMP`면 `schedule`·`notices`·`groups`·`rooms`, 그 밖과 유형 없음은 `schedule`·`notices`만 켠다. `mealOrder`는 유형 기본값으로 켜지 않는다: 식사 순서는 1월 범위 밖이라(DEC-086 보류, 2026-11-20) **1월에는 쓰지 않는다. 키는 응답에 남는다**(늘 `false`). 그와 상관없이 그 영역의 갱신 값(아래 `participant_feed_versions`)이 0보다 크면(무엇이든 공개된 적이 있으면) 켠다. 운영자가 저장하는 값(I5)은 아직 없다.
 - 전화·숫자 6자리·접근 키·다른 참가자 정보는 없다.
 
 ### `GET /api/v1/participant/updates`
@@ -1664,7 +1664,7 @@ CSRF가 필요하다.
 | --- | --- | --- |
 | `home` | 행사 | 행사 이름 변경(`PATCH …/events/{eventId}`), 상태 전이(`ALREADY_IN_STATE` 제외), 완료 안내 저장 |
 | `group` | 행사 | 조 편성 공개가 `PUBLISHED`일 때만(`ALREADY_PUBLISHED`·작업본 저장은 아님) |
-| `schedule`·`notices`·`rooms`·`mealOrder` | 행사 | 아직 오르는 경로가 없다(일정·공지·숙소·식사 순서가 만든다) |
+| `schedule`·`notices`·`rooms`·`mealOrder` | 행사 | 아직 오르는 경로가 없다(일정·공지·숙소가 만든다). `mealOrder`는 1월에는 쓰지 않는다(식사 순서 보류). 키는 남고 늘 0이다 |
 | `checkIn` | 참가자 | 내 `checkin_logs`의 최대 `seq`(체크인·취소). 없으면 0 |
 | `application` | 참가자 | 내 신청의 최대 `revision`. 없으면 0 |
 | `notifications.latestSeq` | 참가자 | 내 알림의 최대 `seq`. 없으면 0 |

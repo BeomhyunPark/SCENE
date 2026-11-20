@@ -32,16 +32,18 @@
 | 도착 QR | 늘 | `check-in` | api.md "체크인"의 참가자 QR 그대로 |
 | 내 조 | `features.groups` | `group` | 조 이름·조장 이름. 조장이면 "조원 현황" 바로가기 |
 | 숙소 | `features.rooms` | `rooms`(G1에서 정함) | 방 이름·위치·같은 방 사람. G1 전에는 빈 상태 |
-| 다음 식사 | `features.mealOrder` | `schedule` + `meal-order`(H1에서 정함) | 다음 식사 항목 시각. H1 뒤에는 우리 조 순서와 시각 |
+| ~~다음 식사~~ | — | — | **1월에는 쓰지 않는다**(식사 순서 보류, 사용자 결정 2026-11-20, DEC-080 Follow-up 2026-11-20). 카드를 만들지 않는다. 보류 전 계획: `features.mealOrder`일 때 `schedule` + `meal-order`로 다음 식사 시각과 우리 조 순서 |
 
 ## 2. 기능 영역(`features`)
 
 참가자 화면에서 켜고 끄는 영역은 `schedule`, `notices`, `groups`, `rooms`, `mealOrder` 다섯이다. 도착 QR과 내 정보는 영역이 아니라 늘 있다.
 
+`mealOrder`는 **1월에는 쓰지 않는다. 키는 응답에 남는다**(식사 순서 보류, DEC-086 Follow-up 2026-11-20). 유형 기본값으로 켜지지 않고(아래 2번), 올리는 경로가 없어 3번으로도 켜지지 않아 1월에는 늘 `false`다. 화면은 이 키를 보지 않는다.
+
 영역이 켜졌는지는 서버가 정해서 `home`에 담는다. 화면은 이 값만 본다.
 
 1. 운영자가 영역을 저장했으면(I5에서 `event_features`로 만든다) 그 값.
-2. 저장한 값이 없으면 행사 유형 기본값: `RETREAT`·`CAMP`는 다섯 영역 모두 켬, 그 밖의 유형과 유형 없음은 `schedule`·`notices`만 켬.
+2. 저장한 값이 없으면 행사 유형 기본값: `RETREAT`·`CAMP`는 `mealOrder`를 뺀 네 영역 켬, 그 밖의 유형과 유형 없음은 `schedule`·`notices`만 켬.
 3. 1·2와 상관없이, 공개본이 하나라도 있는 영역은 켬으로 본다. 공개한 내용이 화면에서 사라지지 않게 하려는 것이다.
 
 I5 전에는 1번이 없고 2·3번만으로 정한다. 응답 모양은 I5 뒤에도 같다.
@@ -60,7 +62,7 @@ api.md로 옮겼다([참가자 홈·갱신 확인·알림](../../backend/docs/ap
 | `notices` | 참가자에게 보이는 공지(대상 `ALL`·`LEADERS`)가 발행·수정·보관·보관 해제·고정 변경될 때. 바뀌기 전이나 뒤의 대상 중 하나라도 참가자를 포함하면 오른다 |
 | `group` | 조 편성 공개(`PUBLISHED`, 만들었다), 조원 명단 스위치(DEC-083)가 바뀔 때 |
 | `rooms` | 숙소 배정을 공개할 때(G1) |
-| `mealOrder` | 식사 순서를 공개할 때(H1) |
+| `mealOrder` | 식사 순서를 공개할 때(H1). **1월에는 쓰지 않는다**(보류). 키는 남고 늘 0이다 |
 
 - 조장이 되거나 풀리는 것은 조 편성 공개로 일어나므로 `group`이 오른다. 화면은 `group`이 바뀌면 `notices`·`schedule`도 다시 읽는다.
 
@@ -127,7 +129,7 @@ api.md로 옮겼다([참가자 홈·갱신 확인·알림](../../backend/docs/ap
 | `SCHEDULE_CHANGED` | `SCHEDULE` | 바뀐 항목을 볼 수 있는 활성 참가자 | 두 번째 이후 공개에서 운영자가 알림을 끄지 않았을 때 |
 | `GROUP_PUBLISHED` | `GROUP` | 공개본에서 조·조장 표시가 바뀐 활성 참가자(처음이면 배정된 전원) | 조 편성 공개 |
 | `ROOM_PUBLISHED` | `ROOM` | G1에서 정함 | 숙소 공개 |
-| `MEAL_ORDER_PUBLISHED` | `MEAL_ORDER` | H1에서 정함 | 식사 순서 공개 |
+| `MEAL_ORDER_PUBLISHED` | `MEAL_ORDER` | H1에서 정함 | 식사 순서 공개. **1월에는 만들지 않는다**(보류) |
 | `APPLICATION_UPDATED_BY_OPERATOR` | `APPLICATION` | 그 신청의 참가자 | 운영자가 내 신청을 고칠 때(A12) |
 
 운영자가 받는 것(I3, P0):
