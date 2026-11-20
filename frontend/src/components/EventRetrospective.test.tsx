@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { App } from "../App";
 import { login } from "../api/session";
 import { localEvent, localUsers } from "../mocks/fixtures/seed";
+import { revokePermissions } from "../mocks/taskStore";
 import { setLifecycle } from "../mocks/operatorStore";
 import { saveRetrospectiveText } from "../mocks/retrospectiveStore";
 import { server } from "../mocks/server";
@@ -70,6 +71,8 @@ describe("event retrospective", () => {
 
   it("shows an ended retrospective read only to an operator without EVENT_UPDATE", async () => {
     saveRetrospectiveText(EVENT, "OWNER가 쓴 회고");
+    // MANAGER holds EVENT_UPDATE by default (DEC-079 Follow-up 2026-11-20); this one has a REVOKE.
+    revokePermissions(EVENT, localUsers[1].userId, ["EVENT_UPDATE"]);
     await openAs(1, "ENDED");
     expect(await screen.findByText("OWNER가 쓴 회고", {}, { timeout: 4000 })).toBeInTheDocument();
     expect(screen.queryByLabelText(LABEL)).not.toBeInTheDocument();

@@ -447,9 +447,16 @@
 }
 
 .event-home__invite .event-home__error,
+.event-home__invite .event-home__role-summary,
 .event-home__invite .scene-button {
   grid-column: 2;
   justify-self: start;
+}
+
+.event-home__role-summary {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font: var(--scene-body-s);
 }
 
 .event-home__select {
@@ -486,6 +493,7 @@
   }
 
   .event-home__invite .event-home__error,
+  .event-home__invite .event-home__role-summary,
   .event-home__invite .scene-button {
     grid-column: 1;
   }

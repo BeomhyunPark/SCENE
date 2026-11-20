@@ -31,6 +31,7 @@ import { EventScreen } from "./EventScreen";
 import { formatSubmittedAt, operatorRoleLabel } from "./eventFormat";
 import { markEventArea, readEventAreas } from "./eventLocalState";
 import { OperatorPermissionDialog, PermissionSummary } from "./OperatorPermissionEditor";
+import { ROLE_SUMMARY } from "./operatorPermissions";
 import { OperatorShell } from "./OperatorShell";
 import { useEventOwner } from "./useEventOwner";
 import "./EventHome.css";
@@ -298,6 +299,9 @@ function OperatorRows({
             {operatorRoleLabel(action.target.role)}에서 {operatorRoleLabel(action.role)}로 바뀌어요. 이 사람에게 따로 준
             개별 권한은 모두 초기화되고 {operatorRoleLabel(action.role)} 기본 권한만 남아요.
           </p>
+          <p>
+            {operatorRoleLabel(action.role)}는 {ROLE_SUMMARY[action.role]}.
+          </p>
         </ConfirmDialog>
       ) : null}
       {action?.kind === "permissions" ? (
@@ -464,11 +468,13 @@ function MemberAdd({
             id="member-add-role"
             className="event-home__select"
             value={role}
+            aria-describedby="member-add-role-summary"
             onChange={(change) => setRole(change.target.value === "MANAGER" ? "MANAGER" : "STAFF")}
           >
             <option value="STAFF">{operatorRoleLabel("STAFF")}</option>
             <option value="MANAGER">{operatorRoleLabel("MANAGER")}</option>
           </select>
+          <RoleSummary id="member-add-role-summary" />
           <Button type="submit" variant="primary" size={40} loading={add.isPending} disabled={add.isPending}>
             운영자로 추가
           </Button>
@@ -605,11 +611,13 @@ function Invitations({ eventId, archived }: { eventId: string; archived: boolean
             id="invite-role"
             className="event-home__select"
             value={role}
+            aria-describedby="invite-role-summary"
             onChange={(change) => setRole(change.target.value === "MANAGER" ? "MANAGER" : "STAFF")}
           >
             <option value="STAFF">{operatorRoleLabel("STAFF")}</option>
             <option value="MANAGER">{operatorRoleLabel("MANAGER")}</option>
           </select>
+          <RoleSummary id="invite-role-summary" />
           <Button type="submit" variant="primary" size={40} loading={create.isPending} disabled={pending}>
             초대 링크 만들기
           </Button>
@@ -695,5 +703,14 @@ function Invitations({ eventId, archived }: { eventId: string; archived: boolean
         </ul>
       ) : null}
     </section>
+  );
+}
+
+/** One line on what MANAGER and STAFF do by default, under the role picker (DEC-079 Follow-up). */
+function RoleSummary({ id }: { id: string }) {
+  return (
+    <p id={id} className="event-home__role-summary">
+      {operatorRoleLabel("MANAGER")}: {ROLE_SUMMARY.MANAGER} · {operatorRoleLabel("STAFF")}: {ROLE_SUMMARY.STAFF}
+    </p>
   );
 }
