@@ -40,11 +40,23 @@ export function homeBody(overrides: { features?: Partial<ParticipantFeatures>; e
   };
 }
 
+export const SCHEDULE_NOT_PUBLISHED = {
+  status: "NOT_PUBLISHED",
+  publishedAt: null,
+  timeZone: "Asia/Seoul",
+  serverTime: "2027-01-22T05:30:12Z",
+  days: [],
+  items: [],
+  removedItems: [],
+};
+
 /** Static `home` and `updates` for screen tests that answer `/participant/me` themselves. */
 export function participantHomeHandlers(overrides: Parameters<typeof homeBody>[0] = {}) {
   return [
     http.get("/api/v1/participant/home", () => HttpResponse.json(homeBody(overrides))),
     http.get("/api/v1/participant/updates", () => HttpResponse.json(UPDATES)),
+    // The 지금·다음 card reads the schedule on every home screen.
+    http.get("/api/v1/participant/schedule", () => HttpResponse.json(SCHEDULE_NOT_PUBLISHED)),
   ];
 }
 

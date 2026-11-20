@@ -11,6 +11,8 @@ import { OrgNotifications } from "./components/OrgNotifications";
 import { EventGroups } from "./components/EventGroups";
 import { EventHome } from "./components/EventHome";
 import { EventRetrospective } from "./components/EventRetrospective";
+import { EventSchedule } from "./components/EventSchedule";
+import { EventScheduleItem } from "./components/EventScheduleItem";
 import { EventSettings } from "./components/EventSettings";
 import { EventList } from "./components/EventList";
 import { EventApplication } from "./components/EventApplication";
@@ -98,6 +100,8 @@ export function App() {
           <Route path="/events/:eventId/field" element={<EventField />} />
           <Route path="/events/:eventId/notifications" element={<EventNotifications />} />
           <Route path="/events/:eventId/groups" element={<EventGroups />} />
+          <Route path="/events/:eventId/schedule" element={<EventSchedule />} />
+          <Route path="/events/:eventId/schedule/:itemId" element={<EventScheduleItem />} />
           <Route path="/events/:eventId/end" element={<EventEnd />} />
           <Route path="/events/:eventId/retrospective" element={<EventRetrospective />} />
           <Route path="/events/:eventId/tasks/:taskId" element={<TaskDetail />} />

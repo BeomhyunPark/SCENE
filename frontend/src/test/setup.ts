@@ -15,6 +15,7 @@ import { resetRetrospectiveStore } from "../mocks/retrospectiveStore";
 import { resetOperationStore } from "../mocks/operationStore";
 import { resetCheckInStore } from "../mocks/checkInStore";
 import { resetGroupStore } from "../mocks/groupStore";
+import { resetScheduleStore } from "../mocks/scheduleStore";
 import { resetTaskStore } from "../mocks/taskStore";
 import { deliveryTiming } from "../components/checkInDelivery";
 
@@ -36,6 +37,7 @@ afterEach(() => {
   resetOperationStore();
   resetCheckInStore();
   resetGroupStore();
+  resetScheduleStore();
   resetParticipantStore();
   resetParticipantFeedStore();
   resetNotificationStore();
