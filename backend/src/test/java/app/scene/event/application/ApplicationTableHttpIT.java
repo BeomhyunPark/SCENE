@@ -48,6 +48,13 @@ class ApplicationTableHttpIT {
 
   private static final String OPERATOR_COOKIE = "SCENE_SESSION";
   private static final String CSRF_COOKIE = "XSRF-TOKEN";
+
+  /**
+   * A full phone value, not a bare "010": problem bodies carry random UUIDs (traceId, instance),
+   * and a UUID can contain "010" by chance, which made the leak check fail at random.
+   */
+  private static final String LEAKED_PHONE = "010-4321-8765";
+
   private static final String CSRF_HEADER = "X-XSRF-TOKEN";
   private static final String CSRF = "csrf-token";
   private static final Instant FIRST = Instant.parse("2026-12-15T03:00:00Z");
@@ -170,7 +177,7 @@ class ApplicationTableHttpIT {
     String detail = auditDetail(event.eventId, "APPLICANT_CONTACTS_VIEWED");
     assertThat(json.readTree(detail).propertyNames()).containsExactly("count");
     assertThat(json.readTree(detail).get("count").asInt()).isEqualTo(2);
-    assertThat(detail).doesNotContain("010", "김하나");
+    assertThat(detail).doesNotContain("010-1111-2222", "010-9876-5432", "김하나");
   }
 
   @Test
@@ -249,7 +256,11 @@ class ApplicationTableHttpIT {
     Held event = openEvent("Forbidden owner");
     Form form = seedForm(event);
     application(
-        event, form, "SUBMITTED", FIRST, form.answers("{\"text\":\"김하나\"}", "{\"text\":\"010\"}"));
+        event,
+        form,
+        "SUBMITTED",
+        FIRST,
+        form.answers("{\"text\":\"김하나\"}", "{\"text\":\"" + LEAKED_PHONE + "\"}"));
     UUID staffId = user("Revoked staff");
     member(event.spaceId, staffId, "MEMBER");
     operator(event.spaceId, event.eventId, staffId, "STAFF");
@@ -266,7 +277,11 @@ class ApplicationTableHttpIT {
     Held event = openEvent("Home owner");
     Form form = seedForm(event);
     application(
-        event, form, "SUBMITTED", FIRST, form.answers("{\"text\":\"김하나\"}", "{\"text\":\"010\"}"));
+        event,
+        form,
+        "SUBMITTED",
+        FIRST,
+        form.answers("{\"text\":\"김하나\"}", "{\"text\":\"" + LEAKED_PHONE + "\"}"));
     Held other = openEvent("Other owner");
 
     problem(read(other.owner, event.eventId), 404, "RESOURCE_NOT_FOUND");
@@ -517,7 +532,7 @@ class ApplicationTableHttpIT {
     assertThat(MediaType.parseMediaType(response.getContentType()))
         .isEqualTo(MediaType.APPLICATION_PROBLEM_JSON);
     assertThat(json.readTree(response.getContentAsString()).get("code").asString()).isEqualTo(code);
-    assertThat(response.getContentAsString()).doesNotContain("010", "김하나");
+    assertThat(response.getContentAsString()).doesNotContain(LEAKED_PHONE, "김하나");
   }
 
   private Cookie login(UUID userId) throws Exception {
