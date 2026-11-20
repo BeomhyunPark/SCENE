@@ -1,6 +1,6 @@
 # 참가자 홈·갱신 확인·알림 계약 초안
 
-> **아직 서버에 없다. 계약 초안이다.** 지금 서버가 받는 계약은 [backend/docs/api.md](../../backend/docs/api.md)다. 이 문서의 경로는 [#379](https://github.com/BeomhyunPark/SCENE/issues/379) B2·B4·B5와 [#385](https://github.com/BeomhyunPark/SCENE/issues/385) I3에서 만든다. 만든 경로는 api.md로 옮기고 이 문서에서 지운다.
+> **일부는 서버에 있다.** 참가자 홈·`updates`·참가자 알림 경로와 두 테이블은 #423에서 만들어 api.md로 옮겼다(§3·§4·§7.4·§7.6). 나머지(운영자 알림 경로 §7.5, `operator_notices` 이전, 참가자 알림 만들기)는 아직 계약 초안이다. 지금 서버가 받는 계약은 [backend/docs/api.md](../../backend/docs/api.md)다. 이 문서의 경로는 [#379](https://github.com/BeomhyunPark/SCENE/issues/379) B2·B4·B5와 [#385](https://github.com/BeomhyunPark/SCENE/issues/385) I3에서 만든다. 만든 경로는 api.md로 옮기고 이 문서에서 지운다.
 
 - 정책: [DEC-080](../product/PRODUCT_DECISIONS.md) (B1, [#396](https://github.com/BeomhyunPark/SCENE/issues/396))
 - 함께 읽는 계약: [일정표](schedule-contract.md)(DEC-081), [공지](notice-contract.md)(DEC-082), [내 조](participant-group-contract.md)(DEC-083)
@@ -48,90 +48,21 @@ I5 전에는 1번이 없고 2·3번만으로 정한다. 응답 모양은 I5 뒤�
 
 ## 3. `GET /api/v1/participant/home`
 
-홈 머리와 탭 구성에 필요한 값을 준다. 카드 내용은 각 카드 경로가 준다.
-
-`200`
-
-```json
-{
-  "event": {
-    "eventId": "…",
-    "name": "2027 청년부 겨울수련회",
-    "status": "ACTIVE",
-    "startDate": "2027-01-22",
-    "endDate": "2027-01-24",
-    "place": "양평 ○○수양관",
-    "timeZone": "Asia/Seoul"
-  },
-  "participant": { "name": "김", "applicationStatus": "SUBMITTED" },
-  "completionMessage": { "text": "참가비 계좌: …\n문의: …", "updatedAt": "2026-12-10T03:00:00Z" },
-  "features": { "schedule": true, "notices": true, "groups": true, "rooms": true, "mealOrder": false },
-  "updates": { "…": "아래 updates 응답과 같은 값" }
-}
-```
-
-- `event.status`는 `DRAFT`·`ACTIVE`·`ENDED`·`ARCHIVED`다. 화면은 `ENDED`·`ARCHIVED`에서 머리에 "행사가 끝났어요"를 보인다. 읽기는 행사 상태로 막지 않는다.
-- `startDate`·`endDate`·`place`는 행사 값이고 없으면 `null`이다. `timeZone`은 1월에는 늘 `Asia/Seoul`이다(행사에 시간대 열이 없다).
-- `participant.applicationStatus`는 `SUBMITTED` 또는 `NONE`이다. `NONE`이면 각 카드가 이미 정한 `NOT_ELIGIBLE` 상태를 보인다. 신청 취소(A7)는 세션을 끊으므로 보통 `401`로 먼저 끝난다.
-- `completionMessage`는 신청서의 완료 안내(#378 A8)다. 저장 위치는 A8이 정한다. 비어 있거나 A8 전이면 `null`이다.
-- `updates`는 `GET /participant/updates`와 같은 객체다. 처음 열 때 요청을 하나 줄인다.
-- 전화·접근 키·숫자 6자리는 없다. 조회는 audit을 남기지 않는다.
+api.md로 옮겼다([참가자 홈·갱신 확인·알림](../../backend/docs/api.md#참가자-홈갱신-확인알림), #423). 완료 안내는 `completionNotice` 문자열이다(DEC-080 Follow-up 2026-11-20).
 
 ## 4. `GET /api/v1/participant/updates`
 
-화면이 주기적으로 불러 어느 카드가 바뀌었는지만 확인한다. 참가자 200명이 30초마다 부르므로(초당 7건 안팎) 본문이 작고 DB 읽기가 적어야 한다.
+api.md로 옮겼다([참가자 홈·갱신 확인·알림](../../backend/docs/api.md#참가자-홈갱신-확인알림), #423). 키의 뜻과 오르는 때(아직 만들지 않은 일정·공지·숙소·식사 순서 포함)는 아래 표가 기준이다. 일정·공지·숙소·식사 세션은 `ParticipantFeedVersions.bump`로 해당 열을 올린다(source-guide "다른 기능이 부르는 공용 코드").
 
-`200`
+| 키 | 오르는 때 |
+|---|---|
+| `schedule` | 일정표를 공개할 때(`PUBLISHED`만) |
+| `notices` | 참가자에게 보이는 공지(대상 `ALL`·`LEADERS`)가 발행·수정·보관·보관 해제·고정 변경될 때. 바뀌기 전이나 뒤의 대상 중 하나라도 참가자를 포함하면 오른다 |
+| `group` | 조 편성 공개(`PUBLISHED`, 만들었다), 조원 명단 스위치(DEC-083)가 바뀔 때 |
+| `rooms` | 숙소 배정을 공개할 때(G1) |
+| `mealOrder` | 식사 순서를 공개할 때(H1) |
 
-```json
-{
-  "home": 3,
-  "schedule": 12,
-  "notices": 7,
-  "group": 2,
-  "rooms": 0,
-  "mealOrder": 0,
-  "checkIn": 1,
-  "application": 2,
-  "notifications": { "latestSeq": 5821, "unreadCount": 2 },
-  "pollAfterSeconds": 30,
-  "serverTime": "2027-01-22T05:30:12Z"
-}
-```
-
-| 키 | 범위 | 오르는 때 | 다시 읽는 경로 |
-|---|---|---|---|
-| `home` | 행사 | 행사 이름·기간·장소·상태, 완료 안내, `features`가 바뀔 때 | `home` |
-| `schedule` | 행사 | 일정표를 공개할 때(`PUBLISHED`만. `ALREADY_PUBLISHED`는 아님) | `schedule` |
-| `notices` | 행사 | 참가자에게 보이는 공지(대상 `ALL`·`LEADERS`)가 발행·수정·보관·보관 해제·고정 변경될 때. 바뀌기 전이나 뒤의 대상 중 하나라도 참가자를 포함하면 오른다 | `notices` |
-| `group` | 행사 | 조 편성을 공개할 때(`PUBLISHED`), 조원 명단 스위치(DEC-083)가 바뀔 때 | `group` |
-| `rooms` | 행사 | 숙소 배정을 공개할 때(G1) | `rooms` |
-| `mealOrder` | 행사 | 식사 순서를 공개할 때(H1) | `meal-order` |
-| `checkIn` | 참가자 | 내 체크인·취소가 기록될 때 | `check-in` |
-| `application` | 참가자 | 내 신청의 새 revision이 생길 때(나 또는 운영자, A4·A12) | 내 정보 |
-| `notifications.latestSeq` | 참가자 | 나에게 알림이 생길 때 | 알림함 |
-| `notifications.unreadCount` | 참가자 | 알림이 생기거나 읽을 때 | (배지) |
-
-- **값은 비교만 한다.** 화면은 마지막으로 읽은 값과 다르면(크거나 작거나) 그 카드를 다시 읽는다. 크기 비교로 분기하지 않는다. 값이 0이면 그 영역에서 아직 아무 일도 없었다는 뜻이다.
-- 행사 범위 값은 같은 행사의 모든 참가자에게 같다. 한 공지가 조장 대상이어도 `notices`는 모두에게 오른다. 일반 참가자는 다시 읽어도 새 항목이 없을 뿐이다(무엇이 바뀌었는지는 드러나지 않는다).
-- 조장이 되거나 풀리는 것은 조 편성 공개로 일어나므로 `group`이 오른다. 화면은 `group`이 바뀌면 `notices`·`schedule`도 다시 읽는다(조장 대상 항목이 생기거나 사라지므로).
-- `unreadCount`는 100에서 멈춘다. 100이면 화면은 "99+"로 보인다.
-- `pollAfterSeconds`는 서버가 정하는 다음 확인까지의 초다. 1월 시작값은 30이다. 부하 확인(J6) 결과에 따라 앱을 다시 배포하지 않고 서버 설정 `scene.participant.poll-after-seconds`로 바꾼다(범위 10–300).
-- `serverTime`은 화면이 "지금·다음 일정"을 계산할 때 휴대폰 시계 오차를 보정하는 데 쓴다.
-- 조회는 audit·로그 본문을 남기지 않는다. 요청 로그는 경로와 상태만 남긴다.
-
-### 읽기 비용
-
-서버는 한 요청에 다음만 읽는다.
-
-1. 세션 확인(모든 참가자 경로와 같다)
-2. `participant_feed_versions` 한 행(행사 범위 값 전부, 기본 키)
-3. `notifications`에서 이 참가자의 최대 `seq`와 읽지 않은 수(색인 `(recipient_participant_id, read_at, seq)`, 101건에서 멈춤)
-4. 이 참가자의 `checkin_logs` 최대 `seq`(`checkIn` 값)와 최신 신청 revision 번호(`application` 값, A4가 정하는 열). 각각 색인 한 번이다
-
-공개본이나 공지 목록은 읽지 않는다. 행사 범위 값은 각 공개 경로가 **같은 트랜잭션**에서 `participant_feed_versions`의 해당 열을 1 올린다. 값이 오르고 커밋이 실패하는 일은 없다.
-
-`ETag`·`304`는 1차에 쓰지 않는다. 본문이 200바이트 안팎이라 이득이 작다.
+- 조장이 되거나 풀리는 것은 조 편성 공개로 일어나므로 `group`이 오른다. 화면은 `group`이 바뀌면 `notices`·`schedule`도 다시 읽는다.
 
 ## 5. 갱신 주기와 화면이 안 보일 때
 
@@ -219,39 +150,7 @@ I5 전에는 1번이 없고 2·3번만으로 정한다. 응답 모양은 I5 뒤�
 
 ### 7.4 참가자 경로
 
-#### `GET /api/v1/participant/notifications?before={seq}&limit=30`
-
-`200`
-
-```json
-{
-  "items": [ { "알림 객체": "…" } ],
-  "unreadCount": 2,
-  "nextBefore": 5790
-}
-```
-
-- `seq` 내림차순이다. `before`가 없으면 맨 앞부터. `limit`은 1–50, 기본 30. 범위를 벗어나면 `400 VALIDATION_FAILED`(필드 `limit`·`before`).
-- `nextBefore`는 더 있으면 다음 요청의 `before`, 없으면 `null`이다.
-- 조회만으로 읽음 처리하지 않는다.
-
-#### `POST /api/v1/participant/notifications/read`
-
-CSRF가 필요하다. 본문은 셋 중 하나다.
-
-```json
-{ "notificationIds": ["…"] }
-{ "target": { "type": "NOTICE", "id": "…" } }
-{ "upToSeq": 5821 }
-```
-
-- `notificationIds`: 1–50개. 내 알림이 아닌 id는 조용히 건너뛴다(다른 사람 알림의 존재를 드러내지 않는다).
-- `target`: 그 대상을 가리키는 내 알림을 모두 읽음으로 한다. 공지 상세를 열 때 화면이 부른다.
-- `upToSeq`: 그 `seq` 이하의 내 알림을 모두 읽음으로 한다("모두 읽음").
-- 둘 이상을 보내거나 하나도 없으면 `400 VALIDATION_FAILED`.
-- 이미 읽은 알림은 그대로다(`readAt`을 바꾸지 않는다). 다시 보내도 결과가 같다.
-
-`200` 본문은 `{ "unreadCount": 0 }`이다. audit을 남기지 않는다.
+api.md로 옮겼다([참가자 홈·갱신 확인·알림](../../backend/docs/api.md#참가자-홈갱신-확인알림), #423). 운영자 경로(§7.5)는 같은 본문·응답 모양을 쓴다(`NotificationReadRequest`, `NotificationListQuery`).
 
 ### 7.5 운영자 경로
 
@@ -278,52 +177,7 @@ CSRF가 필요하다. 본문은 셋 중 하나다.
 
 ### 7.6 저장
 
-`notifications` 한 테이블에 참가자·운영자 알림을 모두 둔다.
-
-```sql
-CREATE TABLE notifications (
-  id uuid PRIMARY KEY,
-  seq bigint GENERATED ALWAYS AS IDENTITY,
-  space_id uuid NOT NULL,
-  event_id uuid NOT NULL,
-  recipient_kind varchar(16) NOT NULL CHECK (recipient_kind IN ('PARTICIPANT', 'OPERATOR')),
-  recipient_participant_id uuid,
-  recipient_user_id uuid REFERENCES users (id),
-  kind varchar(64) NOT NULL,
-  target_type varchar(32) NOT NULL,
-  target_id uuid,
-  title varchar(80) NOT NULL,
-  body varchar(200),
-  important boolean NOT NULL DEFAULT false,
-  count integer NOT NULL DEFAULT 1 CHECK (count >= 1),
-  created_at timestamptz NOT NULL,
-  read_at timestamptz,
-  CONSTRAINT notifications_one_recipient CHECK (
-    (recipient_kind = 'PARTICIPANT' AND recipient_participant_id IS NOT NULL AND recipient_user_id IS NULL)
-    OR (recipient_kind = 'OPERATOR' AND recipient_user_id IS NOT NULL AND recipient_participant_id IS NULL)),
-  FOREIGN KEY (space_id, event_id, recipient_participant_id) REFERENCES participants (space_id, event_id, id),
-  FOREIGN KEY (event_id, space_id) REFERENCES events (id, space_id)
-);
-CREATE INDEX notifications_participant ON notifications (recipient_participant_id, seq DESC) WHERE recipient_participant_id IS NOT NULL;
-CREATE INDEX notifications_participant_unread ON notifications (recipient_participant_id) WHERE recipient_participant_id IS NOT NULL AND read_at IS NULL;
-CREATE INDEX notifications_operator ON notifications (event_id, recipient_user_id, seq DESC) WHERE recipient_user_id IS NOT NULL;
-CREATE INDEX notifications_target ON notifications (event_id, target_type, target_id);
-
--- 행사 범위 갱신 값. 행사당 한 행, 처음 오를 때 만든다. 없으면 모두 0으로 읽는다.
-CREATE TABLE participant_feed_versions (
-  space_id uuid NOT NULL,
-  event_id uuid NOT NULL,
-  home bigint NOT NULL DEFAULT 0,
-  schedule bigint NOT NULL DEFAULT 0,
-  notices bigint NOT NULL DEFAULT 0,
-  groups bigint NOT NULL DEFAULT 0,
-  rooms bigint NOT NULL DEFAULT 0,
-  meal_order bigint NOT NULL DEFAULT 0,
-  updated_at timestamptz NOT NULL,
-  PRIMARY KEY (space_id, event_id),
-  FOREIGN KEY (event_id, space_id) REFERENCES events (id, space_id)
-);
-```
+`notifications`와 `participant_feed_versions`는 `V20`으로 만들었다. api.md로 옮겼다([저장](../../backend/docs/api.md#참가자-홈갱신-확인알림), #423). 아래는 아직 만들지 않은 부분이다.
 
 - **`operator_notices`와의 관계:** 마이그레이션에서 기존 `operator_notices` 행을 `notifications`(`recipient_kind = 'OPERATOR'`, `kind = 'LIFECYCLE_OVERRIDE'`, `target_type = 'EVENT'`, `target_id = event_id`, `title` "행사 상태를 공간 소유자가 바꿨어요", `read_at` = `created_at`)로 옮긴다. 옮긴 행은 읽은 것으로 둔다(지금까지 보여 준 적이 없는 옛 알림이 한꺼번에 뜨지 않게). 그 뒤 코드는 `notifications`에만 쓰고, `operator_notices`는 다음 마이그레이션에서 지운다. 이 순서는 I3 서버 작업이 한 PR에서 한다.
 - 공개 경로가 알림을 만들 때는 공개와 **같은 트랜잭션**에서 넣는다. 200명에게 200행이다. 실패하면 공개도 되돌린다. 알림 수가 많아져 공개가 느려지면 나중에 따로 떼어 낸다(확장 지점).
@@ -364,7 +218,7 @@ CREATE TABLE participant_feed_versions (
 ## 10. 시험 조건
 
 - `updates`가 위 표의 때에만 오르고, `ALREADY_PUBLISHED`·작업본 저장·DRAFT 공지 저장에는 오르지 않는다.
-- `updates` 한 요청의 SQL이 여섯 번 이하다(세션 확인 포함). 공개본·공지 테이블을 읽지 않는다.
+- `updates` 한 요청의 SQL이 여섯 번 이하다(세션 확인 포함). 공개본·공지 테이블을 읽지 않는다. (#423에서 `ParticipantUpdatesCostIT`로 확인했다: 네 문장)
 - 참가자 알림 `title`·`body`에 다른 참가자의 이름·전화·답이 없다(조 공개 알림은 "내 조가 정해졌어요 · 1조"까지).
 - 다른 참가자의 알림 id로 읽음 처리해도 그 알림이 바뀌지 않고 응답이 같다.
 - 합치기: 읽지 않은 같은 종류·대상이 있으면 행이 하나이고 `count`가 오른다.

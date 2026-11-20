@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="app.scene.event.audience.mapper.AudienceQueryMapper">
+  <!--
+    DEC-080 §8. Active = a SUBMITTED application (same as GroupMapper "submitted"). Leader = marked
+    leader in the latest group publication (group_publications by seq). The snapshot shape is
+    {"groups":[{"members":[{"participantId":"…","leader":true}]}]}.
+  -->
+  <select id="findViewer" resultType="app.scene.event.audience.ParticipantAudience$ViewerRow">
+    SELECT
+      EXISTS (
+        SELECT 1 FROM applications a
+        WHERE a.space_id = #{spaceId} AND a.event_id = #{eventId}
+          AND a.participant_id = #{participantId} AND a.status = 'SUBMITTED') AS active,
+      coalesce((
+        SELECT gp.snapshot @> jsonb_build_object('groups', jsonb_build_array(
+                 jsonb_build_object('members', jsonb_build_array(
+                   jsonb_build_object('participantId', CAST(#{participantId} AS text),
+                                      'leader', true)))))
+        FROM group_publications gp
+        WHERE gp.space_id = #{spaceId} AND gp.event_id = #{eventId}
+        ORDER BY gp.seq DESC
+        LIMIT 1), false) AS leader
+  </select>
+
+  <select id="findActiveIds" resultType="java.util.UUID">
+    SELECT p.id
+    FROM participants p
+    WHERE p.space_id = #{spaceId} AND p.event_id = #{eventId}
+      AND EXISTS (
+        SELECT 1 FROM applications a
+        WHERE a.space_id = p.space_id AND a.event_id = p.event_id AND a.participant_id = p.id
+          AND a.status = 'SUBMITTED')
+    ORDER BY p.id
+  </select>
+
+  <select id="findActiveLeaderIds" resultType="java.util.UUID">
+    SELECT DISTINCT p.id
+    FROM (
+      SELECT gp.snapshot
+      FROM group_publications gp
+      WHERE gp.space_id = #{spaceId} AND gp.event_id = #{eventId}
+      ORDER BY gp.seq DESC
+      LIMIT 1) latest
+    CROSS JOIN LATERAL jsonb_array_elements(latest.snapshot -> 'groups') g
+    CROSS JOIN LATERAL jsonb_array_elements(g -> 'members') m
+    JOIN participants p
+      ON p.space_id = #{spaceId} AND p.event_id = #{eventId}
+     AND p.id::text = m ->> 'participantId'
+    WHERE m -> 'leader' = 'true'::jsonb
+      AND EXISTS (
+        SELECT 1 FROM applications a
+        WHERE a.space_id = p.space_id AND a.event_id = p.event_id AND a.participant_id = p.id
+          AND a.status = 'SUBMITTED')
+    ORDER BY p.id
+  </select>
+</mapper>

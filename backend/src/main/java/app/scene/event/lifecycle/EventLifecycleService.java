@@ -4,6 +4,8 @@ import app.scene.common.audit.AuditActions;
 import app.scene.common.audit.AuditLogRepository;
 import app.scene.common.error.ErrorCode;
 import app.scene.common.error.SceneException;
+import app.scene.event.feed.FeedArea;
+import app.scene.event.feed.ParticipantFeedVersions;
 import app.scene.event.task.TaskRepository;
 import java.time.Clock;
 import java.time.Instant;
@@ -27,6 +29,7 @@ public class EventLifecycleService {
   private final AuditLogRepository auditLogs;
   private final JsonMapper json;
   private final Clock clock;
+  private final ParticipantFeedVersions feedVersions;
 
   public EventLifecycleService(
       EventRepository events,
@@ -35,7 +38,8 @@ public class EventLifecycleService {
       OperatorNoticeRepository notices,
       AuditLogRepository auditLogs,
       JsonMapper json,
-      Clock clock) {
+      Clock clock,
+      ParticipantFeedVersions feedVersions) {
     this.events = events;
     this.tasks = tasks;
     this.invitations = invitations;
@@ -43,6 +47,7 @@ public class EventLifecycleService {
     this.auditLogs = auditLogs;
     this.json = json;
     this.clock = clock;
+    this.feedVersions = feedVersions;
   }
 
   @Transactional
@@ -135,6 +140,8 @@ public class EventLifecycleService {
     if (command == LifecycleCommand.ARCHIVE) {
       invitations.updateRevoked(spaceId, eventId, now);
     }
+    // DEC-080 §4: the participant home shows the event status.
+    feedVersions.bump(spaceId, eventId, FeedArea.HOME);
     if ("SPACE_OWNER_OVERRIDE".equals(actedAs)) {
       notices.saveForOwners(spaceId, eventId, "LIFECYCLE_OVERRIDE", now);
     }

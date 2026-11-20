@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="app.scene.event.feed.mapper.ParticipantFeedVersionMapper">
+  <!-- DEC-080 §4. column is a FeedArea column name, never a request value. -->
+  <insert id="bump">
+    INSERT INTO participant_feed_versions (space_id, event_id, ${column}, updated_at)
+    VALUES (#{spaceId}, #{eventId}, 1, #{at})
+    ON CONFLICT (space_id, event_id) DO UPDATE
+      SET ${column} = participant_feed_versions.${column} + 1,
+          updated_at = EXCLUDED.updated_at
+  </insert>
+
+  <select id="find" resultType="app.scene.event.feed.FeedVersions">
+    SELECT home, schedule, notices, groups, rooms, meal_order
+    FROM participant_feed_versions
+    WHERE space_id = #{spaceId} AND event_id = #{eventId}
+  </select>
+</mapper>
