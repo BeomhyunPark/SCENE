@@ -7,9 +7,19 @@ import { attendanceMode, attendedSlotIds, formSlots } from "../attendedSlots";
 import { eventFormDetail, eventFormId, formFields, requireEventRead } from "../formStore";
 import { eventById, operatorRequests } from "../operatorStore";
 import { permissionsFor } from "../taskStore";
-import { resetParticipantPin, submittedApplication, submittedApplications, tableApplications } from "../participantStore";
+import {
+  resetParticipantPin,
+  restoreParticipantApplication,
+  submittedApplication,
+  submittedApplications,
+  tableApplications,
+  withdrawalOf,
+  withdrawnApplications,
+  withdrawParticipantApplication,
+} from "../participantStore";
 import { checkedInAtOf } from "../checkInStore";
-import { workingGroupOf } from "../groupStore";
+import { previousGroupOf, restoreToBoard, withdrawFromBoard, workingGroupOf } from "../groupStore";
+import { localUsers } from "../fixtures/seed";
 import { problem } from "../problem";
 import { csrfMatches } from "../csrf";
 import { operationOf, writeOperation } from "../operationStore";
@@ -118,6 +128,11 @@ export const applicationHandlers = [
           revision: row.revision,
         })),
         slots,
+        withdrawn: withdrawnApplications(eventId).map((row) => ({
+          ...row,
+          previousGroup: groupVisible ? previousGroupOf(eventId, row.participantId) : null,
+          checkedInAt: checkedInAtOf(eventId, row.participantId),
+        })),
       },
       { headers: { "Cache-Control": "no-store" } },
     );
@@ -140,6 +155,7 @@ export const applicationHandlers = [
       ...detail,
       contactVisible,
       operation: operationOf(detail.applicationId),
+      withdrawal: withdrawalOf(eventId, detail.applicationId),
       answers: detail.answers.map((answer) => {
         const contact = answer.systemKey === "PHONE" || (isText(answer.answerType) && (answer.config as { format?: unknown } | null)?.format === "PHONE");
         return { ...answer, contact, value: contact && !contactVisible ? null : answer.value };
@@ -165,6 +181,71 @@ export const applicationHandlers = [
     const temporaryPin = resetParticipantPin(eventId, String(params.participantId));
     if (!temporaryPin) return problem(404, "RESOURCE_NOT_FOUND", { detail: "hidden" });
     return HttpResponse.json({ temporaryPin }, { headers: { "Cache-Control": "no-store" } });
+  }),
+
+  // 신청 취소 (DEC-084), shaped like ApplicationWithdrawalController: 404 → 403 → 400 → 409 event state.
+  http.post("/api/v1/operator/events/:eventId/applications/:applicationId/withdraw", async ({ request, params, cookies }) => {
+    if (!csrfMatches(request, cookies)) return problem(403, "FORBIDDEN");
+    const operator = currentOperator();
+    if (!operator) return problem(401, "AUTHENTICATION_REQUIRED");
+    operatorRequests.push({ method: "POST", url: new URL(request.url).pathname });
+    const eventId = String(params.eventId);
+    const applicationId = String(params.applicationId);
+    const event = eventById(eventId);
+    if (!event || !submittedApplication(eventId, applicationId)) return problem(404, "RESOURCE_NOT_FOUND", { detail: "hidden" });
+    const gate = writeGate(eventId, operator.userId);
+    if (gate) return gate;
+    const text = await request.text();
+    const body = (text ? (JSON.parse(text) as Record<string, unknown>) : {}) ?? {};
+    const reason = typeof body.reason === "string" ? body.reason.trim() : null;
+    if ((body.reason != null && typeof body.reason !== "string") || (reason && [...reason].length > 200)) {
+      return problem(400, "VALIDATION_FAILED", { errors: [{ field: "reason" }], detail: "hidden" });
+    }
+    if (event.lifecycleStatus === "ENDED") return problem(409, "EVENT_ENDED", { detail: "hidden" });
+    if (event.lifecycleStatus === "ARCHIVED") return problem(409, "EVENT_ARCHIVED", { detail: "hidden" });
+    const result = withdrawParticipantApplication(eventId, applicationId, {
+      withdrawnAt: new Date().toISOString(),
+      withdrawnByDisplayName: localUsers.find((user) => user.userId === operator.userId)?.displayName ?? null,
+      reason: reason || null,
+      reapplyBlocked: body.blockReapply === true,
+    });
+    if (!result || "stale" in result) return problem(409, "CONCURRENT_MODIFICATION", { detail: "hidden" });
+    const removedGroup = result.already ? null : withdrawFromBoard(eventId, result.participantId);
+    return HttpResponse.json({
+      result: result.already ? "ALREADY_WITHDRAWN" : "WITHDRAWN",
+      applicationId,
+      participantId: result.participantId,
+      withdrawal: result.withdrawal,
+      removedGroup,
+      checkedInAt: checkedInAtOf(eventId, result.participantId),
+    });
+  }),
+
+  // 되돌리기 (DEC-084 §3). The group does not come back.
+  http.post("/api/v1/operator/events/:eventId/applications/:applicationId/restore", ({ request, params, cookies }) => {
+    if (!csrfMatches(request, cookies)) return problem(403, "FORBIDDEN");
+    const operator = currentOperator();
+    if (!operator) return problem(401, "AUTHENTICATION_REQUIRED");
+    operatorRequests.push({ method: "POST", url: new URL(request.url).pathname });
+    const eventId = String(params.eventId);
+    const applicationId = String(params.applicationId);
+    const event = eventById(eventId);
+    if (!event || !submittedApplication(eventId, applicationId)) return problem(404, "RESOURCE_NOT_FOUND", { detail: "hidden" });
+    const gate = writeGate(eventId, operator.userId);
+    if (gate) return gate;
+    if (event.lifecycleStatus === "ENDED") return problem(409, "EVENT_ENDED", { detail: "hidden" });
+    if (event.lifecycleStatus === "ARCHIVED") return problem(409, "EVENT_ARCHIVED", { detail: "hidden" });
+    const result = restoreParticipantApplication(eventId, applicationId);
+    if (!result) return problem(404, "RESOURCE_NOT_FOUND", { detail: "hidden" });
+    const previousGroup = result.already ? null : restoreToBoard(eventId, result.participantId);
+    return HttpResponse.json({
+      result: result.already ? "ALREADY_SUBMITTED" : "RESTORED",
+      applicationId,
+      participantId: result.participantId,
+      previousGroup,
+      reapplyBlocked: result.reapplyBlocked,
+      checkedInAt: checkedInAtOf(eventId, result.participantId),
+    });
   }),
 
   // 운영 정보 저장 (#335, DEC-075), shaped like ApplicationOperationController. The memo body never
@@ -267,4 +348,12 @@ function pageParam(url: URL): number {
 function sizeParam(url: URL): number {
   const value = Number(url.searchParams.get("size") ?? String(DEFAULT_SIZE));
   return Number.isInteger(value) && value > 0 ? value : DEFAULT_SIZE;
+}
+
+/** Effective PARTICIPANT_WRITE, like the server's withdraw and restore. */
+function writeGate(eventId: string, userId: string) {
+  const perms = permissionsFor(eventId, userId, userId);
+  if ("status" in perms) return problem(perms.status, perms.code, { detail: "hidden" });
+  if (!perms.effective.includes("PARTICIPANT_WRITE")) return problem(403, "FORBIDDEN", { detail: "hidden" });
+  return null;
 }

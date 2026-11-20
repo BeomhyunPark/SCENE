@@ -269,3 +269,55 @@ describe("운영 메모 column (#337)", () => {
     expect(within(table).getAllByRole("row")[1]).toHaveTextContent("김하나");
   });
 });
+
+describe("신청 취소와 되돌리기 (DEC-084, #421)", () => {
+  it("withdraws after a confirmation, leaves the table and sign-in, and restores from 취소 without the group", async () => {
+    const [first] = seed(["김하나", "이둘"]);
+    const one = seedGroup(EVENT, "1조");
+    moveAsOtherOperator(EVENT, first.participantId, one, true);
+    await login({ userId: OWNER });
+    openApp(`/events/${EVENT}/participants`);
+    const drawer = await openDrawer("김하나");
+
+    await waitFor(() => expect(within(drawer).getByRole("button", { name: "신청 취소" })).toBeEnabled(), WAIT);
+    fireEvent.click(within(drawer).getByRole("button", { name: "신청 취소" }));
+    const confirm = await screen.findByRole("dialog", { name: "김하나님의 신청을 취소할까요?" });
+    expect(within(confirm).getByText(/조 배정\(1조\)이 지워져요/)).toBeInTheDocument();
+    expect(within(confirm).getByText(/1조 조장 표시도 풀려요/)).toBeInTheDocument();
+    fireEvent.change(within(confirm).getByLabelText("취소 사유 (선택)"), { target: { value: "가족 사정" } });
+    fireEvent.click(within(confirm).getByRole("button", { name: "신청 취소하기" }));
+
+    expect(await screen.findByText(/김하나님의 신청을 취소했어요/, {}, WAIT)).toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "현재 운영 정보 수정" })).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("button", { name: "김하나 운영 정보 수정" })).not.toBeInTheDocument(), WAIT);
+    expect(screen.getByRole("button", { name: "이둘 운영 정보 수정" })).toBeInTheDocument();
+    expect(workingGroupOf(EVENT, first.participantId)).toBeNull();
+    expect(openParticipantSession(EVENT, { name: "김하나", phone: "010-1111-0000", pin: "730914" })).toMatchObject({
+      code: "PARTICIPANT_LOGIN_FAILED",
+    });
+    expect(operatorRequests.some((request) => request.method === "POST" && request.url.endsWith("/withdraw"))).toBe(true);
+
+    fireEvent.click(screen.getByRole("button", { name: /취소 1/ }));
+    const list = await screen.findByRole("region", { name: "취소된 신청 1명" });
+    expect(within(list).getByText("사유: 가족 사정")).toBeInTheDocument();
+    expect(within(list).getByText("이전 조: 1조")).toBeInTheDocument();
+    fireEvent.click(within(list).getByRole("button", { name: "되돌리기" }));
+    const restore = await screen.findByRole("dialog", { name: "김하나님의 신청을 되돌릴까요?" });
+    expect(within(restore).getByText(/조는 돌아오지 않아요/)).toBeInTheDocument();
+    fireEvent.click(within(restore).getByRole("button", { name: "되돌리기" }));
+
+    expect(await screen.findByRole("button", { name: "김하나 운영 정보 수정" }, WAIT)).toBeInTheDocument();
+    expect(workingGroupOf(EVENT, first.participantId)).toBeNull();
+    expect(openParticipantSession(EVENT, { name: "김하나", phone: "010-1111-0000", pin: "730914" })).toBeNull();
+  });
+
+  it("does not offer 신청 취소 in an ended event or without PARTICIPANT_WRITE", async () => {
+    seed(["김하나"]);
+    setLifecycle(EVENT, "ENDED", 2);
+    await login({ userId: OWNER });
+    openApp(`/events/${EVENT}/participants`);
+    const drawer = await openDrawer("김하나");
+    expect(within(drawer).getByRole("button", { name: "신청 취소" })).toBeDisabled();
+    expect(within(drawer).getByText(/끝나거나 보관된 행사는 참가 상태를 바꿀 수 없어요/)).toBeInTheDocument();
+  });
+});

@@ -134,6 +134,7 @@ const TABLE: ApplicationTable = {
   columns: COLUMNS,
   rows: ROWS,
   slots: null,
+  withdrawn: [],
 };
 const COLS = buildColumns(TABLE);
 const col = (id: string): ColumnDef => COLS.find((item) => item.id === id)!;

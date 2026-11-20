@@ -231,7 +231,8 @@ function NewPin({ name, onDone }: { name: string; onDone: () => void }) {
 }
 
 function signInFailure(error: unknown): string {
-  if (isApiError(error, "PARTICIPANT_LOGIN_FAILED")) return "이름, 전화번호, 숫자 6자리를 다시 확인해 주세요.";
+  if (isApiError(error, "PARTICIPANT_LOGIN_FAILED"))
+    return "이름, 전화번호, 숫자 6자리를 다시 확인해 주세요. 신청이 취소되었다면 운영진에게 문의해 주세요.";
   if (isApiError(error, "PARTICIPANT_LOGIN_LOCKED")) {
     return `여러 번 틀려서 잠겼어요. ${lockWait(error.extensions.retryAfterSeconds)} 뒤에 다시 해 주세요. 번호를 잊었다면 운영진에게 초기화를 부탁해 주세요.`;
   }

@@ -88,7 +88,12 @@ class ParticipantSessionHttpIT {
     JsonNode created = json.readTree(submitted.getResponse().getContentAsString());
     assertThat(created.propertyNames())
         .containsExactly(
-            "applicationId", "participantId", "revision", "revised", "completionNotice");
+            "applicationId",
+            "participantId",
+            "revision",
+            "revised",
+            "completionNotice",
+            "restored");
     assertThat(created.get("revision").asInt()).isEqualTo(1);
     assertThat(created.get("revised").asBoolean()).isFalse();
     assertThat(submitted.getResponse().getContentAsString()).doesNotContain(PIN);
