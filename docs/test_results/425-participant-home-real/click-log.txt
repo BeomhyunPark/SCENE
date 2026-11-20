@@ -1,0 +1,19 @@
+운영자 신청서 다시 열기: 200
+[390] 신청 → 홈(실제 home): 탭 홈·일정·공지·내 조·내 정보
+[390] 일정 → /participate/{eventId}/schedule
+[390] 공지 → /participate/{eventId}/notices
+[390] 내 조 → /participate/{eventId}/group
+[390] 내 정보 → /participate/{eventId}/me
+[390] 새로 고침 뒤 내 정보 유지(실제 쿠키): /participate/{eventId}/me
+[390] 내 정보 고치기 저장 → 또래 99
+[390] 운영자: 조 만들기 201, 배정 200, 공개 200 PUBLISHED
+[390] 조 편성 공개 → 32.6초 뒤 홈 내 조 카드가 "3조"로 바뀜 (화면 조작 없음)
+[390] 운영자 완료 안내 저장 200
+[390] 완료 안내 저장 → 27.0초 뒤 행사 카드에 "신청 안내 보기"가 생김
+[390] updates 요청 간격(초): 26.9
+[desktop] 신청 → 홈(실제 home): 탭 홈·일정·공지·내 조·내 정보
+[desktop] 일정 → /participate/{eventId}/schedule
+[desktop] 공지 → /participate/{eventId}/notices
+[desktop] 내 조 → /participate/{eventId}/group
+[desktop] 내 정보 → /participate/{eventId}/me
+[desktop] 새로 고침 뒤 내 정보 유지(실제 쿠키): /participate/{eventId}/me
