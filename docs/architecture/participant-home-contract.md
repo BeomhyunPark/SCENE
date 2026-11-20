@@ -205,7 +205,8 @@ I5 전에는 1번이 없고 2·3번만으로 정한다. 응답 모양은 I5 뒤�
 |---|---|---|---|
 | `APPLICATION_REVISED` | `APPLICATION` | 그 행사에서 유효한 `PARTICIPANT_READ`를 가진 운영자(결정 대기 1) | 참가자가 신청을 고칠 때(A4) |
 | `APPLICATION_RESUBMITTED` | `APPLICATION` | 같음 | 같은 전화로 다시 신청해 수정으로 덮어쓸 때(A4) |
-| `APPLICATION_CANCELLED` | `APPLICATION` | 같음 | 참가자 또는 다른 운영자가 신청을 취소할 때(A7). 취소한 본인에게는 만들지 않는다 |
+| `APPLICATION_CANCELLED` | `APPLICATION` | 같음 | 참가자 또는 다른 운영자가 신청을 취소할 때(A7). 취소한 본인에게는 만들지 않는다. 서버는 `ApplicationStatusChanged`(`action: WITHDRAWN`) 이벤트로 알린다(DEC-084 §7) |
+| `APPLICATION_RESTORED` | `APPLICATION` | 같음 | 운영자가 취소를 되돌리거나, 취소된 사람이 같은 전화·6자리로 다시 신청해 돌아올 때(A7, DEC-084 §5). 되돌린 본인에게는 만들지 않는다. 이벤트 `action: RESTORED`, `actorKind`로 둘을 가른다 |
 | `STAFF_NOTICE_PUBLISHED` | `NOTICE` | 그 행사의 활성 운영자 전원(작성자 제외) | 대상 `STAFF` 공지 발행(DEC-082) |
 | `LIFECYCLE_OVERRIDE` | `EVENT` | 지금 `operator_notices`와 같다 | 공간 소유자가 대신 활성화·종료·다시 열기 |
 

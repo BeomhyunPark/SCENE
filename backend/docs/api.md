@@ -1210,6 +1210,8 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
 
 한 건 조회와 참가 현황 표의 행에는 `revision`(1부터)과 `participantId`가 있다. `SUPERSEDED` 신청도 한 건 조회로 읽는다(변경 전 답).
 
+한 건 조회의 `withdrawal`은 그 신청이 참가자의 마지막 revision이고 `WITHDRAWN`일 때 `{ "withdrawnAt", "withdrawnByDisplayName", "reason", "reapplyBlocked" }`이고, 아니면 `null`이다([신청 취소와 되돌리기](#신청-취소와-되돌리기)). `reason`은 운영자 화면에만 보인다.
+
 ### `GET /api/v1/operator/events/{eventId}/applications/{applicationId}/revisions`
 
 그 신청의 참가자가 낸 모든 revision이다. 권한은 한 건 조회와 같다. 최신이 먼저다. 신청자 알림(I3)과 변경 전후 화면이 읽는다.
@@ -1270,6 +1272,77 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
 ```
 
 저장마다 audit `APPLICATION_OPERATION_UPDATED` 한 줄을 남기고 details는 `{ "applicationId", "version", "fields": ["memo"] }`다. 메모 본문은 audit·로그·오류 응답에 넣지 않는다. 누가 언제 고쳤는지는 응답의 `updatedAt`·`updatedByDisplayName`과 audit 행으로 남는다. 참가자 경로(`/api/v1/participant/**`)와 CSV에는 운영 정보가 없다.
+
+### 신청 취소와 되돌리기
+
+운영자가 신청을 취소(`WITHDRAWN`)하고 되돌린다([DEC-084](../../docs/product/PRODUCT_DECISIONS.md)). 컨트롤러는 `ApplicationWithdrawalController`, 서비스는 `ApplicationWithdrawalService`다. 둘 다 CSRF가 필요하고 `Idempotency-Key`는 읽지 않는다(다시 보내도 `ALREADY_…`로 끝난다).
+
+- 권한은 effective `PARTICIPANT_WRITE`다(운영 메모·6자리 초기화와 같다). 조 배정을 지우지만 `GROUP_WRITE`는 보지 않는다.
+- 판정 순서는 404(행사·신청) → 403 → 400 → 409 행사 상태 → 409 신청 상태다.
+- 행사가 `DRAFT`·`ACTIVE`일 때만 된다. `ENDED`는 `409 EVENT_ENDED`, `ARCHIVED`는 `409 EVENT_ARCHIVED`다.
+- 경로의 `applicationId`가 기대값이다. 그 사이 참가자가 고쳐 그 행이 `SUPERSEDED`가 됐으면 `409 CONCURRENT_MODIFICATION`이고 확장 필드 `applicationId`·`status`·`revision`이 그 참가자의 지금(마지막) revision이다.
+
+#### `POST /api/v1/operator/events/{eventId}/applications/{applicationId}/withdraw`
+
+```json
+{ "reason": "가족 사정으로 못 와요", "blockReapply": false }
+```
+
+본문은 없어도 된다. `reason`은 선택이고 앞뒤 공백을 자른 뒤 200자까지다(빈 글은 없음). 문자열이 아니거나 길면 `400 VALIDATION_FAILED`(필드 `reason`). `blockReapply`는 선택 불리언이다(기본 `false`, 필드 `blockReapply`).
+
+같은 transaction에서:
+
+1. 참가자의 지금 `SUBMITTED` 행을 `WITHDRAWN`으로 바꾼다. 새 revision은 없다. 답·이전 revision·운영 메모·체크인 기록은 그대로다.
+2. 작업본 조 배정 행을 지우고 `group_assignment_logs`에 cause `WITHDRAWN`을 남긴다. `boardVersion`이 오르고, 조장이었으면 그 조의 `version`도 오른다. 공개본은 그대로이고 읽을 때 빠진다.
+3. 그 참가자의 세션을 모두 지운다.
+4. `blockReapply: true`면 6자리를 아무도 모르는 값으로 바꾼다(같은 전화의 재신청이 6자리로 돌아오지 못한다).
+5. `application_status_logs`에 `WITHDRAWN`(사유, 처리자, 시각, `block_reapply`)을 남긴다.
+6. audit `APPLICATION_WITHDRAWN`, detail `{ "applicationId", "participantId", "groupRemoved", "reasonGiven", "blockReapply" }`. **사유 본문은 audit·로그·오류 본문에 없다.**
+
+`200`
+
+```json
+{
+  "result": "WITHDRAWN",
+  "applicationId": "…",
+  "participantId": "…",
+  "withdrawal": { "withdrawnAt": "…", "withdrawnByDisplayName": "김운영", "reason": "가족 사정으로 못 와요", "reapplyBlocked": false },
+  "removedGroup": { "groupId": "…", "name": "1조", "leader": true },
+  "checkedInAt": "2027-01-22T09:10:00Z"
+}
+```
+
+- 이미 취소된 행이면 `result: ALREADY_WITHDRAWN`이고 아무것도 더하지 않는다(`removedGroup`은 `null`, `withdrawal`은 그때의 기록).
+- `removedGroup`은 이 요청이 지운 배정이다. 미배정이었으면 `null`이다.
+- `checkedInAt`은 남겨 둔 도착 체크인 시각이다(없으면 `null`). 현황·명단·QR·수동 체크인에서는 이미 빠졌다.
+
+취소된 사람은 `SUBMITTED`만 읽는 모든 곳에서 바로 빠진다: 신청 집계(식수·숙박·이동), 조 편성판의 활성 명단·미배정 수(편성판 `withdrawn[]`에 "이전 조"와 함께 나온다), 공개본 조회·참가자 내 조·조장 이름, 체크인 현황·명단·QR·수동 체크인(`409 INVALID_STATE_TRANSITION`, `reason: APPLICATION_NOT_SUBMITTED`), CSV, 참가 현황 표의 `rows`(따로 `withdrawn[]`), 참가자 들어오기(`401 PARTICIPANT_LOGIN_FAILED`), 남은 참가자 쿠키(`401 AUTHENTICATION_REQUIRED`). 이 일치는 `ApplicationWithdrawalHttpIT`가 묶는다.
+
+#### `POST /api/v1/operator/events/{eventId}/applications/{applicationId}/restore`
+
+본문은 없다. 그 참가자의 **마지막 revision이 `WITHDRAWN`인 행**만 되돌린다. 같은 행을 `SUBMITTED`로 바꾸고 `application_status_logs`에 `RESTORED`, audit `APPLICATION_RESTORED`(`{ "applicationId", "participantId" }`)를 남긴다. 부분 유일 색인에 걸리면(같은 참가자의 다른 `SUBMITTED`) `409 CONFLICT`다.
+
+`200`
+
+```json
+{
+  "result": "RESTORED",
+  "applicationId": "…",
+  "participantId": "…",
+  "previousGroup": { "groupId": "…", "name": "1조" },
+  "reapplyBlocked": false,
+  "checkedInAt": null
+}
+```
+
+- 이미 `SUBMITTED`면 `result: ALREADY_SUBMITTED`이고 다른 값은 `null`·`false`다.
+- **조 배정은 돌아오지 않는다**(DEC-044). 되돌린 사람은 미배정이다. `previousGroup`은 마지막 취소 때의 조이고, 그 조가 지워졌으면 `null`이다. 참고로만 보여 준다.
+- 체크인 기록은 지우지 않았으므로 도착 체크인한 사람은 도착이 다시 센다.
+- 세션은 돌아오지 않는다. 참가자는 이름·전화번호·6자리로 다시 들어온다. `reapplyBlocked`가 `true`면 6자리가 무효이므로 [6자리 초기화](#post-apiv1operatoreventseventidparticipantsparticipantidpin-reset)를 해 줘야 들어온다.
+
+#### 운영자 알림이 붙을 자리 (I3)
+
+취소·되돌리기·재신청 복귀는 모두 `ApplicationStatusChanges.record(...)`를 지난다. 이곳이 `application_status_logs` 한 행과 Spring 이벤트 `ApplicationStatusChanged`(`spaceId`, `eventId`, `participantId`, `applicationId`, `action` `WITHDRAWN`/`RESTORED`, `actorKind` `OPERATOR`/`PARTICIPANT`, `actorUserId`, `at`)를 같은 transaction에서 낸다. 아직 받는 곳은 없다. I3는 이 이벤트로 `APPLICATION_CANCELLED`·`APPLICATION_RESTORED` 알림 행을 만든다(사유는 넣지 않는다, 처리한 운영자 본인은 빼고).
 
 ### `POST /api/v1/operator/events/{eventId}/applications/export`
 
@@ -1461,6 +1534,23 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
 - 0건이면 `rows`가 빈 배열이고 `columns`는 그대로다.
 - `participantId`는 조 편성판·`group-assignments`가 쓰는 참가자 id다. 서랍에서 조를 바꿀 때 쓴다(#335).
 - `operation`은 운영 정보다(#335, DEC-075). 모양은 [운영 정보 저장](#put-apiv1operatoreventseventidapplicationsapplicationidoperation)의 응답과 같고, 저장된 것이 없으면 `{ "memo": "", "version": 0, "updatedAt": null, "updatedByDisplayName": null }`이다. 표를 읽을 수 있으면 모두 본다. `answers`는 언제나 참가자가 낸 원본이다.
+- `withdrawn`은 취소된 신청자다(DEC-084 §9). `rows`와 따로 있어 표의 어떤 숫자에도 들어가지 않는다. 최근 취소가 먼저다. 화면은 기본으로 숨기고 "취소 N"으로 연다.
+
+```json
+"withdrawn": [
+  {
+    "applicationId": "…",
+    "participantId": "…",
+    "name": "나래",
+    "submittedAt": "…",
+    "withdrawal": { "withdrawnAt": "…", "withdrawnByDisplayName": "김운영", "reason": "가족 사정", "reapplyBlocked": false },
+    "previousGroup": { "groupId": "…", "name": "1조" },
+    "checkedInAt": null
+  }
+]
+```
+
+  `previousGroup`은 취소가 지운 조이고, 조가 지워졌거나 `groupVisible`이 `false`면 `null`이다. 전화·답은 없다. 사유는 운영 메모처럼 표를 읽는 운영자 모두 본다.
 
 ## 공개 신청서
 
@@ -1510,12 +1600,14 @@ CSRF가 필요하다. `Idempotency-Key`는 읽지 않는다.
 **처음 신청**이면 `201`이다. `Location` 헤더는 없다.
 
 ```json
-{ "applicationId": "…", "participantId": "…", "revision": 1, "revised": false, "completionNotice": "참가비 3만원은 …" }
+{ "applicationId": "…", "participantId": "…", "revision": 1, "revised": false, "completionNotice": "참가비 3만원은 …", "restored": false }
 ```
 
 `completionNotice`는 제출한 순간의 완료 안내다(없으면 `null`). 신청 완료 화면이 글자 그대로 보인다. **공개 신청서 `GET`에는 싣지 않는다.** 신청을 마친 사람만 보게 하려는 것이다(#406). 재신청(수정) 응답에도 같은 값이 있다.
 
 **같은 전화번호의 신청이 이미 있으면**(전화번호의 숫자만 비교한다) 번호가 맞을 때만 그 신청의 수정이 된다(새 revision, [참가자 신청](#참가자-신청)과 같은 저장). `200`이고 `revised: true`다. 이름이 달라도 수정이다. 수정이 닫혀 있으면 `409 EDITS_CLOSED`다. 번호가 틀리면 `409 APPLICATION_ALREADY_EXISTS`이고 이전 답은 본문에 없다. 이 실패는 그 전화의 [잠금](#post-apiv1publiceventseventidparticipant-sessions) 횟수에 들어가고, 잠겨 있으면 `429 PARTICIPANT_LOGIN_LOCKED`다. 바뀐 답이 없으면 revision을 만들지 않고 지금 신청을 돌려준다.
+
+**그 전화의 신청이 취소돼 있으면**([DEC-084](../../docs/product/PRODUCT_DECISIONS.md) §5) 번호가 맞을 때 다시 신청한 것으로 돌아온다. `200`이고 `revised: true`, `restored: true`다. 답이 바뀌었으면 새 revision을 만들고 취소된 행은 `SUPERSEDED`가 된다. 답이 같으면 취소된 행이 다시 `SUBMITTED`가 된다. 신청 받기(`acceptingApplications`)만 보고 신청 수정 스위치는 보지 않는다. 조 배정은 돌아오지 않는다. `application_status_logs`에 `RESTORED`(처리자 `PARTICIPANT`)가 남고 audit는 없다. 번호가 틀리면(운영자가 "다시 신청 막기"로 취소한 경우 포함) 위와 같은 `409 APPLICATION_ALREADY_EXISTS`다. 응답의 `restored`는 그 밖에는 `false`다.
 
 두 경우 모두 `Set-Cookie`로 참가자 세션(`SCENE_PSESSION`)이 열린다. 신청 직후 화면은 바로 들어간 상태다. 접근 키는 더 만들지 않는다.
 
@@ -1540,7 +1632,7 @@ CSRF가 필요하다.
 | 그 전화번호로 연속 5번 틀렸다(신청이 없는 번호도 똑같이 센다) | 잠금 동안 `429 PARTICIPANT_LOGIN_LOCKED`. 본문 `retryAfterSeconds`. 24시간 안의 첫 잠금 5분, 두 번째 30분, 세 번째부터 24시간. 맞히거나 운영자가 6자리를 초기화하면 처음으로 돌아간다. 맞히면 0으로 돌아간다 |
 | 같은 IP의 실패가 10분에 300번을 넘었다 | `429 RATE_LIMITED` |
 
-쿠키는 `HttpOnly`, `Secure`, `SameSite=Lax`, 경로 `/api/v1/participant`이고 `Max-Age`가 있다(브라우저를 닫아도 남는다). `Max-Age`는 아래 세션 끝 시각까지이고, 행사 끝 날짜가 없으면 180일이다(`scene.participant.cookie-max-age-without-end`). 실제로 세션이 끝났는지는 서버가 판정한다. 첫 신청·재신청 응답의 쿠키도 같다. 값은 세션 토큰이고 서버는 해시만 저장한다. 세션은 로그아웃, 6자리 초기화, 또는 **행사 끝 날짜+8일 0시(Asia/Seoul)**에 끝난다. 끝 날짜가 없는 행사는 로그아웃까지다. 끝난 세션은 `401 AUTHENTICATION_REQUIRED`다.
+쿠키는 `HttpOnly`, `Secure`, `SameSite=Lax`, 경로 `/api/v1/participant`이고 `Max-Age`가 있다(브라우저를 닫아도 남는다). `Max-Age`는 아래 세션 끝 시각까지이고, 행사 끝 날짜가 없으면 180일이다(`scene.participant.cookie-max-age-without-end`). 실제로 세션이 끝났는지는 서버가 판정한다. 첫 신청·재신청 응답의 쿠키도 같다. 값은 세션 토큰이고 서버는 해시만 저장한다. 세션은 로그아웃, 6자리 초기화, 또는 **행사 끝 날짜+8일 0시(Asia/Seoul)**에 끝난다. 끝 날짜가 없는 행사는 로그아웃까지다. 끝난 세션은 `401 AUTHENTICATION_REQUIRED`다. **세션은 그 참가자에게 `SUBMITTED` 신청이 있는 동안만 유효하다**(DEC-084 §4). 신청이 취소되면 세션 행도 지우지만, 조회 자체가 이것을 함께 보므로 모든 참가자 경로(`ParticipantSessionCookie.require()`·`requireAny()`)가 한곳에서 `401`로 끝난다.
 
 시도 횟수와 잠금은 서버 메모리에 있다. 서버가 다시 뜨면 0부터 센다. 예전 `{ "accessKey" }` 본문은 받지 않는다(`400 VALIDATION_FAILED`, DEC-078 §7).
 
@@ -1851,7 +1943,7 @@ CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고
 - `newcomer`는 새가족 보기(`opt_newcomer`)를 가진 보이는 질문(중그룹이 가지면 중그룹, 아니면 셀)의 답으로 정한다: 그 보기를 골랐으면 `true`, 다른 보기면 `false`, 답이 없거나 그런 질문이 없으면 `null`이고 화면은 "응답 없음"으로 묶는다. 예전 `NEWCOMER` 예/아니오 답은 읽지 않는다. 돌봄 관련 정보라 편성판에만 있다. 참가자의 내 조(`GET /participant/group`, 조장의 조원 명단 포함)와 운영자 공개본 조회에는 없다.
 - `attendance`는 `ATTENDANCE` 답의 `opt_full`·`opt_partial`·`opt_worship`을 `FULL`·`PARTIAL`·`WORSHIP_ONLY`로 바꾼 값이다. 질문이 없거나 꺼져 있으면 `FULL`이다(DEC-070 §3). 질문이 켜진 뒤 들어온 신청이 아니라서 답이 없을 때도 `FULL`이다. `null`이 아니다.
 - `groupId`가 `null`이면 미배정이다. `position`([#343](https://github.com/BeomhyunPark/SCENE/issues/343))은 조 안 순서로, 작은 값이 앞이고 같으면 참가자 id 순이다. 값이 0부터 이어진다는 보장은 없다(빠진 번호가 있을 수 있다). 미배정이면 `null`이다. 화면은 조원을 이 순서로 그린다. `publishedGroupId`·`publishedLeader`는 가장 최근 공개본의 값이고, 공개한 적이 없거나 그 공개본에 없으면 `null`·`false`다.
-- `withdrawn`은 배정 행이 남아 있지만 활성 참가자가 아닌 사람이다. `groupId`는 참고값이다. 조별 인원·미배정 수에 넣지 않는다.
+- `withdrawn`은 `SUBMITTED` 신청이 없는(취소된) 사람 가운데 이전 조가 있는 사람이다. 이전 조는 남은 배정 행(DEC-084 전에 SQL로 철회된 기록)이거나, 취소가 배정을 지우며 남긴 `group_assignment_logs`의 마지막 `WITHDRAWN` 기록이다. `groupId`는 참고값이고 조가 지워졌을 수 있다. 조별 인원·미배정 수에 넣지 않는다.
 - `publication`: 공개한 적이 없으면 `lastPublished…`가 `null`이다. `lastPublishedBoardVersion`은 그 공개 때의 `boardVersion`이다. `changedParticipantCount`는 활성 참가자 중 작업본과 최근 공개본의 조 또는 조장 표시가 다른 사람 수다(처음 공개 전에는 배정된 사람 수). `groupChanges`는 작업본과 최근 공개본 사이에 추가·삭제됐거나 이름 또는 `sortOrder` 값이 다른 조, 또는 양쪽에 다 있는 조원끼리의 순서가 다른 조의 수다(처음 공개 전에는 조 수). 순서만 바꿔도 미공개 변경이다(#343). 비교는 내용으로 한다. 옮겼다가 되돌려 내용이 같으면 `boardVersion`이 올라도 변경이 없다. 되돌린 사람은 조의 맨 뒤로 가므로, 원래 맨 뒤가 아니었다면 순서 변경으로 센다. `hasUnpublishedChanges`는 둘 중 하나라도 0이 아니면 `true`다. 화면은 이 값으로 "미공개 변경 있음"을 보여 준다(DEC-040).
 - `slots`·`slotIds`([#315](https://github.com/BeomhyunPark/SCENE/issues/315))는 각 사람이 언제 있는지를 막대로 보여 주기 위한 **참석 칸**이다. 칸은 신청서 설정의 일차별 식사·집회 표(DEC-070, 자동 질문 `MEALS`)이고, [신청 집계](#get-apiv1operatoreventseventidapplicationssummary)의 `meals.days[].slots[]`와 같은 칸·같은 순서·같은 규칙이다(서버는 같은 코드 `MealSlots`로 읽는다).
   - `slots`는 칸 정의를 일차 순, 하루 안에서는 아침 → 점심 → 저녁 → 집회 순으로 펼친 목록이다. `slotId`는 집계의 `optionId`(`MEALS` 보기 id, `opt_d<일차>_<칸>`)와 같다. `meal`은 `BREAKFAST`·`LUNCH`·`DINNER`·`WORSHIP`, `label`은 `MEALS` 보기의 지금 문구(질문이 꺼져도 그 문구, 보기가 없으면 기본 문구), `dayLabel`은 `1월 22일 (금)` 꼴, `sortOrder`는 목록 안 0부터의 위치다. 칸이 없는 날은 빠진다.
@@ -2076,6 +2168,8 @@ audit `GROUPS_PUBLISHED`: detail은 `publicationId`, `boardVersion`, `assignedCo
 | `APPLICATION_OPERATION_UPDATED` | 신청의 운영 정보(운영 메모)를 저장할 때마다. details는 `applicationId`·`version`·`fields`뿐이고 메모 본문은 없다(#335) |
 | `TASK_REOPENED` | `DONE` 업무가 다시 열릴 때 |
 | `PARTICIPANT_PIN_RESET` | 운영자가 참가자의 숫자 6자리를 초기화할 때마다. detail은 `participantId`뿐이다(DEC-078) |
+| `APPLICATION_WITHDRAWN` | 운영자가 신청을 취소할 때. detail은 `applicationId`·`participantId`·`groupRemoved`·`reasonGiven`·`blockReapply`이고 사유 본문은 없다(DEC-084) |
+| `APPLICATION_RESTORED` | 운영자가 취소한 신청을 되돌릴 때. detail은 `applicationId`·`participantId`(DEC-084). 참가자의 재신청 복귀는 audit 없이 `application_status_logs`에만 남는다 |
 
 이름 상수는 `common/audit/AuditActions`에 있다. 업무 진행의 네 이름은 그 클래스 밖에 있고, `TaskProgressService`가 문자열로 넣는다. `OWNER_TRANSFER_ACCEPTED`도 그 클래스 밖에 있고, `OwnerTransferService`가 문자열로 넣는다. detail은 `transferId`, `toUserId`, `recipientPriorRole`, `deletedOverrides`다. actor는 받는 사람이다.
 
