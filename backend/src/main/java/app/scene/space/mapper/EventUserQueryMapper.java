@@ -2,11 +2,13 @@ package app.scene.space.mapper;
 
 import app.scene.space.ListedEventOperator;
 import app.scene.space.OperatedEvent;
+import app.scene.space.OperatorAuthority;
 import app.scene.space.param.AuthorityQuery;
 import app.scene.space.param.EventOperatorKey;
 import app.scene.space.param.EventOperatorListQuery;
 import app.scene.space.param.EventScope;
 import app.scene.space.param.OperatedEventQuery;
+import app.scene.space.param.OperatorAuthorityQuery;
 import java.util.List;
 import java.util.UUID;
 import org.apache.ibatis.annotations.Mapper;
@@ -29,4 +31,6 @@ public interface EventUserQueryMapper {
   long countOperators(EventScope scope);
 
   List<ListedEventOperator> findOperators(EventOperatorListQuery query);
+
+  List<OperatorAuthority> findAuthorities(OperatorAuthorityQuery query);
 }

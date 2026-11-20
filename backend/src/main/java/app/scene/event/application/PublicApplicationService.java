@@ -59,6 +59,7 @@ public class PublicApplicationService {
   private final ParticipantGuard guard;
   private final Clock clock;
   private final JsonMapper json;
+  private final ApplicationNotices notices;
 
   public PublicApplicationService(
       EventRepository events,
@@ -71,7 +72,8 @@ public class PublicApplicationService {
       ParticipantPins pins,
       ParticipantGuard guard,
       Clock clock,
-      JsonMapper json) {
+      JsonMapper json,
+      ApplicationNotices notices) {
     this.events = events;
     this.forms = forms;
     this.applications = applications;
@@ -83,6 +85,7 @@ public class PublicApplicationService {
     this.guard = guard;
     this.clock = clock;
     this.json = json;
+    this.notices = notices;
   }
 
   /** The response body, the raw session token for the cookie, and whether a participant is new. */
@@ -194,6 +197,8 @@ public class PublicApplicationService {
             participant.name(),
             ApplicationRevisions.BY_PARTICIPANT,
             null);
+    // DEC-080 §7.2: an edit through a resubmit is its own kind, in this transaction.
+    notices.resubmitted(location.spaceId(), eventId, result);
     ParticipantSessionService.Issued token =
         sessions.open(location.spaceId(), eventId, participant.id());
     return new Submission(
