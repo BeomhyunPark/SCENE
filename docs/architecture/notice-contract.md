@@ -5,6 +5,7 @@
 - 정책: [DEC-082](../product/PRODUCT_DECISIONS.md) (D1, [#400](https://github.com/BeomhyunPark/SCENE/issues/400))
 - 기대는 계약: [참가자 홈·갱신 확인·알림](participant-home-contract.md)(DEC-080)의 `updates.notices`, 알림, 대상(audience)
 - 작성: 2026-11-19. 2026-11-20 서버 경로를 api.md로 옮겼다(통합 테스트·로컬 HTTP로 확인, 실제 클릭은 화면이 없어 하지 않았다).
+- 2026-11-20 화면(D3 #442, D4 #443)을 만들었다. 화면에서 정한 것은 [DEC-082 Follow-up (2026-11-20, #442 #443)](../product/PRODUCT_DECISIONS.md), 로컬 실제 클릭 기록은 [442-notices](../test_results/442-notices/README.md)다.
 
 ## 1. 공지 객체
 
