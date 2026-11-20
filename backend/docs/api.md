@@ -1568,9 +1568,9 @@ CSRF가 필요하다. 새 번호를 정한다.
 
 임시 번호로 들어온 세션(`pinChangeRequired: true`)은 `currentPin`을 생략한다. 그 밖에는 필수이고, 틀리면 `401 PARTICIPANT_LOGIN_FAILED`이며 잠금 횟수에 들어간다. `newPin`은 신청 때와 같은 규칙이다(`400 PARTICIPANT_PIN_WEAK`). 성공은 `204`다. 그 참가자의 다른 세션은 끊고 이 세션은 남긴다.
 
-### 참가자 세션으로 완료 안내 읽기 (계약만, B2)
+### 참가자 세션으로 완료 안내 읽기
 
-참가자 홈 `GET /api/v1/participant/home`(트랙 B의 B2, [#379](https://github.com/BeomhyunPark/SCENE/issues/379))의 본문에 `completionNotice`(문자열 또는 `null`)를 둔다. 값은 세션의 행사에 있는 신청서의 **지금** 완료 안내다(제출 때 받은 값이 아니다). 그래서 운영자가 고치면 이미 신청한 사람도 새 문구를 본다. 모양과 처리는 위 `PUT …/completion-notice`와 같고 글자 그대로 그린다. 서버는 `forms.completion_notice`를 `space_id`·`event_id`로 읽는다(`FormRepository.findByEvent(...).completionNotice()`). 이 경로는 아직 없다. 만들 때 이 절을 그 경로 설명으로 옮긴다.
+[`GET /api/v1/participant/home`](#get-apiv1participanthome)의 `completionNotice`가 세션 행사의 신청서에 있는 **지금** 완료 안내다(제출 때 받은 값이 아니다). 아래 [참가자 홈·갱신 확인·알림](#참가자-홈갱신-확인알림)을 본다.
 
 ### `POST /api/v1/participant/auth/logout`
 
@@ -1609,6 +1609,126 @@ CSRF가 필요하다.
 `answers`는 공개 신청 POST와 같은 규칙으로 검사한다. 전화번호는 숫자가 지금과 같아야 한다(다르면 `400 APPLICATION_VALIDATION_FAILED`). 숨긴 질문의 이전 답은 그대로 옮긴다. 수정이 닫혀 있으면 `409 EDITS_CLOSED`다. `expectedRevision`이 지금과 다르면 `409 CONCURRENT_MODIFICATION`이고 본문 `revision`이 지금 값이다. 성공은 `200`이고 본문은 `GET`과 같다. 바뀐 답이 없으면 revision을 만들지 않는다.
 
 저장: 새 `applications` 행(`SUBMITTED`, `revision` +1, `previous_application_id`, `revised_by: PARTICIPANT`, `changes`)을 만들고 이전 행을 `SUPERSEDED`로 바꾼다. 운영 메모는 새 행으로 옮긴다. 조 배정·체크인은 참가자에 붙어 있어 그대로다. 집계·편성판·CSV·참가 현황 표·체크인 명단은 `SUBMITTED`만 읽어 새 답을 쓴다. 이름이 바뀌면 `participants.name`도 바뀐다.
+
+## 참가자 홈·갱신 확인·알림
+
+참가자 화면의 홈 머리, 주기 확인, 화면 안 알림이다([DEC-080](../../docs/product/PRODUCT_DECISIONS.md), [#423](https://github.com/BeomhyunPark/SCENE/issues/423)). 화면 규칙(탭·카드·확인 주기·지금·다음 일정 계산)은 [계약 초안](../../docs/architecture/participant-home-contract.md) §1·§2·§5·§6에 있다.
+
+네 경로 모두 참가자 세션 쿠키가 필요하다. 없거나 저장된 세션이 아니면 `401 AUTHENTICATION_REQUIRED`, 임시 번호 세션은 `403 PARTICIPANT_PIN_CHANGE_REQUIRED`다. 대상은 세션의 행사·참가자뿐이다. 응답은 `Cache-Control: no-store`이고 audit을 남기지 않는다. 행사 상태로 막지 않는다. 컨트롤러는 `event/home/ParticipantHomeController`, `event/notification/ParticipantNotificationController`다.
+
+### `GET /api/v1/participant/home`
+
+`200`
+
+```json
+{
+  "event": {
+    "eventId": "…",
+    "name": "2027 청년부 겨울수련회",
+    "status": "ACTIVE",
+    "startDate": "2027-01-22",
+    "endDate": "2027-01-24",
+    "place": "양평 ○○수양관",
+    "timeZone": "Asia/Seoul"
+  },
+  "participant": { "name": "김", "applicationStatus": "SUBMITTED" },
+  "completionNotice": "참가비 계좌: …\n문의: …",
+  "features": { "schedule": true, "notices": true, "groups": true, "rooms": true, "mealOrder": true },
+  "updates": { "…": "아래 updates와 같은 객체" }
+}
+```
+
+- `event.status`는 `DRAFT`·`ACTIVE`·`ENDED`·`ARCHIVED`다. `startDate`·`endDate`·`place`는 없으면 `null`이다. `timeZone`은 설정 `scene.participant.zone`(기본 `Asia/Seoul`)이다.
+- `participant.name`은 지금 이름이다. `applicationStatus`는 `SUBMITTED` 또는 `NONE`(지금 `SUBMITTED` 신청이 없음)이다.
+- `completionNotice`는 신청서(행사당 하나)의 **지금** 완료 안내 문자열이고 없으면 `null`이다. 모양은 [`PUT …/completion-notice`](#put-apiv1operatoreventseventidformsformidcompletion-notice)와 같고 글자 그대로 그린다.
+- `features`: 행사 유형이 `RETREAT`·`CAMP`면 다섯 영역 모두, 그 밖과 유형 없음은 `schedule`·`notices`만 켠다. 그와 상관없이 그 영역의 갱신 값(아래 `participant_feed_versions`)이 0보다 크면(무엇이든 공개된 적이 있으면) 켠다. 운영자가 저장하는 값(I5)은 아직 없다.
+- 전화·숫자 6자리·접근 키·다른 참가자 정보는 없다.
+
+### `GET /api/v1/participant/updates`
+
+화면이 주기적으로 불러 바뀐 카드만 다시 읽는다. 200명이 30초마다 부르므로 한 요청이 SQL 네 문장(세션 확인, `participant_feed_versions` 한 행, 알림 요약, 내 체크인·신청 revision)만 읽는다. 공개본·공지·일정 테이블은 읽지 않는다.
+
+`200`
+
+```json
+{
+  "home": 3, "schedule": 12, "notices": 7, "group": 2, "rooms": 0, "mealOrder": 0,
+  "checkIn": 1, "application": 2,
+  "notifications": { "latestSeq": 5821, "unreadCount": 2 },
+  "pollAfterSeconds": 30,
+  "serverTime": "2027-01-22T05:30:12Z"
+}
+```
+
+| 키 | 범위 | 오르는 때(지금 서버) |
+| --- | --- | --- |
+| `home` | 행사 | 행사 이름 변경(`PATCH …/events/{eventId}`), 상태 전이(`ALREADY_IN_STATE` 제외), 완료 안내 저장 |
+| `group` | 행사 | 조 편성 공개가 `PUBLISHED`일 때만(`ALREADY_PUBLISHED`·작업본 저장은 아님) |
+| `schedule`·`notices`·`rooms`·`mealOrder` | 행사 | 아직 오르는 경로가 없다(일정·공지·숙소·식사 순서가 만든다) |
+| `checkIn` | 참가자 | 내 `checkin_logs`의 최대 `seq`(체크인·취소). 없으면 0 |
+| `application` | 참가자 | 내 신청의 최대 `revision`. 없으면 0 |
+| `notifications.latestSeq` | 참가자 | 내 알림의 최대 `seq`. 없으면 0 |
+| `notifications.unreadCount` | 참가자 | 읽지 않은 내 알림 수. 100에서 멈춘다 |
+
+- 값은 같은지만 비교한다. 행사 범위 값은 같은 행사의 모든 참가자에게 같다.
+- 값은 각 변경과 **같은 트랜잭션**에서 오른다. 변경이 실패하면 값도 오르지 않는다.
+- `pollAfterSeconds`는 설정 `scene.participant.poll-after-seconds`(기본 30, 10–300 밖은 가까운 끝으로 맞춘다. 홈서버 `.env`의 `SCENE_PARTICIPANT_POLLAFTERSECONDS`)다.
+- 요청 로그는 경로·상태·시간만 남긴다(`RequestIdFilter`). 참가자 조회 경로에는 IP 제한이 없다.
+
+### `GET /api/v1/participant/notifications?before={seq}&limit=30`
+
+`200`
+
+```json
+{
+  "items": [
+    {
+      "notificationId": "…",
+      "seq": 5821,
+      "kind": "NOTICE_PUBLISHED",
+      "target": { "type": "NOTICE", "id": "…" },
+      "title": "새 공지",
+      "body": "내일 아침 집회 장소가 바뀌었어요",
+      "important": true,
+      "count": 1,
+      "createdAt": "2027-01-22T05:30:00Z",
+      "readAt": null
+    }
+  ],
+  "unreadCount": 2,
+  "nextBefore": 5790
+}
+```
+
+- `seq` 내림차순이다. `before`(양의 정수)가 있으면 그보다 작은 `seq`만 준다. `limit`은 1–50, 기본 30. 벗어나거나 숫자가 아니면 `400 VALIDATION_FAILED`(필드 `before`·`limit`).
+- `nextBefore`는 더 있으면 다음 요청의 `before`, 없으면 `null`이다. `unreadCount`는 100에서 멈춘다. 조회만으로 읽음 처리하지 않는다.
+- `kind`·`target.type`의 값은 [계약 초안 §7.2](../../docs/architecture/participant-home-contract.md)다. 지금 서버에는 참가자 알림을 만드는 경로가 아직 없다(공지·일정·조 공개 알림은 각 기능과 B5가 만든다). 화면은 모르는 `kind`를 받으면 `title`·`body`만 보이고 누를 수 없게 한다.
+- `count`는 합쳐진 수다. 같은 받는 사람에게 같은 `kind`·같은 `target`의 읽지 않은 알림이 있으면 그 행을 지우고 새 행(`seq` 새로, `count` = 이전 + 1)을 넣는다. 읽은 알림은 합치지 않는다.
+
+### `POST /api/v1/participant/notifications/read`
+
+CSRF가 필요하다. 본문은 셋 중 정확히 하나다.
+
+```json
+{ "notificationIds": ["…"] }
+{ "target": { "type": "NOTICE", "id": "…" } }
+{ "upToSeq": 5821 }
+```
+
+- `notificationIds`: 1–50개 UUID. 내 알림이 아닌 id는 조용히 건너뛴다(응답이 같다).
+- `target`: `type`(1–32자)과 `id`(UUID). 그 대상을 가리키는 내 알림을 모두 읽음으로 한다.
+- `upToSeq`: 1 이상의 정수. 그 `seq` 이하의 내 알림을 모두 읽음으로 한다.
+- 키가 없거나 둘 이상이면 `400 VALIDATION_FAILED`(필드 `body`). 다른 키나 잘못된 값은 그 키가 필드다. 본문이 객체가 아니면 필드 `body`.
+- 이미 읽은 알림은 `readAt`을 바꾸지 않는다. `200` 본문은 `{ "unreadCount": 0 }`이다.
+
+### 저장
+
+`V20__participant_feed_and_notifications.sql`.
+
+- `participant_feed_versions`: 행사당 한 행(`space_id`, `event_id` 기본 키), 열 `home`·`schedule`·`notices`·`groups`·`rooms`·`meal_order`·`updated_at`. 처음 오를 때 만든다. 행이 없으면 모두 0이다. 마이그레이션 때 이미 조 편성 공개본이 있는 행사는 `groups`를 공개본 수로 채웠다(`features.groups`가 꺼지지 않게).
+- `notifications`: 참가자·운영자 알림 한 테이블. `recipient_kind`가 `PARTICIPANT`면 `recipient_participant_id`, `OPERATOR`면 `recipient_user_id`만 있다. `title` 80자, `body` 200자, `count` ≥ 1, `seq`는 전체에서 늘어나는 번호. 색인은 참가자 목록·참가자 미읽음(부분 색인)·운영자 목록·대상(`event_id`, `target_type`, `target_id`). 보존은 행사 데이터와 같다.
+- 둘 다 DB에만 있다. 서버 메모리에 두는 값은 없다.
+- 운영자 알림 경로(`GET·POST /operator/events/{eventId}/notifications…`, `GET …/updates`)와 `operator_notices` 이전은 아직 없다(I3, 계약 초안 §7.5·§7.6).
 
 ## 체크인
 
@@ -2094,7 +2214,7 @@ audit `GROUPS_PUBLISHED`: detail은 `publicationId`, `boardVersion`, `assignedCo
 - 비밀번호 로그인
 - SMTP. 초대 링크는 생성·다시 보내기 응답에 한 번 나오고, 메일 포트는 프로세스 메모리에만 담는다
 - 체크 항목 추가
-- 참가자 조회(`GET /api/v1/participant/me`·`GET /api/v1/participant/application`·`GET /api/v1/participant/check-in`·`GET /api/v1/participant/group` 밖)
+- 참가자 조회(`GET /api/v1/participant/me`·`application`·`check-in`·`group`·`home`·`updates`·`notifications` 밖)
 - 운영자의 신청 대리 수정·직접 추가(A12), 신청 취소(#338)
 - 회비, 방, 차량
 - 신청자 CSV([신청자 CSV](#post-apiv1operatoreventseventidapplicationsexport)) 밖의 Export, 공간 설정
@@ -2109,7 +2229,7 @@ audit `GROUPS_PUBLISHED`: detail은 `publicationId`, `boardVersion`, `assignedCo
 
 | 영역 | 정책 | 계약 초안 | 경로 |
 |---|---|---|---|
-| 참가자 홈·갱신 확인·알림 | DEC-080 | [participant-home-contract](../../docs/architecture/participant-home-contract.md) | `GET /participant/home`, `GET /participant/updates`, `GET·POST /participant/notifications…`, `GET·POST /operator/events/{eventId}/notifications…`, `GET /operator/events/{eventId}/updates` |
+| 운영자 알림·운영자 갱신 확인 | DEC-080 | [participant-home-contract](../../docs/architecture/participant-home-contract.md) §7.5 | `GET·POST /operator/events/{eventId}/notifications…`, `GET /operator/events/{eventId}/updates` (참가자 홈·`updates`·알림은 위 [참가자 홈·갱신 확인·알림](#참가자-홈갱신-확인알림)으로 옮겼다) |
 | 일정표 | DEC-081 | [schedule-contract](../../docs/architecture/schedule-contract.md) | `GET /operator/events/{eventId}/schedule`, `POST·PATCH·DELETE …/schedule/items…`, `POST …/schedule/publish`, `GET …/schedule/published`, `GET /participant/schedule` |
 | 공지 | DEC-082 | [notice-contract](../../docs/architecture/notice-contract.md) | `GET·POST /operator/events/{eventId}/notices`, `GET·PATCH·DELETE …/notices/{noticeId}`, `POST …/notices/{noticeId}/publish·archive·unarchive`, `GET /participant/notices`, `GET /participant/notices/{noticeId}` |
 | 내 조(조원·조장이 보는 범위) | DEC-083 | [participant-group-contract](../../docs/architecture/participant-group-contract.md) | `GET /participant/group`의 새 응답(지금 응답은 위 [조 편성](#get-apiv1participantgroup)), `GET /participant/group/members/{participantId}`, `GET·PUT /operator/events/{eventId}/participant-settings` |
