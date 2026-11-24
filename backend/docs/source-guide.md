@@ -54,6 +54,7 @@
 | 운영자 화면이 읽을 일정 작업본 `boardVersion` | `event/schedule/ScheduleBoards` |
 | 공지 쓰기·상태·고정·알림 | `event/notice/NoticeService` |
 | 식수 현황 숫자(도착·올 예정·아직 안 옴, 다음 끼니) | `event/application/MealTally`, 읽기는 `MealCountService` |
+| 체크인 명단의 도착 상태(왔어야 함·올 예정·지남·예정 모름, E4) | 규칙은 `MealTally.standing`, 읽기는 `ArrivalRoster`(식수 현황과 같은 입력 `ArrivalSource`) |
 | 사람마다 도착 예정 칸(식수 현황·E4 도착 명단 공용) | `event/form/ArrivalSlots` |
 | 다른 기능이 읽는 일정 칸별 시작 시각 | `event/schedule/ScheduleSlotTimes` |
 | 참가자 공지 목록·상세 | `event/notice/ParticipantNoticeService` |
