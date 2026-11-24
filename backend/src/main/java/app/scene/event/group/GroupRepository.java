@@ -194,6 +194,17 @@ public class GroupRepository {
   }
 
   /**
+   * Active participants among {@code participantIds} with what their group may see (DEC-083), in no
+   * order. The phone is in the row; only the member detail sends it.
+   */
+  public List<MemberRow> memberRows(UUID spaceId, UUID eventId, List<UUID> participantIds) {
+    if (participantIds.isEmpty()) {
+      return List.of();
+    }
+    return groups.findMemberRows(GroupParam.of(spaceId, eventId).participants(participantIds));
+  }
+
+  /**
    * The latest publication by insertion order, or empty before the first one. Members whose
    * assignment a withdraw removed after that publication are left out of the snapshot read back
    * (DEC-084 §3, DEC-044): a restored person must not get the old group or leader mark back from

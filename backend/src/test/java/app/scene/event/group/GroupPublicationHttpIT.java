@@ -227,13 +227,16 @@ class GroupPublicationHttpIT {
 
     JsonNode unassigned = myGroup(out);
     assertThat(unassigned.propertyNames())
-        .containsExactly("status", "publishedAt", "group", "leader", "members");
+        .containsExactly(
+            "status", "publishedAt", "group", "leader", "rosterVisible", "members", "leaderView");
     assertThat(unassigned.get("status").asString()).isEqualTo("UNASSIGNED");
     assertThat(unassigned.get("publishedAt").asString())
         .isEqualTo(done.get("publishedAt").asString());
     assertThat(unassigned.get("group").isNull()).isTrue();
     assertThat(unassigned.get("leader").asBoolean()).isFalse();
     assertThat(unassigned.get("members").isNull()).isTrue();
+    assertThat(unassigned.get("rosterVisible").asBoolean()).isFalse();
+    assertThat(unassigned.get("leaderView").isNull()).isTrue();
 
     // A new applicant after the publication is unassigned in the published view.
     Person late = w.participant("다늦은", "010-3000-0003", "96");
@@ -290,7 +293,10 @@ class GroupPublicationHttpIT {
     assertThat(names(plain.get("group").get("leaders"))).containsExactly("가조장");
     assertThat(plain.get("group").get("leaders").get(0).propertyNames()).containsExactly("name");
     assertThat(plain.get("leader").asBoolean()).isFalse();
-    assertThat(plain.get("members").isNull()).isTrue();
+    // DEC-083: members see the roster while the event switch is on (the default).
+    assertThat(plain.get("rosterVisible").asBoolean()).isTrue();
+    assertThat(names(plain.get("members"))).containsExactly("가조장", "나조원");
+    assertThat(plain.get("leaderView").isNull()).isTrue();
     assertThat(plainBody)
         .doesNotContain("라철회")
         .doesNotContain("마철회조장")
@@ -304,7 +310,8 @@ class GroupPublicationHttpIT {
     assertThat(leader.get("leader").asBoolean()).isTrue();
     JsonNode members = leader.get("members");
     assertThat(names(members)).containsExactly("가조장", "나조원");
-    assertThat(members.get(0).propertyNames()).containsExactly("name", "cohort", "leader");
+    assertThat(members.get(0).propertyNames())
+        .containsExactly("name", "cohort", "gender", "leader", "me");
     assertThat(members.get(0).get("leader").asBoolean()).isTrue();
     assertThat(members.get(1).get("cohort").asString()).isEqualTo("91");
     assertThat(members.get(1).get("leader").asBoolean()).isFalse();
@@ -313,8 +320,12 @@ class GroupPublicationHttpIT {
         .doesNotContain("마철회조장")
         .doesNotContain("바남조장")
         .doesNotContain("사남조원")
-        .doesNotContain("010-")
-        .doesNotContain("participantId");
+        // Whole numbers: the leader view carries ids, and a random id may end in "010-".
+        .doesNotContain("010-4000-0001")
+        .doesNotContain("010-4000-0002")
+        .doesNotContain(quit.id.toString())
+        .doesNotContain(otherLead.id.toString())
+        .doesNotContain(otherMate.id.toString());
 
     String otherBody = myGroupBody(otherLead);
     assertThat(names(json.readTree(otherBody).get("members"))).containsExactly("바남조장", "사남조원");
@@ -402,7 +413,7 @@ class GroupPublicationHttpIT {
     assertThat(plainBody).doesNotContain("newcomer").doesNotContain("처음이에요");
     assertThat(leadBody).doesNotContain("newcomer").doesNotContain("처음이에요").contains("나새가족");
     assertThat(json.readTree(leadBody).get("members").get(1).propertyNames())
-        .containsExactly("name", "cohort", "leader");
+        .containsExactly("name", "cohort", "gender", "leader", "me");
     // The operator's published view (EVENT_READ) does not carry it either.
     assertThat(published(w).toString()).doesNotContain("newcomer");
   }
