@@ -1,0 +1,60 @@
+.public-privacy {
+  min-height: calc(100vh - 85px);
+  background: var(--color-bg-canvas);
+  padding: 48px 16px;
+}
+
+.public-privacy__card {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 40px 32px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 16px;
+  background: var(--color-bg-surface);
+  box-shadow: var(--color-shadow-raised-sm);
+  color: var(--color-text-primary);
+}
+
+.public-privacy__title {
+  margin: 0 0 8px;
+  font: var(--scene-heading-l);
+}
+
+.public-privacy__lead {
+  margin: 0 0 32px;
+  font: var(--scene-body-m);
+  color: var(--color-text-secondary);
+}
+
+.public-privacy__section + .public-privacy__section {
+  margin-top: 28px;
+}
+
+.public-privacy__heading {
+  margin: 0 0 10px;
+  font: var(--scene-heading-s);
+}
+
+.public-privacy__list {
+  margin: 0;
+  padding-left: 20px;
+  list-style: disc;
+  font: var(--scene-body-m);
+  line-height: 1.7;
+}
+
+.public-privacy__updated {
+  margin: 36px 0 0;
+  font: var(--scene-body-s);
+  color: var(--color-text-tertiary);
+}
+
+@media (max-width: 600px) {
+  .public-privacy {
+    padding: 24px 16px;
+  }
+
+  .public-privacy__card {
+    padding: 28px 20px;
+  }
+}
