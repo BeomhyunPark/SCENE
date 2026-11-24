@@ -14,9 +14,11 @@ import {
   listAllCheckInRoster,
   listCheckInRoster,
   ROSTER_QUERY_MAX,
+  type ArrivalStatus,
   type CancelResult,
   type CheckInResult,
   type RosterItem,
+  type SummaryArrival,
 } from "../api/checkIns";
 import { isApiError } from "../api/errors";
 import type { EventDetail, LifecycleStatus } from "../api/events";
@@ -28,6 +30,7 @@ import { getMe } from "../api/session";
 import { Button } from "./Button";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { FieldScan } from "./EventFieldScan";
+import { arrivalBasis } from "./fieldArrival";
 import { useFieldRefresh } from "./fieldRefresh";
 import { buildGroupStats, pendingFor, publishedGroupNames } from "./fieldGroupStats";
 import { FieldGroups } from "./FieldGroups";
@@ -50,7 +53,8 @@ import "./EventField.css";
 const PAGE_SIZE = 50;
 const SEARCH_DELAY_MS = 250;
 
-type Filter = "all" | "pending" | "done";
+/** "overdue" and "unknown" filter by arrival standing (E4 #456); the others by check-in. */
+type Filter = "all" | "pending" | "overdue" | "unknown" | "done";
 type View = "all" | "groups";
 type Notice = { tone: "success" | "info" | "error"; text: string };
 
@@ -63,7 +67,9 @@ type Notice = { tone: "success" | "info" | "error"; text: string };
  * A request whose result is unknown is never shown as done. "조별" (#288) groups the roster by the latest
  * published 조 편성 (DEC-072), not the working board; the QR result and the 전체 rows name that group too.
  * The summary and the roster on screen are read again every 10 seconds while the page is visible, and the
- * bar at the bottom shows when they were read with "새로 고침" (#408, fieldRefresh.ts). Copy is a draft.
+ * bar at the bottom shows when they were read with "새로 고침" (#408, fieldRefresh.ts). Each row shows the
+ * 도착 예정 칸 and the summary splits 미완료 into 왔어야 함·올 예정·지남·예정 모름 by the next meal (E4 #456,
+ * DEC-087 Follow-up); "왔어야 함" lists the same people as 식수 현황's 아직 안 옴. Copy is a draft.
  */
 export function EventField() {
   const { eventId = "" } = useParams();
@@ -95,13 +101,20 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
     queryKey: queryKeys.checkInSummary(eventId),
     queryFn: ({ signal }) => getCheckInSummary(eventId, signal),
   });
-  const checkedIn = filter === "all" ? null : filter === "done";
+  const checkedIn = filter === "done" ? true : filter === "pending" ? false : null;
+  const arrival: ArrivalStatus | null = filter === "overdue" ? "OVERDUE" : filter === "unknown" ? "UNKNOWN" : null;
   const roster = useInfiniteQuery({
-    queryKey: queryKeys.checkInRoster(eventId, { q, checkedIn }),
+    queryKey: queryKeys.checkInRoster(eventId, { q, checkedIn, arrival }),
     queryFn: ({ pageParam, signal }) =>
       listCheckInRoster(
         eventId,
-        { q: q || undefined, checkedIn: checkedIn ?? undefined, page: pageParam, size: PAGE_SIZE },
+        {
+          q: q || undefined,
+          checkedIn: checkedIn ?? undefined,
+          arrival: arrival ?? undefined,
+          page: pageParam,
+          size: PAGE_SIZE,
+        },
         signal,
       ),
     initialPageParam: 0,
@@ -274,6 +287,16 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
           )}
         </section>
 
+        {summary.data?.arrival ? (
+          <ArrivalSummary
+            arrival={summary.data.arrival}
+            onOverdue={() => {
+              setView("all");
+              setFilter("overdue");
+            }}
+          />
+        ) : null}
+
         <Link className="event-field__meals-link" to={`${eventHref}/meals`}>
           식수 현황 보기
         </Link>
@@ -371,13 +394,7 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
               <span className="event-field__filters-label" aria-hidden="true">
                 체크인
               </span>
-              {(
-                [
-                  ["all", "전체"],
-                  ["pending", "미완료"],
-                  ["done", "완료"],
-                ] as const
-              ).map(([value, label]) => (
+              {filterChoices(summary.data?.arrival ?? null, filter).map(([value, label]) => (
                 <button
                   key={value}
                   type="button"
@@ -494,6 +511,36 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
       ) : null}
     </OperatorShell>
   );
+}
+
+/** 미완료 by standing against the next meal (E4 #456). The 왔어야 함 count opens that list. */
+function ArrivalSummary({ arrival, onOverdue }: { arrival: SummaryArrival; onOverdue: () => void }) {
+  const n = (value: number) => `${value.toLocaleString("ko-KR")}명`;
+  return (
+    <section className="event-field__arrivals" aria-label="미완료 도착 예정">
+      <p className="event-field__arrivals-basis">{arrivalBasis(arrival)}</p>
+      <p className="event-field__arrivals-line">
+        <button type="button" className="event-field__arrivals-overdue" onClick={onOverdue}>
+          왔어야 함 <strong>{n(arrival.overdue)}</strong>
+        </button>
+        <span>올 예정 {n(arrival.coming)}</span>
+        {arrival.passed > 0 ? <span>참석 칸 지남 {n(arrival.passed)}</span> : null}
+        {arrival.unknown > 0 ? <span>예정 모름 {n(arrival.unknown)}</span> : null}
+      </p>
+    </section>
+  );
+}
+
+/** "예정 모름" shows only when someone is unknown, or while it is the chosen filter. */
+function filterChoices(arrival: SummaryArrival | null, filter: Filter): (readonly [Filter, string])[] {
+  const choices: (readonly [Filter, string])[] = [
+    ["all", "전체"],
+    ["pending", "미완료"],
+  ];
+  if (arrival || filter === "overdue") choices.push(["overdue", "왔어야 함"]);
+  if ((arrival && arrival.unknown > 0) || filter === "unknown") choices.push(["unknown", "예정 모름"]);
+  choices.push(["done", "완료"]);
+  return choices;
 }
 
 function GroupsSection({
@@ -722,5 +769,7 @@ function emptyCopy(q: string, filter: Filter): string {
   if (q) return `'${q}'에 맞는 참가자가 없어요.`;
   if (filter === "pending") return "체크인하지 않은 참가자가 없어요.";
   if (filter === "done") return "아직 체크인한 참가자가 없어요.";
+  if (filter === "overdue") return "지금까지 왔어야 하는데 아직 안 온 참가자가 없어요.";
+  if (filter === "unknown") return "도착 예정을 모르는 미완료 참가자가 없어요.";
   return "신청을 마친 참가자가 아직 없어요.";
 }

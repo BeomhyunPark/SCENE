@@ -1,5 +1,6 @@
 import { localEvent, localUsers } from "./fixtures/seed";
 import { requireEventRead } from "./formStore";
+import { arrivalStandings } from "./mealCounts";
 import { eventById } from "./operatorStore";
 import { checkInCandidates } from "./participantStore";
 import { permissionsFor } from "./taskStore";
@@ -47,6 +48,7 @@ const MAX_KEY = 100;
 const MAX_REASON = 200;
 const MAX_Q = 50;
 const QR_PREFIX = "SCENE-CI1.";
+const ARRIVAL_STATUSES = ["ARRIVED", "OVERDUE", "COMING", "PASSED", "UNKNOWN"];
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 let participants = new Map<string, Participant[]>();
@@ -97,7 +99,24 @@ export function readSummary(eventId: string, actorId: string) {
   const event = eventById(eventId)!;
   const eligible = participantsOf(eventId).filter((item) => item.submitted);
   const checkedIn = eligible.filter((item) => currentRow(eventId, item.participantId)?.status === "CHECKED_IN").length;
-  return { eventStatus: event.lifecycleStatus, total: eligible.length, checkedIn, notCheckedIn: eligible.length - checkedIn };
+  const standings = arrivalStandings(eventId);
+  const arrival = standings.slotted
+    ? {
+        asOf: standings.asOf,
+        nextMeal: standings.nextMeal,
+        overdue: standings.counts.OVERDUE,
+        coming: standings.counts.COMING,
+        passed: standings.counts.PASSED,
+        unknown: standings.counts.UNKNOWN,
+      }
+    : null;
+  return {
+    eventStatus: event.lifecycleStatus,
+    total: eligible.length,
+    checkedIn,
+    notCheckedIn: eligible.length - checkedIn,
+    arrival,
+  };
 }
 
 export function readRoster(eventId: string, actorId: string, url: URL) {
@@ -112,6 +131,9 @@ export function readRoster(eventId: string, actorId: string, url: URL) {
   }
   const rawChecked = url.searchParams.get("checkedIn");
   if (rawChecked !== null && rawChecked !== "true" && rawChecked !== "false") return field("checkedIn");
+  const rawArrival = url.searchParams.get("arrival");
+  if (rawArrival !== null && !ARRIVAL_STATUSES.includes(rawArrival)) return field("arrival");
+  const standings = arrivalStandings(eventId);
   const page = Number(url.searchParams.get("page") ?? "0");
   const size = Number(url.searchParams.get("size") ?? "50");
   if (!Number.isInteger(page) || page < 0) return field("page");
@@ -132,6 +154,7 @@ export function readRoster(eventId: string, actorId: string, url: URL) {
       const checked = currentRow(eventId, item.participantId)?.status === "CHECKED_IN";
       return rawChecked === "true" ? checked : !checked;
     })
+    .filter((item) => rawArrival === null || standings.byParticipant.get(item.participantId)?.status === rawArrival)
     .sort((a, b) => a.name.localeCompare(b.name, "ko") || a.participantId.localeCompare(b.participantId));
   const items = matches.slice(page * size, page * size + size).map((item) => {
     const row = currentRow(eventId, item.participantId);
@@ -149,6 +172,7 @@ export function readRoster(eventId: string, actorId: string, url: URL) {
             checkedInByDisplayName: displayName(row.checkedInBy),
           }
         : null,
+      arrival: standings.byParticipant.get(item.participantId) ?? null,
     };
   });
   return {

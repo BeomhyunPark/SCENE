@@ -12,11 +12,34 @@ import type { ItemPage } from "./types";
 export type CheckInStatus = "CHECKED_IN" | "CANCELLED";
 export type CheckInMethod = "QR" | "MANUAL";
 
+/**
+ * Arrival standing (E4 #456, DEC-087 Follow-up): the meal counts' clock and due slots. OVERDUE is
+ * "지금까지 왔어야 하는 사람", the same people as the next meal's 아직 안 옴 on 식수 현황.
+ */
+export type ArrivalStatus = "ARRIVED" | "OVERDUE" | "COMING" | "PASSED" | "UNKNOWN";
+
+export type ArrivalSlot = { slotId: string; day: number; dayLabel: string; label: string };
+
+/** `slot` is the due slot the status is about; null when unknown or nothing is attended. */
+export type RosterArrival = { status: ArrivalStatus; slot: ArrivalSlot | null };
+
+/** Not-checked-in people by standing. `overdue + coming + passed + unknown = notCheckedIn`. */
+export type SummaryArrival = {
+  asOf: string;
+  nextMeal: ArrivalSlot | null;
+  overdue: number;
+  coming: number;
+  passed: number;
+  unknown: number;
+};
+
 export type CheckInSummary = {
   eventStatus: LifecycleStatus;
   total: number;
   checkedIn: number;
   notCheckedIn: number;
+  /** Null when the form has no slot (or an older server). */
+  arrival: SummaryArrival | null;
 };
 
 export type RosterCheckIn = {
@@ -34,6 +57,8 @@ export type RosterItem = {
   /** Only with CHECKIN_WRITE. */
   phoneLast4: string | null;
   checkIn: RosterCheckIn | null;
+  /** Null when the form has no slot (or an older server). */
+  arrival: RosterArrival | null;
 };
 
 export type CheckIn = {
@@ -77,13 +102,14 @@ export function getCheckInSummary(eventId: string, signal?: AbortSignal): Promis
 
 export function listCheckInRoster(
   eventId: string,
-  query: { q?: string; checkedIn?: boolean; page: number; size: number },
+  query: { q?: string; checkedIn?: boolean; arrival?: ArrivalStatus; page: number; size: number },
   signal?: AbortSignal,
 ): Promise<ItemPage<RosterItem>> {
   return apiRequest<unknown>(`/api/v1/operator/events/${eventId}/check-in-roster`, {
     query: {
       q: query.q && query.q.trim().length > 0 ? query.q.trim() : undefined,
       checkedIn: query.checkedIn,
+      arrival: query.arrival,
       page: query.page,
       size: query.size,
     },
@@ -168,7 +194,52 @@ function parseSummary(value: unknown): CheckInSummary {
     total: value.total,
     checkedIn: value.checkedIn,
     notCheckedIn: value.notCheckedIn,
+    arrival: value.arrival === null || value.arrival === undefined ? null : parseSummaryArrival(value.arrival),
   };
+}
+
+function parseSummaryArrival(value: unknown): SummaryArrival {
+  if (
+    !isRecord(value) ||
+    typeof value.asOf !== "string" ||
+    !isCount(value.overdue) ||
+    !isCount(value.coming) ||
+    !isCount(value.passed) ||
+    !isCount(value.unknown)
+  ) {
+    unexpected();
+  }
+  return {
+    asOf: value.asOf,
+    nextMeal: value.nextMeal === null || value.nextMeal === undefined ? null : parseArrivalSlot(value.nextMeal),
+    overdue: value.overdue,
+    coming: value.coming,
+    passed: value.passed,
+    unknown: value.unknown,
+  };
+}
+
+const ARRIVAL_STATUSES: readonly ArrivalStatus[] = ["ARRIVED", "OVERDUE", "COMING", "PASSED", "UNKNOWN"];
+
+function parseRosterArrival(value: unknown): RosterArrival {
+  if (!isRecord(value) || !ARRIVAL_STATUSES.includes(value.status as ArrivalStatus)) unexpected();
+  return {
+    status: value.status as ArrivalStatus,
+    slot: value.slot === null || value.slot === undefined ? null : parseArrivalSlot(value.slot),
+  };
+}
+
+function parseArrivalSlot(value: unknown): ArrivalSlot {
+  if (
+    !isRecord(value) ||
+    typeof value.slotId !== "string" ||
+    !isCount(value.day) ||
+    typeof value.dayLabel !== "string" ||
+    typeof value.label !== "string"
+  ) {
+    unexpected();
+  }
+  return { slotId: value.slotId, day: value.day, dayLabel: value.dayLabel, label: value.label };
 }
 
 function parseRoster(value: unknown): ItemPage<RosterItem> {
@@ -199,6 +270,7 @@ function parseRosterItem(value: unknown): RosterItem {
     cohort: value.cohort,
     phoneLast4: value.phoneLast4,
     checkIn: value.checkIn === null || value.checkIn === undefined ? null : parseRosterCheckIn(value.checkIn),
+    arrival: value.arrival === null || value.arrival === undefined ? null : parseRosterArrival(value.arrival),
   };
 }
 
