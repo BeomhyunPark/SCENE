@@ -2285,7 +2285,7 @@ CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고
 
 ## 조 편성
 
-> 작업본(편성판, 조, 배정, 조장)은 [#299](https://github.com/BeomhyunPark/SCENE/issues/299), 공개·공개본 조회·참가자 내 조는 [#300](https://github.com/BeomhyunPark/SCENE/issues/300)에서 서버에 열었다(컨트롤러 `event/group/GroupController`·`ParticipantGroupController`, 스키마 `V13__groups.sql`·`V14__group_publications.sql`). 정책은 [DEC-072](../../docs/product/PRODUCT_DECISIONS.md)와 DEC-040~048이다.
+> 작업본(편성판, 조, 배정, 조장)은 [#299](https://github.com/BeomhyunPark/SCENE/issues/299), 공개·공개본 조회·참가자 내 조는 [#300](https://github.com/BeomhyunPark/SCENE/issues/300), 조원 명단·조장 보기·조원 상세·참가자 설정은 [#452](https://github.com/BeomhyunPark/SCENE/issues/452)에서 서버에 열었다(컨트롤러 `event/group/GroupController`·`ParticipantGroupController`, `event/participantsettings/ParticipantSettingsController`, 스키마 `V13__groups.sql`·`V14__group_publications.sql`·`V25__participant_settings_and_privacy_logs.sql`). 정책은 [DEC-072](../../docs/product/PRODUCT_DECISIONS.md)·DEC-083과 DEC-040~048이다.
 
 운영자가 조를 만들고 참가자를 넣는 **작업본**과, 공개할 때 한 번에 찍는 **공개본**(스냅샷)이 따로 있다. 작업본 저장은 참가자에게 보이지 않는다. 참가자와 조장은 가장 최근 공개본만 본다.
 
@@ -2367,7 +2367,7 @@ CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고
 
 - `participants`는 활성 참가자 전원이고 순서는 이름, 그다음 참가자 id다. 페이지는 없다. 전화·접근 키는 없다.
 - `cohort`는 `SUBMITTED` 신청의 `COHORT` 답 `value.text`(앞뒤 공백 자름)다. `middleGroup`·`cell`은 `MIDDLE_GROUP`·`CELL` 답이 자유 입력이면 `value.text`(앞뒤 공백 자름), 목록 보기면 고른 보기의 지금 문구다(새가족이면 `"새가족 (등반X)"` 또는 운영자가 고친 문구). `gender`는 `GENDER` 답의 보기 id와 지금 보기 문구다. 답이 없거나 질문이 없거나 꺼져 있으면 `null`이다.
-- `newcomer`는 새가족 보기(`opt_newcomer`)를 가진 보이는 질문(중그룹이 가지면 중그룹, 아니면 셀)의 답으로 정한다: 그 보기를 골랐으면 `true`, 다른 보기면 `false`, 답이 없거나 그런 질문이 없으면 `null`이고 화면은 "응답 없음"으로 묶는다. 예전 `NEWCOMER` 예/아니오 답은 읽지 않는다. 돌봄 관련 정보라 편성판에만 있다. 참가자의 내 조(`GET /participant/group`, 조장의 조원 명단 포함)와 운영자 공개본 조회에는 없다.
+- `newcomer`는 새가족 보기(`opt_newcomer`)를 가진 보이는 질문(중그룹이 가지면 중그룹, 아니면 셀)의 답으로 정한다: 그 보기를 골랐으면 `true`, 다른 보기면 `false`, 답이 없거나 그런 질문이 없으면 `null`이고 화면은 "응답 없음"으로 묶는다. 예전 `NEWCOMER` 예/아니오 답은 읽지 않는다. 돌봄 관련 정보라 편성판에만 값으로 있다. 참가자의 내 조 명단과 운영자 공개본 조회에는 없다. 조장은 [조원 상세](#get-apiv1participantgroupmembersparticipantid)의 중그룹·셀 답으로 새가족 보기를 본다(DEC-083 §5). `newcomer` 값은 참가자 응답에 없다.
 - `attendance`는 `ATTENDANCE` 답의 `opt_full`·`opt_partial`·`opt_worship`을 `FULL`·`PARTIAL`·`WORSHIP_ONLY`로 바꾼 값이다. 질문이 없거나 꺼져 있으면 `FULL`이다(DEC-070 §3). 질문이 켜진 뒤 들어온 신청이 아니라서 답이 없을 때도 `FULL`이다. `null`이 아니다.
 - `groupId`가 `null`이면 미배정이다. `position`([#343](https://github.com/BeomhyunPark/SCENE/issues/343))은 조 안 순서로, 작은 값이 앞이고 같으면 참가자 id 순이다. 값이 0부터 이어진다는 보장은 없다(빠진 번호가 있을 수 있다). 미배정이면 `null`이다. 화면은 조원을 이 순서로 그린다. `publishedGroupId`·`publishedLeader`는 가장 최근 공개본의 값이고, 공개한 적이 없거나 그 공개본에 없으면 `null`·`false`다.
 - `withdrawn`은 `SUBMITTED` 신청이 없는(취소된) 사람 가운데 이전 조가 있는 사람이다. 이전 조는 남은 배정 행(DEC-084 전에 SQL로 철회된 기록)이거나, 취소가 배정을 지우며 남긴 `group_assignment_logs`의 마지막 `WITHDRAWN` 기록이다. `groupId`는 참고값이고 조가 지워졌을 수 있다. 조별 인원·미배정 수에 넣지 않는다.
@@ -2380,7 +2380,7 @@ CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고
   - `slotIds`는 그 사람이 있는 칸의 `slotId`를 `slots` 순서로 담는다. **`attendance`가 `FULL`이면 모든 칸**이다. `PARTIAL`·`WORSHIP_ONLY`이면 `MEALS`에서 고른 칸만이고, 칸이 아닌 id는 버린다. 설정이 `RANGE`(DEC-074)이면 `PARTIAL`은 `ARRIVAL_SLOT` 칸부터 `DEPARTURE_SLOT` 칸까지 모든 칸이다(둘 중 하나라도 답이 없으면 `null`). 응답 모양은 같다.
   - **`slotIds: null`은 "모름"이다.** `PARTIAL`·`WORSHIP_ONLY`인데 `MEALS` 답이 없을 때(질문이 꺼졌거나 질문이 생기기 전에 낸 신청)다. 빈 배열 `[]`은 "어느 칸에도 없음"으로 구분된다. 집계의 `meals.unanswered`가 이 사람 수와 같다.
   - **조별 칸 인원은 서버가 따로 주지 않는다.** 화면이 `groupId`와 `slotIds`로 센다. 활성 참가자 전원이 편성판에 있으므로 모든 조의 같은 칸을 더하면(미배정 포함) 집계의 그 칸 `count`와 같다. 200명 × 10칸에서도 사람마다 짧은 id 몇 개라 응답이 수십 KB 안이다.
-  - 참가자용 [`GET /api/v1/participant/group`](#get-apiv1participantgroup)에는 칸 값을 넣지 않는다.
+  - 참가자용 [`GET /api/v1/participant/group`](#get-apiv1participantgroup)은 조장의 `leaderView`에만 같은 `slots`·`slotIds`를 넣는다. 일반 조원 응답에는 칸 값이 없다.
 
 ### `POST /api/v1/operator/events/{eventId}/groups`
 
@@ -2507,9 +2507,38 @@ CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고
 
 ### `GET /api/v1/participant/group`
 
-참가자 세션 쿠키가 필요하다. CSRF는 필요 없다. 쿠키가 없거나 저장된 세션이 아니면 `401 AUTHENTICATION_REQUIRED`다. 대상은 세션의 행사·참가자뿐이고 가장 최근 공개본만 읽는다. 행사 상태와 상관없이 같다.
+참가자 세션 쿠키가 필요하다. CSRF는 필요 없다. 쿠키가 없거나 저장된 세션이 아니면 `401 AUTHENTICATION_REQUIRED`다(운영자 세션 쿠키로는 열리지 않는다). 대상은 세션의 행사·참가자뿐이고 가장 최근 공개본만 읽는다. 행사 상태와 상관없이 같다. 정책은 DEC-072 §6을 넓힌 [DEC-083](../../docs/product/PRODUCT_DECISIONS.md)(#452)이다.
 
-`200`
+누가 무엇을 보나(공개본과 지금 활성 참가자 기준. 작업본의 변경은 공개 전까지 보이지 않고, 신청을 취소한 사람은 다음 요청부터 빠진다):
+
+| 정보 | 같은 조 조원 | 조장(자기 조원) | 다른 조 사람 |
+|---|---|---|---|
+| 조 이름, 조장 이름 | ✔ | ✔ | — |
+| 조원 이름·또래·성별·조장 표시 | ✔ (스위치가 켜졌을 때) | ✔ (늘) | ✘ |
+| 조원 참가자 id, 도착 여부·시각, 참석 방식·구간·칸·숙박 밤, 방, 최근 수정 시각 | ✘ | ✔ (`leaderView`) | ✘ |
+| 보이는 질문의 신청 답, 전화번호(신청 전화·전화 형식 답) | ✘ | ✔ ([조원 상세](#get-apiv1participantgroupmembersparticipantid), 열람 기록) | ✘ |
+| 운영 메모(DEC-075), 숫자 6자리·해시, 세션, 숨긴 질문의 답, 동의 답 | ✘ | ✘ | ✘ |
+
+"조장"은 공개본에서 그 조의 조장이고 지금 활성 참가자인 사람이다(조당 최대 1명). 조장이 운영자이기도 해도 두 신원은 연결하지 않는다.
+
+`200` — 일반 조원(스위치 켬)
+
+```json
+{
+  "status": "ASSIGNED",
+  "publishedAt": "2026-12-20T09:00:00Z",
+  "group": { "name": "1조", "leaders": [{ "name": "박" }] },
+  "leader": false,
+  "rosterVisible": true,
+  "members": [
+    { "name": "박", "cohort": "95", "gender": "남", "leader": true, "me": false },
+    { "name": "김", "cohort": "94", "gender": "여", "leader": false, "me": true }
+  ],
+  "leaderView": null
+}
+```
+
+`200` — 조장
 
 ```json
 {
@@ -2517,23 +2546,146 @@ CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고
   "publishedAt": "2026-12-20T09:00:00Z",
   "group": { "name": "1조", "leaders": [{ "name": "박" }] },
   "leader": true,
-  "members": [{ "name": "김", "cohort": "94", "leader": false }]
+  "rosterVisible": true,
+  "members": [{ "name": "박", "cohort": "95", "gender": "남", "leader": true, "me": true }],
+  "leaderView": {
+    "activeCount": 9,
+    "checkedInCount": 6,
+    "slots": [
+      { "slotId": "opt_d1_dinner", "day": 1, "date": "2027-01-22", "dayLabel": "1월 22일 (금)", "meal": "DINNER", "label": "저녁", "sortOrder": 0 }
+    ],
+    "members": [
+      {
+        "participantId": "…",
+        "name": "김",
+        "cohort": "94",
+        "gender": "여",
+        "leader": false,
+        "checkIn": { "checkedIn": true, "checkedInAt": "2027-01-22T08:12:00Z" },
+        "attendance": {
+          "type": "PARTIAL",
+          "arrivalSlotId": "opt_d1_dinner",
+          "departureSlotId": "opt_d2_lunch",
+          "slotIds": ["opt_d1_dinner", "opt_d1_worship", "opt_d2_breakfast", "opt_d2_lunch"],
+          "lodgingNights": [1]
+        },
+        "room": null,
+        "applicationRevisedAt": "2026-12-28T10:00:00Z"
+      }
+    ]
+  }
 }
 ```
 
-| `status` | 경우 | `group` |
-|---|---|---|
-| `NOT_PUBLISHED` | 공개한 적이 없다 | `null` |
-| `UNASSIGNED` | 공개됐지만 공개본에 내 조가 없다 | `null` |
-| `ASSIGNED` | 공개본에 내 조가 있다 | 값 |
-| `NOT_ELIGIBLE` | `SUBMITTED` 신청이 없다 | `null` |
+| `status` | 경우 | `group` | `members` | `leaderView` |
+|---|---|---|---|---|
+| `NOT_PUBLISHED` | 공개한 적이 없다 | `null` | `null` | `null` |
+| `UNASSIGNED` | 공개됐지만 공개본에 내 조가 없다 | `null` | `null` | `null` |
+| `ASSIGNED` | 공개본에 내 조가 있다 | 값 | 아래 규칙 | 조장이면 값 |
+| `NOT_ELIGIBLE` | `SUBMITTED` 신청이 없다 | `null` | `null` | `null` |
 
-- 신청을 먼저 본다. 신청이 없으면 공개 여부와 상관없이 `NOT_ELIGIBLE`이다.
+- 신청을 먼저 본다. 신청이 없으면 공개 여부와 상관없이 `NOT_ELIGIBLE`이다. 신청을 취소하면 세션도 끝나므로(DEC-084 §4) 실제로는 `401`이 먼저 온다.
 - `publishedAt`은 가장 최근 공개 시각이다(`NOT_PUBLISHED`·`NOT_ELIGIBLE`은 `null`). 화면은 "마지막 갱신"으로 보여 준다(DEC-043).
-- `group.leaders`는 이름만이고 0–1개다(조장 1명, #343). 철회한 조장은 빠진다. 배열 모양은 그대로 둔다.
-- `leader`는 공개본에서 내가 그 조의 조장인지다. `members`는 `leader`가 `true`일 때만 있고, 그 조의 활성 조원(나 포함)의 이름·또래·조장 표시를 공개본의 운영자 순서로 담는다. 그 밖에는 `null`이다. 전화·연락처는 없다.
-- 일반 참가자는 다른 조원의 이름을 받지 않는다.
-- 조회는 audit을 남기지 않는다.
+- `group.leaders`는 이름만이고 0–1개다(조장 1명, #343). 철회한 조장은 빠진다.
+- `leader`는 공개본에서 내가 그 조의 조장인지다.
+- `rosterVisible`은 이 응답을 받는 사람이 조원 명단을 보는지다. 조장이면 늘 `true`, 일반 조원은 행사 스위치 [`groupRosterVisibleToMembers`](#get-apiv1operatoreventseventidparticipant-settings) 값이다. `ASSIGNED`가 아니면 `false`다.
+- `members`는 `rosterVisible`이 `true`일 때 그 조의 활성 조원(나 포함)을 공개본의 운영자 순서로 담고, 아니면 `null`이다. 항목은 **`name`·`cohort`·`gender`·`leader`·`me`만** 있다. 참가자 id·전화·답·도착·칸·방은 없다.
+  - `cohort`는 `COHORT` 답(앞뒤 공백 자름)이고, 또래 질문이 꺼졌거나 답이 없으면 `null`이다.
+  - `gender`는 `GENDER` 답의 지금 보기 문구다. 성별 질문이 없거나 꺼진 행사, 답이 없는 사람, 고른 보기가 숨겨진 경우(DEC-073 §6)는 `null`이다. 화면은 빈칸으로 둔다.
+- `leaderView`는 `leader`가 `true`일 때만 있고 그 밖에는 `null`이다.
+  - `activeCount`·`checkedInCount`: 조의 활성 조원 수(조장 포함)와 그중 지금 `CHECKED_IN`인 수.
+  - `slots`: 편성판 `slots`와 같은 칸 정의(`MealSlots`). 신청서 설정이 없으면 `null`이고 그때 `attendance.slotIds`도 `null`이다.
+  - `members[]`: 공개본의 운영자 순서. `checkIn`은 [체크인](#get-apiv1participantcheck-in)의 `checkedIn`·`checkedInAt`과 같은 뜻이다(취소된 체크인은 `false`·`null`).
+  - `attendance.type`은 편성판 `attendance`와 같다(`FULL`·`PARTIAL`·`WORSHIP_ONLY`, 질문이 없으면 `FULL`). `arrivalSlotId`·`departureSlotId`는 `RANGE`(DEC-074)의 `PARTIAL`일 때만 답의 칸 id이고(답이 없으면 그쪽만 `null`) 그 밖에는 `null`이다. `slotIds`는 편성판 `slotIds`와 같은 규칙이다(`null`은 모름).
+  - `attendance.lodgingNights`는 그 사람이 자는 밤 번호(1부터, 밤 `n`은 `n`일째 저녁)다. 신청 집계의 숙박 행과 같은 함수(`MealSlots.lodgingNights`, DEC-085 §6)로 계산한다: 전체 참석은 모든 밤, 집회만은 없음, `NO_LODGING`을 고른 사람은 없음, `RANGE`의 부분 참석은 도착·출발 칸 사이의 밤, 그 밖의 부분 참석은 `LODGING` 답(답이 없으면 없음). 신청서에 기간이 없거나, 부분 참석인데 `LODGING` 질문이 꺼졌거나 도착·출발 답이 모자라면 `null`(모름)이다. 숙박하지 않으면 `[]`다.
+  - `room`은 숙소(G1·G2) 전에는 늘 `null`이다. 그 뒤에는 `{ "name", "locationNote" }`.
+  - `applicationRevisedAt`은 지금 신청 revision이 저장된 시각이고, 처음 제출 그대로(revision 1)면 `null`이다.
+  - 운영자가 고친 값(A12)은 아직 서버에 없어서 저장된 답으로만 계산한다.
+- 이 응답은 **전화번호를 담지 않는다.** 그래서 열람 기록을 남기지 않는다. 전화는 조원 상세에서만 나온다.
+- 조회는 audit을 남기지 않는다. 공개(`GROUPS_PUBLISHED`), 공개본에 있던 사람의 철회, 행사 스위치 변경이 `updates.group`을 올린다.
+
+### `GET /api/v1/participant/group/members/{participantId}`
+
+조장이 조원 한 사람을 연다(#452, DEC-083 §3). 참가자 세션 쿠키가 필요하다. 응답 헤더는 `Cache-Control: no-store`다.
+
+**판정:** 요청한 사람이 가장 최근 공개본에서 조장이고 활성 참가자이며, `participantId`가 같은 공개본에서 같은 조의 활성 조원일 때만 `200`이다. 자기 자신도 열린다. 그 밖(조장이 아님, 다른 조, 없는 id, 취소한 조원, 공개 전, 형식이 맞지 않는 id)은 모두 `404 RESOURCE_NOT_FOUND`이고 서로 구분하지 않는다. 세션이 없으면 `401 AUTHENTICATION_REQUIRED`다.
+
+`200`
+
+```json
+{
+  "participantId": "…",
+  "name": "김",
+  "cohort": "94",
+  "gender": "여",
+  "leader": false,
+  "phone": "010-1234-5678",
+  "checkIn": { "checkedIn": true, "checkedInAt": "2027-01-22T08:12:00Z" },
+  "attendance": { "type": "FULL", "arrivalSlotId": null, "departureSlotId": null, "slotIds": ["…"], "lodgingNights": [1, 2] },
+  "room": null,
+  "application": {
+    "submittedAt": "2026-12-16T03:00:00Z",
+    "revisedAt": "2026-12-28T10:00:00Z",
+    "revisedByOperator": false,
+    "answers": [
+      { "fieldId": "…", "presetKey": "MIDDLE_GROUP", "label": "중그룹", "type": "DROPDOWN", "display": "새가족 (등반X)", "value": { "optionId": "opt_newcomer" }, "operatorEdited": false },
+      { "fieldId": "…", "presetKey": null, "label": "보호자 연락처", "type": "SHORT_TEXT", "display": "010-9876-5432", "value": { "text": "010-9876-5432" }, "operatorEdited": false }
+    ]
+  }
+}
+```
+
+- `name`·`cohort`·`gender`·`leader`·`checkIn`·`attendance`·`room`은 `leaderView.members[]`와 같다.
+- `phone`은 신청 전화(`participants.phone`) 전체다. 비어 있으면 `null`이다.
+- `application.submittedAt`은 처음 제출 시각, `revisedAt`은 지금 revision이 저장된 시각(revision 1이면 `null`), `revisedByOperator`는 지금 revision을 운영자가 저장했는지다.
+- `answers`는 지금 `SUBMITTED` 신청의 답을 신청서 질문 순서로 담는다.
+  - **빼는 것:** SYSTEM 이름·전화(위 필드에 있다), 숨긴 질문(`hidden`)의 답, 개인정보 동의(`YES_NO`의 `style: CONSENT`). 숨긴 질문 때문에 버려진 답과 숫자 6자리는 애초에 저장된 답이 아니다.
+  - **넣는 것:** 그 밖의 보이는 질문 전부(또래 포함). 새가족 보기를 고른 중그룹·셀 답도 그대로 들어간다(DEC-083 §5).
+  - `display`는 운영자 참가 현황 표·CSV와 같은 읽기용 글자다(`AnswerText`): 글은 그대로, 선택은 지금 보기 문구(묶음이 있으면 묶음 먼저, 복수는 `, `), 숨긴 보기는 문구 뒤에 ` (숨김)`, 기타는 `기타: …`, 날짜는 `2027. 1. 22.`·`2027. 1. 22. 14:30`, 숫자는 단위와 함께, 예/아니오는 `yesLabel`·`noLabel`(없으면 "예"·"아니오").
+  - `value`는 저장된 답 원본 모양(DEC-068 §1)이다.
+  - `operatorEdited`는 그 질문을 마지막으로 바꾼 revision을 운영자가 저장했으면 `true`다(revision의 `changes`로 판단).
+- 운영 메모(`application_operations`)는 읽지 않는다.
+
+**전화번호 열람 기록.** 응답에 전화 값이 하나라도 담기면(`phone`, 또는 `format: PHONE`인 단답 답에 글자가 있음) 같은 트랜잭션에서 `privacy_logs`에 한 줄 남긴다. 기록이 실패하면 응답도 실패한다(`500`). 같은 조원을 다시 열면 다시 남긴다. 전화 값이 없으면 남기지 않는다. 읽는 경로는 아직 없다(`PRIVACY_LOG_READ`, 범위 밖).
+
+| 열 | 값 |
+|---|---|
+| `action` | `CONTACT_VIEW` |
+| `actor_kind` | `PARTICIPANT` |
+| `actor_participant_id` | 요청한 조장 |
+| `subject_participant_id` | 조원 |
+| `channel` | `PARTICIPANT_GROUP_MEMBER` |
+| `detail` | `{ "groupPublicationId", "fields": ["phone", "<fieldId>", …] }`. 번호·이름·답 값은 넣지 않는다 |
+| `occurred_at` | 시각 |
+
+`audit_logs.actor_user_id`는 운영자만 받으므로 별도 테이블이다(`V25__participant_settings_and_privacy_logs.sql`). 운영자 연락처 열람의 audit `APPLICANT_CONTACTS_VIEWED`는 그대로 둔다.
+
+### `GET /api/v1/operator/events/{eventId}/participant-settings`
+
+행사 참가자 설정이다(DEC-083 §2, `event/participantsettings/ParticipantSettingsController`). 읽기는 유효한 `EVENT_READ` 또는 활성 공간 `OWNER`·`ADMIN`이다. 모든 행사 상태에서 읽는다.
+
+`200`
+
+```json
+{ "groupRosterVisibleToMembers": true, "version": 0, "updatedAt": null, "updatedByDisplayName": null }
+```
+
+- `groupRosterVisibleToMembers`: 일반 조원이 같은 조 명단(이름·또래·성별·조장 표시)을 보는지다. 기본 켬. 끄면 일반 조원은 조 이름·조장 이름만 본다. 조장은 상관없이 본다.
+- 저장한 적이 없으면 기본값과 `version: 0`, 갱신 필드는 `null`이다.
+- 숙소 방 배정표 공개 스위치(G1)가 같은 응답에 더해진다.
+
+### `PUT /api/v1/operator/events/{eventId}/participant-settings`
+
+CSRF가 필요하다. 권한은 유효한 `EVENT_UPDATE`(행사 OWNER 기본)다. `Idempotency-Key`는 읽지 않는다.
+
+```json
+{ "groupRosterVisibleToMembers": false, "expectedVersion": 0 }
+```
+
+- 판정 순서는 `404`·`403 NOT_A_MEMBER` → `403 FORBIDDEN` → 본문 `400 VALIDATION_FAILED`(`groupRosterVisibleToMembers`가 불리언이 아님, `expectedVersion`이 0 이상 정수가 아님) → `ARCHIVED`면 `409 EVENT_ARCHIVED`(그 밖의 상태는 쓴다) → `expectedVersion`이 다르면 `409 CONCURRENT_MODIFICATION`(`version`) → `200`이다.
+- 값이 바뀌면 `version`이 1 오르고, 같은 트랜잭션에서 `participant_feed_versions.groups`를 올리고(화면이 내 조를 다시 읽는다) audit `EVENT_PARTICIPANT_SETTINGS_UPDATED`(`fields`, `version`)를 남긴다.
+- 지금 값과 같으면 아무것도 저장하지 않고 지금 설정을 돌려준다(버전·갱신 값·audit 모두 그대로).
+- 응답은 `GET`과 같은 모양이다.
 
 ### 이력과 감사 로그
 
@@ -2959,11 +3111,7 @@ audit `GROUPS_PUBLISHED`: detail은 `publicationId`, `boardVersion`, `assignedCo
 
 ## 계약 초안 (아직 서버에 없다)
 
-아래 경로는 **아직 서버에 없다.** 이 문서는 지금 서버가 받는 계약만 적으므로, 2주차(11/26~) 이후에 만들 경로의 계약 초안은 `docs/architecture`에 따로 둔다. 서버가 경로를 열면 그 절을 이 문서로 옮기고 초안에서 지운다. 그 전까지 이 문서의 다른 절과 초안이 다르면 이 문서(지금 서버)를 따른다.
-
-| 영역 | 정책 | 계약 초안 | 경로 |
-|---|---|---|---|
-| 내 조(조원·조장이 보는 범위) | DEC-083 | [participant-group-contract](../../docs/architecture/participant-group-contract.md) | `GET /participant/group`의 새 응답(지금 응답은 위 [조 편성](#get-apiv1participantgroup)), `GET /participant/group/members/{participantId}`, `GET·PUT /operator/events/{eventId}/participant-settings` |
+2주차(11/26~) 이후에 만들 경로의 계약 초안은 `docs/architecture`에 따로 둔다([docs/README](../../docs/README.md)의 "계약 초안"). 서버가 경로를 열면 그 절을 이 문서로 옮기고 초안에서 지운다. 그 전까지 이 문서의 다른 절과 초안이 다르면 이 문서(지금 서버)를 따른다. 내 조 초안(DEC-083)은 #452에서 위 [조 편성](#get-apiv1participantgroup)으로 옮기고 지웠다.
 
 ## 결정 문서와 다른 점
 

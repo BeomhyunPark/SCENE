@@ -3,7 +3,7 @@
 > **아직 서버에 없다. 계약 초안이다.** 지금 서버가 받는 계약은 [backend/docs/api.md](../../backend/docs/api.md)다. 이 문서의 경로는 [#383](https://github.com/BeomhyunPark/SCENE/issues/383) G2(서버)·G3(운영자 화면)·G4(참가자 화면)·G5(참가 현황 표·CSV·현장 명단)에서 만든다. 만든 경로는 api.md로 옮기고 이 문서에서 지운다.
 
 - 정책: [DEC-085](../product/PRODUCT_DECISIONS.md) (G1, [#424](https://github.com/BeomhyunPark/SCENE/issues/424))
-- 기대는 계약: [참가자 홈·갱신 확인·알림](participant-home-contract.md)(DEC-080)의 `features.rooms`·`updates.rooms`·`ROOM_PUBLISHED`, [내 조](participant-group-contract.md)(DEC-083)의 `event_participant_settings`·`leaderView.members[].room`
+- 기대는 계약: [참가자 홈·갱신 확인·알림](participant-home-contract.md)(DEC-080)의 `features.rooms`·`updates.rooms`·`ROOM_PUBLISHED`, [내 조](../../backend/docs/api.md#get-apiv1participantgroup)(DEC-083)의 `event_participant_settings`·`leaderView.members[].room`
 - 본보기: api.md "조 편성"(작업본·공개본, `boardVersion`, `fromGroupId` 비교, `ALREADY_PUBLISHED`, `confirmUnassigned`)
 - 2026-11-20 사용자 결정 반영: **숙박하지 않는 사람(`NOT_LODGING`)은 방에 넣지 못한다**(DEC-085 결정 대기 3, Follow-up 2026-11-20). §3·§4·§7.1·§7.6·§7.8·§7.9·§8·§13·§15에 반영했다.
 - 작성: 2026-11-20. 확인 방법: 로드맵, #383·#382·#230, DEC-043~048·072~075·079~084, api.md "조 편성"·"신청 집계"·"체크인", 계약 초안 네 개, `event/group/`·`MealSlots`·`ApplicationSummaryService`·`Permission`·`ErrorCode`·`AuditActions`, 마이그레이션 V13·V14·V16을 읽었다. **서버 검증과 실제 클릭은 하지 않았다.**
@@ -382,7 +382,7 @@ DEC-083의 `event_participant_settings`에 `roomRosterScope`를 더한다(같은
 
 ## 10. DEC-080·DEC-083 계약에 더하는 것
 
-[participant-home-contract](participant-home-contract.md)와 [participant-group-contract](participant-group-contract.md)는 다른 세션이 고치고 있어 이 문서에 적는다. G2·G4 PR이 그 문서(또는 그때의 api.md)에 옮긴다.
+[participant-home-contract](participant-home-contract.md)와 내 조 계약(지금은 [api.md "조 편성"](../../backend/docs/api.md#get-apiv1participantgroup))은 다른 세션이 고치고 있어 이 문서에 적는다. G2·G4 PR이 그 문서(또는 그때의 api.md)에 옮긴다.
 
 ### 10.1 DEC-080(참가자 홈)에 더하는 것
 

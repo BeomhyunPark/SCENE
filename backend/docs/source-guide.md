@@ -193,6 +193,7 @@ CSRF 쿠키는 `XSRF-TOKEN`, 헤더는 `X-XSRF-TOKEN`이다. 변경 요청은 �
 | 체크 항목, 완료, 다시 열기 | `event/task/TaskProgressController` |
 | 체크인 현황, 명단, 체크인, 취소, 이력 | `event/checkin/CheckInController` |
 | 편성판, 조 만들기·수정·삭제·순서, 배정, 조장, 공개, 공개본 조회 | `event/group/GroupController` |
+| 참가자 설정(조원 명단 공개 스위치) | `event/participantsettings/ParticipantSettingsController` |
 | 일정표 작업본, 항목 만들기·고치기·지우기, 공개, 저장하고 바로 공개, 공개본 조회 | `event/schedule/ScheduleController` |
 | 공지 목록·상세·만들기·고치기·지우기·발행·보관·보관 해제 | `event/notice/NoticeController` |
 
@@ -204,7 +205,7 @@ CSRF 쿠키는 `XSRF-TOKEN`, 헤더는 `X-XSRF-TOKEN`이다. 변경 요청은 �
 | 공개 신청서 읽기, 신청 | `event/application/PublicApplicationController` |
 | 내 신청 읽기·고치기 | `event/application/ParticipantApplicationController` |
 | 참가자 QR | `event/checkin/ParticipantCheckInController` |
-| 참가자 내 조 | `event/group/ParticipantGroupController` |
+| 참가자 내 조, 조장의 조원 상세 | `event/group/ParticipantGroupController` |
 | 참가자 홈, 갱신 확인(`updates`) | `event/home/ParticipantHomeController` |
 | 참가자 알림 목록, 읽음 | `event/notification/ParticipantNotificationController` |
 | 참가자 일정 | `event/schedule/ParticipantScheduleController` |
@@ -212,6 +213,9 @@ CSRF 쿠키는 `XSRF-TOKEN`, 헤더는 `X-XSRF-TOKEN`이다. 변경 요청은 �
 
 ### 다른 기능이 부르는 공용 코드 (DEC-080)
 
+- **사람별 참석 칸·숙박 밤:** `event/form/MealSlots.attended`(칸)와 `MealSlots.lodgingNights`(밤, DEC-085 §6). 신청 집계·편성판·조장 보기가 같은 함수를 쓰고, 숙소(G2)도 이 함수를 쓴다.
+- **열람 기록:** 개인정보를 보여 준 읽기는 같은 트랜잭션에서 `event/privacy/PrivacyLogs`로 `privacy_logs` 한 줄을 남긴다(`MANDATORY`). 번호·이름·답 값은 detail에 넣지 않는다.
+- **참가자 설정 읽기:** `ParticipantSettingsRepository.groupRosterVisibleToMembers(spaceId, eventId)`(행이 없으면 기본 켬). G1의 방 배정표 스위치도 같은 테이블에 둔다.
 - **갱신 값 올리기:** 공개·발행 경로의 `@Transactional` 메서드 안에서 변경을 쓴 뒤 `ParticipantFeedVersions.bump(spaceId, eventId, FeedArea.SCHEDULE)`(또는 `NOTICES`·`ROOMS`·`MEAL_ORDER`). 한 문장 upsert이고 호출한 쪽 트랜잭션에 들어간다(`MANDATORY`라 트랜잭션 밖에서 부르면 예외). `PUBLISHED`처럼 참가자에게 보이는 변경일 때만 부른다. `ALREADY_PUBLISHED`·작업본 저장·`DRAFT` 저장에는 부르지 않는다. 읽기는 `read(spaceId, eventId)`(행이 없으면 모두 0).
 - **대상 검증:** 요청 본문의 `audience`는 `Audience.parse(body.get("audience"))`(어기면 `400 VALIDATION_FAILED` 필드 `audience`), 저장은 `audience.toJson(json)`을 `jsonb` 열에, 읽기는 `Audience.read(json, text)`(깨진 값도 예외 없이 "아무도 못 봄"). `includesParticipants()`는 공지 갱신 값 판단에, `leadersOnly()`는 응답의 `leadersOnly`에 쓴다.
 - **참가자 판정:** 요청마다 `ParticipantAudience.viewer(self)`를 한 번 부르고(한 문장) 항목마다 `viewer.sees(audience)`. 활성 참가자(`SUBMITTED` 신청이 있음)만 본다. 알림 받는 사람은 `participantIds(spaceId, eventId, audience)`(`ALL`은 활성 참가자 전원, `LEADERS`는 최근 공개본의 활성 조장, `STAFF`·모르는 값은 없음).
@@ -243,7 +247,7 @@ Flyway만 스키마를 쓴다. `V1__baseline.sql`이 제품 테이블이고, `V2
 
 `local` 프로파일만 `db/seed/R__local_seed.sql`을 넣는다. dev, stg, prod와 테스트는 이 시드를 쓰지 않는다. 테스트는 Testcontainers의 PostgreSQL을 띄운다.
 
-`audit_logs`는 쓰이지만 읽는 URL이 없다. `V20__participant_feed_and_notifications.sql`이 `participant_feed_versions`와 `notifications`를, `V22__notices.sql`이 `notices`와 `notice_boards`를, `V23__schedule.sql`이 일정표의 `schedule_boards`·`schedule_items`·`schedule_publications`를 더한다. 어떤 명령이 어떤 `action`을 남기는지는 [API의 기록 절](api.md#응답에-안-나오는-기록)에 있다. `V24__operator_notices_to_notifications.sql`(#436)이 `operator_notices`의 행을 `notifications`로 옮겼고, 코드는 더 이상 `operator_notices`에 쓰지 않는다. 그 테이블은 되돌림에 대비해 남겼고 나중 마이그레이션에서 지운다.
+`audit_logs`는 쓰이지만 읽는 URL이 없다. `V20__participant_feed_and_notifications.sql`이 `participant_feed_versions`와 `notifications`를, `V22__notices.sql`이 `notices`와 `notice_boards`를, `V23__schedule.sql`이 일정표의 `schedule_boards`·`schedule_items`·`schedule_publications`를 더한다. 어떤 명령이 어떤 `action`을 남기는지는 [API의 기록 절](api.md#응답에-안-나오는-기록)에 있다. `V24__operator_notices_to_notifications.sql`(#436)이 `operator_notices`의 행을 `notifications`로 옮겼고, 코드는 더 이상 `operator_notices`에 쓰지 않는다. 그 테이블은 되돌림에 대비해 남겼고 나중 마이그레이션에서 지운다. `V25__participant_settings_and_privacy_logs.sql`(#452, DEC-083)이 행사 참가자 설정 `event_participant_settings`와 참가자 행위자도 받는 열람 기록 `privacy_logs`를 더한다. `privacy_logs`도 읽는 URL이 없다.
 
 설계 문서의 참가자, 신청, 재정, 조, 방, 차량, 체크인 테이블은 이 마이그레이션에 없다.
 
@@ -268,6 +272,8 @@ Flyway만 스키마를 쓴다. `V1__baseline.sql`이 제품 테이블이고, `V2
 | 체크와 완료 | `event/task/TaskProgressHttpIT` |
 | 조 편성 작업본 | `event/group/GroupHttpIT` |
 | 조 편성 공개, 공개본, 참가자 내 조 | `event/group/GroupPublicationHttpIT` |
+| 조원 명단·조장 보기·조원 상세·전화 열람 기록·참가자 설정(DEC-083 시험 조건 12가지) | `event/group/ParticipantGroupRosterHttpIT` |
+| 사람별 숙박 밤 | `event/form/MealSlotsLodgingTest`, 조장 보기와 집계 비교 `event/application/AttendanceRangeHttpIT` |
 | 참가자 홈, 갱신 값, 대상 판정, 알림 | `event/home/ParticipantHomeHttpIT` |
 | `updates` 한 요청의 SQL 문장 수 | `event/home/ParticipantUpdatesCostIT` |
 | 일정표 작업본·공개·저장하고 바로 공개·참가자 일정·알림 | `event/schedule/ScheduleHttpIT`, 변경 표시 `ScheduleChangeTest` |
@@ -288,7 +294,7 @@ Flyway만 스키마를 쓴다. `V1__baseline.sql`이 제품 테이블이고, `V2
 
 - 비밀번호, 토큰 로그인
 - SMTP. 초대 링크는 `CapturingInvitationMailer`의 메모리에만 있다
-- 참가자, 신청서, 회비, 조, 방, 차량 테이블과 그 API. 체크인은 `V12__checkins.sql`과 운영자 API가 있고, 참가자 QR 받기는 #283이다. 조는 `V13__groups.sql`(작업본)·`V14__group_publications.sql`(공개본)과 운영자 API, 참가자 내 조(`GET /api/v1/participant/group`)가 있다
+- 참가자, 신청서, 회비, 조, 방, 차량 테이블과 그 API. 체크인은 `V12__checkins.sql`과 운영자 API가 있고, 참가자 QR 받기는 #283이다. 조는 `V13__groups.sql`(작업본)·`V14__group_publications.sql`(공개본)과 운영자 API, 참가자 내 조(`GET /api/v1/participant/group`)·조장의 조원 상세가 있다
 - 회비·차량 등 다른 권한 키는 쓰는 경로가 없다. 일정표는 `event/schedule`(`SCHEDULE_WRITE`), 공지는 `event/notice`에 있다
 
 `Permission`에 키가 있는 것은 그 API가 열렸다는 뜻이 아니다. `OWNER`는 등록된 키를 모두 갖고, 그 키를 쓰는 명령은 각 서비스에 있을 때만 동작한다.

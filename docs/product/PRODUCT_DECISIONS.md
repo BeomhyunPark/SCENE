@@ -3531,7 +3531,7 @@ DEC-072 §6은 일반 참가자에게 조원 명단을 주지 않고 조장에�
 9. **다른 조 사람에게는 어떤 경로로도 나가지 않는다.** 조원 상세의 실패는 모두 `404`로 구분하지 않고, 일반 조원은 다른 사람의 id를 받지 않는다. 계약 초안 §6의 열두 가지 시험 조건을 F2 서버 PR의 통합 테스트로 둔다.
 10. 새 ErrorCode와 새 권한 키는 없다. 조회는 audit을 남기지 않는다(전화 열람은 `privacy_logs`).
 
-응답 예시·판정·테이블 초안·시험 조건은 [내 조 계약 초안](../architecture/participant-group-contract.md)에 있다.
+응답 예시·판정·테이블 초안·시험 조건은 내 조 계약 초안에 있었다. F2(#452)에서 서버를 만들고 그 내용을 [api.md "조 편성"](../../backend/docs/api.md#get-apiv1participantgroup)으로 옮긴 뒤 초안을 지웠다. 시험 조건 12가지는 `ParticipantGroupRosterHttpIT`에 있다.
 
 ### 결정 대기 (추천안으로 진행, PR 검토에서 확인)
 
@@ -3572,6 +3572,28 @@ DEC-072 §6은 일반 참가자에게 조원 명단을 주지 않고 조장에�
 ### Evidence
 
 사용자 결정 2026-11-19(로드맵 6.1 결정 3·11, [#382 댓글](https://github.com/BeomhyunPark/SCENE/issues/382#issuecomment-7002472651)). 근거 자료는 DEC-030, DEC-043, DEC-044, DEC-070 Follow-up(새가족), DEC-072 §1·§5·§6과 Alternatives·Consequence, DEC-073 §6(숨긴 보기), DEC-075(운영 메모), api.md "조 편성"(`GET /participant/group`), security-privacy §5, 데이터 모델 초안(privacy action), 마이그레이션 V1(`audit_logs`)·V5·V14.
+
+
+### Follow-up 2026-11-24 — F2 서버 구현에서 계약 초안과 다르게 정한 것 (#452)
+
+**Status:** 구현 세션의 판단(추천안). PR 검토에서 사용자가 확인한다. 서버는 작업 브랜치 `claude/f2-participant-group-roster`에 있고(V25), 계약 내용은 [api.md "조 편성"](../../backend/docs/api.md#get-apiv1participantgroup)으로 옮기고 초안을 지웠다. 시험 조건 12가지는 통합 테스트 `ParticipantGroupRosterHttpIT`이고, 조장 보기의 칸·숙박 밤이 편성판·신청 집계와 같은지는 `AttendanceRangeHttpIT`가 본다. 운영 서버 확인과 실제 클릭은 하지 않았다.
+
+결정 대기 두 건은 추천안대로 만들었다: 스위치 기본 켬(행이 없으면 켬), 조장이 받는 전화는 신청 전화와 `format: PHONE` 단답 답 모두(둘 다 `privacy_logs.detail.fields`에 남는다).
+
+계약 초안과 다르게, 또는 초안이 정하지 않은 것을 이렇게 정했다.
+
+1. **조원 상세 `display`는 운영자 참가 현황 표·CSV와 같은 글자(`AnswerText`)다.** 초안은 날짜 `1월 22일 (금) 19:00`, 숨긴 보기 `(꺼짐)`, 숫자 그대로였다. 구현은 날짜 `2027. 1. 22. 19:00`, 숨긴 보기 ` (숨김)`, 기타 `기타: …`, 숫자에 단위다. 같은 답을 운영자와 조장이 다른 글자로 보지 않고, 글자 규칙을 한 곳에서 고치기 위해서다. → 결정 대기 3.
+2. **`applicationRevisedAt`·`application.revisedAt`은 처음 제출 그대로(revision 1)면 `null`이다.** 초안의 "지금 revision이 생긴 시각"은 처음 제출에도 값이 생겨 화면의 "최근 수정" 표시가 모든 사람에게 붙는다. `submittedAt`은 처음 제출 시각이다.
+3. **운영자가 고친 값(A12)은 아직 서버에 없다.** `operatorEdited`는 그 질문을 마지막으로 바꾼 revision의 `revised_by`가 `OPERATOR`인지, `revisedByOperator`는 지금 revision의 `revised_by`로 계산한다. 지금은 운영자가 revision을 만드는 경로가 없어 실제 값은 늘 `false`다. A12가 revision 밖의 운영 값(DEC-075 §1)을 만들면 `attendance`·`answers`가 그 값을 먼저 읽도록 이 판정을 고친다.
+4. **취소한 조장은 `NOT_ELIGIBLE` 대신 `401`을 받는다.** 신청을 취소하면 세션이 끝나므로(DEC-084 §4) 내 조 읽기에 닿지 않는다. 시험 조건 7은 "조원은 다음 요청부터 명단·`leaderView`·상세에서 빠지고, 조장은 `401`"로 확인한다. `NOT_ELIGIBLE` 판정은 서비스에 그대로 남는다.
+5. **설정 저장에서 값이 같으면 아무것도 쓰지 않는다.** 버전·갱신 시각·audit·`updates.group` 모두 그대로이고 지금 설정을 돌려준다(버전이 다르면 그 전에 `409`).
+6. **사람별 숙박 밤을 `MealSlots.lodgingNights` 한 함수로 꺼냈고(DEC-085 §6), 신청 집계도 이 함수를 쓴다.** 한 경계에서 집계 숫자가 바뀐다: `SLOTS` 모드에서 `LODGING` 질문이 꺼졌을 때 `NO_LODGING`을 고른 부분 참석자는 전에는 `unanswered`에 들어갔고 이제는 "숙박 없음"이다(집계 코드 주석의 "a partial one is not unanswered either"와 맞춘 것). 기존 집계 테스트는 모두 그대로 통과한다.
+7. **숨긴 보기를 고른 답:** 명단·상세의 `gender`는 `null`이다(DEC-073 §6). 상세의 다른 선택 답은 1의 `display`(보기 문구 + ` (숨김)`)와 원본 `value`(보기 id)를 그대로 준다. 초안 §1 표의 "숨긴 보기만 남은 답의 원래 값 ✘"는 성별에만 적용했다.
+8. **조원 상세 `answers`에 또래(SYSTEM `COHORT`)도 들어간다.** 빼는 것은 SYSTEM 이름·전화, 숨긴 질문, 동의 답뿐이다. 신청 전화가 비어 있으면 `phone: null`이고, 전화 값이 하나도 없으면 기록을 남기지 않는다.
+
+| # | 질문 | 선택지 | 추천안 | 영향 |
+|---|---|---|---|---|
+| 3 | 조장 화면의 답 읽기 글자 | 운영자 표·CSV와 같게(`2027. 1. 22.`, ` (숨김)`) / 초안대로 참가자용(`1월 22일 (금)`, `(꺼짐)`) | 운영자와 같게(지금 구현) | 참가자용으로 바꾸면 서버에 글자 규칙이 두 벌 생긴다. F3 화면은 `display`를 그대로 그리므로 어느 쪽이든 화면 코드는 같다 |
 
 ---
 
