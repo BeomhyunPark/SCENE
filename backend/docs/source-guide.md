@@ -53,6 +53,9 @@
 | 일정표 작업본·공개·참가자 일정 | `event/schedule/ScheduleService`, 본문 검증 `ItemInput`, 변경 표시 `ScheduleService.change` |
 | 운영자 화면이 읽을 일정 작업본 `boardVersion` | `event/schedule/ScheduleBoards` |
 | 공지 쓰기·상태·고정·알림 | `event/notice/NoticeService` |
+| 식수 현황 숫자(도착·올 예정·아직 안 옴, 다음 끼니) | `event/application/MealTally`, 읽기는 `MealCountService` |
+| 사람마다 도착 예정 칸(식수 현황·E4 도착 명단 공용) | `event/form/ArrivalSlots` |
+| 다른 기능이 읽는 일정 칸별 시작 시각 | `event/schedule/ScheduleSlotTimes` |
 | 참가자 공지 목록·상세 | `event/notice/ParticipantNoticeService` |
 | 운영자 공지 갱신 값(`notice_boards`) | `event/notice/NoticeBoardVersions` |
 | SQL | `src/main/resources/mapper/`의 같은 이름 XML |
@@ -195,6 +198,7 @@ CSRF 쿠키는 `XSRF-TOKEN`, 헤더는 `X-XSRF-TOKEN`이다. 변경 요청은 �
 | 편성판, 조 만들기·수정·삭제·순서, 배정, 조장, 공개, 공개본 조회 | `event/group/GroupController` |
 | 일정표 작업본, 항목 만들기·고치기·지우기, 공개, 저장하고 바로 공개, 공개본 조회 | `event/schedule/ScheduleController` |
 | 공지 목록·상세·만들기·고치기·지우기·발행·보관·보관 해제 | `event/notice/NoticeController` |
+| 식수 현황(끼니별 예정·도착 반영 식수, DEC-087) | `event/application/MealCountController` |
 
 참가자 경로(`/api/v1/participant`, 쿠키 `SCENE_PSESSION`)와 공개 경로(`/api/v1/public`)다.
 

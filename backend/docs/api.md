@@ -2900,6 +2900,50 @@ audit `GROUPS_PUBLISHED`: detail은 `publicationId`, `boardVersion`, `assignedCo
 
 `200` 본문은 읽기와 같다. version이 1 오른다. 저장마다 audit `EVENT_RETROSPECTIVE_UPDATED` 한 줄을 남기고 details는 `{ "version" }`뿐이다. 본문은 audit·로그·오류 응답에 넣지 않는다.
 
+## 식수 현황
+
+끼니마다 신청 기준 예정 식수와 도착을 반영한 식수를 나란히 준다([#454](https://github.com/BeomhyunPark/SCENE/issues/454), [DEC-087](../../docs/product/PRODUCT_DECISIONS.md)). 끼니마다 세지 않는다(로드맵 결정 1). 숫자는 신청 답과 [도착 체크인](#체크인)만으로 계산한다. 컨트롤러는 `event/application/MealCountController`, 서비스는 `MealCountService`, 계산 규칙은 `MealTally`다.
+
+### `GET /api/v1/operator/events/{eventId}/meal-counts`
+
+**권한과 기본 동작**
+- 권한은 [신청 집계](#get-apiv1operatoreventseventidapplicationssummary)·체크인 현황과 같다. 유효한 `EVENT_READ`, 또는 활성 공간 `OWNER`·`ADMIN`이다. 판정 순서는 `404`·`403 NOT_A_MEMBER` → `403 FORBIDDEN`이다.
+- 행사 상태로 막지 않는다. audit는 남기지 않는다. 저장하지 않고 요청마다 센다. 화면은 10초마다 다시 읽는다.
+- **숫자만 있다.** 이름·전화·참가자 id·신청 id는 없다.
+
+`200`
+
+```json
+{
+  "eventStatus": "ACTIVE",
+  "asOf": "2027-01-22T05:05:00Z",
+  "nextSlotId": "opt_d1_dinner",
+  "submitted": 62,
+  "checkedIn": 41,
+  "unknown": { "count": 2, "arrived": 1 },
+  "days": [
+    {
+      "day": 1, "date": "2027-01-22", "label": "1월 22일 (금)",
+      "slots": [
+        {
+          "slotId": "opt_d1_dinner", "meal": "DINNER", "label": "저녁",
+          "startTime": "17:30", "timeFromSchedule": true, "passed": false,
+          "planned": 60, "arrived": 41, "coming": 11, "missing": 8, "reflected": 52
+        }
+      ]
+    }
+  ]
+}
+```
+
+- **세는 사람:** `SUBMITTED` 신청(`submitted`). 참가자가 고친 신청(A4)은 현재 답으로, 취소된 신청(A7)은 빠진 채로 센다. 참석 칸은 신청 집계 `meals`와 같은 규칙(`MealSlots.attended`)이라 `planned`는 집계의 `count`와 같다.
+- **칸:** 식사(아침·점심·저녁)만 준다. 집회 칸은 `days`에 없지만 아래 "지금 칸" 계산에는 들어간다. 설정이 없거나 식사 칸이 없으면 `days: []`, `nextSlotId: null`이다.
+- **도착:** 현재 `CHECKED_IN`인 체크인(`checkedIn`). 취소한 체크인은 안 온 사람이다.
+- **시각:** `startTime`은 일정표 작업본에서 그 `slotId`를 가진 항목의 시작 시각이고(`timeFromSchedule: true`), 없으면 기본 시각(아침 `08:00`, 점심 `12:00`, 저녁 `18:00`, 집회 `19:30`)이다. 행사 시간대(Asia/Seoul) 기준이다. 칸은 시작 1시간 뒤에 `passed: true`가 된다. 지나지 않은 첫 칸(집회 포함)이 지금 칸이고, `nextSlotId`는 지금 칸이거나 그 뒤인 첫 식사 칸이다. 모두 지났으면 `null`이다. `asOf`는 서버가 계산한 시각이다.
+- **칸의 숫자:** 그 칸에 참석하는 사람(`planned`)을 나눈다. 도착했으면 `arrived`. 안 왔고 그 칸의 도착 예정 칸(그 칸을 포함하는 연속 참석 칸 묶음의 첫 칸, `ArrivalSlots.dueSlot`)이 지금 칸이거나 그 뒤면 `coming`, 이미 지났으면 `missing`. `reflected` = `arrived` + `coming`(도착 반영 식수), `planned` = `arrived` + `coming` + `missing`이다.
+- **`unknown`:** 참석 칸을 모르는 신청(답 없음·꺼진 질문·거꾸로 된 범위). 어느 칸에도 세지 않는다(신청 집계 `meals.unanswered`와 같은 수). `arrived`는 그중 도착한 수다.
+- 주방에 보낼 글은 화면이 이 응답으로 만든다(DEC-087 §9).
+
 ## 응답에 안 나오는 기록
 
 일부 성공은 응답 밖에 행을 남긴다. 그 행을 읽는 URL은 없다.
