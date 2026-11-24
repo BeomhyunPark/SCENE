@@ -522,5 +522,18 @@ describe("privacy page", () => {
     expect(screen.getByRole("heading", { name: "1. 수집하는 정보" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "7. 문의" })).toBeInTheDocument();
     expect(screen.queryByText("페이지를 찾을 수 없어요.")).toBeNull();
+    expect(screen.getByRole("button", { name: "한국어" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("switches between KOR and ENG", () => {
+    renderAt("/privacy?lang=en");
+    expect(screen.getByRole("heading", { level: 1, name: "Privacy Policy" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "English" })).toHaveAttribute("aria-pressed", "true");
+
+    fireEvent.click(screen.getByRole("button", { name: "한국어" }));
+    expect(screen.getByRole("heading", { level: 1, name: "개인정보처리방침" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "English" }));
+    expect(screen.getByRole("heading", { level: 1, name: "Privacy Policy" })).toBeInTheDocument();
   });
 });
