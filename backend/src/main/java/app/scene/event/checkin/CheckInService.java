@@ -8,6 +8,8 @@ import app.scene.common.permission.Permission;
 import app.scene.common.permission.PermissionEvaluator;
 import app.scene.common.web.ItemPage;
 import app.scene.common.web.PageRequest;
+import app.scene.event.application.ArrivalRoster;
+import app.scene.event.application.ArrivalStatus;
 import app.scene.event.lifecycle.EventAccessGate;
 import app.scene.event.lifecycle.EventLocation;
 import app.scene.event.lifecycle.EventRepository;
@@ -19,6 +21,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Pattern;
@@ -34,6 +37,10 @@ import tools.jackson.databind.json.JsonMapper;
  * eligibility → result. Writes lock the event row, so two operators on the same participant
  * serialize and the later one sees {@code ALREADY_CHECKED_IN}. Each write adds a history row and an
  * audit row in the same transaction. Names, phones, and the QR value never go to audit or logs.
+ *
+ * <p>The summary and every roster item carry the arrival standing (E4 #456, DEC-087 Follow-up) from
+ * {@link ArrivalRoster}: the meal counts' inputs and cursor, so {@code OVERDUE} is the next meal's
+ * "아직 안 옴". The roster's {@code arrival} filter reads every matching row, then pages in memory.
  */
 @Service
 public class CheckInService {
@@ -54,6 +61,7 @@ public class CheckInService {
   private final CheckInCodes codes;
   private final EventUserPermissionRepository permissions;
   private final AuditLogRepository auditLogs;
+  private final ArrivalRoster arrivals;
   private final JsonMapper json;
   private final Clock clock;
 
@@ -64,6 +72,7 @@ public class CheckInService {
       CheckInCodes codes,
       EventUserPermissionRepository permissions,
       AuditLogRepository auditLogs,
+      ArrivalRoster arrivals,
       JsonMapper json,
       Clock clock) {
     this.gate = gate;
@@ -72,6 +81,7 @@ public class CheckInService {
     this.codes = codes;
     this.permissions = permissions;
     this.auditLogs = auditLogs;
+    this.arrivals = arrivals;
     this.json = json;
     this.clock = clock;
   }
@@ -88,16 +98,34 @@ public class CheckInService {
             .find(spaceId, eventId)
             .orElseThrow(() -> new SceneException(ErrorCode.RESOURCE_NOT_FOUND));
     CheckInCounts counts = checkIns.counts(spaceId, eventId);
+    ArrivalRoster.Snapshot snapshot = arrivals.read(spaceId, eventId, readTime());
+    CheckInSummary.Arrival arrival =
+        snapshot.slotted()
+            ? new CheckInSummary.Arrival(
+                snapshot.asOf(),
+                snapshot.nextMeal(),
+                snapshot.counts().get(ArrivalStatus.OVERDUE),
+                snapshot.counts().get(ArrivalStatus.COMING),
+                snapshot.counts().get(ArrivalStatus.PASSED),
+                snapshot.counts().get(ArrivalStatus.UNKNOWN))
+            : null;
     return new CheckInSummary(
         event.lifecycleStatus(),
         counts.total(),
         counts.checkedIn(),
-        counts.total() - counts.checkedIn());
+        counts.total() - counts.checkedIn(),
+        arrival);
   }
 
   @Transactional(readOnly = true)
   public ItemPage<RosterItem> roster(
-      UUID actorId, UUID eventId, String q, String checkedIn, Integer page, Integer size) {
+      UUID actorId,
+      UUID eventId,
+      String q,
+      String checkedIn,
+      String arrival,
+      Integer page,
+      Integer size) {
     EventAccessGate.Opened opened = gate.open(actorId, eventId);
     if (!mayRead(opened, actorId)) {
       throw new SceneException(ErrorCode.FORBIDDEN);
@@ -105,12 +133,30 @@ public class CheckInService {
     PageRequest request = PageRequest.of(page, size);
     String text = searchText(q);
     Boolean filter = checkedInFilter(checkedIn);
+    ArrivalStatus wanted = arrivalFilter(arrival);
     boolean phoneVisible = allows(opened, actorId, Permission.CHECKIN_WRITE);
     boolean byPhone = phoneVisible && text != null && PHONE_LAST4.matcher(text).matches();
     UUID spaceId = opened.location().spaceId();
-    long total = checkIns.countRoster(spaceId, eventId, text, byPhone, filter);
+    ArrivalRoster.Snapshot snapshot = arrivals.read(spaceId, eventId, readTime());
+    long total;
+    List<RosterRow> rows;
+    if (wanted == null) {
+      total = checkIns.countRoster(spaceId, eventId, text, byPhone, filter);
+      rows = checkIns.roster(spaceId, eventId, text, byPhone, filter, request);
+    } else {
+      List<RosterRow> matching = new ArrayList<>();
+      for (RosterRow row : checkIns.rosterAll(spaceId, eventId, text, byPhone, filter)) {
+        ArrivalRoster.Arrival standing = snapshot.of(row.participantId());
+        if (standing != null && standing.status() == wanted) {
+          matching.add(row);
+        }
+      }
+      total = matching.size();
+      int from = (int) Math.min(request.offset(), matching.size());
+      rows = matching.subList(from, Math.min(from + request.size(), matching.size()));
+    }
     List<RosterItem> items = new ArrayList<>();
-    for (RosterRow row : checkIns.roster(spaceId, eventId, text, byPhone, filter, request)) {
+    for (RosterRow row : rows) {
       RosterItem.Brief brief =
           row.checkInId() == null
               ? null
@@ -126,7 +172,8 @@ public class CheckInService {
               row.name(),
               row.cohort(),
               phoneVisible ? row.phoneLast4() : null,
-              brief));
+              brief,
+              snapshot.of(row.participantId())));
     }
     return ItemPage.of(items, request, total);
   }
@@ -329,6 +376,11 @@ public class CheckInService {
     }
   }
 
+  /** Read time for the arrival standing, to the second like the meal counts. */
+  private Instant readTime() {
+    return clock.instant().truncatedTo(ChronoUnit.SECONDS);
+  }
+
   private Instant now() {
     return clock.instant().truncatedTo(ChronoUnit.MICROS);
   }
@@ -426,6 +478,20 @@ public class CheckInService {
       return Boolean.FALSE;
     }
     throw invalid("checkedIn");
+  }
+
+  private static ArrivalStatus arrivalFilter(String value) {
+    if (value == null) {
+      return null;
+    }
+    if (!value.equals(value.toUpperCase(Locale.ROOT))) {
+      throw invalid("arrival");
+    }
+    try {
+      return ArrivalStatus.valueOf(value);
+    } catch (IllegalArgumentException unknown) {
+      throw invalid("arrival");
+    }
   }
 
   private static UUID requiredUuid(String value, String fieldName) {

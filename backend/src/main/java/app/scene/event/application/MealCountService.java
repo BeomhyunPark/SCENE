@@ -2,30 +2,17 @@ package app.scene.event.application;
 
 import app.scene.common.error.ErrorCode;
 import app.scene.common.error.SceneException;
-import app.scene.event.application.mapper.ApplicationTableMapper;
-import app.scene.event.application.param.EventApplicationKey;
-import app.scene.event.form.FormFieldRow;
-import app.scene.event.form.FormRepository;
-import app.scene.event.form.FormRow;
-import app.scene.event.form.MealSlots;
 import app.scene.event.lifecycle.EventAccessGate;
 import app.scene.event.lifecycle.EventRepository;
 import app.scene.event.lifecycle.EventRow;
-import app.scene.event.participant.ParticipantProperties;
-import app.scene.event.schedule.ScheduleSlotTimes;
 import java.time.Clock;
 import java.time.Instant;
-import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.json.JsonMapper;
 
 /**
  * 식수 현황 (#454, DEC-087): per meal slot, the planned count of the submitted applications and the
@@ -43,35 +30,20 @@ public class MealCountService {
 
   private final EventAccessGate gate;
   private final EventRepository events;
-  private final FormRepository forms;
-  private final ApplicationRepository applications;
-  private final ApplicationTableMapper tables;
   private final OperatorApplicationService reads;
-  private final ScheduleSlotTimes slotTimes;
-  private final ParticipantProperties properties;
-  private final JsonMapper json;
+  private final ArrivalSource source;
   private final Clock clock;
 
   public MealCountService(
       EventAccessGate gate,
       EventRepository events,
-      FormRepository forms,
-      ApplicationRepository applications,
-      ApplicationTableMapper tables,
       OperatorApplicationService reads,
-      ScheduleSlotTimes slotTimes,
-      ParticipantProperties properties,
-      JsonMapper json,
+      ArrivalSource source,
       Clock clock) {
     this.gate = gate;
     this.events = events;
-    this.forms = forms;
-    this.applications = applications;
-    this.tables = tables;
     this.reads = reads;
-    this.slotTimes = slotTimes;
-    this.properties = properties;
-    this.json = json;
+    this.source = source;
     this.clock = clock;
   }
 
@@ -85,23 +57,10 @@ public class MealCountService {
     Instant now = clock.instant().truncatedTo(ChronoUnit.SECONDS);
     String eventStatus = events.find(spaceId, eventId).map(EventRow::lifecycleStatus).orElse(null);
 
-    FormRow form = forms.findByEvent(spaceId, eventId).orElse(null);
-    List<FormFieldRow> fields =
-        form == null ? List.of() : forms.findFields(spaceId, eventId, form.id());
-    AttendedSlots attended = AttendedSlots.of(form == null ? null : form.setup(), fields, json);
-
-    Map<UUID, Map<UUID, JsonNode>> answers = new HashMap<>();
-    for (ExportAnswerRow answer : applications.listSubmittedAnswers(spaceId, eventId)) {
-      answers
-          .computeIfAbsent(answer.applicationId(), id -> new HashMap<>())
-          .put(answer.fieldId(), json.readTree(answer.value()));
-    }
-    List<ApplicationTableState> people =
-        tables.findStates(EventApplicationKey.of(spaceId, eventId));
-    long checkedIn = people.stream().filter(person -> person.checkedInAt() != null).count();
-
-    List<MealSlots.Day> days = attended.days();
-    if (days.isEmpty()) {
+    ArrivalSource.Loaded loaded = source.load(spaceId, eventId);
+    List<ArrivalSource.Person> people = loaded.people();
+    long checkedIn = people.stream().filter(ArrivalSource.Person::arrived).count();
+    if (loaded.days().isEmpty()) {
       return new MealCounts(
           eventStatus,
           now,
@@ -113,19 +72,11 @@ public class MealCountService {
     }
 
     List<MealTally.Person> tallied = new ArrayList<>();
-    for (ApplicationTableState person : people) {
-      tallied.add(
-          new MealTally.Person(
-              attended.of(answers.getOrDefault(person.applicationId(), Map.of())),
-              person.checkedInAt() != null));
+    for (ArrivalSource.Person person : people) {
+      tallied.add(new MealTally.Person(person.attended(), person.arrived()));
     }
     MealTally.Result result =
-        MealTally.count(
-            days,
-            slotTimes.startTimes(spaceId, eventId),
-            tallied,
-            now,
-            ZoneId.of(properties.zone()));
+        MealTally.count(loaded.days(), loaded.scheduled(), tallied, now, loaded.zone());
     return new MealCounts(
         eventStatus,
         now,
