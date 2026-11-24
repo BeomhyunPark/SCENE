@@ -15,6 +15,28 @@
   color: var(--color-text-primary);
 }
 
+.public-privacy__langs {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+
+.public-privacy__lang {
+  padding: 4px 10px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text-tertiary);
+  font: var(--scene-label-m);
+  cursor: pointer;
+}
+
+.public-privacy__lang[aria-pressed="true"] {
+  border-color: var(--color-accent);
+  color: var(--color-text-brand);
+}
+
 .public-privacy__title {
   margin: 0 0 8px;
   font: var(--scene-heading-l);
