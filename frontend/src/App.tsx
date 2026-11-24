@@ -6,6 +6,7 @@ import { MockBanner } from "./components/MockBanner";
 import { EventCreate } from "./components/EventCreate";
 import { EventEnd } from "./components/EventEnd";
 import { EventField } from "./components/EventField";
+import { EventMeals } from "./components/EventMeals";
 import { EventNotifications } from "./components/EventNotifications";
 import { OrgNotifications } from "./components/OrgNotifications";
 import { EventGroups } from "./components/EventGroups";
@@ -103,6 +104,7 @@ export function App() {
             element={<EventMenuPending title="다른 기능 시작" message="이 행사에서 쓸 기능을 고르는 화면은 아직 만들고 있어요." />}
           />
           <Route path="/events/:eventId/field" element={<EventField />} />
+          <Route path="/events/:eventId/meals" element={<EventMeals />} />
           <Route path="/events/:eventId/notifications" element={<EventNotifications />} />
           <Route path="/events/:eventId/groups" element={<EventGroups />} />
           <Route path="/events/:eventId/schedule" element={<EventSchedule />} />

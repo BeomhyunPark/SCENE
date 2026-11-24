@@ -56,6 +56,7 @@ export type MenuKey =
   | "guides"
   | "schedule"
   | "field"
+  | "meals"
   | "participants"
   | "operators"
   | "integrations"
@@ -102,6 +103,8 @@ export function operatorMenuSections(menu: OperatorMenu, pathname: string): Menu
         ...(eventAreas.includes("tasks") ? [item("tasks", "준비 업무", clipboard, tasksHref)] : []),
         ...(eventAreas.includes("participants") ? [item("participants", "참가 현황", address, participantsHref)] : []),
         item("field", "현장 운영", chartLine, `${eventHref}/field`),
+        // 식수 현황 (#454, DEC-087 §11): its own page next to 현장 운영, read on a phone before each meal.
+        item("meals", "식수 현황", note, `${eventHref}/meals`),
         item("groups", "조 편성", people, `${eventHref}/groups`),
         item("schedule", "일정", calendar, `${eventHref}/schedule`),
         item("notices", "공지", envelope, `${eventHref}/notices`),

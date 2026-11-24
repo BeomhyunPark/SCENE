@@ -16,6 +16,7 @@ import { resetOperationStore } from "../mocks/operationStore";
 import { resetCheckInStore } from "../mocks/checkInStore";
 import { resetGroupStore } from "../mocks/groupStore";
 import { resetScheduleStore } from "../mocks/scheduleStore";
+import { setMealCountsNow } from "../mocks/mealCounts";
 import { resetNoticeStore } from "../mocks/noticeStore";
 import { resetTaskStore } from "../mocks/taskStore";
 import { deliveryTiming } from "../components/checkInDelivery";
@@ -39,6 +40,7 @@ afterEach(() => {
   resetCheckInStore();
   resetGroupStore();
   resetScheduleStore();
+  setMealCountsNow(null);
   resetNoticeStore();
   resetParticipantStore();
   resetParticipantFeedStore();

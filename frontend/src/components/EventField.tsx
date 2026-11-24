@@ -274,6 +274,10 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
           )}
         </section>
 
+        <Link className="event-field__meals-link" to={`${eventHref}/meals`}>
+          식수 현황 보기
+        </Link>
+
         {blocked ? (
           <p className="event-field__blocked" id="field-blocked" role="note">
             {blocked}
