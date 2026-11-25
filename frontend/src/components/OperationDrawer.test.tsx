@@ -10,6 +10,7 @@ import { operationOf, seedOperationMemo } from "../mocks/operationStore";
 import { operatorRequests, setLifecycle } from "../mocks/operatorStore";
 import { currentParticipant, openParticipantSession, submitPublicApplication } from "../mocks/participantStore";
 import { revokePermissions } from "../mocks/taskStore";
+import { chooseOption, findOptionLabel, selectValue } from "../test/select";
 
 const EVENT = localEvent.eventId;
 const OWNER = localUsers[0].userId;
@@ -158,10 +159,10 @@ describe("현재 운영 정보 수정 drawer (#337)", () => {
     const drawer = await openDrawer("김하나");
 
     const select = within(drawer).getByLabelText("조 배정");
-    await waitFor(() => expect(within(select).getByRole("option", { name: "2조" })).toBeInTheDocument(), WAIT);
-    expect(select).toHaveValue(one);
+    await findOptionLabel(select, "2조", WAIT);
+    expect(selectValue(select)).toBe(one);
     expect(within(drawer).getByText(/공개해야 보여요/)).toBeInTheDocument();
-    fireEvent.change(select, { target: { value: two } });
+    chooseOption(select, two);
     fireEvent.click(within(drawer).getByRole("button", { name: "변경 저장" }));
 
     const confirm = await screen.findByRole("dialog", { name: "현재 운영 정보를 변경할까요?" });
@@ -183,8 +184,8 @@ describe("현재 운영 정보 수정 drawer (#337)", () => {
     const drawer = await openDrawer("김하나");
 
     const select = within(drawer).getByLabelText("조 배정");
-    await waitFor(() => expect(within(select).getByRole("option", { name: "1조 · 조장" })).toBeInTheDocument(), WAIT);
-    fireEvent.change(select, { target: { value: two } });
+    await findOptionLabel(select, "1조 · 조장", WAIT);
+    chooseOption(select, two);
     fireEvent.click(within(drawer).getByRole("button", { name: "변경 저장" }));
 
     const confirm = await screen.findByRole("dialog", { name: "현재 운영 정보를 변경할까요?" });
@@ -202,10 +203,10 @@ describe("현재 운영 정보 수정 drawer (#337)", () => {
     openApp(`/events/${EVENT}/participants`);
     const drawer = await openDrawer("김하나");
     const select = within(drawer).getByLabelText("조 배정");
-    await waitFor(() => expect(within(select).getByRole("option", { name: "2조" })).toBeInTheDocument(), WAIT);
+    await findOptionLabel(select, "2조", WAIT);
 
     moveAsOtherOperator(EVENT, first.participantId, one);
-    fireEvent.change(select, { target: { value: two } });
+    chooseOption(select, two);
     fireEvent.click(within(drawer).getByRole("button", { name: "변경 저장" }));
     fireEvent.click(within(await screen.findByRole("dialog", { name: "현재 운영 정보를 변경할까요?" })).getByRole("button", { name: "저장" }));
 

@@ -1,0 +1,10 @@
+[
+ {
+  "name": "12-meals",
+  "found": 1,
+  "rest": "pointer bg=rgba(0, 0, 0, 0) border=rgb(11, 88, 102) outline=none/rgb(11, 88, 102)",
+  "hover": "pointer bg=rgba(0, 0, 0, 0) border=rgb(11, 88, 102) outline=none/rgb(11, 88, 102)",
+  "focus": "-",
+  "overflow": false
+ }
+]

@@ -16,7 +16,7 @@ export function MenuPending({ title }: { title: string }) {
       <div className="menu-pending">
         <section className="menu-pending__card">
           <h2 className="menu-pending__title">아직 준비 중이에요</h2>
-          <Link className="menu-pending__link" to="/events">
+          <Link className="menu-pending__link scene-press scene-press--text" to="/events">
             행사 목록으로
           </Link>
         </section>

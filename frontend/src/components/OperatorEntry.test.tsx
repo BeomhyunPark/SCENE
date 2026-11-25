@@ -9,6 +9,7 @@ import { getMe, login } from "../api/session";
 import { localUsers } from "../mocks/fixtures/seed";
 import { server } from "../mocks/server";
 import { operatorRequests } from "../mocks/operatorStore";
+import { chooseOption } from "../test/select";
 
 function renderAt(path: string) {
   return render(
@@ -45,9 +46,7 @@ describe("operator entry", () => {
     expect(await screen.findByRole("heading", { name: "새 행사 만들기" })).toBeInTheDocument();
     // No guidance line under 기본 정보 that Figma P02-02 does not have (#495).
     expect(screen.queryByText(/최소 정보만/)).not.toBeInTheDocument();
-    fireEvent.change(screen.getByRole("combobox", { name: "행사 유형 (선택)" }), {
-      target: { value: "RETREAT" },
-    });
+    chooseOption(screen.getByRole("combobox", { name: "행사 유형 (선택)" }), "RETREAT");
     fireEvent.change(screen.getByRole("textbox", { name: "행사명" }), { target: { value: "가을 수련회" } });
     fireEvent.change(document.getElementById("event-start-picker")!, { target: { value: "2026-10-24" } });
     fireEvent.change(document.getElementById("event-end-picker")!, { target: { value: "2026-10-25" } });

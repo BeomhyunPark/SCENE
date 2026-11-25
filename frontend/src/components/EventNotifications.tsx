@@ -146,7 +146,7 @@ function NotificationRow({ item, href, onOpen }: { item: OperatorNotification; h
   if (!href) {
     // Not openable (unknown kind or no screen yet); still marks read when tapped.
     return unread ? (
-      <button type="button" className={className} onClick={onOpen}>
+      <button type="button" className={`${className} scene-press scene-press--row scene-press--inset`} onClick={onOpen}>
         {content}
       </button>
     ) : (
@@ -155,7 +155,7 @@ function NotificationRow({ item, href, onOpen }: { item: OperatorNotification; h
   }
   return (
     <a
-      className={className}
+      className={`${className} scene-press scene-press--row scene-press--inset`}
       href={href}
       onClick={(event) => {
         if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
