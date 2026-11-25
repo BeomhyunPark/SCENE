@@ -27,6 +27,10 @@ export const queryKeys = {
   checkInRosterAll: (eventId: string) => ["events", eventId, "check-ins", "roster-all"] as const,
   publishedGroups: (eventId: string) => ["events", eventId, "groups", "published"] as const,
   groupBoard: (eventId: string) => ["events", eventId, "group-board"] as const,
+  /** 숙소 배정판 (G3 #458). */
+  roomBoard: (eventId: string) => ["events", eventId, "room-board"] as const,
+  /** 행사 참가자 설정 (DEC-083 §2): 조원 명단 스위치와 숙소 공개 범위. */
+  participantSettings: (eventId: string) => ["events", eventId, "participant-settings"] as const,
   /** Schedule working copy (C4). The editor reads the same entry for days, slots and the item. */
   scheduleBoard: (eventId: string) => ["events", eventId, "schedule"] as const,
   forms: (eventId: string, page: number) => ["events", eventId, "forms", page] as const,

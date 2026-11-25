@@ -9,6 +9,7 @@ import { EventField } from "./components/EventField";
 import { EventNotifications } from "./components/EventNotifications";
 import { OrgNotifications } from "./components/OrgNotifications";
 import { EventGroups } from "./components/EventGroups";
+import { EventRooms } from "./components/EventRooms";
 import { EventHome } from "./components/EventHome";
 import { EventRetrospective } from "./components/EventRetrospective";
 import { EventSchedule } from "./components/EventSchedule";
@@ -103,6 +104,7 @@ export function App() {
           <Route path="/events/:eventId/field" element={<EventField />} />
           <Route path="/events/:eventId/notifications" element={<EventNotifications />} />
           <Route path="/events/:eventId/groups" element={<EventGroups />} />
+          <Route path="/events/:eventId/rooms" element={<EventRooms />} />
           <Route path="/events/:eventId/schedule" element={<EventSchedule />} />
           <Route path="/events/:eventId/schedule/:itemId" element={<EventScheduleItem />} />
           <Route path="/events/:eventId/end" element={<EventEnd />} />
