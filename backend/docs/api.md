@@ -1210,7 +1210,7 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
 
 한 건 조회와 참가 현황 표의 행에는 `revision`(1부터)과 `participantId`가 있다. `SUPERSEDED` 신청도 한 건 조회로 읽는다(변경 전 답). 연락처 규칙(`PARTICIPANT_CONTACT_READ`가 없으면 전화 답의 `value`가 `null`)과 audit도 지금 신청과 같다(#437).
 
-참가 현황 표의 행에는 `revisedBy`도 있다(#437). 지금 revision을 누가 저장했는지이고 `revision`이 1이면 `null`, 참가자가 고쳤으면 `PARTICIPANT`, 운영자가 고쳤으면 `OPERATOR`(A12)다. 화면은 `revision`이 1보다 크면 "수정됨"을 그린다. 그 행의 `submittedAt`은 마지막 수정 시각이다.
+참가 현황 표의 행에는 `revisedBy`도 있다(#437). 지금 revision을 누가 저장했는지이고 참가자가 첫 신청을 냈으면(`revision` 1) `null`, 참가자가 고쳤으면 `PARTICIPANT`, 운영자가 고쳤으면 `OPERATOR`다. `revision` 1에 `OPERATOR`면 운영자가 직접 추가한 사람이다([DEC-088](../../docs/product/PRODUCT_DECISIONS.md) §3). 화면은 `revision`이 1보다 크면 "수정됨", `revision` 1에 `OPERATOR`면 "직접 추가"를 그린다. 그 행의 `submittedAt`은 마지막 수정 시각이다.
 
 한 건 조회의 `withdrawal`은 그 신청이 참가자의 마지막 revision이고 `WITHDRAWN`일 때 `{ "withdrawnAt", "withdrawnByDisplayName", "reason", "reapplyBlocked" }`이고, 아니면 `null`이다([신청 취소와 되돌리기](#신청-취소와-되돌리기)). `reason`은 운영자 화면에만 보인다.
 
@@ -1228,17 +1228,18 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
       "submittedAt": "2026-12-17T00:00:00Z",
       "revisedBy": "PARTICIPANT",
       "revisedByUserId": null,
+      "revisedByDisplayName": null,
       "changes": [
         { "key": "NAME", "fieldId": "…", "label": "이름" },
         { "key": "FIELD", "fieldId": "…", "label": "참석 일정" }
       ]
     },
-    { "applicationId": "…", "revision": 1, "status": "SUPERSEDED", "submittedAt": "…", "revisedBy": null, "revisedByUserId": null, "changes": [] }
+    { "applicationId": "…", "revision": 1, "status": "SUPERSEDED", "submittedAt": "…", "revisedBy": null, "revisedByUserId": null, "revisedByDisplayName": null, "changes": [] }
   ]
 }
 ```
 
-`revisedBy`는 첫 신청이면 `null`, 참가자가 고쳤으면 `PARTICIPANT`, 운영자가 고쳤으면 `OPERATOR`(A12, 아직 없음)다. `changes`는 바뀐 질문을 그 revision을 저장할 때의 질문 제목으로 담는다. 이름이 바뀌었으면 `key: NAME`이다. 답 값은 없다. 변경 전후 값은 각 `applicationId`의 한 건 조회로 읽는다(연락처 규칙도 그대로). 신청 상세 화면은 revision을 펼칠 때 그 revision과 바로 앞 revision을 한 건씩 읽어 `changes`의 질문만 비교한다(#437).
+`revisedBy`는 첫 신청이면 `null`, 참가자가 고쳤으면 `PARTICIPANT`, 운영자가 고쳤으면 `OPERATOR`다. 운영자가 직접 추가한 첫 revision도 `OPERATOR`다(DEC-088 §3). `revisedByDisplayName`은 `OPERATOR`일 때 그 운영자의 표시 이름이다(탈퇴 등으로 없으면 `null`). `changes`는 바뀐 질문을 그 revision을 저장할 때의 질문 제목으로 담는다. 이름이 바뀌었으면 `key: NAME`이다. 답 값은 없다. 변경 전후 값은 각 `applicationId`의 한 건 조회로 읽는다(연락처 규칙도 그대로). 신청 상세 화면은 revision을 펼칠 때 그 revision과 바로 앞 revision을 한 건씩 읽어 `changes`의 질문만 비교한다(#437).
 
 ### `POST /api/v1/operator/events/{eventId}/participants/{participantId}/pin-reset`
 
@@ -1346,6 +1347,74 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
 #### 운영자 알림이 붙을 자리 (I3)
 
 취소·되돌리기·재신청 복귀는 모두 `ApplicationStatusChanges.record(...)`를 지난다. 이곳이 `application_status_logs` 한 행과 Spring 이벤트 `ApplicationStatusChanged`(`spaceId`, `eventId`, `participantId`, `applicationId`, `action` `WITHDRAWN`/`RESTORED`, `actorKind` `OPERATOR`/`PARTICIPANT`, `actorUserId`, `at`)를 같은 transaction에서 낸다. 아직 받는 곳은 없다. I3는 이 이벤트로 `APPLICATION_CANCELLED`·`APPLICATION_RESTORED` 알림 행을 만든다(사유는 넣지 않는다, 처리한 운영자 본인은 빼고).
+
+### 운영자의 신청 고치기·직접 추가
+
+운영자가 참가자 대신 신청 답을 고치고(신청·수정이 닫힌 뒤 포함), 참가자를 직접 추가한다([DEC-088](../../docs/product/PRODUCT_DECISIONS.md), A12 #462, #339). 저장은 참가자 수정(A4)과 같은 revision이고 `revised_by: OPERATOR`·`revised_by_user_id`가 남는다. 그래서 집계·편성판·CSV·참가 현황 표·식수 현황·도착 명단·숙소 배정판·조장 보기가 고친 값을 그대로 쓴다. 컨트롤러는 `OperatorApplicationEditController`, 서비스는 `OperatorApplicationEditService`다. 둘 다 CSRF가 필요하고 `Idempotency-Key`는 읽지 않는다. 권한은 effective `PARTICIPANT_WRITE`다.
+
+**운영자 검사**(두 경로 공통, `AnswerEvaluator.evaluateForOperator`): 답 모양·보기·글자 수·조건 다시 계산·도착≤출발(DEC-074)은 참가자와 같다. 다른 점은 (1) 필수는 이름·전화번호만 지킨다, (2) 신청 받기·수정 받기 스위치를 읽지 않는다, (3) 동의 질문(`YES_NO`, `style: CONSENT`)과 숨긴 질문은 보낸 값을 버리고 이전 답을 그대로 옮긴다(직접 추가는 비워 둔다)이다. 답이 틀리면 `400 APPLICATION_VALIDATION_FAILED`.
+
+#### `PUT /api/v1/operator/events/{eventId}/applications/{applicationId}/answers`
+
+```json
+{
+  "expectedRevision": 2,
+  "answers": [
+    { "fieldId": "…", "text": "김참가" },
+    { "fieldId": "…", "text": "010-1234-5678" },
+    { "fieldId": "…", "value": { "optionId": "opt_partial" } }
+  ]
+}
+```
+
+- 질문 전부를 보낸다(참가자 수정과 같다). 보내지 않은 보이는 질문은 답이 지워진다.
+- 판정 순서: 404(행사·신청) → 403 → 400(`expectedRevision`: 1 이상 정수) → 409 행사 상태 → 409 신청 상태·revision → 400 답 → 409 전화번호.
+- 행사가 `DRAFT`·`ACTIVE`·`ENDED`일 때 된다(ENDED는 기록 정정). `ARCHIVED`는 `409 EVENT_ARCHIVED`.
+- 경로의 `applicationId`가 참가자의 지금 `SUBMITTED` 신청이 아니거나 `expectedRevision`이 지금 revision과 다르면 `409 CONCURRENT_MODIFICATION`(확장 필드 `applicationId`·`status`·`revision` = 지금 마지막 revision). 마지막 revision이 `WITHDRAWN`이면 `409 INVALID_STATE_TRANSITION`(`applicationStatus: WITHDRAWN`) — 먼저 되돌린다.
+- 전화번호를 바꿀 수 있다. 같은 행사의 다른 참가자 번호면 `409 APPLICATION_ALREADY_EXISTS`. 바꿔도 세션·숫자 6자리·잠금은 그대로다. 이름을 바꾸면 참가자 이름도 바뀐다.
+- 바뀐 것이 없으면 revision을 만들지 않고 `revised: false`로 지금 신청을 돌려준다(audit·알림 없음).
+
+`200`
+
+```json
+{ "applicationId": "…", "participantId": "…", "revision": 3, "revised": true }
+```
+
+같은 transaction에서:
+- audit `APPLICATION_REVISED_BY_OPERATOR` — details `{ "applicationId", "previousApplicationId", "participantId", "revision", "fieldIds": ["…"] }`. 답 값·이름·전화번호는 없다.
+- 그 참가자에게 알림 `APPLICATION_UPDATED_BY_OPERATOR`(대상 `APPLICATION` = 새 `applicationId`, 제목 "운영자가 내 신청을 고쳤어요", 본문 = 바뀐 질문 제목을 ", "로 이은 것).
+- `PARTICIPANT_READ`를 가진 **다른** 운영자에게 `APPLICATION_REVISED`(제목 "OO님의 신청을 운영자가 고쳤어요", 본문 = 바뀐 질문 제목). 고친 운영자 자신은 받지 않는다.
+- 이전 revision을 가리키던 알림(참가자·운영자 모두)은 새 `applicationId`로 옮긴 뒤 합친다(I3과 같다).
+- 조 배정·방 배정·체크인은 그대로, 운영 메모는 새 행으로 옮긴다.
+
+#### `POST /api/v1/operator/events/{eventId}/applications`
+
+참가자 직접 추가(현장 등록 포함).
+
+```json
+{
+  "formId": "…",
+  "answers": [
+    { "fieldId": "…", "text": "김현장" },
+    { "fieldId": "…", "text": "010-2222-3333" }
+  ]
+}
+```
+
+- 판정 순서: 404(행사) → 403 → 404 `FORM_NOT_FOUND`(그 행사의 신청서가 아님, `formId` 없음·형식 틀림은 `400 VALIDATION_FAILED` 필드 `formId`) → 409 행사 상태 → 400 답 → 409 전화번호.
+- 행사가 `DRAFT`·`ACTIVE`일 때 된다. `ENDED`는 `409 EVENT_ENDED`, `ARCHIVED`는 `409 EVENT_ARCHIVED`. 신청서가 닫혀 있어도 된다.
+- 그 전화번호의 참가자가 이미 있으면 `409 APPLICATION_ALREADY_EXISTS`이고 확장 필드 `applicationId`·`status`가 그 참가자의 마지막 신청이다. 취소된 사람(`status: WITHDRAWN`)은 취소 목록에서 되돌린 뒤 고친다(DEC-084). 새 참가자를 만들지 않는다.
+
+`201`, `Cache-Control: no-store`
+
+```json
+{ "applicationId": "…", "participantId": "…", "revision": 1, "temporaryPin": "583920" }
+```
+
+- 임시 번호는 이 응답에서 한 번만 나온다(6자리 초기화와 같은 규칙: 해시만 저장, `pin_temporary`, 로그·audit에 없음). 참가자는 이름·전화번호·임시 번호로 들어와 새 번호를 정한다(`pinChangeRequired`). 세션은 만들지 않는다.
+- 첫 revision은 `revision: 1`, `revisedBy: OPERATOR`, `revisedByUserId` = 추가한 운영자, `changes: []`다(V27).
+- audit `PARTICIPANT_ADDED` — details `{ "participantId", "applicationId" }`.
+- `PARTICIPANT_READ`를 가진 다른 운영자에게 알림 `APPLICATION_ADDED`(제목 "OO님을 운영자가 직접 추가했어요"). 참가자 알림은 없다.
 
 ### `POST /api/v1/operator/events/{eventId}/applications/export`
 
@@ -1882,6 +1951,8 @@ CSRF가 필요하다. [참가자 경로](#post-apiv1participantnotificationsread
 | `APPLICATION_RESUBMITTED` | 같음 | 같음 | 같은 전화·맞는 6자리로 다시 신청해 수정이 될 때(공개 신청 `200`) | "김OO님이 다시 신청해 내용을 바꿨어요" · 바뀐 질문 제목 |
 | `APPLICATION_CANCELLED` | `APPLICATION`, 취소된 신청 id | 같음. 취소한 운영자는 뺀다 | 신청 취소(DEC-084) | "김OO님의 신청이 취소됐어요" (본문 없음, 사유 없음) |
 | `APPLICATION_RESTORED` | `APPLICATION`, 지금 신청 id | 같음. 되돌린 운영자는 뺀다 | 운영자 되돌리기, 취소된 사람의 다시 신청(DEC-084 §5) | "김OO님의 신청 취소를 되돌렸어요" / "김OO님이 취소된 신청으로 다시 신청했어요" |
+| `APPLICATION_REVISED`(운영자 수정) | 같음 | 같음. 고친 운영자는 뺀다 | 운영자가 신청을 고쳐 새 revision이 생길 때(DEC-088) | "김OO님의 신청을 운영자가 고쳤어요" · 바뀐 질문 제목 |
+| `APPLICATION_ADDED` | `APPLICATION`, 새 신청 id | 같음. 추가한 운영자는 뺀다 | 운영자가 참가자를 직접 추가할 때(DEC-088) | "김OO님을 운영자가 직접 추가했어요" (본문 없음) |
 | `LIFECYCLE_OVERRIDE` | `EVENT`, 행사 id | 넘긴 소유 권한이 끝나지 않은 행사 `OWNER` | 공간 소유자가 대신 시작·종료·다시 열기 등을 할 때 | "행사 상태를 공간 소유자가 바꿨어요" · "행사를 종료했어요" 등 |
 
 - 유효 권한은 `PermissionEvaluator`(역할 기본값 + 사람별 `GRANT` − `REVOKE`, 넘긴 OWNER는 저장된 GRANT만)다. 기본값으로는 OWNER·MANAGER가 받고, STAFF는 `GRANT`를 받아야, MANAGER도 `REVOKE`되면 받지 않는다. 운영자에서 제거됐거나 공간을 떠나 `event_users` 행이 없는 사람은 받지 않는다. 받는 사람 계산은 그 행사 운영자 수와 상관없이 SQL 한 문장(`event_users` + 그 권한의 override)이다.
@@ -2654,7 +2725,7 @@ CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고
   - `attendance.lodgingNights`는 그 사람이 자는 밤 번호(1부터, 밤 `n`은 `n`일째 저녁)다. 신청 집계의 숙박 행과 같은 함수(`MealSlots.lodgingNights`, DEC-085 §6)로 계산한다: 전체 참석은 모든 밤, 집회만은 없음, `NO_LODGING`을 고른 사람은 없음, `RANGE`의 부분 참석은 도착·출발 칸 사이의 밤, 그 밖의 부분 참석은 `LODGING` 답(답이 없으면 없음). 신청서에 기간이 없거나, 부분 참석인데 `LODGING` 질문이 꺼졌거나 도착·출발 답이 모자라면 `null`(모름)이다. 숙박하지 않으면 `[]`다.
   - `room`은 **가장 최근 숙소 공개본**에서 그 조원의 방 `{ "name", "locationNote" }`이다(DEC-085 §10, #457). 숙소 공개 전이거나 공개본에 방이 없으면 `null`이다. `roomRosterScope`와 상관없이 보이고, 작업본·방 id·같은 방 사람·정원은 없다. 숙소 공개는 `updates.group`이 아니라 `updates.rooms`를 올리므로 조장 화면은 `updates.rooms`가 바뀌어도 이 응답을 다시 읽는다.
   - `applicationRevisedAt`은 지금 신청 revision이 저장된 시각이고, 처음 제출 그대로(revision 1)면 `null`이다.
-  - 운영자가 고친 값(A12)은 아직 서버에 없어서 저장된 답으로만 계산한다.
+  - 운영자가 고친 값(A12)은 운영자가 저장한 revision이라(DEC-088) 저장된 답을 읽으면 그대로 따라온다.
 - 이 응답은 **전화번호를 담지 않는다.** 그래서 열람 기록을 남기지 않는다. 전화는 조원 상세에서만 나온다.
 - 조회는 audit을 남기지 않는다. 공개(`GROUPS_PUBLISHED`), 공개본에 있던 사람의 철회, 행사 스위치 변경이 `updates.group`을 올린다.
 
@@ -2691,7 +2762,7 @@ CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고
 
 - `name`·`cohort`·`gender`·`leader`·`checkIn`·`attendance`·`room`은 `leaderView.members[]`와 같다.
 - `phone`은 신청 전화(`participants.phone`) 전체다. 비어 있으면 `null`이다.
-- `application.submittedAt`은 처음 제출 시각, `revisedAt`은 지금 revision이 저장된 시각(revision 1이면 `null`), `revisedByOperator`는 지금 revision을 운영자가 저장했는지다.
+- `application.submittedAt`은 처음 제출 시각, `revisedAt`은 지금 revision이 저장된 시각(revision 1이면 `null`), `revisedByOperator`는 지금 revision을 운영자가 고쳐 저장했는지다(revision 2 이상. 운영자가 직접 추가한 첫 revision은 `false`, DEC-088 §7).
 - `answers`는 지금 `SUBMITTED` 신청의 답을 신청서 질문 순서로 담는다.
   - **빼는 것:** SYSTEM 이름·전화(위 필드에 있다), 숨긴 질문(`hidden`)의 답, 개인정보 동의(`YES_NO`의 `style: CONSENT`). 숨긴 질문 때문에 버려진 답과 숫자 6자리는 애초에 저장된 답이 아니다.
   - **넣는 것:** 그 밖의 보이는 질문 전부(또래 포함). 새가족 보기를 고른 중그룹·셀 답도 그대로 들어간다(DEC-083 §5).
@@ -2782,7 +2853,7 @@ audit `GROUPS_PUBLISHED`: detail은 `publicationId`, `boardVersion`, `assignedCo
 | `NOT_LODGING` | 자는 밤이 없다(집회만, `NO_LODGING` 체크, `RANGE`에서 같은 날 도착·출발, `LODGING`에서 아무 밤도 안 고름) | 들지 않는다 | **안 된다**(사용자 결정 2026-11-20) |
 | `UNKNOWN` | 판단할 수 없다(신청서에 기간이 없음, 부분 참석인데 `LODGING` 질문이 꺼졌거나 도착·출발 답이 모자람) | 든다 | 된다 |
 
-숙박 질문이 없는 행사는 모두 `UNKNOWN`이라 모두 배정할 수 있다. 운영자가 고친 숙박 값(A12)은 아직 서버에 없어 저장된 답으로만 계산한다.
+숙박 질문이 없는 행사는 모두 `UNKNOWN`이라 모두 배정할 수 있다. 운영자가 고친 숙박 값(A12)은 새 revision이라(DEC-088) 지금 값으로 계산하고, 배정 때 근거와 다르면 "다시 볼 것"이 뜬다.
 
 ### 경고
 
@@ -3536,6 +3607,8 @@ audit `ROOMS_PUBLISHED`: detail은 `publicationId`, `boardVersion`, `assignedCou
 | `PARTICIPANT_PIN_RESET` | 운영자가 참가자의 숫자 6자리를 초기화할 때마다. detail은 `participantId`뿐이다(DEC-078) |
 | `APPLICATION_WITHDRAWN` | 운영자가 신청을 취소할 때. detail은 `applicationId`·`participantId`·`groupRemoved`·`reasonGiven`·`blockReapply`이고 사유 본문은 없다(DEC-084) |
 | `APPLICATION_RESTORED` | 운영자가 취소한 신청을 되돌릴 때. detail은 `applicationId`·`participantId`(DEC-084). 참가자의 재신청 복귀는 audit 없이 `application_status_logs`에만 남는다 |
+| `APPLICATION_REVISED_BY_OPERATOR` | 운영자가 참가자 대신 신청을 고쳐 새 revision이 생길 때. detail은 `applicationId`·`previousApplicationId`·`participantId`·`revision`·`fieldIds`이고 답 값은 없다(DEC-088) |
+| `PARTICIPANT_ADDED` | 운영자가 참가자를 직접 추가할 때. detail은 `participantId`·`applicationId`이고 임시 번호는 없다(DEC-088) |
 | `NOTICE_PUBLISHED` | 공지를 발행할 때(만들며 발행 포함, `ALREADY_PUBLISHED` 제외). detail은 `noticeId`·`version`·`audienceTypes`·`important`·`notifiedCount` |
 | `NOTICE_UPDATED` | **발행된** 공지의 제목·본문·중요·대상을 고칠 때. detail은 `noticeId`·`version`·`fields`(바뀐 필드 이름, 고정을 같이 바꿨으면 `pinned` 포함)·`notify`·`notifiedCount` |
 | `NOTICE_ARCHIVED`, `NOTICE_UNARCHIVED` | 보관·보관 해제가 실제로 일어날 때. detail은 `noticeId`·`version` |
@@ -3558,7 +3631,7 @@ audit `ROOMS_PUBLISHED`: detail은 `publicationId`, `boardVersion`, `assignedCou
 - SMTP. 초대 링크는 생성·다시 보내기 응답에 한 번 나오고, 메일 포트는 프로세스 메모리에만 담는다
 - 체크 항목 추가
 - 참가자 조회(`GET /api/v1/participant/me`·`application`·`check-in`·`group`·`home`·`updates`·`notifications`·`notices`·`schedule` 밖)
-- 운영자의 신청 대리 수정·직접 추가(A12), 신청 취소(#338)
+- 신청 취소(#338)
 - 회비, 방, 차량
 - 신청자 CSV([신청자 CSV](#post-apiv1operatoreventseventidapplicationsexport)) 밖의 Export, 공간 설정
 - 행사 기간·장소·유형을 바꾸는 `PATCH`. 이름만 바꾼다

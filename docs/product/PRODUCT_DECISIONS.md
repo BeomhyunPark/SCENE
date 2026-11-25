@@ -4035,3 +4035,97 @@ DEC-072 §6은 일반 참가자에게 조원 명단을 주지 않고 조장에�
 
 - 2026-11-24: 사용자가 결정 대기 6건을 모두 추천안대로 승인했다. (1) 늦는 사람은 도착 반영에서 빼고 "아직 안 옴 N명"으로 따로 보인다. (2) 끼니는 시작 1시간 뒤에 지난 것으로 친다. (3) 일정표에 시각이 없으면 기본 시각(08:00·12:00·18:00, 집회 19:30)을 쓰고 화면에 "기본 시각"이라고 보인다. (4) 끼니를 알 수 없는 사람은 도착했어도 세지 않고 따로 보인다. (5) 떨어진 날짜를 고른 사람(`SLOTS`)은 묶음이 시작될 때마다 다시 "올 예정"이다. (6) 끼니 시각은 일정표 작업본에서 가져온다. 모두 E3 구현(`MealTally`·`ArrivalSlots`·`ScheduleSlotTimes`, 화면 `EventMeals`)과 같아 코드는 바꾸지 않았다.
 - 2026-11-24 (E4 [#456](https://github.com/BeomhyunPark/SCENE/issues/456), 도착 명단): 체크인 명단·현황이 이 결정의 규칙을 그대로 쓴다. 새 DEC는 만들지 않는다. (1) 사람마다 **도착 상태**를 `ARRIVED`·`OVERDUE`(왔어야 함)·`COMING`(올 예정)·`PASSED`(지남)·`UNKNOWN`(예정 모름)으로 정하고 그 도착 예정 칸(예: "2일차 저녁")을 함께 준다. (2) **"지금까지 왔어야 하는 사람"(`OVERDUE`)은 다음 끼니에 참석하는데 그 끼니의 도착 예정 칸이 지난 미도착자**다. 그래서 식수 현황의 다음 끼니 "아직 안 옴"과 언제나 같은 사람이다(같은 입력 `ArrivalSource`·같은 지금 칸, `ArrivalStandingTest`가 30분 간격으로, `MealCountHttpIT`가 실제 API로 확인). (3) 다음 끼니에 참석하지 않는 미도착자는 뒤에 올 묶음이 있으면 `COMING`, 없으면 `PASSED`다. 이미 떠났을 사람·참석 칸이 다 지난 사람·떠나는 날 밤 집회만 남은 사람이 `PASSED`다(🔍 추천안: "왔어야 함"에 넣으면 식수 숫자와 어긋나서 따로 둔다. PR 검토에서 확인). (4) 참석 칸을 모르는 미도착자는 `UNKNOWN`으로 따로 보인다. (5) 계약은 api.md "체크인"에 더하기만 했다(현황 `arrival`, 명단 항목 `arrival`, 명단 쿼리 `arrival`). 마이그레이션·권한 키·ErrorCode 없음.
+
+---
+
+## DEC-088 — 운영자는 참가자의 신청을 A4와 같은 revision으로 대신 고치고 참가자를 직접 추가하며, 고친 revision에 처리자가 남는다
+
+**Date:** 2026-11-25
+
+**Status:** CONFIRMED (저장 방식은 DEC-078 §4의 추천안을 잇는다. 아래 결정 대기는 추천안으로 진행, PR 검토에서 확인) — DEC-078 §4, DEC-075 §1, DEC-084를 잇는다
+
+### Context
+
+참가 현황의 "참가자 직접 추가"는 버튼만 있고, 신청·수정이 닫힌 뒤(DEC-078 §6) 운영자가 참가자 대신 답을 고칠 길이 없다. 현장 등록, 전화로 들어온 변경 요청, 통근 숙박 안 함·중간 이탈 같은 참석 범위 예외(#339)를 운영자가 처리해야 한다. DEC-078 §4가 "#339도 revision으로 푼다(`revised_by: OPERATOR`)"고 정했고, DEC-075 §1의 "운영 값 열"은 참석 범위에 쓰지 않기로 했다. 작업 단위는 [#462](https://github.com/BeomhyunPark/SCENE/issues/462)(로드맵 A12, 상위 #378)이고 #339를 함께 푼다.
+
+### Decision
+
+**1. 저장은 A4와 같은 revision이다.** 운영자가 고친 답은 새 `applications` 행(`SUBMITTED`, `revision` +1)이고 이전 행은 `SUPERSEDED`다. `revised_by = OPERATOR`, `revised_by_user_id = 고친 운영자`, `changes`는 바뀐 질문 목록(값 없음)이다. 원본 답 옆에 운영 값을 따로 두지 않으므로(`application_operations`는 운영 메모만) 집계(DEC-073)·편성판(DEC-072)·CSV·참가 현황 표·식수 현황(DEC-087)·도착 명단·숙소 배정판(DEC-085)·조장 보기(DEC-083)가 이미 읽는 `SUBMITTED` 행에서 고친 값을 그대로 쓴다. 참가자가 다시 고치면 마지막 revision이 이긴다. 조 배정·방 배정·체크인은 참가자에 붙어 그대로이고, 운영 메모는 새 행으로 옮긴다(DEC-078 §4와 같다).
+- 이유: 변경 기록(revision 목록)·운영자 알림(I3)·"수정됨" 표시(A6)·조장 상세의 "운영자가 고친 값"(F2)이 모두 같은 자료(`revised_by`·`changes`)를 읽는다. 따로 두면 네 곳이 "운영 값이 있으면 운영 값"을 각자 계산해야 하고 참가자가 다시 고쳤을 때 어느 쪽이 이기는지 헷갈린다(DEC-078 Alternatives).
+
+**2. 운영자 수정 `PUT …/applications/{applicationId}/answers`.** 본문은 참가자 수정과 같은 `{ expectedRevision, answers }`다(질문 전부를 보낸다).
+
+| 항목 | 참가자 수정(A4) | 운영자 수정 |
+|---|---|---|
+| 신청 받기·수정 받기 스위치 | 수정 받기가 켜져야 한다 | 읽지 않는다(닫힌 뒤도 된다) |
+| 행사 상태 | `ACTIVE`만 | `DRAFT`·`ACTIVE`·`ENDED`(끝난 뒤 기록 정정, DEC-075 §4와 같다). `ARCHIVED`는 `409 EVENT_ARCHIVED` |
+| 필수 질문 | 지킨다 | 이름·전화번호만 지킨다. 다른 필수 질문은 비워 둘 수 있다(현장에서 모르는 답이 있다) |
+| 답 모양·보기·글자 수·도착≤출발(DEC-074) | 지킨다 | 똑같이 지킨다 |
+| 조건부 질문 | 조건을 다시 계산하고, 조건이 거짓이 된 질문의 답은 버린다(DEC-068) | 같다 |
+| 숨긴 질문(`hidden`) | 이전 답을 그대로 옮긴다 | 같다. 운영자도 이 경로로는 고치지 않는다(질문을 다시 켜고 고친다) |
+| 동의 질문(`YES_NO`, `style: CONSENT`) | 참가자가 답한다 | **운영자가 대신 동의하지 않는다.** 보낸 값은 버리고 이전 답을 그대로 옮긴다 |
+| 전화번호 | 바꿀 수 없다 | 바꿀 수 있다(DEC-078 §4 "바꾸려면 운영자가 처리한다"). 행사 안의 다른 참가자 번호면 `409 APPLICATION_ALREADY_EXISTS`. 바꿔도 세션·6자리는 그대로다 |
+| 이름 | 바꾸면 참가자 이름도 바뀐다 | 같다 |
+| 바뀐 것이 없을 때 | revision을 만들지 않는다 | 같다. audit·알림도 없다 |
+
+- 고칠 수 있는 것은 참가자의 지금 `SUBMITTED` 신청이다. 받은 `applicationId`가 지금 신청이 아니면(그 사이 새 revision) `409 CONCURRENT_MODIFICATION`(`details: applicationId·status·revision` = 지금 행), `expectedRevision`이 다르면 같은 오류다. 취소된 신청(`WITHDRAWN`)은 `409 INVALID_STATE_TRANSITION`(`applicationStatus`): 먼저 되돌린다(DEC-084).
+- 판정 순서: 404(행사·신청) → 403 → 400(`expectedRevision`) → 409(행사 상태) → 409(신청 상태·revision) → 400(답) → 409(전화번호 겹침). 행사 행 잠금 → 참가자 잠금 순서로 잡는다(취소·되돌리기와 같은 순서).
+- 응답은 `{ applicationId, participantId, revision, revised }`다. 화면은 신청 상세를 다시 읽는다.
+
+**3. 직접 추가 `POST …/applications`.** 본문은 `{ formId, answers }`다. 2절의 운영자 검사를 그대로 쓴다(필수는 이름·전화번호만, 동의 질문은 비워 둔다).
+- 행사 상태는 `DRAFT`·`ACTIVE`다(현장 등록 포함). `ENDED`는 `409 EVENT_ENDED`, `ARCHIVED`는 `409 EVENT_ARCHIVED`. 신청서가 닫혀 있어도 된다. 다른 행사의 신청서는 `404 FORM_NOT_FOUND`.
+- **전화번호 하나가 참가자 한 명(DEC-078 §1, DB 제약 `participants_phone_key`)** 은 그대로다. 그 전화의 참가자가 이미 있으면 새로 만들지 않고 `409 APPLICATION_ALREADY_EXISTS`(`details.applicationId` = 그 참가자의 마지막 신청, `details.status` = 그 상태)를 돌려준다. 화면은 그 신청을 여는 링크를 보인다. 운영자는 이미 그 신청을 볼 수 있으므로 정보가 새지 않는다.
+- **취소된 사람(DEC-084)** 도 같은 참가자다. 직접 추가로 되살리지 않는다: `409 APPLICATION_ALREADY_EXISTS`(`status: WITHDRAWN`)로 알려 주고, 운영자는 취소 목록에서 되돌린 뒤(조 배정은 돌아오지 않는다) 신청 고치기로 답을 맞춘다. 되돌리기 한 경로만 조 배정·알림·audit 규칙을 지키면 된다.
+- 새 참가자는 임시 번호를 받는다(A3b와 같은 방식): 서버가 만든 6자리의 해시를 `pin_temporary = true`로 저장하고, 응답 `201 { applicationId, participantId, revision: 1, temporaryPin }`에 **한 번만** 넣는다(`Cache-Control: no-store`, 로그·audit에 없음). 참가자는 이름·전화번호·임시 번호로 들어와 새 번호를 정해야 다음 화면으로 간다(DEC-078 §2). 세션은 만들지 않는다.
+- 첫 revision은 `revision = 1`, `revised_by = OPERATOR`, `revised_by_user_id = 추가한 운영자`, `changes = []`다. **뒤집기 어렵다: 데이터 모양** — V27이 `applications_revision_shape` 제약을 "revision 1은 `revised_by`가 비었거나 `OPERATOR`"로 넓힌다. revision 1의 `OPERATOR`는 "운영자가 직접 추가"라는 뜻이다.
+
+**4. 권한과 기록.** 둘 다 effective `PARTICIPANT_WRITE`(OWNER·MANAGER 기본, STAFF는 GRANT — DEC-079 Follow-up)다. audit은 `APPLICATION_REVISED_BY_OPERATOR`(`applicationId`·`previousApplicationId`·`participantId`·`revision`·`fieldIds`)와 `PARTICIPANT_ADDED`(`participantId`·`applicationId`)다. 답 값·이름·전화번호·임시 번호는 audit·로그·오류 응답에 없다. 새 ErrorCode·권한 키는 없다.
+
+**5. 참가자에게 보이는 것.**
+- 운영자가 고치면 그 참가자에게 알림 `APPLICATION_UPDATED_BY_OPERATOR`(대상 `APPLICATION` = 지금 신청, 제목 "운영자가 내 신청을 고쳤어요", 본문 = 바뀐 질문 제목)를 같은 트랜잭션에서 쌓는다. 이전 revision을 가리키던 알림은 지금 신청으로 옮긴 뒤 읽지 않은 같은 종류와 합친다(I3과 같은 방식, DEC-080 §7.3). 답 값은 넣지 않는다. 숨긴 질문·동의 질문은 운영자가 바꾸지 않으므로 그 제목은 나오지 않는다. 알림함 화면은 B5(#463)다.
+- 참가자 "내 정보"(A5)는 지금 `SUBMITTED` 행을 읽으므로 고친 값이 그대로 보인다. 화면 표시는 바꾸지 않는다.
+- 직접 추가에는 참가자 알림이 없다(참가자는 아직 들어온 적이 없고, 임시 번호는 운영자가 직접 전한다).
+
+**6. 운영자에게 보이는 것(자기가 한 일은 알림으로 쌓지 않는다).**
+- 운영자 수정: `PARTICIPANT_READ`를 가진 **다른** 운영자에게 `APPLICATION_REVISED`(제목 "OO님의 신청을 운영자가 고쳤어요", 본문 = 바뀐 질문 제목). 고친 운영자 자신은 받지 않는다. 종류를 새로 만들지 않아 알림함의 이동 경로·합치기를 그대로 쓴다(참가자 수정과 한 줄로 합쳐질 수 있고, 누가 고쳤는지는 revision 목록에서 본다).
+- 직접 추가: 다른 운영자에게 `APPLICATION_ADDED`(제목 "OO님을 운영자가 직접 추가했어요"). 추가한 운영자 자신은 받지 않는다.
+- 참가 현황 표 "수정됨"(A6)은 지금처럼 `revision > 1`이고, `revisedBy: OPERATOR`면 "운영자"가 보인다. revision 1에 `revisedBy: OPERATOR`면 "직접 추가" 표시다.
+- revision 목록은 `revisedByDisplayName`(고친 운영자 이름)을 더해 "운영자 OOO가 고침"·"운영자 OOO가 추가"로 보인다.
+
+**7. 조장 보기(F2).** `operatorEdited`(그 질문을 마지막으로 바꾼 revision이 운영자)와 `revisedByOperator`(지금 revision을 운영자가 저장)는 DEC-083 Follow-up의 계산 그대로 실제 값이 나온다. 직접 추가된 첫 revision은 `changes`가 비어 `operatorEdited`가 `false`이고, `revisedByOperator`는 `revision > 1`일 때만 `true`다("고친 값"만 표시한다).
+
+**8. 숙소 "다시 볼 것"(A11).** 배정 때 저장한 근거(`room_assignments.basis`)와 지금 `SUBMITTED` 값을 비교하므로 운영자가 숙박·참석 범위를 고쳐도 표시가 뜬다. 코드는 바꾸지 않는다.
+
+**9. #339.** 참석 방식·도착 칸·출발 칸·숙박 안 함·숙박 밤은 모두 신청서 질문이므로 2절의 운영자 수정으로 고치고, 1절 때문에 집계·편성판·CSV·표·식수 현황이 같은 값을 쓴다. #339의 완료 조건은 이 결정과 통합 테스트(네 경로 일치)로 채운다.
+
+### 결정 대기 (추천안으로 진행, PR 검토에서 확인)
+
+| # | 질문 | 선택지 | 추천안 | 영향 |
+|---|---|---|---|---|
+| 1 | 운영자가 필수 질문을 비워 둘 수 있나 | 참가자와 같이 지킴 / 이름·전화번호만 지킴 | 이름·전화번호만 | 현장 등록에서 모르는 답이 있어도 넣는다. 집계에서 그 질문은 "답 없음"으로 센다 |
+| 2 | 운영자가 동의 질문에 대신 답하나 | 대신 답함 / 답하지 않고 이전 값 유지 | 답하지 않음 | 직접 추가한 사람은 동의 답이 비어 있다. 동의가 꼭 필요하면 참가자가 내 정보에서 고칠 때 다시 묻는다(지금은 A5가 필수 동의를 요구) |
+| 3 | 숨긴 질문의 답을 운영자가 고치나 | 고침 / 이전 값 유지 | 이전 값 유지 | 숨긴 질문을 고치려면 신청서에서 다시 켠다 |
+| 4 | 취소된 사람의 전화번호로 직접 추가하면 | 그 자리에서 되돌리고 답 반영 / `409`로 알려 주고 되돌리기 경로로 보냄 | `409` + 링크 | 현장에서 두 번 누른다(되돌리기 → 고치기). 되돌리기 규칙을 한 곳에서만 지킨다 |
+| 5 | 끝난 행사(`ENDED`)에서 | 수정·추가 모두 막음 / 수정만 허용 / 둘 다 허용 | 수정만 허용 | 끝난 뒤 기록 정정(DEC-075 §4). 새 참가자 추가는 막는다 |
+| 6 | 운영자 수정을 다른 운영자에게 어떤 종류로 알리나 | 새 종류 / `APPLICATION_REVISED` 재사용 / 알리지 않음 | `APPLICATION_REVISED` 재사용(제목만 다름) | 알림함 화면 경로를 바꾸지 않는다. 참가자 수정과 한 줄로 합쳐질 수 있다 |
+| 7 | 직접 추가를 다른 운영자에게 알리나 | 알림 / 알리지 않음 | `APPLICATION_ADDED`로 알림 | 취소·되돌리기처럼 다른 운영자가 한 일을 안다 |
+
+### 범위 밖
+
+- 현장 운영 화면(`EventField`)의 현장 등록 진입점: 다른 세션의 UI 작업과 겹쳐 만들지 않는다. 현장에서는 참가 현황의 "참가자 직접 추가"를 쓴다.
+- 참가자 알림함 화면(B5 #463), 참가자 "내 정보"의 "운영자가 고친 값" 표시.
+- 운영자가 숨긴 질문·동의 질문을 고치는 경로, 여러 사람 한꺼번에 추가(CSV 가져오기).
+
+### Alternatives
+
+- **`application_operations`에 운영 값 열(DEC-075 §1, #339 구현 메모):** 읽는 곳 일곱 군데가 "운영 값이 먼저"를 각자 계산해야 하고, 참가자가 다시 고친 뒤의 우선순위가 헷갈린다. 변경 기록·알림·"수정됨"이 같은 자료를 쓰지 못한다(DEC-078 §4에서 이미 버렸다).
+- **직접 추가에 세션을 바로 열어 줌:** 운영자 브라우저에 참가자 쿠키가 생긴다. 임시 번호를 전하는 A3b 방식이 더 단순하다.
+- **직접 추가 첫 revision을 `revised_by` 없이 두고 audit에만 남김:** 표·revision 목록이 "운영자가 추가"를 보일 수 없다.
+
+### Consequence
+
+계약은 [api.md "운영자의 신청 고치기·직접 추가"](../../backend/docs/api.md#운영자의-신청-고치기직접-추가)에 있다. 서버: `event/application/OperatorApplicationEditService`·`OperatorApplicationEditController`, `AnswerEvaluator`의 운영자 검사, `ApplicationRevisions`의 동의 답 옮기기, `ApplicationNotices.operatorRevised`·`operatorAdded`, 마이그레이션 V27. 화면: 신청 상세의 "신청 고치기"(`/events/{eventId}/participants/{applicationId}/edit`), 참가 현황의 "참가자 직접 추가"(`/events/{eventId}/participants/new`), mock.
+
+### Evidence
+
+DEC-078 §4(사용자 결정 2026-11-19의 추천안 채택), 로드맵 A12, #339, #462, 조율 세션 추천(2026-11-25: A4와 같은 revision 경로에 처리자를 남긴다).
