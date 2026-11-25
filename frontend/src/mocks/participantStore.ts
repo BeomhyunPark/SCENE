@@ -48,7 +48,7 @@ type Snapshot = {
 /** Who stores a revision: the participant, or an operator (DEC-088). */
 type Reviser = { userId: string; displayName: string | null } | null;
 
-const REVISED_TITLE = "님이 신청을 고쳤어요";
+const REVISED_TITLE = "님이 신청 내역을 수정했어요";
 const RESUBMITTED_TITLE = "님이 다시 신청해 내용을 바꿨어요";
 
 /**
@@ -106,7 +106,7 @@ function revise(
       kind,
       target: { type: "APPLICATION", id: row.applicationId },
       title: operator
-        ? `${row.name || "참가자"}님의 신청을 운영자가 고쳤어요`
+        ? `${operator.displayName || "운영자"}님이 ${row.name || "참가자"}님의 신청 내역을 수정했어요`
         : `${row.name || "참가자"}${kind === "APPLICATION_REVISED" ? REVISED_TITLE : RESUBMITTED_TITLE}`,
       body: changes.map((change) => change.label).join(", "),
     });

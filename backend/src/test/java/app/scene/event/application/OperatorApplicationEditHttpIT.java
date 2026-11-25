@@ -231,7 +231,7 @@ class OperatorApplicationEditHttpIT {
     assertThat(told.get("kind").asString()).isEqualTo("APPLICATION_UPDATED_BY_OPERATOR");
     assertThat(told.get("target").get("type").asString()).isEqualTo("APPLICATION");
     assertThat(told.get("target").get("id").asString()).isEqualTo(current);
-    assertThat(told.get("title").asString()).isEqualTo("운영자가 내 신청을 고쳤어요");
+    assertThat(told.get("title").asString()).isEqualTo("운영자가 신청 내역을 수정했어요");
     assertThat(told.get("body").asString())
         .isEqualTo("성별, 참석 방식, 수련회장에 언제 도착하나요?, 수련회장에서 언제 출발하나요?, 숙박");
     assertThat(kinds(notifications(get("/api/v1/participant/notifications").cookie(narae.session))))
@@ -239,8 +239,11 @@ class OperatorApplicationEditHttpIT {
     JsonNode managerItems = notifications(get(eventPath(form) + "/notifications").cookie(manager));
     assertThat(managerItems.get("items").get(0).get("kind").asString())
         .isEqualTo("APPLICATION_REVISED");
+    String editor =
+        jdbc.queryForObject(
+            "SELECT display_name FROM users WHERE id = ?", String.class, form.ownerId);
     assertThat(managerItems.get("items").get(0).get("title").asString())
-        .isEqualTo("가람님의 신청을 운영자가 고쳤어요");
+        .isEqualTo(editor + "님이 가람님의 신청 내역을 수정했어요");
     assertThat(managerItems.get("items").get(0).get("target").get("id").asString())
         .isEqualTo(current);
     assertThat(kinds(notifications(get(eventPath(form) + "/notifications").cookie(form.owner))))

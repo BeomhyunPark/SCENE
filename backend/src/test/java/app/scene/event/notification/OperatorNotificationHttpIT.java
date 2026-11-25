@@ -101,7 +101,7 @@ class OperatorNotificationHttpIT {
     assertThat(item.get("kind").asString()).isEqualTo("APPLICATION_REVISED");
     assertThat(item.get("target").get("type").asString()).isEqualTo("APPLICATION");
     assertThat(item.get("target").get("id").asString()).isEqualTo(second.toString());
-    assertThat(item.get("title").asString()).isEqualTo("김하나님이 신청을 고쳤어요");
+    assertThat(item.get("title").asString()).isEqualTo("김하나님이 신청 내역을 수정했어요");
     assertThat(item.get("body").asString()).isEqualTo("이동 수단");
     assertThat(item.get("count").asInt()).isEqualTo(1);
     assertThat(item.get("readAt").isNull()).isTrue();
@@ -115,7 +115,7 @@ class OperatorNotificationHttpIT {
     assertThat(merged).hasSize(1);
     assertThat(merged.get(0).get("count").asInt()).isEqualTo(2);
     assertThat(merged.get(0).get("target").get("id").asString()).isEqualTo(thirdId.toString());
-    assertThat(merged.get(0).get("title").asString()).isEqualTo("김하나둘님이 신청을 고쳤어요");
+    assertThat(merged.get(0).get("title").asString()).isEqualTo("김하나둘님이 신청 내역을 수정했어요");
     assertThat(merged.get(0).get("body").asString()).isEqualTo("이름, 이동 수단");
     assertNoValues(merged.toString());
 

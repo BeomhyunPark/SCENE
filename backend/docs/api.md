@@ -1382,8 +1382,8 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
 
 같은 transaction에서:
 - audit `APPLICATION_REVISED_BY_OPERATOR` — details `{ "applicationId", "previousApplicationId", "participantId", "revision", "fieldIds": ["…"] }`. 답 값·이름·전화번호는 없다.
-- 그 참가자에게 알림 `APPLICATION_UPDATED_BY_OPERATOR`(대상 `APPLICATION` = 새 `applicationId`, 제목 "운영자가 내 신청을 고쳤어요", 본문 = 바뀐 질문 제목을 ", "로 이은 것).
-- `PARTICIPANT_READ`를 가진 **다른** 운영자에게 `APPLICATION_REVISED`(제목 "OO님의 신청을 운영자가 고쳤어요", 본문 = 바뀐 질문 제목). 고친 운영자 자신은 받지 않는다.
+- 그 참가자에게 알림 `APPLICATION_UPDATED_BY_OPERATOR`(대상 `APPLICATION` = 새 `applicationId`, 제목 "운영자가 신청 내역을 수정했어요", 본문 = 바뀐 질문 제목을 ", "로 이은 것).
+- `PARTICIPANT_READ`를 가진 **다른** 운영자에게 `APPLICATION_REVISED`(제목 "{고친 운영자 표시 이름}님이 OO님의 신청 내역을 수정했어요", 이름을 못 찾으면 "운영자님이…", 본문 = 바뀐 질문 제목). 고친 운영자 자신은 받지 않는다.
 - 이전 revision을 가리키던 알림(참가자·운영자 모두)은 새 `applicationId`로 옮긴 뒤 합친다(I3과 같다).
 - 조 배정·방 배정·체크인은 그대로, 운영 메모는 새 행으로 옮긴다.
 
@@ -1947,11 +1947,11 @@ CSRF가 필요하다. [참가자 경로](#post-apiv1participantnotificationsread
 
 | `kind` | `target` | 받는 사람 | 만드는 때 | 제목·본문 |
 | --- | --- | --- | --- | --- |
-| `APPLICATION_REVISED` | `APPLICATION`, 지금 신청 id | 만드는 순간 그 행사에서 유효한 `PARTICIPANT_READ`를 가진 운영자 | 참가자가 신청을 고쳐 새 revision이 생길 때(`PUT /participant/application`) | "김OO님이 신청을 고쳤어요" · 바뀐 질문 제목("참석 방식, 이동 수단") |
+| `APPLICATION_REVISED` | `APPLICATION`, 지금 신청 id | 만드는 순간 그 행사에서 유효한 `PARTICIPANT_READ`를 가진 운영자 | 참가자가 신청을 고쳐 새 revision이 생길 때(`PUT /participant/application`) | "김OO님이 신청 내역을 수정했어요" · 바뀐 질문 제목("참석 방식, 이동 수단") |
 | `APPLICATION_RESUBMITTED` | 같음 | 같음 | 같은 전화·맞는 6자리로 다시 신청해 수정이 될 때(공개 신청 `200`) | "김OO님이 다시 신청해 내용을 바꿨어요" · 바뀐 질문 제목 |
 | `APPLICATION_CANCELLED` | `APPLICATION`, 취소된 신청 id | 같음. 취소한 운영자는 뺀다 | 신청 취소(DEC-084) | "김OO님의 신청이 취소됐어요" (본문 없음, 사유 없음) |
 | `APPLICATION_RESTORED` | `APPLICATION`, 지금 신청 id | 같음. 되돌린 운영자는 뺀다 | 운영자 되돌리기, 취소된 사람의 다시 신청(DEC-084 §5) | "김OO님의 신청 취소를 되돌렸어요" / "김OO님이 취소된 신청으로 다시 신청했어요" |
-| `APPLICATION_REVISED`(운영자 수정) | 같음 | 같음. 고친 운영자는 뺀다 | 운영자가 신청을 고쳐 새 revision이 생길 때(DEC-088) | "김OO님의 신청을 운영자가 고쳤어요" · 바뀐 질문 제목 |
+| `APPLICATION_REVISED`(운영자 수정) | 같음 | 같음. 고친 운영자는 뺀다 | 운영자가 신청을 고쳐 새 revision이 생길 때(DEC-088) | "박운영님이 김OO님의 신청 내역을 수정했어요"(고친 운영자 표시 이름) · 바뀐 질문 제목 |
 | `APPLICATION_ADDED` | `APPLICATION`, 새 신청 id | 같음. 추가한 운영자는 뺀다 | 운영자가 참가자를 직접 추가할 때(DEC-088) | "김OO님을 운영자가 직접 추가했어요" (본문 없음) |
 | `LIFECYCLE_OVERRIDE` | `EVENT`, 행사 id | 넘긴 소유 권한이 끝나지 않은 행사 `OWNER` | 공간 소유자가 대신 시작·종료·다시 열기 등을 할 때 | "행사 상태를 공간 소유자가 바꿨어요" · "행사를 종료했어요" 등 |
 

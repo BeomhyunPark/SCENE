@@ -56,6 +56,7 @@ describe("운영자 신청 고치기·직접 추가 (DEC-088, A12)", () => {
     fireEvent.click(await screen.findByRole("link", { name: "신청 고치기" }, WAIT));
     const name = await screen.findByLabelText(/^이름/, {}, WAIT);
     expect(screen.getByText(/신청·수정을 닫은 뒤에도 고칠 수 있어요/)).toBeInTheDocument();
+    expect(screen.getByText("참가자가 직접 고칠 수 있으면 참가자에게 맡겨 주세요.")).toBeInTheDocument();
     fireEvent.change(name, { target: { value: "김두나" } });
     fireEvent.click(screen.getByRole("button", { name: "고친 내용 저장" }));
 

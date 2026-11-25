@@ -80,7 +80,7 @@ public class ApplicationNotices {
   /** The participant edited their application ({@code PUT /participant/application}). */
   @Transactional(propagation = Propagation.MANDATORY)
   public int revised(UUID spaceId, UUID eventId, ApplicationRevisions.Result result) {
-    return changed(spaceId, eventId, result, REVISED, "님이 신청을 고쳤어요");
+    return changed(spaceId, eventId, result, REVISED, "님이 신청 내역을 수정했어요");
   }
 
   /** The same phone applied again with the right number and it became an edit. */
@@ -105,6 +105,9 @@ public class ApplicationNotices {
     }
     pointAtCurrent(spaceId, eventId, result.applicationId());
     String labels = String.join(LABEL_SEPARATOR, result.changedLabels());
+    // DEC-088 결정 대기 6 (사용자 2026-11-25): "신청 내역을 수정했어요", 누가 고쳤는지 드러나게.
+    String editor =
+        revisions.revisorNames(spaceId, eventId, participantId).get(result.applicationId());
     int made =
         notifications.toParticipants(
             spaceId,
@@ -114,7 +117,7 @@ public class ApplicationNotices {
                 UPDATED_BY_OPERATOR,
                 TARGET,
                 result.applicationId(),
-                "운영자가 내 신청을 고쳤어요",
+                "운영자가 신청 내역을 수정했어요",
                 labels,
                 false));
     return made
@@ -126,7 +129,7 @@ public class ApplicationNotices {
                 REVISED,
                 TARGET,
                 result.applicationId(),
-                display(result.name()) + "님의 신청을 운영자가 고쳤어요",
+                operatorDisplay(editor) + "님이 " + display(result.name()) + "님의 신청 내역을 수정했어요",
                 labels,
                 false));
   }
@@ -225,6 +228,10 @@ public class ApplicationNotices {
     List<UUID> to =
         recipients.withPermission(spaceId, eventId, Permission.PARTICIPANT_READ, except);
     return to.isEmpty() ? 0 : notifications.toOperators(spaceId, eventId, to, draft);
+  }
+
+  private static String operatorDisplay(String name) {
+    return name == null || name.isBlank() ? "운영자" : name.strip();
   }
 
   private static String display(String name) {

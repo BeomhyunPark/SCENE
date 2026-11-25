@@ -144,7 +144,7 @@ describe("participant 알림함 (B5 #463)", () => {
     notifyParticipants(EVENT, [me], {
       kind: "APPLICATION_UPDATED_BY_OPERATOR",
       target: { type: "APPLICATION", id: me },
-      title: "운영자가 신청 내용을 고쳤어요",
+      title: "운영자가 신청 내역을 수정했어요",
       body: "참석 방식",
     });
     openApp(`/participate/${EVENT}/inbox`);
@@ -153,7 +153,7 @@ describe("participant 알림함 (B5 #463)", () => {
     expect(screen.getByText("자세한 내용")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /새로운 소식/ })).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /운영자가 신청 내용을 고쳤어요/ }));
+    fireEvent.click(screen.getByRole("button", { name: /운영자가 신청 내역을 수정했어요/ }));
     await waitFor(() => expect(currentTab()).toBe("내 정보"), WAIT);
   });
 
