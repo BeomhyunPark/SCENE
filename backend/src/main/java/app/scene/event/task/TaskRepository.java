@@ -16,6 +16,7 @@ import app.scene.event.task.param.TaskListQuery;
 import app.scene.event.task.param.TaskReopenUpdate;
 import app.scene.event.task.param.TaskStatusUpdate;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -71,8 +72,16 @@ public class TaskRepository {
   }
 
   @Transactional
-  public int insert(UUID id, UUID spaceId, UUID eventId, String title, UUID assigneeUserId) {
-    return tasks.insert(TaskInsert.of(id, spaceId, eventId, title, assigneeUserId));
+  public int insert(
+      UUID id,
+      UUID spaceId,
+      UUID eventId,
+      String title,
+      UUID assigneeUserId,
+      LocalDate startDate,
+      LocalDate dueDate) {
+    return tasks.insert(
+        TaskInsert.of(id, spaceId, eventId, title, assigneeUserId, startDate, dueDate));
   }
 
   @Transactional
@@ -83,9 +92,20 @@ public class TaskRepository {
       String title,
       UUID assigneeUserId,
       String status,
+      LocalDate startDate,
+      LocalDate dueDate,
       int versionDelta) {
     return tasks.updateFields(
-        TaskFieldUpdate.of(spaceId, eventId, taskId, title, assigneeUserId, status, versionDelta));
+        TaskFieldUpdate.of(
+            spaceId,
+            eventId,
+            taskId,
+            title,
+            assigneeUserId,
+            status,
+            startDate,
+            dueDate,
+            versionDelta));
   }
 
   @Transactional

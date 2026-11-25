@@ -4,8 +4,11 @@
 <mapper namespace="app.scene.event.task.mapper.TaskMapper">
 
   <insert id="insert">
-    INSERT INTO tasks (id, space_id, event_id, title, status, version, assignee_user_id)
-    VALUES (#{id}, #{spaceId}, #{eventId}, #{title}, 'TODO', 0, #{assigneeUserId})
+    INSERT INTO tasks (
+      id, space_id, event_id, title, status, version, assignee_user_id, start_date, due_date)
+    VALUES (
+      #{id}, #{spaceId}, #{eventId}, #{title}, 'TODO', 0, #{assigneeUserId},
+      #{startDate}, #{dueDate})
   </insert>
 
   <update id="updateFields">
@@ -13,6 +16,8 @@
     SET title = #{title},
         assignee_user_id = #{assigneeUserId},
         status = #{status},
+        start_date = #{startDate},
+        due_date = #{dueDate},
         version = version + #{versionDelta}
     WHERE id = #{taskId} AND space_id = #{spaceId} AND event_id = #{eventId}
   </update>
