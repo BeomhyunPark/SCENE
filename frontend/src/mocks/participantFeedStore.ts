@@ -9,7 +9,7 @@ import { currentApplicationRevision } from "./participantStore";
 /**
  * Shaped like GET /participant/home and /participant/updates (participant-home-contract §3·§4, B2).
  * Event-scope values rise when what they cover changes: the mock compares a signature on each read
- * instead of hooking every write path. Areas without a store yet (schedule, notices, rooms) stay 0 unless a test or a mock click raises them with `bumpFeed`.
+ * instead of hooking every write path. Areas without a store yet (schedule, notices) stay 0; rooms rise from `participantRoomStore`. They stay 0 unless a test or a mock click raises them with `bumpFeed`.
  */
 type EventKey = "home" | "schedule" | "notices" | "group" | "rooms";
 
@@ -56,7 +56,8 @@ export function readFeatures(eventId: string) {
     schedule: true,
     notices: true,
     groups: all || publicationCount(eventId) > 0,
-    rooms: all,
+    // On once a room publication exists (participant-home-contract §2.3): the server reads `updates.rooms` > 0.
+    rooms: all || rowOf(eventId).rooms > 0,
   };
 }
 

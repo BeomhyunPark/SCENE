@@ -11,6 +11,7 @@ import { resetSpaceInvitationStore } from "../mocks/spaceInvitationStore";
 import { resetOperatorStore } from "../mocks/operatorStore";
 import { resetParticipantStore } from "../mocks/participantStore";
 import { resetParticipantFeedStore } from "../mocks/participantFeedStore";
+import { resetParticipantRoomStore } from "../mocks/participantRoomStore";
 import { resetParticipantCheckInStore } from "../mocks/participantCheckInStore";
 import { resetRetrospectiveStore } from "../mocks/retrospectiveStore";
 import { resetOperationStore } from "../mocks/operationStore";
@@ -47,6 +48,7 @@ afterEach(() => {
   resetNoticeStore();
   resetParticipantStore();
   resetParticipantFeedStore();
+  resetParticipantRoomStore();
   resetNotificationStore();
   resetParticipantCheckInStore();
   resetFormStore();
