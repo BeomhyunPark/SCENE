@@ -22,6 +22,8 @@ import app.scene.event.lifecycle.EventAccessGate;
 import app.scene.event.lifecycle.EventLocation;
 import app.scene.event.lifecycle.EventRepository;
 import app.scene.event.lifecycle.EventRow;
+import app.scene.event.notification.NotificationDraft;
+import app.scene.event.notification.Notifications;
 import app.scene.space.EventUserPermissionRepository;
 import java.time.Clock;
 import java.time.Instant;
@@ -65,6 +67,11 @@ public class GroupService {
 
   static final String FULL = "FULL";
 
+  /** DEC-080 §7.2: a participant whose group or leader mark the publication changed. */
+  static final String GROUP_PUBLISHED = "GROUP_PUBLISHED";
+
+  static final String TARGET_GROUP = "GROUP";
+
   private static final Map<String, String> ATTENDANCE =
       Map.of("opt_full", FULL, "opt_partial", "PARTIAL", "opt_worship", "WORSHIP_ONLY");
 
@@ -77,6 +84,7 @@ public class GroupService {
   private final JsonMapper json;
   private final Clock clock;
   private final ParticipantFeedVersions feedVersions;
+  private final Notifications notifications;
 
   public GroupService(
       EventAccessGate gate,
@@ -87,7 +95,8 @@ public class GroupService {
       FormRepository forms,
       JsonMapper json,
       Clock clock,
-      ParticipantFeedVersions feedVersions) {
+      ParticipantFeedVersions feedVersions,
+      Notifications notifications) {
     this.gate = gate;
     this.events = events;
     this.groups = groups;
@@ -97,6 +106,7 @@ public class GroupService {
     this.json = json;
     this.clock = clock;
     this.feedVersions = feedVersions;
+    this.notifications = notifications;
   }
 
   @Transactional(readOnly = true)
@@ -263,6 +273,8 @@ public class GroupService {
         spaceId, eventId, publicationId, boardVersion, new Snapshot(snapshotGroups), actorId, now);
     // DEC-080 §4: participants reload the group card; same transaction as the publication.
     feedVersions.bump(spaceId, eventId, FeedArea.GROUPS);
+    notifyParticipants(
+        spaceId, eventId, list, active, latest.map(Publication::snapshot).orElse(null));
     Map<String, Object> detail = new LinkedHashMap<>();
     detail.put("publicationId", publicationId.toString());
     detail.put("boardVersion", boardVersion);
@@ -284,6 +296,52 @@ public class GroupService {
         assigned,
         unassigned,
         diff.changedParticipants());
+  }
+
+  /**
+   * {@code GROUP_PUBLISHED} for each active participant whose group or leader mark differs from the
+   * previous publication (DEC-080 §7.2, B5 #463), in the publication's transaction. The first
+   * publication ({@code before} null) reaches everyone assigned. The text holds only the person's
+   * own group name, never another participant's name. People with the same text share one insert.
+   */
+  private void notifyParticipants(
+      UUID spaceId,
+      UUID eventId,
+      List<Group> list,
+      List<ActiveParticipant> active,
+      Snapshot before) {
+    Map<UUID, String> names = new HashMap<>();
+    for (Group group : list) {
+      names.put(group.groupId(), group.name());
+    }
+    Map<UUID, Snapshot.Placement> was = before == null ? Map.of() : before.placements();
+    Map<NotificationDraft, List<UUID>> drafts = new LinkedHashMap<>();
+    for (ActiveParticipant person : active) {
+      Snapshot.Placement from = was.get(person.participantId());
+      UUID fromGroup = from == null ? null : from.group().groupId();
+      boolean fromLeader = from != null && from.leader();
+      UUID to = person.groupId();
+      if (Objects.equals(fromGroup, to) && fromLeader == person.leader()) {
+        continue;
+      }
+      String title;
+      if (to == null) {
+        title = "조 배정이 바뀌었어요";
+      } else if (fromGroup == null) {
+        title = person.leader() ? "내 조가 정해졌어요 · 조장" : "내 조가 정해졌어요";
+      } else if (!fromGroup.equals(to)) {
+        title = person.leader() ? "내 조가 바뀌었어요 · 조장" : "내 조가 바뀌었어요";
+      } else {
+        title = person.leader() ? "조장으로 정해졌어요" : "조장 표시가 바뀌었어요";
+      }
+      String body = to == null ? "내 조 화면에서 확인해 주세요" : names.get(to);
+      NotificationDraft draft =
+          new NotificationDraft(GROUP_PUBLISHED, TARGET_GROUP, to, title, body, false);
+      drafts.computeIfAbsent(draft, d -> new ArrayList<>()).add(person.participantId());
+    }
+    for (Map.Entry<NotificationDraft, List<UUID>> entry : drafts.entrySet()) {
+      notifications.toParticipants(spaceId, eventId, entry.getValue(), entry.getKey());
+    }
   }
 
   /**
