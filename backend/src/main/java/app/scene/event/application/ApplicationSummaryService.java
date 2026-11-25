@@ -22,7 +22,6 @@ import app.scene.event.form.FormFieldRow;
 import app.scene.event.form.FormPreset;
 import app.scene.event.form.FormRepository;
 import app.scene.event.form.FormRow;
-import app.scene.event.form.FormSetup;
 import app.scene.event.form.MealSlots;
 import app.scene.event.lifecycle.EventAccessGate;
 import app.scene.event.lifecycle.EventRepository;
@@ -264,49 +263,39 @@ public class ApplicationSummaryService {
   }
 
   /**
-   * One row per night of the setup period. Full attendees sleep every night, worship-only none.
-   * Partial attendees count on the nights they chose; the question is optional, so no answer is no
-   * night. When the question is not visible, partial attendees count in {@code unanswered}. In
-   * RANGE mode (DEC-074) partial nights come from the arrival and departure slots, and a partial
-   * attendee without a usable range counts in {@code unanswered}. A full or partial attendee who
-   * checked {@code NO_LODGING} counts on no night, and a partial one is not unanswered either.
+   * One row per night of the setup period. Each applicant's nights are {@link
+   * MealSlots#lodgingNights}, the rule the group leader view and rooms share (DEC-085 §6): full
+   * attendees sleep every night, worship-only none, partial attendees the nights they chose (RANGE
+   * mode: the nights of their arrival and departure slots), and anyone who checked {@code
+   * NO_LODGING} none. A partial attendee whose nights are unknown (no visible question, or no
+   * usable range) counts in {@code unanswered}.
    */
   private static Lodging lodging(
       JsonNode setup, Answers answers, Map<String, List<Applicant>> byAttendance) {
     LocalDate start = start(setup);
-    LocalDate end = date(setup.path("generatedFor").path("endDate"));
-    if (start == null || end == null || !end.isAfter(start)) {
+    int count = MealSlots.nightCount(setup);
+    if (start == null || count == 0) {
       return null;
     }
-    boolean range = MealSlots.mode(setup) == FormSetup.Mode.RANGE;
-    Question question = range ? null : answers.visible("LODGING");
     Question labels = answers.any("LODGING");
-    // DEC-074 Follow-up 2026-11-17: a commuter sleeps at home and drops out of every night.
-    Question noLodging = answers.visible("NO_LODGING");
-    long full = byAttendance.get(FULL).stream().filter(person -> !home(person, noLodging)).count();
-    Map<String, Long> chosen = new HashMap<>();
-    long unknown = 0;
-    for (Applicant person : byAttendance.get(PARTIAL)) {
-      if (home(person, noLodging)) {
-        continue;
-      }
-      if (range) {
-        // DEC-074: nights follow the arrival and departure slots.
-        List<Integer> nights = MealSlots.nights(slotAnswers(answers, person));
+    Map<Integer, Long> counts = new HashMap<>();
+    long unanswered = 0;
+    for (Map.Entry<String, List<Applicant>> kind : byAttendance.entrySet()) {
+      for (Applicant person : kind.getValue()) {
+        List<Integer> nights =
+            MealSlots.lodgingNights(
+                setup,
+                kind.getKey(),
+                slotAnswers(answers, person),
+                lodgingAnswers(answers, person));
         if (nights == null) {
-          unknown++;
+          unanswered++;
         } else {
-          nights.forEach(night -> chosen.merge("opt_n" + night, 1L, Long::sum));
+          nights.forEach(night -> counts.merge(night, 1L, Long::sum));
         }
-        continue;
-      }
-      Set<String> ids = optionIds(person.answer(question));
-      if (ids != null) {
-        ids.forEach(id -> chosen.merge(id, 1L, Long::sum));
       }
     }
     List<Night> nights = new ArrayList<>();
-    int count = (int) (end.toEpochDay() - start.toEpochDay());
     for (int night = 1; night <= count; night++) {
       String id = "opt_n" + night;
       LocalDate date = start.plusDays(night - 1L);
@@ -317,19 +306,15 @@ public class ApplicationSummaryService {
               night,
               date.toString(),
               label == null ? FormPreset.nightLabel(night, date) : label,
-              full + chosen.getOrDefault(id, 0L)));
+              counts.getOrDefault(night, 0L)));
     }
-    long unanswered = range ? unknown : question == null ? byAttendance.get(PARTIAL).size() : 0;
     return new Lodging(nights, unanswered);
   }
 
-  /** True when the participant checked {@code 수련회장에서 숙박하지 않아요}. */
-  private static boolean home(Applicant person, Question noLodging) {
-    if (noLodging == null) {
-      return false;
-    }
-    Set<String> ids = optionIds(person.answer(noLodging));
-    return ids != null && ids.contains(FormPreset.NO_LODGING);
+  private static MealSlots.LodgingAnswers lodgingAnswers(Answers answers, Applicant person) {
+    Question lodging = answers.visible("LODGING");
+    return new MealSlots.LodgingAnswers(
+        lodging != null, person.answer(lodging), person.answer(answers.visible("NO_LODGING")));
   }
 
   private static MealSlots.Answers slotAnswers(Answers answers, Applicant person) {

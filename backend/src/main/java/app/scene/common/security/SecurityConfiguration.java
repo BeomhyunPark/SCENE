@@ -103,6 +103,8 @@ class SecurityConfiguration {
                 .permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/participant/group")
                 .permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/participant/group/members/*")
+                .permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/participant/auth/logout")
                 .permitAll()
                 .requestMatchers(HttpMethod.PUT, "/api/v1/participant/pin")

@@ -4,6 +4,7 @@ import app.scene.event.group.ActiveParticipant;
 import app.scene.event.group.Assignment;
 import app.scene.event.group.BoardRow;
 import app.scene.event.group.Group;
+import app.scene.event.group.MemberRow;
 import app.scene.event.group.PublicationRow;
 import app.scene.event.group.WithdrawnParticipant;
 import app.scene.event.group.param.GroupParam;
@@ -33,6 +34,8 @@ public interface GroupMapper {
   int deleteGroup(GroupParam param);
 
   List<BoardRow> findBoardParticipants(GroupParam param);
+
+  List<MemberRow> findMemberRows(GroupParam param);
 
   List<WithdrawnParticipant> findWithdrawn(GroupParam param);
 

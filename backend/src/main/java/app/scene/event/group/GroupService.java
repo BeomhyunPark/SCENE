@@ -155,12 +155,12 @@ public class GroupService {
    * Slot days of the event's form setup, labelled with the current MEALS option labels even when
    * the question is turned off (as in the summary). Empty when there is no form or no setup.
    */
-  private JsonNode setup(UUID spaceId, UUID eventId) {
+  JsonNode setup(UUID spaceId, UUID eventId) {
     FormRow form = forms.findByEvent(spaceId, eventId).orElse(null);
     return form == null || form.setup() == null ? null : json.readTree(form.setup());
   }
 
-  private List<MealSlots.Day> slotDays(UUID spaceId, UUID eventId, JsonNode setup) {
+  List<MealSlots.Day> slotDays(UUID spaceId, UUID eventId, JsonNode setup) {
     FormRow form = forms.findByEvent(spaceId, eventId).orElse(null);
     if (form == null || setup == null) {
       return List.of();
@@ -174,7 +174,7 @@ public class GroupService {
     return MealSlots.days(setup, MealSlots.labels(meals));
   }
 
-  private static List<BoardSlot> slots(List<MealSlots.Day> days) {
+  static List<BoardSlot> slots(List<MealSlots.Day> days) {
     if (days.isEmpty()) {
       return null;
     }
@@ -782,10 +782,7 @@ public class GroupService {
         row.genderOptionId() == null
             ? null
             : new BoardParticipant.Gender(row.genderOptionId(), row.genderLabel());
-    String attendance = FULL;
-    if (row.attendanceAsked() && row.attendanceOptionId() != null) {
-      attendance = ATTENDANCE.getOrDefault(row.attendanceOptionId(), FULL);
-    }
+    String attendance = attendance(row.attendanceAsked(), row.attendanceOptionId());
     return new BoardParticipant(
         row.participantId(),
         row.name(),
@@ -814,6 +811,17 @@ public class GroupService {
                     tree(row.mealsAnswer()),
                     tree(row.arrivalAnswer()),
                     tree(row.departureAnswer()))));
+  }
+
+  /**
+   * FULL, PARTIAL or WORSHIP_ONLY from the ATTENDANCE answer; FULL when the question is not asked
+   * or not answered (DEC-070 §3).
+   */
+  static String attendance(boolean asked, String optionId) {
+    if (asked && optionId != null) {
+      return ATTENDANCE.getOrDefault(optionId, FULL);
+    }
+    return FULL;
   }
 
   private JsonNode tree(String text) {

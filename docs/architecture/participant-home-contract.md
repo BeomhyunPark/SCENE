@@ -3,7 +3,7 @@
 > **일부는 서버에 있다.** 참가자 홈·`updates`·참가자 알림 경로와 두 테이블은 #423에서 만들어 api.md로 옮겼다(§3·§4·§7.4·§7.6). 나머지(운영자 알림 경로 §7.5, `operator_notices` 이전, 참가자 알림 만들기)는 아직 계약 초안이다. 지금 서버가 받는 계약은 [backend/docs/api.md](../../backend/docs/api.md)다. 이 문서의 경로는 [#379](https://github.com/BeomhyunPark/SCENE/issues/379) B2·B4·B5와 [#385](https://github.com/BeomhyunPark/SCENE/issues/385) I3에서 만든다. 만든 경로는 api.md로 옮기고 이 문서에서 지운다.
 
 - 정책: [DEC-080](../product/PRODUCT_DECISIONS.md) (B1, [#396](https://github.com/BeomhyunPark/SCENE/issues/396))
-- 함께 읽는 계약: [일정표](schedule-contract.md)(DEC-081), [공지](notice-contract.md)(DEC-082), [내 조](participant-group-contract.md)(DEC-083)
+- 함께 읽는 계약: [일정표](schedule-contract.md)(DEC-081), [공지](notice-contract.md)(DEC-082), [내 조](../../backend/docs/api.md#get-apiv1participantgroup)(DEC-083, 서버에 있음)
 - 작성: 2026-11-19. 확인 방법: 결정 문서·api.md·마이그레이션·화면 소스를 읽었다. 서버 검증과 실제 클릭은 하지 않았다.
 
 공통 규칙(JSON 이름, 시각, 오류 본문, CSRF, 참가자 세션 쿠키 `SCENE_PSESSION`)은 api.md "공통"을 따른다. 참가자 경로는 모두 참가자 세션 쿠키가 필요하고, 없거나 저장된 세션이 아니면 `401 AUTHENTICATION_REQUIRED`다. 대상은 세션의 행사·참가자뿐이다. 조회 `GET`은 CSRF가 필요 없고 응답 헤더는 `Cache-Control: no-store`다. 참가자 세션을 여는 방법은 DEC-078(다른 세션 작성)이 정한다. 이 문서는 "참가자 세션"으로만 가리킨다.
@@ -17,7 +17,7 @@
 | 홈 | 늘 | 아래 카드 |
 | 일정 | `features.schedule` | [`GET /participant/schedule`](schedule-contract.md#get-apiv1participantschedule) |
 | 공지 | `features.notices` | [`GET /participant/notices`](notice-contract.md#get-apiv1participantnotices) |
-| 내 조 | `features.groups` | [`GET /participant/group`](participant-group-contract.md#get-apiv1participantgroup) |
+| 내 조 | `features.groups` | [`GET /participant/group`](../../backend/docs/api.md#get-apiv1participantgroup) |
 | 내 정보 | 늘 | 내 신청 보기·고치기(#378 A5), 로그아웃 |
 
 알림함은 탭이 아니다. 화면 위쪽의 종 모양 버튼(읽지 않은 수 표시)으로 연다.

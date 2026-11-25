@@ -204,6 +204,110 @@ public final class MealSlots {
     return out;
   }
 
+  /**
+   * One participant's answers that decide lodging nights, besides the slot answers. {@code
+   * lodgingAsked} is whether the form has a visible {@code LODGING} question; {@code lodging} and
+   * {@code noLodging} are the stored values of the visible {@code LODGING} and {@code NO_LODGING}
+   * questions, or null.
+   */
+  public record LodgingAnswers(boolean lodgingAsked, JsonNode lodging, JsonNode noLodging) {}
+
+  /**
+   * Number of nights of the setup period ({@code generatedFor.startDate} to {@code endDate}), or 0
+   * when the setup has no usable period.
+   */
+  public static int nightCount(JsonNode setup) {
+    if (setup == null) {
+      return 0;
+    }
+    JsonNode start = setup.path("generatedFor").path("startDate");
+    JsonNode end = setup.path("generatedFor").path("endDate");
+    if (!start.isString() || !end.isString()) {
+      return 0;
+    }
+    long nights =
+        LocalDate.parse(end.asString()).toEpochDay()
+            - LocalDate.parse(start.asString()).toEpochDay();
+    return nights > 0 ? (int) nights : 0;
+  }
+
+  /**
+   * Nights (1-based, night {@code n} is the evening of day {@code n}) one participant sleeps over,
+   * in order. The one rule for the summary's lodging rows (DEC-073), the group leader's {@code
+   * lodgingNights} (DEC-083) and rooms (DEC-085 §6).
+   *
+   * <ul>
+   *   <li>Someone who checked {@code NO_LODGING} sleeps no night (DEC-074 Follow-up 2026-11-17).
+   *   <li>A full attendee sleeps every night; a worship-only attendee none.
+   *   <li>A RANGE-mode partial attendee sleeps the nights of {@link #nights(Answers)}.
+   *   <li>Another partial attendee sleeps the nights chosen in {@code LODGING}; the question is
+   *       optional, so no answer is no night.
+   * </ul>
+   *
+   * Null means unknown: the setup has no period, or a partial attendee has no usable range (RANGE)
+   * or no visible {@code LODGING} question. Nights outside the period are dropped.
+   */
+  public static List<Integer> lodgingNights(
+      JsonNode setup, String kind, Answers slots, LodgingAnswers answers) {
+    int count = nightCount(setup);
+    if (count == 0) {
+      return null;
+    }
+    if (home(answers.noLodging()) || WORSHIP_ONLY.equals(kind)) {
+      return List.of();
+    }
+    List<Integer> out = new ArrayList<>();
+    if (!PARTIAL.equals(kind)) {
+      for (int night = 1; night <= count; night++) {
+        out.add(night);
+      }
+      return out;
+    }
+    if (mode(setup) == FormSetup.Mode.RANGE) {
+      List<Integer> range = nights(slots);
+      if (range == null) {
+        return null;
+      }
+      range.stream().filter(night -> night >= 1 && night <= count).forEach(out::add);
+      return out;
+    }
+    if (!answers.lodgingAsked()) {
+      return null;
+    }
+    JsonNode ids = answers.lodging() == null ? null : answers.lodging().get("optionIds");
+    Set<Integer> chosen = new HashSet<>();
+    if (ids != null && ids.isArray()) {
+      for (JsonNode id : ids) {
+        if (id.isString() && id.asString().startsWith("opt_n")) {
+          try {
+            chosen.add(Integer.parseInt(id.asString().substring(5)));
+          } catch (NumberFormatException exception) {
+            // Not a night option.
+          }
+        }
+      }
+    }
+    for (int night = 1; night <= count; night++) {
+      if (chosen.contains(night)) {
+        out.add(night);
+      }
+    }
+    return out;
+  }
+
+  private static boolean home(JsonNode noLodging) {
+    JsonNode ids = noLodging == null ? null : noLodging.get("optionIds");
+    if (ids == null || !ids.isArray()) {
+      return false;
+    }
+    for (JsonNode id : ids) {
+      if (id.isString() && FormPreset.NO_LODGING.equals(id.asString())) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   private static String optionId(JsonNode answer) {
     JsonNode id = answer == null ? null : answer.get("optionId");
     return id != null && id.isString() ? id.asString() : null;

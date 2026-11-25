@@ -181,6 +181,89 @@
   </select>
 
   <!--
+    Active participants among participantIds with what their group sees (DEC-083): the GENDER label
+    only while that option is shown (a hidden option reads as no answer), the answers that decide
+    attended slots and lodging nights, the check-in state, and the current revision. The phone is
+    read here and sent only by the member detail.
+  -->
+  <select id="findMemberRows" resultType="app.scene.event.group.MemberRow">
+    SELECT p.id AS participant_id, p.name, p.phone,
+           nullif(btrim(coh.value ->> 'text'), '') AS cohort,
+           (SELECT o ->> 'label'
+            FROM jsonb_array_elements(gen.config -> 'options') o
+            WHERE o ->> 'optionId' = gen.value ->> 'optionId'
+              AND coalesce((o ->> 'hidden')::boolean, false) = false
+            LIMIT 1) AS gender_label,
+           (att.config IS NOT NULL) AS attendance_asked,
+           att.value ->> 'optionId' AS attendance_option_id,
+           mea.value::text AS meals_answer,
+           arr.value::text AS arrival_answer,
+           dep.value::text AS departure_answer,
+           (lod.config IS NOT NULL) AS lodging_asked,
+           lod.value::text AS lodging_answer,
+           nol.value::text AS no_lodging_answer,
+           coalesce(c.status = 'CHECKED_IN', false) AS checked_in,
+           CASE WHEN c.status = 'CHECKED_IN' THEN c.checked_in_at END AS checked_in_at,
+           app.revision,
+           app.submitted_at AS revision_at
+    FROM participants p
+    JOIN LATERAL (
+      SELECT a.id, a.form_id, a.revision, a.submitted_at
+      FROM applications a
+      WHERE a.space_id = p.space_id AND a.event_id = p.event_id AND a.participant_id = p.id
+        AND a.status = 'SUBMITTED'
+      ORDER BY a.submitted_at DESC, a.id
+      LIMIT 1) app ON true
+    LEFT JOIN LATERAL (
+      <include refid="keyedAnswer">
+        <property name="column" value="system_key"/>
+        <property name="key" value="COHORT"/>
+      </include>) coh ON true
+    LEFT JOIN LATERAL (
+      <include refid="keyedAnswer">
+        <property name="column" value="preset_key"/>
+        <property name="key" value="GENDER"/>
+      </include>) gen ON true
+    LEFT JOIN LATERAL (
+      <include refid="keyedAnswer">
+        <property name="column" value="preset_key"/>
+        <property name="key" value="ATTENDANCE"/>
+      </include>) att ON true
+    LEFT JOIN LATERAL (
+      <include refid="keyedAnswer">
+        <property name="column" value="preset_key"/>
+        <property name="key" value="MEALS"/>
+      </include>) mea ON true
+    LEFT JOIN LATERAL (
+      <include refid="keyedAnswer">
+        <property name="column" value="preset_key"/>
+        <property name="key" value="ARRIVAL_SLOT"/>
+      </include>) arr ON true
+    LEFT JOIN LATERAL (
+      <include refid="keyedAnswer">
+        <property name="column" value="preset_key"/>
+        <property name="key" value="DEPARTURE_SLOT"/>
+      </include>) dep ON true
+    LEFT JOIN LATERAL (
+      <include refid="keyedAnswer">
+        <property name="column" value="preset_key"/>
+        <property name="key" value="LODGING"/>
+      </include>) lod ON true
+    LEFT JOIN LATERAL (
+      <include refid="keyedAnswer">
+        <property name="column" value="preset_key"/>
+        <property name="key" value="NO_LODGING"/>
+      </include>) nol ON true
+    LEFT JOIN checkins c
+      ON c.space_id = p.space_id AND c.event_id = p.event_id AND c.participant_id = p.id
+    WHERE p.space_id = #{spaceId} AND p.event_id = #{eventId}
+      AND p.id IN
+      <foreach collection="participantIds" item="id" open="(" separator="," close=")">
+        #{id}
+      </foreach>
+  </select>
+
+  <!--
     Withdrawn participants with their previous group: an assignment row left from before DEC-084,
     or the from group of their latest WITHDRAWN history row (a withdraw deletes the assignment).
   -->
