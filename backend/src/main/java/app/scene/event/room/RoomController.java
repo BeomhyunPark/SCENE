@@ -5,6 +5,7 @@ import app.scene.event.room.RoomViews.Board;
 import app.scene.event.room.RoomViews.BoardVersion;
 import app.scene.event.room.RoomViews.PublishResult;
 import app.scene.event.room.RoomViews.Published;
+import app.scene.event.room.RoomViews.Reviewed;
 import app.scene.event.room.RoomViews.RoomDeleted;
 import app.scene.event.room.RoomViews.RoomWritten;
 import app.scene.identity.OperatorPrincipal;
@@ -73,6 +74,11 @@ public class RoomController {
   @PostMapping(BASE + "/room-assignments")
   Assigned assign(@PathVariable UUID eventId, @RequestBody(required = false) JsonNode body) {
     return rooms.assign(actor(), eventId, body);
+  }
+
+  @PostMapping(BASE + "/room-assignments/review")
+  Reviewed confirmReview(@PathVariable UUID eventId, @RequestBody(required = false) JsonNode body) {
+    return rooms.confirmReview(actor(), eventId, body);
   }
 
   @PostMapping(BASE + "/rooms/publish")

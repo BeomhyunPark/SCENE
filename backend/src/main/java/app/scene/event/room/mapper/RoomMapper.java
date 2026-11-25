@@ -40,6 +40,8 @@ public interface RoomMapper {
 
   int upsertAssignment(RoomParam param);
 
+  int updateBasis(RoomParam param);
+
   int deleteAssignment(RoomParam param);
 
   int insertLog(RoomParam param);

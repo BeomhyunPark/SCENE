@@ -20,7 +20,7 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     title: "현장 운영",
     items: [
       { key: "GROUP_WRITE", label: "조 편성", hint: "편성판에서 조를 짜고 공개해요" },
-      { key: "ROOM_WRITE", label: "숙소 배정", hint: "숙소 기능이 열리면 방을 배정해요" },
+      { key: "ROOM_WRITE", label: "숙소 배정", hint: "숙소 화면에서 방을 만들고 배정·공개해요" },
       { key: "CHECKIN_WRITE", label: "체크인", hint: "현장에서 도착을 확인해요" },
       { key: "TASK_WRITE", label: "준비 업무", hint: "준비 업무를 만들고 고쳐요" },
     ],

@@ -159,6 +159,20 @@ public class RoomRepository {
     }
   }
 
+  /**
+   * Stamps a new basis on the participant's assignment without moving them (A11 "확인", #461). No
+   * history row: the room did not change.
+   */
+  public void restamp(
+      UUID spaceId, UUID eventId, UUID participantId, String basis, UUID actorId, Instant at) {
+    requireOne(
+        rooms.updateBasis(
+            RoomParam.of(spaceId, eventId)
+                .participant(participantId)
+                .basis(basis)
+                .actor(actorId, at)));
+  }
+
   /** One history row. {@code actorId} is null only for a withdraw by the participant. */
   public void log(
       UUID spaceId,

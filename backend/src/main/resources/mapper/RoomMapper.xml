@@ -242,6 +242,15 @@
                   updated_by = excluded.updated_by, updated_at = excluded.updated_at
   </insert>
 
+  <!-- A11 (#461): "확인" moves the basis to the current values; the room stays. -->
+  <update id="updateBasis">
+    UPDATE room_assignments
+    SET basis = CAST(#{basis} AS jsonb), basis_at = #{at}, updated_by = #{actorUserId},
+        updated_at = #{at}
+    WHERE space_id = #{spaceId} AND event_id = #{eventId} AND participant_id = #{participantId}
+      AND night = 0
+  </update>
+
   <delete id="deleteAssignment">
     DELETE FROM room_assignments
     WHERE space_id = #{spaceId} AND event_id = #{eventId} AND participant_id = #{participantId}

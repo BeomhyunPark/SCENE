@@ -7,6 +7,7 @@ import { invitationHandlers } from "./invitations";
 import { lifecycleHandlers } from "./lifecycle";
 import { notificationHandlers } from "./notifications";
 import { retrospectiveHandlers } from "./retrospective";
+import { roomBoardHandlers } from "./roomBoard";
 import { scheduleHandlers } from "./schedule";
 import { noticeHandlers } from "./notices";
 import { operatorHandlers } from "./operators";
@@ -38,6 +39,7 @@ export const handlers = [
   ...noticeHandlers,
   ...checkInHandlers,
   ...groupHandlers,
+  ...roomBoardHandlers,
   ...scheduleHandlers,
   ...notificationHandlers,
 ];

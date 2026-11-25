@@ -1,0 +1,293 @@
+/* 숙소 (G3 #458). Built on the 조 편성 board styles (EventGroups.css): same head, filters, pool cards, bar and
+   dialogs. Room cards wrap in a responsive grid instead of the group carousel (rooms are many and small), and add
+   capacity, location note, warning chips and the "다시 볼 것" panel. */
+.event-rooms__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.event-rooms__card {
+  gap: 8px;
+}
+
+.event-rooms__card--warned {
+  border-color: var(--color-group-over-capacity-border);
+}
+
+.event-rooms__size--full {
+  color: var(--color-group-over-capacity-count);
+  font-weight: 600;
+}
+
+.event-rooms__location {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font: var(--scene-body-s);
+}
+
+.event-rooms__warnings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.event-rooms__warning {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--color-warning-bg);
+  color: var(--color-warning-fg);
+  font: var(--scene-label-s, var(--scene-body-s));
+}
+
+.event-rooms__warning--over_capacity {
+  background: var(--color-badge-over-capacity-bg);
+  color: var(--color-badge-over-capacity-fg);
+}
+
+.event-rooms__warning--not_lodging {
+  background: var(--color-danger-bg);
+  color: var(--color-danger-fg);
+}
+
+.event-rooms__members {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.event-rooms__member {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 4px 8px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 6px;
+  background: var(--color-bg-surface);
+}
+
+.event-rooms__member > .event-groups__slot-bar,
+.event-rooms__member > :last-child:not(.event-rooms__member-meta) {
+  grid-column: 1 / -1;
+}
+
+.event-rooms__member--flagged {
+  border-color: var(--color-warning-fg);
+}
+
+.event-rooms__member-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  justify-self: end;
+}
+
+.event-rooms__flag {
+  color: var(--color-warning-fg);
+  font-weight: 700;
+}
+
+.event-rooms__tag {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--color-bg-subtle);
+  color: var(--color-text-secondary);
+  font: var(--scene-body-s);
+  white-space: nowrap;
+}
+
+.event-rooms__tag--not-lodging {
+  background: var(--color-danger-bg);
+  color: var(--color-danger-fg);
+}
+
+.event-rooms__tag--unknown {
+  background: var(--color-warning-bg);
+  color: var(--color-warning-fg);
+}
+
+.event-rooms__pool-card--blocked {
+  opacity: 0.7;
+}
+
+.event-rooms__blocked-note {
+  color: var(--color-danger-fg);
+  font: var(--scene-body-s);
+}
+
+.event-rooms__not-lodging-note {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--color-info-bg);
+  color: var(--color-info-fg);
+  font: var(--scene-body-s);
+}
+
+.event-rooms__link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* 다시 볼 것 (A11): a warning-tinted panel above the rooms. */
+.event-rooms__review {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid var(--color-warning-fg);
+  border-radius: 8px;
+  background: var(--color-warning-bg);
+}
+
+.event-rooms__review-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.event-rooms__review-title {
+  margin: 0;
+  color: var(--color-warning-fg);
+  font: var(--scene-heading-s, var(--scene-label-m));
+}
+
+.event-rooms__review-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.event-rooms__review-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--color-bg-surface);
+}
+
+.event-rooms__review-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.event-rooms__review-reasons {
+  color: var(--color-warning-fg);
+  font: var(--scene-body-s);
+}
+
+.event-rooms__review-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* 방 추가 and 고치기 forms. */
+.event-rooms__add {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 8px;
+  background: var(--color-bg-surface);
+}
+
+.event-rooms__add-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  font: var(--scene-body-m);
+}
+
+.event-rooms__form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px 10px;
+}
+
+.event-rooms__field--narrow {
+  flex: 0 1 96px;
+}
+
+.event-rooms__field--wide {
+  flex: 1 1 220px;
+}
+
+.event-rooms__form-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.event-rooms__form-error {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--color-danger-fg);
+  font: var(--scene-body-s);
+}
+
+.event-rooms__batch,
+.event-rooms__scope {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 8px;
+  background: var(--color-bg-surface);
+}
+
+.event-rooms__scope-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  font: var(--scene-body-m);
+}
+
+.event-rooms__scope-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.event-rooms__notify {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font: var(--scene-body-m);
+}
+
+@media (max-width: 719px) {
+  .event-rooms__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

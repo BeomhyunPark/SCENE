@@ -192,6 +192,52 @@ export function groupPeople(eventId: string): readonly { participantId: string; 
   return peopleOf(eventId);
 }
 
+/**
+ * What the room board mock (G3 #458) reads of each participant: answers, 참석 칸, the group of the latest group
+ * publication and the working-copy group. Same people as the group board, active or not.
+ */
+export function roomBoardPeople(eventId: string): {
+  participantId: string;
+  name: string;
+  cohort: string | null;
+  gender: { optionId: string; label: string } | null;
+  attendance: Attendance;
+  submitted: boolean;
+  slotIds: string[] | null;
+  group: { groupId: string; name: string } | null;
+  draftGroupId: string | null;
+}[] {
+  const board = boardOf(eventId);
+  const latest = board.publications.at(-1) ?? null;
+  const places = publishedPlaces(latest);
+  return peopleOf(eventId).map((person) => {
+    const place = places.get(person.participantId);
+    const group = place ? latest!.groups.find((item) => item.groupId === place.groupId) : undefined;
+    return {
+      participantId: person.participantId,
+      name: person.name,
+      cohort: person.cohort,
+      gender: person.gender,
+      attendance: person.attendance,
+      submitted: person.submitted,
+      slotIds: slotIdsOf(board, person),
+      group: group ? { groupId: group.groupId, name: group.name } : null,
+      draftGroupId: assignmentOf(board, person.participantId).groupId,
+    };
+  });
+}
+
+/** The groups of the latest group publication, for the room board mock's `groups`. */
+export function publishedGroupList(eventId: string): { groupId: string; name: string; sortOrder: number }[] {
+  const latest = boardOf(eventId).publications.at(-1);
+  return (latest?.groups ?? []).map((group) => ({ groupId: group.groupId, name: group.name, sortOrder: group.sortOrder }));
+}
+
+/** Test seam: the room mock's 200-person run seeds the group board too, so both read the same people. */
+export function seedRoomRoster(eventId: string, count: number): void {
+  boards.set(eventId, newBoard(largePeople(count), retreatSlots()));
+}
+
 export function groupAssignmentLogs(eventId: string): readonly Log[] {
   return boardOf(eventId).logs;
 }

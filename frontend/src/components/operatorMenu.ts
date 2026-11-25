@@ -10,6 +10,7 @@ import address from "../assets/event-nav/address.svg";
 import briefcase from "../assets/event-nav/briefcase.svg";
 import squares from "../assets/event-nav/squares.svg";
 import gear from "../assets/event-nav/gear.svg";
+import bed from "../assets/event-nav/bed.svg";
 
 export function matchesPath(pathname: string, href?: string): boolean {
   if (!href) return false;
@@ -62,6 +63,7 @@ export type MenuKey =
   | "settings"
   | "event"
   | "groups"
+  | "rooms"
   | "notices"
   | "areas";
 
@@ -103,6 +105,7 @@ export function operatorMenuSections(menu: OperatorMenu, pathname: string): Menu
         ...(eventAreas.includes("participants") ? [item("participants", "참가 현황", address, participantsHref)] : []),
         item("field", "현장 운영", chartLine, `${eventHref}/field`),
         item("groups", "조 편성", people, `${eventHref}/groups`),
+        item("rooms", "숙소", bed, `${eventHref}/rooms`),
         item("schedule", "일정", calendar, `${eventHref}/schedule`),
         item("notices", "공지", envelope, `${eventHref}/notices`),
         item("operators", "운영 멤버", briefcase, `${eventHref}/operators`),
