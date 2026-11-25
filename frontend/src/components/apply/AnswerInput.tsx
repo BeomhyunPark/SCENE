@@ -2,6 +2,7 @@ import type { FieldOption, FormField } from "../../api/forms";
 import type { ReactNode } from "react";
 import type { RawAnswer } from "./answerModel";
 import { groupedByDay, isRangeField } from "./attendanceRange";
+import { Select } from "../Select";
 
 /**
  * One question on the public form. `options` are the options shown right now (hidden and
@@ -130,20 +131,20 @@ export function AnswerInput({
         />
       ) : null}
       {field.answerType === "DROPDOWN" ? (
-        <select
+        <Select
           id={id}
           className="participant-gate__input"
           value={answer.optionId ?? ""}
-          onChange={(change) => onChange({ optionId: change.target.value || undefined })}
+          options={[
+            { value: "", label: "골라 주세요" },
+            ...options.map((option) => ({
+              value: option.optionId,
+              label: option.group ? `${option.group} · ${option.label}` : option.label,
+            })),
+          ]}
+          onChange={(value) => onChange({ optionId: value || undefined })}
           {...common}
-        >
-          <option value="">골라 주세요</option>
-          {options.map((option) => (
-            <option key={option.optionId} value={option.optionId}>
-              {option.group ? `${option.group} · ${option.label}` : option.label}
-            </option>
-          ))}
-        </select>
+        />
       ) : null}
       {field.answerType === "DATE" ? (
         <input

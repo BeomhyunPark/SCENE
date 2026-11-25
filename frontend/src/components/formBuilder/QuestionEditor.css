@@ -32,7 +32,7 @@
 }
 
 .question-editor input:not([type="checkbox"]):not([type="radio"]),
-.question-editor select {
+.question-editor .scene-select__trigger {
   box-sizing: border-box;
   width: min(100%, 420px);
   height: 40px;
@@ -45,7 +45,7 @@
 }
 
 .question-editor__inline .question-editor__row input:not([type="checkbox"]),
-.question-editor__inline .question-editor__row select {
+.question-editor__inline .question-editor__row .scene-select__trigger {
   width: 200px;
 }
 
@@ -103,7 +103,7 @@
 
 @media (max-width: 599px) {
   .question-editor__inline .question-editor__row input:not([type="checkbox"]),
-  .question-editor__inline .question-editor__row select {
+  .question-editor__inline .question-editor__row .scene-select__trigger {
     width: 100%;
   }
 

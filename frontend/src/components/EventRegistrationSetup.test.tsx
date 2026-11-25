@@ -15,6 +15,7 @@ import { operatorRequests } from "../mocks/operatorStore";
 import { problem } from "../mocks/problem";
 import { server } from "../mocks/server";
 import { EventRegistrationSetup } from "./EventRegistrationSetup";
+import { chooseOption, chooseOptionByLabel, optionLabels } from "../test/select";
 
 function renderSetup(eventId: string = localEvent.eventId) {
   return render(
@@ -84,7 +85,7 @@ describe("event registration setup", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "직접 질문 추가" }));
     fireEvent.change(screen.getByRole("textbox", { name: "질문" }), { target: { value: "참석 방식" } });
-    fireEvent.change(screen.getByRole("combobox", { name: "답변 유형" }), { target: { value: "SINGLE_CHOICE" } });
+    chooseOption(screen.getByRole("combobox", { name: "답변 유형" }), "SINGLE_CHOICE");
     fireEvent.click(screen.getByRole("checkbox", { name: "필수" }));
     fireEvent.change(screen.getByRole("textbox", { name: "보기 1" }), { target: { value: "전체" } });
     fireEvent.change(screen.getByRole("textbox", { name: "보기 2" }), { target: { value: "부분" } });
@@ -110,7 +111,7 @@ describe("event registration setup", () => {
     fireEvent.click(await screen.findByRole("button", { name: "신청서 만들기" }, { timeout: 4000 }));
     fireEvent.click(await screen.findByRole("button", { name: "직접 질문 추가" }));
     fireEvent.change(screen.getByRole("textbox", { name: "질문" }), { target: { value: "티셔츠" } });
-    fireEvent.change(screen.getByRole("combobox", { name: "답변 유형" }), { target: { value: "DROPDOWN" } });
+    chooseOption(screen.getByRole("combobox", { name: "답변 유형" }), "DROPDOWN");
     fireEvent.click(screen.getByRole("button", { name: "질문 추가" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("보기를 하나 이상 써 주세요.");
     expect(operatorRequests.some((request) => request.method === "POST" && request.url.endsWith("/fields"))).toBe(
@@ -124,16 +125,16 @@ describe("event registration setup", () => {
     fireEvent.click(await screen.findByRole("button", { name: "신청서 만들기" }, { timeout: 4000 }));
     fireEvent.click(await screen.findByRole("button", { name: "직접 질문 추가" }));
     fireEvent.change(screen.getByRole("textbox", { name: "질문" }), { target: { value: "자차로 오나요?" } });
-    fireEvent.change(screen.getByRole("combobox", { name: "답변 유형" }), { target: { value: "YES_NO" } });
+    chooseOption(screen.getByRole("combobox", { name: "답변 유형" }), "YES_NO");
     fireEvent.click(screen.getByRole("button", { name: "질문 추가" }));
     const list = await questionList();
     expect(await list.findByText("자차로 오나요?")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "직접 질문 추가" }));
     fireEvent.change(screen.getByRole("textbox", { name: "질문" }), { target: { value: "몇 명 태울 수 있나요?" } });
-    fireEvent.change(screen.getByRole("combobox", { name: "답변 유형" }), { target: { value: "NUMBER" } });
+    chooseOption(screen.getByRole("combobox", { name: "답변 유형" }), "NUMBER");
     const carId = (await waitForField("자차로 오나요?")).fieldId;
-    fireEvent.change(screen.getByRole("combobox", { name: "조건 질문" }), { target: { value: carId } });
+    chooseOption(screen.getByRole("combobox", { name: "조건 질문" }), carId);
     fireEvent.click(screen.getByRole("button", { name: "질문 추가" }));
     expect(await screen.findByText("'자차로 오나요?'에 예일 때 보여요")).toBeInTheDocument();
     const posted = operatorRequests.filter((request) => request.method === "POST" && request.url.endsWith("/fields"));
@@ -531,12 +532,12 @@ describe("event registration setup", () => {
     expect(sent.at(-1)?.body).not.toHaveProperty("newcomer");
     const preview = within(screen.getByRole("region", { name: "참가자 화면 미리보기" }));
     const middle = await preview.findByRole("combobox", { name: /중그룹/ });
-    expect(within(middle).getByRole("option", { name: "새가족 (등반X)" })).toBeInTheDocument();
+    expect(optionLabels(middle)).toContain("새가족 (등반X)");
     // The cell is asked only after a listed middle group.
     expect(preview.queryByRole("textbox", { name: /^셀/ })).not.toBeInTheDocument();
-    fireEvent.change(middle, { target: { value: within(middle).getByRole("option", { name: "1중그룹" }).getAttribute("value") } });
+    chooseOptionByLabel(middle, "1중그룹");
     expect(await preview.findByRole("textbox", { name: /^셀/ })).toBeInTheDocument();
-    fireEvent.change(middle, { target: { value: "opt_newcomer" } });
+    chooseOption(middle, "opt_newcomer");
     await waitFor(() => expect(preview.queryByRole("textbox", { name: /^셀/ })).not.toBeInTheDocument());
   });
 
