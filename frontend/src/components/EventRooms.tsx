@@ -215,6 +215,8 @@ function Board({
   const options = filterOptions(board);
   const genderOptions = roomGenderOptions(board);
   const pool = people.filter((person) => matchesFilters(person, filters));
+  // 숙박 안 함 people who are not in a room cannot be put anywhere, so "모두 고르기" leaves them out.
+  const pickable = pool.filter((person) => !(person.lodging === "NOT_LODGING" && person.roomId === null));
   const dimming = hasAnswerFilter(filters);
   const reviews = people.filter((person) => person.review !== null);
   const notLodging = people.filter((person) => person.lodging === "NOT_LODGING");
@@ -626,12 +628,12 @@ function Board({
               {drag?.item.kind === "people" ? "여기에 놓으면 미배정으로 빠져요" : "방으로 끌어 놓거나, 이름을 골라 방으로 보내요"}
             </span>
           ) : null}
-          {editable && pool.length > 0 ? (
+          {editable && pickable.length > 0 ? (
             <label className="event-groups__check-all">
               <input
                 type="checkbox"
-                checked={pool.every((person) => selected.has(person.participantId))}
-                onChange={(change) => selectAll(pool.map((person) => person.participantId), change.target.checked)}
+                checked={pickable.length > 0 && pickable.every((person) => selected.has(person.participantId))}
+                onChange={(change) => selectAll(pickable.map((person) => person.participantId), change.target.checked)}
               />
               보이는 사람 모두 고르기
             </label>
@@ -828,7 +830,7 @@ function ReviewPanel({
             <li key={person.participantId} className="event-rooms__review-row">
               <span className="event-rooms__review-text">
                 <strong>{label}</strong>
-                <span className="event-groups__meta"> · {roomName(board.rooms, person.roomId)} · 지금 {nightsText(person)}</span>
+                <span className="event-groups__meta">{roomName(board.rooms, person.roomId)} · 지금 {nightsText(person)}</span>
                 <span className="event-rooms__review-reasons">{person.review!.reasons.map((reason) => REVIEW_LABEL[reason]).join(" · ")}</span>
               </span>
               {editable ? (
@@ -900,7 +902,7 @@ function RoomCard({
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const headingId = `room-${room.roomId}`;
-  const full = room.capacity !== null && room.memberCount >= room.capacity;
+  const full = room.capacity !== null && room.memberCount > room.capacity;
   const warned = room.warnings.length > 0;
   const flagged = new Set(room.warnings.flatMap((warning) => warning.participantIds ?? []));
   const cardClass = [
