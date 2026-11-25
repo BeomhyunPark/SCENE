@@ -33,7 +33,7 @@
 ## 하지 못한 것
 
 - 조 편성과 신청은 화면이 아니라 API로 했다(조 편성 화면은 2주차에 main에서 확인됨).
-- 조장 조원 현황에서 조원을 눌러 상세로 가는 것은 링크를 찾지 못해 주소로 직접 열었다.
+- 조장 조원 현황에서 조원을 눌러 상세로 가는 것은 링크를 찾지 못해 주소로 직접 열었다. → 아래 "조원 상세 다시 확인"에서 눌러서 확인했다.
 - QR 체크인(카메라 없음), 운영 서버, 실제 휴대폰.
 - `ROOM_PUBLISHED` 알림 → 숙소 화면 연결은 B5 몫이라 확인하지 않았다.
 
@@ -42,3 +42,16 @@
 [schedule401.cjs](schedule401.cjs): 시작·끝 날짜 없이 만든 행사에 신청하면 `GET /participant/home` 200, `GET /participant/schedule` **401 AUTHENTICATION_REQUIRED**. 통합 브랜치에서 재현된다.
 
 원인 위치: `backend/src/main/resources/mapper/ScheduleMapper.xml`의 참가자 읽기(`SELECT e.start_date, e.end_date, latest.published_at, latest.snapshot … LEFT JOIN LATERAL`)는 날짜가 없고 공개본도 없으면 모든 칸이 NULL인 행을 돌려준다. MyBatis는 모든 칸이 NULL인 행을 `null`로 매핑하므로(`returnInstanceForEmptyRow` 기본 false), `ScheduleService.participant`(`event/schedule/ScheduleService.java` 697행 근처)의 `row == null → AUTHENTICATION_REQUIRED`로 빠져 참가자가 로그인 화면으로 돌아간다. 일정을 하나라도 공개했거나 날짜가 있으면 생기지 않는다.
+
+## 조원 상세 다시 확인 (2026-11-25, #453)
+
+- 방법: 로컬 서버(`local` 프로필) + Vite(`VITE_API_MOCK=0`), 휴대폰 390px 터치. [member-click.cjs](member-detail/member-click.cjs), 기록 [click-log.txt](member-detail/click-log.txt)
+- 결과: **병합으로 깨지지 않았다.** 조장 홈 내 조 카드의 "조원 현황"을 누른 뒤, "미도착 N명"·"조원 N명" 목록의 **조원 줄 전체**가 링크다(줄 높이 44px, 오른쪽 끝 `›`). "95 이도윤"을 누르면 `/group/members/{id}`로 가서 전화번호·신청 답이 보이고, 뒤로 가기로 조원 현황에 돌아온다.
+- 조원(이도윤) 내 조 화면에는 링크가 하나도 없고, 조원 상세 API를 직접 부르면 404다(DEC-083).
+- 앞선 확인에서 못 찾은 이유: 그 흐름은 상세를 주소로 바로 열도록 짜여 있었고, 누를 수 있다는 표시는 오른쪽 끝의 옅은 `›` 하나뿐이다. 표시는 이미 있어 모양은 바꾸지 않았다. 컴포넌트 테스트는 `ParticipantGroup.test.tsx`가 미도착 줄을 눌러 상세를 여는 것까지 이미 확인한다.
+
+| 캡처 | 내용 |
+|---|---|
+| [01](member-detail/01-leader-status-before-tap.png) | 조장 조원 현황: 줄마다 `›` |
+| [02](member-detail/02-leader-member-detail-after-tap.png) | 이도윤을 누른 뒤 조원 상세 |
+| [03](member-detail/03-member-group-no-links.png) | 일반 조원 화면: 누를 수 있는 조원 항목 없음 |
