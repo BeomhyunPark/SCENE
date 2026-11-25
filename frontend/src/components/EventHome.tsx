@@ -66,7 +66,7 @@ function EventHomeBody({
       tasksHref={areas.includes("tasks") && eventId ? `/events/${eventId}/tasks` : undefined}
       framed
       leading={
-        <Link className="event-home__back" to="/events" aria-label="행사 목록">
+        <Link className="event-home__back scene-press scene-press--text" to="/events" aria-label="행사 목록">
           <img src={arrowLeft} alt="" />
         </Link>
       }
@@ -85,7 +85,7 @@ function EventHomeBody({
               {draftStatus || closed ? null : (
                 <>
                   {" · "}
-                  <Link className="event-home__retrospective" to={`/events/${eventId}/retrospective`}>
+                  <Link className="event-home__retrospective scene-press scene-press--text" to={`/events/${eventId}/retrospective`}>
                     회고
                   </Link>
                 </>
@@ -305,7 +305,7 @@ function NowTasks({ eventId }: { eventId: string }) {
         <ul className="event-home__rows">
           {open.map((task) => (
             <li key={task.taskId}>
-              <Link className="event-home__task" to={`/events/${eventId}/tasks/${task.taskId}`}>
+              <Link className="event-home__task scene-press scene-press--card" to={`/events/${eventId}/tasks/${task.taskId}`}>
                 <span className="event-home__row-copy">
                   <span className="event-home__row-title">{task.title}</span>
                   <span className="event-home__row-meta">{taskMeta(task)}</span>
@@ -361,7 +361,7 @@ function UpcomingSchedule({ eventId }: { eventId: string }) {
         <ul className="event-home__agenda">
           {upcoming.items.map((item) => (
             <li key={item.itemId}>
-              <Link className="event-home__slot" to={`/events/${eventId}/schedule/${item.itemId}`}>
+              <Link className="event-home__slot scene-press scene-press--row" to={`/events/${eventId}/schedule/${item.itemId}`}>
                 <span className="event-home__slot-time">{item.endTime ? `${item.startTime}–${item.endTime}` : item.startTime}</span>
                 <span className="event-home__slot-title">{item.title}</span>
                 {item.place ? <span className="event-home__slot-meta">{item.place}</span> : null}

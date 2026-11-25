@@ -19,7 +19,7 @@ export function StaffNoticesCard({ eventId }: { eventId: string }) {
     <section className="staff-notices" aria-labelledby="staff-notices-title">
       <div className="staff-notices__head">
         <h2 id="staff-notices-title">운영진 공지</h2>
-        <Link className="staff-notices__more" to={noticesHref(eventId)}>
+        <Link className="staff-notices__more scene-press scene-press--text" to={noticesHref(eventId)}>
           모두 보기
         </Link>
       </div>
@@ -30,7 +30,7 @@ export function StaffNoticesCard({ eventId }: { eventId: string }) {
         <ul className="staff-notices__rows">
           {items.map((notice) => (
             <li key={notice.noticeId}>
-              <Link className={`staff-notices__row${notice.important ? " notice-row--important" : ""}`} to={noticesHref(eventId, notice.noticeId)}>
+              <Link className={`staff-notices__row scene-press scene-press--card${notice.important ? " notice-row--important scene-press--keep-border" : ""}`} to={noticesHref(eventId, notice.noticeId)}>
                 <span className="notice-row__title">
                   {notice.important ? <span className="notice-badge notice-badge--important">중요</span> : null}
                   {notice.title}
