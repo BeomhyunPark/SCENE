@@ -24,7 +24,7 @@ async function open() {
       <App />
     </MemoryRouter>,
   );
-  await screen.findByText("8명", {}, WAIT);
+  await screen.findByRole("list", { name: "체크인 명단" }, WAIT);
 }
 
 function summaryValue(label: string): string {
