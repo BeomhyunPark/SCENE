@@ -36,6 +36,11 @@ export function isEdited(row: TableRow): boolean {
   return row.revision > 1;
 }
 
+/** A participant an operator added (DEC-088 §3): the first revision was stored by an operator. */
+export function isAdded(row: TableRow): boolean {
+  return row.revision === 1 && row.revisedBy === "OPERATOR";
+}
+
 /** "수정됨 · 2번 고침" text of the 수정 column; empty for an untouched application. */
 export function editedText(row: TableRow): string {
   if (!isEdited(row)) return "";

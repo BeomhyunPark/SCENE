@@ -2,7 +2,7 @@ import { checkInLogsOf } from "./checkInStore";
 import { completionNoticeOf, eventFormId } from "./formStore";
 import { publicationCount } from "./groupStore";
 import { participantSettingsVersion } from "./participantSettingsStore";
-import { participantNotificationSummary } from "./noticeStore";
+import { participantNotificationSummary } from "./participantNotificationStore";
 import { eventById } from "./operatorStore";
 import { currentApplicationRevision } from "./participantStore";
 

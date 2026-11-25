@@ -10,6 +10,8 @@ const ROUTES: Record<string, (eventId: string, targetId: string) => string> = {
   APPLICATION_RESUBMITTED: (eventId, id) => `/events/${eventId}/participants/${id}`,
   APPLICATION_CANCELLED: (eventId, id) => `/events/${eventId}/participants/${id}`,
   APPLICATION_RESTORED: (eventId, id) => `/events/${eventId}/participants/${id}`,
+  // DEC-088: a participant an operator added.
+  APPLICATION_ADDED: (eventId, id) => `/events/${eventId}/participants/${id}`,
   LIFECYCLE_OVERRIDE: (eventId) => `/events/${eventId}`,
   STAFF_NOTICE_PUBLISHED: (eventId, id) => `/events/${eventId}/notices/${id}`,
   STAFF_NOTICE_UPDATED: (eventId, id) => `/events/${eventId}/notices/${id}`,

@@ -22,6 +22,7 @@ import { resetRoomBoardStore } from "../mocks/roomBoardStore";
 import { resetScheduleStore } from "../mocks/scheduleStore";
 import { setMealCountsNow } from "../mocks/mealCounts";
 import { resetNoticeStore } from "../mocks/noticeStore";
+import { resetParticipantNotificationStore } from "../mocks/participantNotificationStore";
 import { resetTaskStore } from "../mocks/taskStore";
 import { deliveryTiming } from "../components/checkInDelivery";
 
@@ -52,6 +53,7 @@ afterEach(() => {
   resetParticipantFeedStore();
   resetParticipantRoomStore();
   resetNotificationStore();
+  resetParticipantNotificationStore();
   resetParticipantCheckInStore();
   resetFormStore();
   resetInvitationStore();

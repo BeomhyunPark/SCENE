@@ -1,6 +1,7 @@
 import { localUsers } from "./fixtures/seed";
 import { boardSlotsOf, publishedGroupList, roomBoardPeople } from "./groupStore";
 import { eventById, spacesFor } from "./operatorStore";
+import { publishParticipantRooms, setNotLodging } from "./participantRoomStore";
 import { permissionsFor } from "./taskStore";
 
 /**
@@ -8,7 +9,8 @@ import { permissionsFor } from "./taskStore";
  * backend/docs/api.md "숙소": 404·403 → 403 FORBIDDEN → 400 body → 409 event state → 404 target → 409 version·conflict
  * → 409 rules → 200. People come from the group board mock (`roomBoardPeople`) so the 조 column and 조 단위 일괄 배정
  * read the same groups. Lodging is a simplified MealSlots rule: FULL sleeps every night, 집회만 none, PARTIAL the nights
- * between two attended days, and a PARTIAL person with no slot answer is 모름. The participant view (G4) is not here.
+ * between two attended days, and a PARTIAL person with no slot answer is 모름. A publication is handed to the participant
+ * view (G4 `participantRoomStore`), which raises `updates.rooms` like the server.
  */
 type Lodging = "LODGING" | "NOT_LODGING" | "UNKNOWN";
 
@@ -416,6 +418,7 @@ export function publishRooms(eventId: string, actorId: string, body: unknown, no
     })),
   };
   board.publications.push(publication);
+  shareWithParticipants(eventId, publication, active, now);
   const after = placements(publication);
   const notified = record.notify === false ? 0 : active.filter((person) => (latest ? before.get(person.participantId) !== after.get(person.participantId) : after.has(person.participantId))).length;
   return {
@@ -430,6 +433,26 @@ export function publishRooms(eventId: string, actorId: string, body: unknown, no
     roomsWithWarnings: warned,
     notifiedCount: notified,
   };
+}
+
+/** The participant read (GET /participant/rooms) sees what was just published, like the server's snapshot. */
+function shareWithParticipants(eventId: string, publication: Publication, active: Person[], now: Date): void {
+  const byId = new Map(active.map((person) => [person.participantId, person]));
+  publishParticipantRooms(
+    eventId,
+    publication.rooms.map((room) => ({
+      roomId: room.roomId,
+      name: room.name,
+      locationNote: room.locationNote,
+      genderLabel: room.genderOptionId ? (GENDER_LABELS[room.genderOptionId] ?? null) : null,
+      members: room.memberIds.map((id) => {
+        const person = byId.get(id)!;
+        return { participantId: id, name: person.name, cohort: person.cohort, gender: person.gender?.label ?? null };
+      }),
+    })),
+    now,
+  );
+  for (const person of active) setNotLodging(eventId, person.participantId, person.lodging === "NOT_LODGING");
 }
 
 // ---- rules ----

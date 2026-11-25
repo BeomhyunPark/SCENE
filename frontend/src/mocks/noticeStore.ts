@@ -4,12 +4,14 @@ import { eventById } from "./operatorStore";
 import { bumpFeed } from "./participantFeedStore";
 import { checkInCandidates } from "./participantStore";
 import { notifyOperators, operatorsWith } from "./notificationStore";
+import { hasUnreadTarget, markTargetReadForAll, notifyParticipants } from "./participantNotificationStore";
 import { permissionsFor } from "./taskStore";
 
 /**
  * Shaped like NoticeController and ParticipantNoticeController (DEC-082, api.md "공지", D2 #434).
- * Participant notifications for notices live here too, so `updates.notifications`, the list's
- * `unread` and `POST /participant/notifications/read` agree. Titles and bodies are never logged.
+ * Participant notifications for notices go to `participantNotificationStore` (B5 #463), which the
+ * list's `unread`, the inbox and `POST /participant/notifications/read` share. Titles and bodies are
+ * never logged.
  */
 type Audience = "ALL" | "LEADERS" | "STAFF";
 type Status = "DRAFT" | "PUBLISHED" | "ARCHIVED";
@@ -35,20 +37,12 @@ type Row = {
   order: number;
 };
 
-type Notification = {
-  seq: number;
-  participantId: string;
-  noticeId: string;
-  kind: "NOTICE_PUBLISHED" | "NOTICE_UPDATED";
-  readAt: string | null;
-};
+type NoticeKind = "NOTICE_PUBLISHED" | "NOTICE_UPDATED";
 
 export type NoticeFailure = { status: number; code: string; [key: string]: unknown };
 
 const PIN_LIMIT = 3;
 let rows: Row[] = [];
-let notifications: Notification[] = [];
-let seq = 0;
 let order = 0;
 let clock = 0;
 /** `notice_boards.version`: every real write of the event's notices, whatever the audience (operator `updates.notices`). */
@@ -65,8 +59,6 @@ function bumpBoard(eventId: string): void {
 export function resetNoticeStore(): void {
   boards.clear();
   rows = [];
-  notifications = [];
-  seq = 0;
   order = 0;
   clock = 0;
 }
@@ -168,7 +160,7 @@ function participantSees(row: Row, participantId: string): boolean {
 }
 
 /** Notifications for this notice; returns how many rows it made (participants + operators). */
-function notify(row: Row, kind: Notification["kind"], actorId: string): number {
+function notify(row: Row, kind: NoticeKind, actorId: string): number {
   if (row.audience === "STAFF") {
     const operators = operatorsWith(row.eventId, "EVENT_READ", actorId);
     const updated = kind === "NOTICE_UPDATED";
@@ -181,17 +173,18 @@ function notify(row: Row, kind: Notification["kind"], actorId: string): number {
     });
     return operators.length;
   }
-  let count = 0;
-  for (const person of checkInCandidates(row.eventId)) {
-    if (!participantSees(row, person.participantId)) continue;
-    const merged = notifications.findIndex(
-      (item) => item.participantId === person.participantId && item.noticeId === row.noticeId && item.kind === kind && !item.readAt,
-    );
-    if (merged >= 0) notifications.splice(merged, 1);
-    notifications.push({ seq: ++seq, participantId: person.participantId, noticeId: row.noticeId, kind, readAt: null });
-    count += 1;
-  }
-  return count;
+  // Same titles as NoticeService.draft: the body is the notice title.
+  const title = kind === "NOTICE_UPDATED" ? (row.important ? "중요 공지 수정" : "공지 수정") : row.important ? "중요 공지" : "새 공지";
+  const recipients = checkInCandidates(row.eventId)
+    .map((person) => person.participantId)
+    .filter((participantId) => participantSees(row, participantId));
+  return notifyParticipants(row.eventId, recipients, {
+    kind,
+    target: { type: "NOTICE", id: row.noticeId },
+    title,
+    body: row.title,
+    important: row.important,
+  });
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -392,7 +385,7 @@ export function commandOperatorNotice(
     const wasPublished = row.status === "PUBLISHED";
     Object.assign(row, { status: "ARCHIVED", pinned: false, archivedAt: at });
     touch(row, actorId, at);
-    for (const item of notifications) if (item.noticeId === row.noticeId && !item.readAt) item.readAt = at;
+    markTargetReadForAll("NOTICE", row.noticeId);
     if (wasPublished && reachesParticipants(row.audience)) bumpFeed(eventId, "notices");
     return { result: "ARCHIVED", notice: toBody(row), notifiedCount: 0 };
   }
@@ -451,7 +444,7 @@ function participantItem(row: Row, participantId: string) {
     leadersOnly: row.audience === "LEADERS",
     publishedAt: row.publishedAt,
     editedAt: row.editedAt,
-    unread: notifications.some((item) => item.participantId === participantId && item.noticeId === row.noticeId && !item.readAt),
+    unread: hasUnreadTarget(participantId, "NOTICE", row.noticeId),
   };
 }
 
@@ -476,31 +469,3 @@ export function readParticipantNotice(eventId: string, participantId: string, no
   return { ...participantItem(row, participantId), body: row.body };
 }
 
-/** `POST /participant/notifications/read` for this store's notifications. */
-export function readParticipantNotifications(participantId: string, input: unknown): { unreadCount: number } | NoticeFailure {
-  const body = input && typeof input === "object" ? (input as Record<string, unknown>) : null;
-  if (!body) return field("body");
-  const keys = ["notificationIds", "target", "upToSeq"].filter((key) => key in body);
-  if (keys.length !== 1) return field("body");
-  const at = now();
-  const mine = notifications.filter((item) => item.participantId === participantId && !item.readAt);
-  if (keys[0] === "target") {
-    const target = body.target as Record<string, unknown> | null;
-    if (!target || typeof target.type !== "string" || typeof target.id !== "string") return field("target");
-    if (target.type === "NOTICE") for (const item of mine) if (item.noticeId === target.id) item.readAt = at;
-  } else if (keys[0] === "upToSeq") {
-    const upTo = body.upToSeq;
-    if (typeof upTo !== "number" || !Number.isInteger(upTo) || upTo < 1) return field("upToSeq");
-    for (const item of mine) if (item.seq <= upTo) item.readAt = at;
-  }
-  return { unreadCount: participantNotificationSummary(participantId).unreadCount };
-}
-
-/** For `updates.notifications`. */
-export function participantNotificationSummary(participantId: string): { latestSeq: number; unreadCount: number } {
-  const mine = notifications.filter((item) => item.participantId === participantId);
-  return {
-    latestSeq: mine.reduce((max, item) => Math.max(max, item.seq), 0),
-    unreadCount: Math.min(100, mine.filter((item) => !item.readAt).length),
-  };
-}

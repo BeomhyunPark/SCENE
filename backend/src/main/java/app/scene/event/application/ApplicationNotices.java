@@ -23,6 +23,11 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>{@link #revised}: the participant edited ({@code PUT /participant/application}).
  *   <li>{@link #resubmitted}: the same phone applied again with the right number and it became an
  *       edit (public submit {@code 200}).
+ *   <li>{@link #operatorRevised}: an operator edited for the participant (DEC-088). The participant
+ *       gets {@code APPLICATION_UPDATED_BY_OPERATOR}; the other operators get {@code
+ *       APPLICATION_REVISED} with an operator title. The operator who edited gets nothing.
+ *   <li>{@link #operatorAdded}: an operator added a participant; the other operators get {@code
+ *       APPLICATION_ADDED}.
  *   <li>{@link #onStatusChanged}: {@link ApplicationStatusChanged}, published by {@code
  *       ApplicationStatusChanges.record} in the withdraw, restore and re-application transaction,
  *       makes {@code APPLICATION_CANCELLED} or {@code APPLICATION_RESTORED}. A plain {@code
@@ -50,6 +55,8 @@ public class ApplicationNotices {
   public static final String RESUBMITTED = "APPLICATION_RESUBMITTED";
   public static final String CANCELLED = "APPLICATION_CANCELLED";
   public static final String RESTORED = "APPLICATION_RESTORED";
+  public static final String ADDED = "APPLICATION_ADDED";
+  public static final String UPDATED_BY_OPERATOR = "APPLICATION_UPDATED_BY_OPERATOR";
   public static final String TARGET = "APPLICATION";
 
   private static final String LABEL_SEPARATOR = ", ";
@@ -73,13 +80,70 @@ public class ApplicationNotices {
   /** The participant edited their application ({@code PUT /participant/application}). */
   @Transactional(propagation = Propagation.MANDATORY)
   public int revised(UUID spaceId, UUID eventId, ApplicationRevisions.Result result) {
-    return changed(spaceId, eventId, result, REVISED, "님이 신청을 고쳤어요");
+    return changed(spaceId, eventId, result, REVISED, "님이 신청 내역을 수정했어요");
   }
 
   /** The same phone applied again with the right number and it became an edit. */
   @Transactional(propagation = Propagation.MANDATORY)
   public int resubmitted(UUID spaceId, UUID eventId, ApplicationRevisions.Result result) {
     return changed(spaceId, eventId, result, RESUBMITTED, "님이 다시 신청해 내용을 바꿨어요");
+  }
+
+  /**
+   * An operator edited the participant's application (DEC-088 §5–6), in the edit's transaction.
+   * Returns rows made for operators and the participant together.
+   */
+  @Transactional(propagation = Propagation.MANDATORY)
+  public int operatorRevised(
+      UUID spaceId,
+      UUID eventId,
+      UUID participantId,
+      ApplicationRevisions.Result result,
+      UUID operatorUserId) {
+    if (!result.revised()) {
+      return 0;
+    }
+    pointAtCurrent(spaceId, eventId, result.applicationId());
+    String labels = String.join(LABEL_SEPARATOR, result.changedLabels());
+    // DEC-088 결정 대기 6 (사용자 2026-11-25): "신청 내역을 수정했어요", 누가 고쳤는지 드러나게.
+    String editor =
+        revisions.revisorNames(spaceId, eventId, participantId).get(result.applicationId());
+    int made =
+        notifications.toParticipants(
+            spaceId,
+            eventId,
+            List.of(participantId),
+            new NotificationDraft(
+                UPDATED_BY_OPERATOR,
+                TARGET,
+                result.applicationId(),
+                "운영자가 신청 내역을 수정했어요",
+                labels,
+                false));
+    return made
+        + send(
+            spaceId,
+            eventId,
+            operatorUserId,
+            new NotificationDraft(
+                REVISED,
+                TARGET,
+                result.applicationId(),
+                operatorDisplay(editor) + "님이 " + display(result.name()) + "님의 신청 내역을 수정했어요",
+                labels,
+                false));
+  }
+
+  /** An operator added a participant (DEC-088 §6). The operator who added gets nothing. */
+  @Transactional(propagation = Propagation.MANDATORY)
+  public int operatorAdded(
+      UUID spaceId, UUID eventId, UUID applicationId, String name, UUID operatorUserId) {
+    return send(
+        spaceId,
+        eventId,
+        operatorUserId,
+        new NotificationDraft(
+            ADDED, TARGET, applicationId, display(name) + "님을 운영자가 직접 추가했어요", null, false));
   }
 
   /** DEC-084 §7: withdraw, operator restore, and a withdrawn participant's re-application. */
@@ -164,6 +228,10 @@ public class ApplicationNotices {
     List<UUID> to =
         recipients.withPermission(spaceId, eventId, Permission.PARTICIPANT_READ, except);
     return to.isEmpty() ? 0 : notifications.toOperators(spaceId, eventId, to, draft);
+  }
+
+  private static String operatorDisplay(String name) {
+    return name == null || name.isBlank() ? "운영자" : name.strip();
   }
 
   private static String display(String name) {

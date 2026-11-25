@@ -3,6 +3,7 @@ import { requireEventRead } from "./formStore";
 import { boardSlotsOf, groupPeople, readParticipantGroup } from "./groupStore";
 import { eventById } from "./operatorStore";
 import { bumpFeed } from "./participantFeedStore";
+import { notifyParticipants } from "./participantNotificationStore";
 import { permissionsFor } from "./taskStore";
 
 /**
@@ -575,6 +576,18 @@ function publishNow(eventId: string, actorId: string, notify: boolean, now = new
   };
   const touched = [...diff.added, ...diff.changed.map((entry) => entry.item), ...diff.removed];
   const reachesEveryone = touched.some((item) => item.audience === "ALL") || (!latest && board.items.some((item) => item.audience === "ALL"));
+  // Same text as ScheduleService.draft: the first publication, then "일정이 바뀌었어요" with up to three titles.
+  if (notify && reachesEveryone) {
+    const titles = touched.map((item) => item.title);
+    const shown = titles.slice(0, 3).join(", ") + (titles.length > 3 ? ` 외 ${titles.length - 3}건` : "");
+    notifyParticipants(
+      eventId,
+      groupPeople(eventId).map((person) => person.participantId),
+      latest
+        ? { kind: "SCHEDULE_CHANGED", target: { type: "SCHEDULE", id: null }, title: "일정이 바뀌었어요", body: shown || null }
+        : { kind: "SCHEDULE_PUBLISHED", target: { type: "SCHEDULE", id: null }, title: "일정표가 올라왔어요", body: null },
+    );
+  }
   return {
     result: "PUBLISHED",
     publicationId: publication.publicationId,

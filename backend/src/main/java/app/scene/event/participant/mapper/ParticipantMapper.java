@@ -35,4 +35,14 @@ public interface ParticipantMapper {
       @Param("participantId") UUID participantId,
       @Param("name") String name,
       @Param("now") java.time.Instant now);
+
+  int updatePhone(
+      @Param("spaceId") UUID spaceId,
+      @Param("eventId") UUID eventId,
+      @Param("participantId") UUID participantId,
+      @Param("phone") String phone,
+      @Param("phoneHash") String phoneHash,
+      @Param("phoneLast4") String phoneLast4,
+      @Param("phoneKey") String phoneKey,
+      @Param("now") java.time.Instant now);
 }

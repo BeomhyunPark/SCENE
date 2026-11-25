@@ -25,9 +25,17 @@ export function revisionDiff(changes: RevisionChange[], before: ApplicationDetai
   }));
 }
 
-/** "참가자가 고침" / "운영자가 고침" / "처음 신청". */
-export function revisedByLabel(revisedBy: "PARTICIPANT" | "OPERATOR" | null): string {
+/**
+ * "참가자가 고침" / "운영자 김OO가 고침" / "운영자 김OO가 추가" / "처음 신청". A first revision by an
+ * operator is a participant the operator added (DEC-088 §3).
+ */
+export function revisedByLabel(
+  revisedBy: "PARTICIPANT" | "OPERATOR" | null,
+  revision = 2,
+  displayName: string | null = null,
+): string {
   if (revisedBy === "PARTICIPANT") return "참가자가 고침";
-  if (revisedBy === "OPERATOR") return "운영자가 고침";
+  const who = displayName ? `운영자 ${displayName}` : "운영자";
+  if (revisedBy === "OPERATOR") return revision === 1 ? `${who}가 추가` : `${who}가 고침`;
   return "처음 신청";
 }

@@ -2,6 +2,7 @@ import { localEvent, localUsers } from "./fixtures/seed";
 import { eventById, spacesFor } from "./operatorStore";
 import { requireEventRead } from "./formStore";
 import { checkedInAtOf } from "./checkInStore";
+import { notifyParticipants, type ParticipantNotificationDraft } from "./participantNotificationStore";
 import { checkInCandidates } from "./participantStore";
 import { groupRosterVisible } from "./participantSettingsStore";
 import { permissionsFor } from "./taskStore";
@@ -359,6 +360,7 @@ export function publish(eventId: string, actorId: string, body: unknown, now = n
       })),
   };
   board.publications.push(publication);
+  notifyGroupChanges(eventId, latest, publication);
   return {
     result: "PUBLISHED",
     publicationId: publication.publicationId,
@@ -368,6 +370,38 @@ export function publish(eventId: string, actorId: string, body: unknown, now = n
     unassignedCount,
     changedParticipantCount: diff.people,
   };
+}
+
+/** `GROUP_PUBLISHED` for people whose group or leader mark changed (GroupService.notifyParticipants). */
+function notifyGroupChanges(eventId: string, before: Publication | null, after: Publication): void {
+  const was = publishedPlaces(before);
+  const now = publishedPlaces(after);
+  const names = new Map(after.groups.map((group) => [group.groupId, group.name]));
+  const drafts = new Map<string, { draft: ParticipantNotificationDraft; ids: string[] }>();
+  for (const person of activePeople(eventId)) {
+    const from = was.get(person.participantId);
+    const to = now.get(person.participantId);
+    if ((from?.groupId ?? null) === (to?.groupId ?? null) && (from?.leader ?? false) === (to?.leader ?? false)) continue;
+    const leader = to?.leader ?? false;
+    const title = !to
+      ? "조 배정이 바뀌었어요"
+      : !from
+        ? leader ? "내 조가 정해졌어요 · 조장" : "내 조가 정해졌어요"
+        : from.groupId !== to.groupId
+          ? leader ? "내 조가 바뀌었어요 · 조장" : "내 조가 바뀌었어요"
+          : leader ? "조장으로 정해졌어요" : "조장 표시가 바뀌었어요";
+    const draft: ParticipantNotificationDraft = {
+      kind: "GROUP_PUBLISHED",
+      target: { type: "GROUP", id: to?.groupId ?? null },
+      title,
+      body: to ? (names.get(to.groupId) ?? null) : "내 조 화면에서 확인해 주세요",
+    };
+    const key = JSON.stringify(draft);
+    const entry = drafts.get(key) ?? { draft, ids: [] };
+    entry.ids.push(person.participantId);
+    drafts.set(key, entry);
+  }
+  for (const { draft, ids } of drafts.values()) notifyParticipants(eventId, ids, draft);
 }
 
 /** How many times the event's groups were published (`PUBLISHED` only), for the participant feed mock. */
@@ -408,8 +442,8 @@ export type ParticipantGroupBody = {
 /**
  * GET /api/v1/participant/group (#300, DEC-072 §6, DEC-083 · #452) from the latest publication. Names, 또래
  * and 성별 are read now; withdrawn people drop out of the roster and the leader names. Members get the
- * roster while the event switch is on; the leader always gets it and `leaderView`. `room` stays null
- * before rooms (G2).
+ * roster while the event switch is on; the leader always gets it and `leaderView`. The server fills
+ * `leaderView.members[].room` from the latest room publication (G2 #457); this mock leaves it null.
  */
 export function readParticipantGroup(eventId: string, participantId: string): ParticipantGroupBody {
   const active = new Map(activePeople(eventId).map((person) => [person.participantId, person]));

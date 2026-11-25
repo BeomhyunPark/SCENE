@@ -6,6 +6,7 @@ import "../ParticipantGate.css";
 import "./ParticipantShell.css";
 import { GroupTab } from "./GroupTab";
 import { HomeTab } from "./HomeTab";
+import { InboxBell, InboxScreen } from "./InboxScreen";
 import { MeTab } from "./MeTab";
 import { NoticesTab } from "./NoticesTab";
 import { ParticipantTabBar } from "./ParticipantTabBar";
@@ -39,7 +40,7 @@ export function ParticipantShell({
   return settled ? (
     <Feed eventId={eventId} name={name} home={home.data ?? null} sessionLost={sessionLost} onLeave={onLeave} />
   ) : (
-    <Frame eventId={eventId} features={null} status={null}>
+    <Frame eventId={eventId} features={null} status={null} bell={null}>
       <EmptyNote>불러오는 중이에요.</EmptyNote>
     </Frame>
   );
@@ -60,9 +61,14 @@ function Feed({
 }) {
   const poll = useParticipantUpdates({ eventId, initial: home?.updates ?? null, enabled: true, onSessionLost: sessionLost });
   const features = home?.features ?? null;
+  // A read's answer wins until the next good `updates`, which is the server's word again.
+  const [readBack, setReadBack] = useState<{ count: number; at: number | null } | null>(null);
+  const unreadCount = readBack && readBack.at === poll.lastSuccessAt ? readBack.count : poll.unreadCount;
+  const lastSuccessAt = poll.lastSuccessAt;
+  const reportUnread = useCallback((count: number) => setReadBack({ count, at: lastSuccessAt }), [lastSuccessAt]);
   const feed = useMemo<ParticipantFeed>(
-    () => ({ eventId, name, home, features, poll, sessionLost }),
-    [eventId, name, home, features, poll, sessionLost],
+    () => ({ eventId, name, home, features, poll, sessionLost, unreadCount, reportUnread }),
+    [eventId, name, home, features, poll, sessionLost, unreadCount, reportUnread],
   );
   const status = poll.offline
     ? `연결이 끊겼어요${poll.lastSuccessAt ? ` · 마지막 갱신 ${clockText(poll.lastSuccessAt)}` : ""}`
@@ -74,7 +80,7 @@ function Feed({
 
   return (
     <ParticipantFeedContext.Provider value={feed}>
-      <Frame eventId={eventId} features={features} status={status}>
+      <Frame eventId={eventId} features={features} status={status} bell={<InboxBell eventId={eventId} unread={unreadCount} />}>
         <Routes>
           <Route index element={<HomeTab />} />
           <Route path="schedule/*" element={area("schedule", <ScheduleTab />)} />
@@ -82,6 +88,8 @@ function Feed({
           <Route path="group/*" element={area("groups", <GroupTab />)} />
           {/* 숙소 opens from the home card and stays under the 홈 tab (DEC-085 Follow-up, G4 #459). */}
           <Route path="rooms/*" element={area("rooms", <RoomsScreen />)} />
+          {/* 알림함 (B5 #463): opened from the header bell, under the 홈 tab like 숙소. */}
+          <Route path="inbox/*" element={<InboxScreen />} />
           <Route path="me/*" element={<MeTab onLeave={() => onLeave(true)} />} />
           <Route path="*" element={<Navigate to={participantPath(eventId, "home")} replace />} />
         </Routes>
@@ -94,11 +102,13 @@ function Frame({
   eventId,
   features,
   status,
+  bell,
   children,
 }: {
   eventId: string;
   features: ParticipantFeed["features"];
   status: string | null;
+  bell: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -108,8 +118,8 @@ function Frame({
           <img src={symbol} alt="" width={32} height={32} aria-hidden="true" />
           <span className="scene-wordmark">SCENE</span>
         </Link>
-        {/* B5: the 알림함 bell (unread count from `useParticipantFeed().poll.unreadCount`) goes here. */}
-        <div className="participant-shell__actions" />
+        {/* B5 #463: the bell stays on every tab; the five bottom tabs stay as they are (DEC-080 Follow-up). */}
+        <div className="participant-shell__actions">{bell}</div>
       </header>
       {status ? (
         <p className="participant-shell__status" role="status">

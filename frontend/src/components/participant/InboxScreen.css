@@ -1,0 +1,128 @@
+/* 알림함 (B5 #463): the header bell and the list, phone first like the other participant tabs. */
+.participant-bell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  color: var(--color-text-primary);
+  text-decoration: none;
+}
+
+.participant-bell:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.participant-bell__badge {
+  position: absolute;
+  top: 4px;
+  right: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  box-sizing: border-box;
+  border-radius: 9px;
+  background: var(--color-danger-fg, #d92d20);
+  color: #fff;
+  font: var(--scene-label-s);
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.participant-inbox__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.participant-inbox__retry {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.participant-inbox__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.participant-inbox__row {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 14px 16px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 12px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.participant-inbox__row:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.participant-inbox__row--unread {
+  background: var(--color-bg-brand-subtle);
+}
+
+.participant-inbox__row--important {
+  border-color: var(--color-danger-fg);
+  border-left-width: 4px;
+}
+
+.participant-inbox__row--static {
+  cursor: default;
+}
+
+.participant-inbox__title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font: var(--scene-body-m-strong);
+  overflow-wrap: anywhere;
+}
+
+.participant-inbox__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-danger-fg, #d92d20);
+  flex: none;
+}
+
+.participant-inbox__count {
+  color: var(--color-text-secondary);
+  font: var(--scene-body-s);
+}
+
+.participant-inbox__body {
+  color: var(--color-text-secondary);
+  font: var(--scene-body-s);
+  overflow-wrap: anywhere;
+}
+
+.participant-inbox__meta {
+  color: var(--color-text-tertiary);
+  font: var(--scene-caption-m);
+}

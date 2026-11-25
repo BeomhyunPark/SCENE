@@ -33,7 +33,7 @@
 ## 하지 못한 것
 
 - 조 편성과 신청은 화면이 아니라 API로 했다(조 편성 화면은 2주차에 main에서 확인됨).
-- 조장 조원 현황에서 조원을 눌러 상세로 가는 것은 링크를 찾지 못해 주소로 직접 열었다.
+- 조장 조원 현황에서 조원을 눌러 상세로 가는 것은 링크를 찾지 못해 주소로 직접 열었다. → 아래 "조원 상세 다시 확인"에서 눌러서 확인했다.
 - QR 체크인(카메라 없음), 운영 서버, 실제 휴대폰.
 - `ROOM_PUBLISHED` 알림 → 숙소 화면 연결은 B5 몫이라 확인하지 않았다.
 
@@ -73,3 +73,80 @@
 
 - QR 스캔 결과의 방(`EventFieldScan`의 `ScanRoom`)은 자동 병합됐고 조 줄과 같은 모양 클래스를 쓴다. 카메라가 없어 실제로 찍지 못했고 화면 테스트로만 확인했다.
 - **데스크톱 "선택한 참가자" 패널(main #468에서 새로 생김)에는 방·도착 예정이 없다.** 카드에는 보인다. 병합 깨짐이 아니라 새 패널에 3주차 칸을 더할지의 문제라 고치지 않았다(후속 판단).
+
+## 조원 상세 다시 확인 (2026-11-25, #453)
+
+- 방법: 로컬 서버(`local` 프로필) + Vite(`VITE_API_MOCK=0`), 휴대폰 390px 터치. [member-click.cjs](member-detail/member-click.cjs), 기록 [click-log.txt](member-detail/click-log.txt)
+- 결과: **병합으로 깨지지 않았다.** 조장 홈 내 조 카드의 "조원 현황"을 누른 뒤, "미도착 N명"·"조원 N명" 목록의 **조원 줄 전체**가 링크다(줄 높이 44px, 오른쪽 끝 `›`). "95 이도윤"을 누르면 `/group/members/{id}`로 가서 전화번호·신청 답이 보이고, 뒤로 가기로 조원 현황에 돌아온다.
+- 조원(이도윤) 내 조 화면에는 링크가 하나도 없고, 조원 상세 API를 직접 부르면 404다(DEC-083).
+- 앞선 확인에서 못 찾은 이유: 그 흐름은 상세를 주소로 바로 열도록 짜여 있었고, 누를 수 있다는 표시는 오른쪽 끝의 옅은 `›` 하나뿐이다. 표시는 이미 있어 모양은 바꾸지 않았다. 컴포넌트 테스트는 `ParticipantGroup.test.tsx`가 미도착 줄을 눌러 상세를 여는 것까지 이미 확인한다.
+
+| 캡처 | 내용 |
+|---|---|
+| [01](member-detail/01-leader-status-before-tap.png) | 조장 조원 현황: 줄마다 `›` |
+| [02](member-detail/02-leader-member-detail-after-tap.png) | 이도윤을 누른 뒤 조원 상세 |
+| [03](member-detail/03-member-group-no-links.png) | 일반 조원 화면: 누를 수 있는 조원 항목 없음 |
+
+---
+
+# 통합 브랜치 2 확인 (2026-11-25 12:40~13:00 KST)
+
+- 브랜치: `claude/week3-integration-2`. `claude/week3-integration` fe9c53e(PR #474 head) 위에 `claude/week3-integration-fixes`(#473) → `claude/b5-participant-inbox-463`(#463) → `claude/a12-operator-edit-462`(#462, #339)을 merge 커밋으로 합쳤다.
+
+| 구분 | 무엇 | 결과 |
+|---|---|---|
+| 문서 작성 | 충돌 해결: 이 README(통합 1 기록 + fixes의 조원 상세 기록 모두 유지), 로드맵 5.1(A12·B5·통합 뒤 수정 줄, "3주차 통합 2" 줄, 남은 줄은 F5 사용자 확인)과 "상태" 줄, `source-guide.md`(A12 쪽 같은 뜻의 문장은 fixes 문장 하나로) | 작성 |
+| 마이그레이션 | 새로 생긴 것은 A12의 `V27__operator_added_application.sql` 하나(뒤에 main `V25__task_dates` 때문에 V28로 밀림, 아래 추가 확인) | 확인 |
+| 서버 검증 | `./gradlew check` | 통과 600개, 실패 0, 건너뜀 0 |
+| 화면 검증 | lint·typecheck·build 통과. `pnpm test` 단독 2번 | 2번 모두 102파일 756개 통과 |
+| 화면 테스트 시간 초과 재현 | 서버 검사(`./gradlew check`)가 도는 동안 `pnpm test` 2번 | 1번 실패: `EventRooms.test.tsx` "makes numbered rooms in one go and fills them with 200 people"가 "방 40개를 만들었어요." 기다림(10초)에서 시간 초과. 단독 실행 시 그 테스트 전체가 10.7초 |
+| mock 연결 | 운영자 숙소 공개 mock(`roomBoardStore.publishRooms` → `publishParticipantRooms`)이 B5의 공용 `participantNotificationStore`에 `ROOM_PUBLISHED`를 쌓고, 알림함 경로가 `/participate/{eventId}/rooms`인지 임시 테스트로 확인(커밋하지 않음) | 통과 |
+| 실제 클릭 | 로컬 서버 + Vite(실제 API). [round2/flow2.cjs](round2/flow2.cjs), 기록 [round2/click-log.txt](round2/click-log.txt) | 아래 모두 통과 |
+| 운영 서버 | 하지 않았다 | 사용자 확인 필요 |
+
+## 한 흐름 (round2/)
+
+| # | 단계 | 결과 | 캡처 |
+|---|---|---|---|
+| 1 | 운영자 화면 "참가자 추가"로 최현장 직접 추가 | 임시 번호 6자리, 표에 revision 1 · `OPERATOR` · 조 없음 | 01 |
+| 2 | 임시 번호로 참가자 로그인 → "새 숫자 6자리를 정해 주세요" → 번호 정하기 | 홈으로 들어오고 머리글 종이 보임. 조 공개 뒤 추가된 사람의 `GET /participant/group`은 `UNASSIGNED`(오류 없음) | 02, 03 |
+| 3 | 301호에 배정(작업본) 뒤 운영자가 신청 고치기: 부분 참석 + "수련회장에서 숙박하지 않아요" | 저장 | 04 |
+| 4 | 참가자 알림함 | 종 "읽지 않은 알림 1개", 줄 "운영자가 내 신청을 고쳤어요 / 참석 방식, …, 숙박" → 눌러서 `/me`. 서버 종류 `APPLICATION_UPDATED_BY_OPERATOR` = B5 `inboxRoutes`의 키 | 05 |
+| 5 | 숙소 배정판 | "⚑ 다시 볼 것 1명 / 최현장 / 301호 · 지금 숙박 안 함 / 숙박을 뺐어요 · 참석 구간이 바뀌었어요 / 미배정으로 빼기 / 확인" | 06 |
+| 6 | 공지 발행 | "새 공지 / 첫날 집합 장소 안내" → `/notices/{id}` | 07 |
+| 7 | 일정 공개 | "일정표가 올라왔어요" → `/schedule` | 08 |
+| 8 | 직접 추가한 사람을 1조에 넣고 다시 조 공개 | "내 조가 정해졌어요 / 1조" → `/group` | 09 |
+| 9 | 숙소 공개(숙박 안 함 확인) | "숙소가 정해졌어요 / 301호 · 본관 3층" → `/rooms` | 10 |
+| 10 | 날짜 없는 행사에 신청한 참가자의 일정 탭 | `GET /participant/schedule` **200**, 화면은 `/schedule`에 머물고 "아직 일정표가 올라오지 않았어요." (#473 수정 확인) | 11 |
+
+## 발견 · 하지 못한 것
+
+- **화면 테스트 시간 초과(고치지 않음):** 위 200명 숙소 테스트는 화면이 방 만들기를 한 개씩 40번 이어 부르고(DEC-085 Follow-up G3 §7, 서버 묶음 경로 없음), 부를 때마다 200명 배정판을 다시 그린다. 단독으로도 10.7초라 단계별 대기 10초에 여유가 거의 없고, 서버 검사와 CPU를 나누면 넘친다. 병합으로 생긴 것이 아니며, 기다림 시간을 늘리는 대신 테스트 인원을 줄이거나 화면의 연속 만들기를 묶을지 판단이 필요하다.
+- 실제 휴대폰·운영 서버, 알림 갱신 주기(25초)를 기다리는 확인은 하지 않았다(알림함은 홈에서 다시 열어 읽음).
+
+## 추가: main 번호 겹침 정리와 DEC-088 사용자 결정 (2026-11-25 13:00~13:20 KST)
+
+- PR #474 브랜치(`claude/week3-integration`)가 main(#466 f9766e7, #475 92ea4f8)을 받아 058cefc가 됐다: main `V25__task_dates`를 그대로 두고 3주차 마이그레이션을 V26(참가자 설정·개인정보 기록)·V27(숙소)로, 식수 현황 결정을 DEC-089로 옮겼다. 그 head를 이 브랜치에 merge 커밋 e72b82e로 합치고 A12 마이그레이션을 **V28**로 밀었다(`ApplicationContextIT` 28).
+- 사용자 결정(커밋 cbb1229): DEC-088 결정 대기 7건 확정, "신청 고치기" 화면 안내 한 줄, 신청 수정 알림 문구 "신청 내역을 수정했어요".
+
+| 구분 | 무엇 | 결과 |
+|---|---|---|
+| 마이그레이션 | 빈 로컬 DB에서 서버 기동: V24 → V25 task dates → V26 participant settings and privacy logs → V27 rooms → V28 operator added application | 확인 |
+| 서버 검증 | `./gradlew check` | 통과 604개, 실패 0, 건너뜀 0 |
+| 화면 검증 | lint·typecheck·build 통과, `pnpm test` 단독 | 103파일 769개 통과 |
+| 알림 문구 | [round2/notice-titles.cjs](round2/notice-titles.cjs), 시드 행사(OWNER·MANAGER) | 참가자가 고침 → 운영자 "김가람님이 신청 내역을 수정했어요" · 또래 / OWNER가 고침 → 참가자 "운영자가 신청 내역을 수정했어요" · 또래, MANAGER "Local owner님이 김가람님의 신청 내역을 수정했어요" ×2(앞선 참가자 수정과 한 줄로 합침, 결정 대기 6의 영향대로), 고친 OWNER는 받지 않음 |
+| 화면 | `round2/12-edit-screen-hint`(신청 고치기 안내 "참가자가 직접 고칠 수 있으면 참가자에게 맡겨 주세요."), `13-manager-notifications`(운영자 알림 화면) | 확인 |
+| 한 흐름 다시 | [round2/flow2.cjs](round2/flow2.cjs) 빈 DB에서 다시 | 위 표의 1~10 모두 통과, 알림함 줄은 "운영자가 신청 내역을 수정했어요" → `/me` |
+
+참고: 예전 번호(V25 참가자 설정, V26 숙소, V27 운영자 추가)로 이미 띄운 DB는 Flyway가 이름·체크섬 불일치로 기동하지 않는다. 로컬·리허설 DB는 지우고 다시 만든다. main만 적용된 DB(V25 task_dates)에서 V26·V27로 이어지는 것은 PR #474 브랜치에서 확인했다.
+
+## 추가: 통합 브랜치의 숙소 테스트 수정 병합 (2026-11-25 13:25 KST)
+
+`claude/week3-integration` a2964e5(G3 세션: 200명 숙소 테스트가 화면 전체를 50ms마다 훑던 기다림을 알림 칸만 기다리게, 중간 실패 때 만든 방 수 안내, 새 시험 1개)를 merge 커밋 d301a5b로 합쳤다. 충돌 없음.
+
+| 구분 | 결과 |
+|---|---|
+| 서버 `./gradlew check` | 통과 604개, 실패 0, 건너뜀 0 |
+| 화면 `pnpm test`, 서버 테스트(`--rerun-tasks`)와 동시에 | 770개 통과(앞서 같은 조건에서 나던 시간 초과 없음) |
+| 화면 `pnpm test` 단독 | 770개 통과. 200명 테스트 3.3초(전에는 10.7초) |
+| lint·typecheck·build | 통과 |

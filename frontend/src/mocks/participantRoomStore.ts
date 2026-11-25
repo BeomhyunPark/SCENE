@@ -1,4 +1,5 @@
 import { bumpFeed } from "./participantFeedStore";
+import { notifyParticipants, type ParticipantNotificationDraft } from "./participantNotificationStore";
 import { currentApplicationRevision } from "./participantStore";
 
 /**
@@ -32,9 +33,44 @@ export function resetParticipantRoomStore(): void {
 }
 
 /** A room publication (`PUBLISHED`): replaces the snapshot and raises `updates.rooms` by one. */
-export function publishParticipantRooms(eventId: string, rooms: PublishedRoom[], now = new Date()): void {
+export function publishParticipantRooms(eventId: string, rooms: PublishedRoom[], now = new Date(), notify = true): void {
+  const before = publications.get(eventId) ?? null;
   publications.set(eventId, { publishedAt: now.toISOString(), rooms: rooms.map((room) => ({ ...room, members: [...room.members] })) });
   bumpFeed(eventId, "rooms");
+  if (notify) notifyRoomChanges(eventId, before, rooms);
+}
+
+/** `ROOM_PUBLISHED` like RoomService.notifyParticipants: the first publication, then only people whose room changed. */
+function notifyRoomChanges(eventId: string, before: Publication | null, rooms: PublishedRoom[]): void {
+  const placeOf = (list: PublishedRoom[]) => {
+    const out = new Map<string, PublishedRoom>();
+    for (const room of list) for (const member of room.members) out.set(member.participantId, room);
+    return out;
+  };
+  const was = placeOf(before?.rooms ?? []);
+  const now = placeOf(rooms);
+  const draftOf = (room: PublishedRoom, title: string): ParticipantNotificationDraft => ({
+    kind: "ROOM_PUBLISHED",
+    target: { type: "ROOM", id: room.roomId },
+    title,
+    body: room.locationNote ? `${room.name} · ${room.locationNote}` : room.name,
+  });
+  const people = new Set([...was.keys(), ...now.keys()]);
+  for (const participantId of people) {
+    const from = was.get(participantId);
+    const to = now.get(participantId);
+    let draft: ParticipantNotificationDraft | null = null;
+    if (!before) {
+      if (to) draft = draftOf(to, "숙소가 정해졌어요");
+    } else if (from?.roomId !== to?.roomId) {
+      draft = to
+        ? draftOf(to, "숙소가 바뀌었어요")
+        : { kind: "ROOM_PUBLISHED", target: { type: "ROOM", id: null }, title: "숙소 배정이 바뀌었어요", body: "숙소 화면에서 확인해 주세요" };
+    } else if (to && from && (to.name !== from.name || (to.locationNote ?? null) !== (from.locationNote ?? null))) {
+      draft = draftOf(to, "숙소 정보가 바뀌었어요");
+    }
+    if (draft) notifyParticipants(eventId, [participantId], draft);
+  }
 }
 
 /** `roomRosterScope` (participant settings). Raises `updates.rooms` only while a publication exists. */

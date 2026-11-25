@@ -6,12 +6,8 @@ import { App } from "../../App";
 import { localEvent, localUsers } from "../../mocks/fixtures/seed";
 import { createForm, setAccepting } from "../../mocks/formStore";
 import { assign, createGroup, publish, readBoard, setLeaders } from "../../mocks/groupStore";
-import {
-  commandOperatorNotice,
-  createOperatorNotice,
-  participantNotificationSummary,
-  patchOperatorNotice,
-} from "../../mocks/noticeStore";
+import { commandOperatorNotice, createOperatorNotice, patchOperatorNotice } from "../../mocks/noticeStore";
+import { participantNotificationSummary } from "../../mocks/participantNotificationStore";
 import { setLifecycle } from "../../mocks/operatorStore";
 import { submitPublicApplication } from "../../mocks/participantStore";
 import { server } from "../../mocks/server";

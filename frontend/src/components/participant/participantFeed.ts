@@ -14,6 +14,13 @@ export type ParticipantFeed = {
   poll: ParticipantPollState;
   /** A card got `401`: drop the participant reads and show the sign-in screen. */
   sessionLost: () => void;
+  /**
+   * Unread notifications for the 알림함 bell (B5 #463): the last `updates` value, or the count a read
+   * answered with until the next good `updates`. Null until the server sends `notifications`.
+   */
+  unreadCount: number | null;
+  /** A `POST /participant/notifications/read` answered with this count: show it now. */
+  reportUnread: (count: number) => void;
 };
 
 export const ParticipantFeedContext = createContext<ParticipantFeed | null>(null);

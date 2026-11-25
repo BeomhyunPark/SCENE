@@ -1,0 +1,46 @@
+/* 신청 고치기·참가자 직접 추가 (DEC-088). The inputs reuse the participant form's styles. */
+.operator-answers {
+  max-width: 640px;
+  display: grid;
+  gap: 20px;
+}
+
+.operator-answers__lead {
+  display: grid;
+  gap: 6px;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.operator-answers__lead p {
+  margin: 0;
+}
+
+.operator-answers__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.operator-answers__pin {
+  display: grid;
+  gap: 8px;
+  max-width: 640px;
+  padding: 20px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 12px;
+  background: var(--color-bg-surface);
+}
+
+.operator-answers__pin h2,
+.operator-answers__pin p {
+  margin: 0;
+}
+
+.operator-answers__pin-number {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  font-variant-numeric: tabular-nums;
+}

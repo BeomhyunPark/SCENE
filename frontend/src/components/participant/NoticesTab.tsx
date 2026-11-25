@@ -93,7 +93,7 @@ export function ParticipantNoticeRow({ eventId, notice, compact = false }: { eve
 
 function NoticeDetailView() {
   const { noticeId = "" } = useParams();
-  const { eventId } = useParticipantFeed();
+  const { eventId, reportUnread } = useParticipantFeed();
   const queryClient = useQueryClient();
   const detail = useQuery({
     queryKey: participantNoticeDetail(eventId, noticeId),
@@ -108,12 +108,16 @@ function NoticeDetailView() {
     if (!shown || marked.current === shown) return;
     marked.current = shown;
     markNoticeRead(shown)
-      .then(() => markReadInList(queryClient, eventId, shown))
+      .then(({ unreadCount }) => {
+        // The 알림함 bell drops now, not at the next `updates` (B5 #463).
+        reportUnread(unreadCount);
+        markReadInList(queryClient, eventId, shown);
+      })
       .catch(() => {
         // Not fatal: the next open tries again; "새 공지" stays until then.
         marked.current = null;
       });
-  }, [shown, eventId, queryClient]);
+  }, [shown, eventId, queryClient, reportUnread]);
 
   const back = (
     <Link className="participant-card__link" to={participantPath(eventId, "notices")}>

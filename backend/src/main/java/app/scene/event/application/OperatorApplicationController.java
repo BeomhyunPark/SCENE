@@ -22,8 +22,9 @@ import tools.jackson.databind.JsonNode;
 
 /**
  * Operator application reads, the summary, and the applicant CSV. These routes do not read {@code
- * Idempotency-Key}. Public and participant routes stay closed. There is no create or delete, and
- * the answers are never updated; the only write is the operator values (#335).
+ * Idempotency-Key}. Public and participant routes stay closed. There is no delete. The operator
+ * values (#335) are written here; an operator's edit of the answers and a direct add are new
+ * revisions in {@link OperatorApplicationEditController} (DEC-088).
  */
 @RestController
 public class OperatorApplicationController {
