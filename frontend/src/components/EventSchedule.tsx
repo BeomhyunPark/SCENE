@@ -441,8 +441,8 @@ function ItemSummary({ item, board, now = false, next = false }: { item: Schedul
       </span>
       <span className="event-schedule__main">
         <span className="event-schedule__title">{item.title}</span>
-        {item.place ? <span className="event-schedule__place">{item.place}</span> : null}
-        <span className="event-schedule__tags">
+        {item.place ? <span className="event-schedule__place timetable__extra">{item.place}</span> : null}
+        <span className="event-schedule__tags timetable__extra">
           <span className="event-schedule__tag">{categoryLabel(item)}</span>
           {item.audience !== "ALL" ? <span className="event-schedule__tag event-schedule__tag--audience">{AUDIENCE_LABEL[item.audience]}만</span> : null}
           {item.slotId ? <span className="event-schedule__tag">{slot ? `${slot.label} 칸` : "신청서에 없는 칸"}</span> : null}

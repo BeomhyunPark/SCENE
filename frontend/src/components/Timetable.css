@@ -53,6 +53,8 @@
 
 .timetable__body {
   position: relative;
+  /* Keeps the layers below (blocks, line, text) inside the timetable, under the sticky header and app bars. */
+  isolation: isolate;
   /* Room below the header for the first hour label. */
   padding-top: 2px;
 }
@@ -105,6 +107,7 @@
 }
 
 /* Calendar / Event Item, Compact (79:2): subtle surface, default border, radius 8. */
+/* Blocks sit above the current-time line, so the line never runs through their text. */
 .timetable__block {
   position: absolute;
   z-index: 1;
@@ -116,26 +119,50 @@
   overflow: hidden;
   border: 1px solid var(--color-border-default);
   border-radius: 8px;
-  /* Parent-surface rule: an element on the canvas uses bg/surface. */
-  background: var(--color-bg-surface);
+  /* Parent-surface rule: an element on the canvas uses bg/surface. States change --block-bg. */
+  --block-bg: var(--color-bg-surface);
+  background: var(--block-bg);
   color: var(--color-text-secondary);
 }
 
 /* Lines inside a block keep their height; what does not fit is cut at the bottom. */
+/* Lines inside a block keep their height; what does not fit is hidden whole (timetable__extra). */
 .timetable__block > * > *,
 .timetable__block > * > * > * {
   flex-shrink: 0;
 }
 
+/* Kept for screen readers when the block has no room to show it; never drawn half cut. */
+.timetable__block--short .timetable__extra,
+.timetable__block--compact .timetable__extra,
+.timetable__block .timetable__detail {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Tapped open (participant): everything shows. */
+.timetable__block--expandable:is(:hover, :focus-within) :is(.timetable__extra, .timetable__detail) {
+  position: relative;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  clip-path: none;
+  white-space: normal;
+}
+
 .timetable__block:hover,
 .timetable__block:focus-within {
-  z-index: 2;
+  z-index: 5;
 }
 
 /* A block whose text does not fit opens to its full height while tapped or focused, then closes again. */
 .timetable__block--expandable:focus-within,
 .timetable__block--expandable:hover {
-  z-index: 4;
+  z-index: 6;
   height: auto;
   min-height: var(--block-height);
   box-shadow: 0 4px 12px var(--color-shadow-popover);
@@ -146,11 +173,14 @@
   border-bottom-style: dashed;
 }
 
+/* The current-time line runs under the blocks (Venture Daily/Weekly red line with a dot); it shows in the
+   hour-label gutter, the free time and between lanes; the dot marks the column's left edge. */
 .timetable__now {
   position: absolute;
   right: 0;
-  left: 0;
-  z-index: 3;
+  /* Starts under the hour labels so it shows even when a block fills the whole column. */
+  left: calc(-1 * var(--timetable-gutter) - 8px);
+  z-index: 0;
   height: 0;
   border-top: 2px solid var(--color-danger-fg);
   pointer-events: none;
@@ -160,7 +190,7 @@
   content: "";
   position: absolute;
   top: -6px;
-  left: -5px;
+  left: calc(var(--timetable-gutter) + 8px - 5px);
   width: 10px;
   height: 10px;
   border-radius: 50%;
