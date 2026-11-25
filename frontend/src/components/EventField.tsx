@@ -8,6 +8,7 @@ import {
 } from "@tanstack/react-query";
 import { Link, useParams } from "react-router";
 import arrowLeft from "../assets/event-create/arrow-left.svg";
+import searchIcon from "../assets/icon-search.svg";
 import {
   CANCEL_REASON_MAX,
   getCheckInSummary,
@@ -31,9 +32,10 @@ import { FieldScan } from "./EventFieldScan";
 import { useFieldRefresh } from "./fieldRefresh";
 import { buildGroupStats, pendingFor, publishedGroupNames } from "./fieldGroupStats";
 import { FieldGroups } from "./FieldGroups";
-import { FieldRosterRow } from "./FieldRosterRow";
+import { checkInRecord } from "./fieldCheckInRecord";
+import { FieldRosterRow, RowAction, StatusChip } from "./FieldRosterRow";
 import { EventScreen } from "./EventScreen";
-import { formatSubmittedAt } from "./eventFormat";
+import { eventContext, formatSubmittedAt } from "./eventFormat";
 import { readEventAreas } from "./eventLocalState";
 import { OperatorShell } from "./OperatorShell";
 import { participantLabel } from "./participantLabel";
@@ -45,6 +47,7 @@ import {
   type PendingRequest,
   type Settled,
 } from "./useCheckInQueue";
+import { useWideField } from "./useWideField";
 import "./EventField.css";
 
 const PAGE_SIZE = 50;
@@ -62,8 +65,11 @@ type Notice = { tone: "success" | "info" | "error"; text: string };
  * retries, then "확인 안 됨" with "다시 시도"; offline is shown, and coming back online resends and reloads.
  * A request whose result is unknown is never shown as done. "조별" (#288) groups the roster by the latest
  * published 조 편성 (DEC-072), not the working board; the QR result and the 전체 rows name that group too.
- * The summary and the roster on screen are read again every 10 seconds while the page is visible, and the
- * bar at the bottom shows when they were read with "새로 고침" (#408, fieldRefresh.ts). Copy is a draft.
+ * The summary and the roster on screen are read again every 10 seconds while the page is visible; the
+ * "확인 HH:MM" chip in the head shows when they were read and reads at once when tapped (#408, fieldRefresh.ts).
+ * Layout (#468): the phone follows Figma OM01 Field Home (622:7), one column of search, one status line and
+ * participant cards; from 1024px it follows TL01 (620:7), the queue on the left and the picked participant
+ * on the right, where the QR scanner also opens. Copy is a draft.
  */
 export function EventField() {
   const { eventId = "" } = useParams();
@@ -85,6 +91,8 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
   const [scanning, setScanning] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
+  const wide = useWideField();
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setQ(search.trim()), SEARCH_DELAY_MS);
@@ -226,6 +234,31 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
 
   const items = roster.data?.pages.flatMap((page) => page.items) ?? [];
   const total = roster.data?.pages[0]?.page.totalItems ?? 0;
+  const context = [spaceName ?? "", eventContext(event)].filter(Boolean).join(" · ");
+
+  // TL01 (desktop): the card picked in the queue, else the first one on screen.
+  const queueItems = groupsReadable ? (rosterAll.data ?? []) : items;
+  const selected = wide
+    ? (queueItems.find((item) => item.participantId === selectedId) ?? queueItems[0] ?? null)
+    : null;
+  const selectedRequest = selected ? pendingFor(selected, pendingByTarget) : undefined;
+  const selectItem = wide ? (item: RosterItem) => setSelectedId(item.participantId) : undefined;
+
+  const scanner = scanOpen ? (
+    <FieldScan
+      submit={queue.submit}
+      groupOf={groupNames ? (participantId) => groupNames.get(participantId) ?? null : undefined}
+      onClose={() => setScanning(false)}
+      onSearchInstead={() => {
+        setScanning(false);
+        searchInstead();
+      }}
+      onEventBlocked={(error) => {
+        setScanning(false);
+        onFailure(error, "");
+      }}
+    />
+  ) : null;
 
   return (
     <OperatorShell
@@ -244,35 +277,28 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
       }
     >
       <div className="event-field">
-        <p className="event-field__event">{event.name}</p>
-
-        <section className="event-field__summary" aria-label="체크인 현황">
-          {summary.data ? (
-            <>
-              <p className="event-field__count">
-                <span className="event-field__count-label">체크인 완료</span>
-                <strong>{summary.data.checkedIn.toLocaleString("ko-KR")}</strong>
-              </p>
-              <p className="event-field__count">
-                <span className="event-field__count-label">미완료</span>
-                <strong>{summary.data.notCheckedIn.toLocaleString("ko-KR")}</strong>
-              </p>
-              <p className="event-field__count event-field__count--total">
-                <span className="event-field__count-label">전체</span>
-                <strong>{summary.data.total.toLocaleString("ko-KR")}</strong>
-              </p>
-            </>
-          ) : summary.isError ? (
-            <div className="event-field__inline-error">
-              <p>현황을 불러오지 못했어요.</p>
-              <Button type="button" variant="secondary" size={40} onClick={() => reloadQuery(summary)}>
-                다시 시도
-              </Button>
-            </div>
-          ) : (
-            <p className="event-field__muted">현황을 불러오는 중이에요.</p>
-          )}
-        </section>
+        {/* OM01 622:12·622:13 and the "확인 14:50" chip (622:10): the time of the last read, tap to read now (#408). */}
+        <header className="event-field__head">
+          <div className="event-field__titles">
+            <h2 className="event-field__event">{event.name}</h2>
+            {context ? <p className="event-field__context">{context}</p> : null}
+          </div>
+          <button
+            type="button"
+            className="event-field__read"
+            aria-label="새로 고침"
+            aria-describedby="field-read-at"
+            aria-busy={refreshing || undefined}
+            title="10초마다 새로 읽어요"
+            disabled={!queue.online}
+            onClick={() => void refreshNow()}
+          >
+            <span aria-hidden="true">{readAt ? `확인 ${formatReadChip(readAt)}` : "확인 –"}</span>
+          </button>
+          <p className="event-field__sr-only" id="field-read-at">
+            {readAt ? `${formatReadAt(readAt)}에 읽음` : "아직 읽지 못했어요"}
+          </p>
+        </header>
 
         {blocked ? (
           <p className="event-field__blocked" id="field-blocked" role="note">
@@ -280,201 +306,228 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
           </p>
         ) : null}
 
-        {!queue.online ? (
-          <p className="event-field__offline" role="status">
-            오프라인이에요. 연결되면 확인 안 된 요청을 다시 보내고 현황을 새로 불러올게요.
-          </p>
-        ) : null}
-
-        {queue.pending.length > 0 ? (
-          <PendingList pending={queue.pending} online={queue.online} onRetry={retry} />
-        ) : null}
-
-        {scanOpen ? (
-          <FieldScan
-            submit={queue.submit}
-            groupOf={groupNames ? (participantId) => groupNames.get(participantId) ?? null : undefined}
-            onClose={() => setScanning(false)}
-            onSearchInstead={() => {
-              setScanning(false);
-              searchInstead();
-            }}
-            onEventBlocked={(error) => {
-              setScanning(false);
-              onFailure(error, "");
-            }}
-          />
-        ) : (
-          <Button
-            type="button"
-            variant="primary"
-            size={48}
-            className="event-field__scan-open"
-            disabled={Boolean(blocked) || !mayWrite}
-            aria-describedby={blocked ? "field-blocked" : undefined}
-            onClick={() => {
-              setNotice(null);
-              setScanning(true);
-            }}
-          >
-            QR 스캔
-          </Button>
-        )}
-
-        {/* 보기 전환 is a segmented control, set apart from the 체크인 상태 chips below (#337). */}
-        <div className="event-field__views" role="group" aria-label="현황 보기">
-          {(
-            [
-              ["all", "전체 명단"],
-              ["groups", "조별 명단"],
-            ] as const
-          ).map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              className="event-field__view"
-              aria-pressed={view === value}
-              onClick={() => setView(value)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
-        {view === "all" ? (
-          <>
-            <div className="event-field__search">
-              <label className="event-field__search-label" htmlFor="field-search">
-                이름 또는 전화 끝 4자리
-              </label>
-              <input
-                id="field-search"
-                ref={searchRef}
-                className="event-field__search-input"
-                type="search"
-                value={search}
-                maxLength={ROSTER_QUERY_MAX}
-                autoComplete="off"
-                enterKeyHint="search"
-                placeholder="예: 김하늘, 1234"
-                onChange={(change) => setSearch(change.target.value)}
-                onFocus={() => setSearchFocused(true)}
-                onBlur={() => setSearchFocused(false)}
-              />
+        <div className={wide ? "event-field__layout event-field__layout--wide" : "event-field__layout"}>
+          <div className="event-field__queue">
+            {/* OM01 Quick Search (622:14), with the QR scanner (#286) beside it. */}
+            <div className="event-field__tools">
+              {view === "all" ? (
+                <div className="event-field__search">
+                  <label className="event-field__sr-only" htmlFor="field-search">
+                    이름 또는 전화 끝 4자리
+                  </label>
+                  <img className="event-field__search-icon" src={searchIcon} alt="" width={20} height={20} />
+                  <input
+                    id="field-search"
+                    ref={searchRef}
+                    className="event-field__search-input"
+                    type="search"
+                    value={search}
+                    maxLength={ROSTER_QUERY_MAX}
+                    autoComplete="off"
+                    enterKeyHint="search"
+                    placeholder="이름 또는 전화 끝 4자리"
+                    onChange={(change) => setSearch(change.target.value)}
+                    onFocus={() => setSearchFocused(true)}
+                    onBlur={() => setSearchFocused(false)}
+                  />
+                </div>
+              ) : null}
+              <button
+                type="button"
+                className="event-field__scan-open"
+                aria-label="QR 스캔"
+                aria-expanded={scanOpen}
+                aria-describedby={blocked ? "field-blocked" : undefined}
+                disabled={Boolean(blocked) || !mayWrite}
+                onClick={() => {
+                  setNotice(null);
+                  setScanning((open) => !open);
+                }}
+              >
+                <QrIcon />
+                <span aria-hidden="true">QR</span>
+              </button>
             </div>
 
-            <div className="event-field__filters" role="group" aria-label="체크인 상태로 보기">
-              <span className="event-field__filters-label" aria-hidden="true">
-                체크인
-              </span>
-              {(
-                [
-                  ["all", "전체"],
-                  ["pending", "미완료"],
-                  ["done", "완료"],
-                ] as const
-              ).map(([value, label]) => (
-                <button
-                  key={value}
-                  type="button"
-                  className="event-field__filter"
-                  aria-pressed={filter === value}
-                  onClick={() => setFilter(value)}
+            {/* OM01 622:21 "전체 104명 · 미도착 24명", in the product's words. */}
+            <section className="event-field__summary" aria-label="체크인 현황">
+              {summary.data ? (
+                <>
+                  <p className="event-field__count">
+                    <span>전체</span> <strong>{summary.data.total.toLocaleString("ko-KR")}</strong>명
+                  </p>
+                  <p className="event-field__count">
+                    <span>미완료</span> <strong>{summary.data.notCheckedIn.toLocaleString("ko-KR")}</strong>명
+                  </p>
+                  <p className="event-field__count event-field__count--done">
+                    <span>체크인 완료</span> <strong>{summary.data.checkedIn.toLocaleString("ko-KR")}</strong>명
+                  </p>
+                </>
+              ) : summary.isError ? (
+                <div className="event-field__inline-error">
+                  <p>현황을 불러오지 못했어요.</p>
+                  <Button type="button" variant="secondary" size={32} onClick={() => reloadQuery(summary)}>
+                    다시 시도
+                  </Button>
+                </div>
+              ) : (
+                <p className="event-field__muted">현황을 불러오는 중이에요.</p>
+              )}
+            </section>
+
+            {/* TL01 filter chips (620:19) and count chip (620:17); 전체/조별 (#288) is a small switch beside them. */}
+            <div className="event-field__controls">
+              {view === "all" ? (
+                <div className="event-field__filters" role="group" aria-label="체크인 상태로 보기">
+                  {(
+                    [
+                      ["all", "전체"],
+                      ["pending", "미완료"],
+                      ["done", "완료"],
+                    ] as const
+                  ).map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      className="event-field__filter"
+                      aria-pressed={filter === value}
+                      onClick={() => setFilter(value)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                  {roster.data && items.length > 0 ? (
+                    <span className="event-field__count-chip" aria-live="polite">
+                      {total.toLocaleString("ko-KR")}명
+                    </span>
+                  ) : null}
+                </div>
+              ) : null}
+              <div className="event-field__views" role="group" aria-label="현황 보기">
+                {(
+                  [
+                    ["all", "전체 명단"],
+                    ["groups", "조별 명단"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    className="event-field__view"
+                    aria-pressed={view === value}
+                    onClick={() => setView(value)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="event-field__notice-slot" aria-live="polite">
+              {notice ? (
+                <p
+                  className={`event-field__notice event-field__notice--${notice.tone}`}
+                  role={notice.tone === "error" ? "alert" : "status"}
                 >
-                  {label}
-                </button>
-              ))}
+                  {notice.text}
+                </p>
+              ) : null}
             </div>
-          </>
-        ) : null}
 
-        <div className="event-field__notice-slot" aria-live="polite">
-          {notice ? (
-            <p
-              className={`event-field__notice event-field__notice--${notice.tone}`}
-              role={notice.tone === "error" ? "alert" : "status"}
-            >
-              {notice.text}
-            </p>
-          ) : null}
-        </div>
-
-        {view === "groups" ? (
-          <GroupsSection
-            published={published}
-            rosterAll={rosterAll}
-            pendingByTarget={pendingByTarget}
-            disabled={Boolean(blocked)}
-            onCheckIn={checkIn}
-            onCancel={setCancelling}
-            onRetry={retry}
-          />
-        ) : (
-          <>
-            {roster.isPending ? <p className="event-field__muted">명단을 불러오는 중이에요.</p> : null}
-            {roster.isError ? (
-              <div className="event-field__inline-error">
-                <p>명단을 불러오지 못했어요.</p>
-                <Button type="button" variant="secondary" size={40} onClick={() => void reloadQuery(roster)}>
-                  다시 시도
-                </Button>
+            {/* OM01 Connection Status (622:42) and OM10 (622:241): offline and requests not confirmed (#287). */}
+            {!queue.online || queue.pending.length > 0 ? (
+              <div className="event-field__connection">
+                {!queue.online ? (
+                  <p className="event-field__offline" role="status">
+                    <span className="event-field__connection-chip">오프라인</span>
+                    오프라인이에요. 연결되면 확인 안 된 요청을 다시 보내고 현황을 새로 불러올게요.
+                  </p>
+                ) : null}
+                {queue.pending.length > 0 ? (
+                  <PendingList pending={queue.pending} online={queue.online} onRetry={retry} />
+                ) : null}
               </div>
             ) : null}
-            {roster.data && items.length === 0 ? <p className="event-field__muted">{emptyCopy(q, filter)}</p> : null}
-            {items.length > 0 ? (
-              <>
-                <p className="event-field__muted" aria-live="polite">
-                  {total.toLocaleString("ko-KR")}명
-                </p>
-                <ul className="event-field__list" aria-label="체크인 명단">
-                  {items.map((item) => {
-                    const request = pendingFor(item, pendingByTarget);
-                    return (
-                      <FieldRosterRow
-                        key={item.participantId}
-                        item={item}
-                        note={groupNames ? (groupNames.get(item.participantId) ?? "조 없음") : undefined}
-                        disabled={Boolean(blocked)}
-                        request={request}
-                        onCheckIn={() => checkIn(item)}
-                        onCancel={() => setCancelling(item)}
-                        onRetry={() => request && retry(request)}
-                      />
-                    );
-                  })}
-                </ul>
-              </>
-            ) : null}
-            {roster.hasNextPage ? (
-              <Button
-                type="button"
-                variant="secondary"
-                size={48}
-                className="event-field__more"
-                loading={roster.isFetchingNextPage}
-                onClick={() => void roster.fetchNextPage()}
-              >
-                더 보기
-              </Button>
-            ) : null}
-          </>
-        )}
 
-        <div className="event-field__refresh">
-          <p className="event-field__refresh-time">
-            {readAt ? `${formatReadAt(readAt)}에 읽음` : "아직 읽지 못했어요"}
-            <span className="event-field__refresh-note">10초마다 새로 읽어요</span>
-          </p>
-          <Button
-            type="button"
-            variant="secondary"
-            size={48}
-            loading={refreshing}
-            disabled={!queue.online}
-            onClick={() => void refreshNow()}
-          >
-            새로 고침
-          </Button>
+            {wide ? null : scanner}
+
+            {view === "groups" ? (
+              <GroupsSection
+                published={published}
+                rosterAll={rosterAll}
+                pendingByTarget={pendingByTarget}
+                disabled={Boolean(blocked)}
+                onCheckIn={checkIn}
+                onCancel={setCancelling}
+                onRetry={retry}
+                selectedId={selected?.participantId ?? null}
+                onSelect={selectItem}
+              />
+            ) : (
+              <>
+                {roster.isPending ? <p className="event-field__muted">명단을 불러오는 중이에요.</p> : null}
+                {roster.isError ? (
+                  <div className="event-field__inline-error">
+                    <p>명단을 불러오지 못했어요.</p>
+                    <Button type="button" variant="secondary" size={32} onClick={() => void reloadQuery(roster)}>
+                      다시 시도
+                    </Button>
+                  </div>
+                ) : null}
+                {roster.data && items.length === 0 ? <p className="event-field__muted">{emptyCopy(q, filter)}</p> : null}
+                {items.length > 0 ? (
+                  <ul className="event-field__list" aria-label="체크인 명단">
+                    {items.map((item) => {
+                      const request = pendingFor(item, pendingByTarget);
+                      return (
+                        <FieldRosterRow
+                          key={item.participantId}
+                          item={item}
+                          note={groupNames ? (groupNames.get(item.participantId) ?? "조 없음") : undefined}
+                          disabled={Boolean(blocked)}
+                          request={request}
+                          onCheckIn={() => checkIn(item)}
+                          onCancel={() => setCancelling(item)}
+                          onRetry={() => request && retry(request)}
+                          selected={wide ? selected?.participantId === item.participantId : undefined}
+                          onSelect={selectItem ? () => selectItem(item) : undefined}
+                        />
+                      );
+                    })}
+                  </ul>
+                ) : null}
+                {roster.hasNextPage ? (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size={40}
+                    className="event-field__more"
+                    loading={roster.isFetchingNextPage}
+                    onClick={() => void roster.fetchNextPage()}
+                  >
+                    더 보기
+                  </Button>
+                ) : null}
+              </>
+            )}
+          </div>
+
+          {wide ? (
+            <div className="event-field__side">
+              {scanner ??
+                (selected ? (
+                  <SelectedDetail
+                    item={selected}
+                    group={groupNames ? (groupNames.get(selected.participantId) ?? "조 없음") : null}
+                    request={selectedRequest}
+                    disabled={Boolean(blocked)}
+                    onCheckIn={() => checkIn(selected)}
+                    onCancel={() => setCancelling(selected)}
+                    onRetry={() => selectedRequest && retry(selectedRequest)}
+                  />
+                ) : null)}
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -489,6 +542,89 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
         />
       ) : null}
     </OperatorShell>
+  );
+}
+
+/**
+ * TL01 Participant Detail Panel (620:56), desktop only: the picked card in large type with its check-in
+ * record and the same action as its card. Figma's 참가 유형·신청 상태 and "확인 보류" have no data or API
+ * here, so they are left out.
+ */
+function SelectedDetail({
+  item,
+  group,
+  request,
+  disabled,
+  onCheckIn,
+  onCancel,
+  onRetry,
+}: {
+  item: RosterItem;
+  /** Published group name, or null before the first publish. */
+  group: string | null;
+  request: PendingRequest | undefined;
+  disabled: boolean;
+  onCheckIn: () => void;
+  onCancel: () => void;
+  onRetry: () => void;
+}) {
+  const busy = request?.phase === "sending";
+  const unknown = request !== undefined && !busy;
+  const done = item.checkIn?.status === "CHECKED_IN";
+  const label = participantLabel(item);
+  const record = checkInRecord(item);
+  return (
+    <section className="event-field__detail" aria-labelledby="field-detail-name">
+      <p className="event-field__detail-kicker">선택한 참가자</p>
+      <div className="event-field__detail-head">
+        <h3 className="event-field__detail-name" id="field-detail-name">
+          {label}
+        </h3>
+        <StatusChip done={done} unknown={unknown} />
+      </div>
+      {item.phoneLast4 ? <p className="event-field__detail-meta">끝자리 {item.phoneLast4}</p> : null}
+      <dl className="event-field__detail-fields">
+        {group !== null ? (
+          <div className="event-field__detail-field">
+            <dt>조</dt>
+            <dd>{group}</dd>
+          </div>
+        ) : null}
+        <div className="event-field__detail-field">
+          <dt>체크인</dt>
+          <dd>{unknown ? "확인 안 됨" : done ? "체크인 완료" : "미완료"}</dd>
+        </div>
+        {record ? (
+          <div className="event-field__detail-field event-field__detail-field--wide">
+            <dt>기록</dt>
+            <dd>{record}</dd>
+          </div>
+        ) : null}
+      </dl>
+      <div className="event-field__detail-action">
+        <RowAction
+          label={label}
+          done={done}
+          busy={busy}
+          request={unknown ? request : undefined}
+          disabled={disabled}
+          onCheckIn={onCheckIn}
+          onCancel={onCancel}
+          onRetry={onRetry}
+        />
+      </div>
+    </section>
+  );
+}
+
+function QrIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <rect x="2.5" y="2.5" width="5.5" height="5.5" rx="1" stroke="currentColor" strokeWidth="1.4" />
+      <rect x="12" y="2.5" width="5.5" height="5.5" rx="1" stroke="currentColor" strokeWidth="1.4" />
+      <rect x="2.5" y="12" width="5.5" height="5.5" rx="1" stroke="currentColor" strokeWidth="1.4" />
+      <path d="M12 12h2.5v2.5H12zM15 15h2.5v2.5H15zM15 12h2.5M12 17.5h1.5" stroke="currentColor" strokeWidth="1.4" />
+    </svg>
   );
 }
 
@@ -622,6 +758,11 @@ function CancelDialog({
 function lastReadAt(summaryAt: number, listAt: number | undefined): number | null {
   const reads = [summaryAt, listAt ?? summaryAt].filter((at) => at > 0);
   return reads.length === 2 ? Math.min(...reads) : null;
+}
+
+/** "14:50" for the head chip, as in Figma OM01 (622:10). */
+function formatReadChip(at: number): string {
+  return new Date(at).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
 function formatReadAt(at: number): string {

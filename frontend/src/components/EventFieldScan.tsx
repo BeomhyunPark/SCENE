@@ -132,11 +132,11 @@ export function FieldScan({
           <p className="event-field__scan-error-title">{cameraCopy(camera).title}</p>
           <p>{cameraCopy(camera).detail}</p>
           <div className="event-field__scan-actions">
-            <Button type="button" variant="primary" size={48} onClick={onSearchInstead}>
+            <Button type="button" variant="primary" size={40} onClick={onSearchInstead}>
               이름으로 찾기
             </Button>
             {camera === "denied" || camera === "busy" || camera === "failed" ? (
-              <Button type="button" variant="secondary" size={48} onClick={retryCamera}>
+              <Button type="button" variant="secondary" size={40} onClick={retryCamera}>
                 다시 시도
               </Button>
             ) : null}

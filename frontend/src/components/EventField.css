@@ -1,4 +1,7 @@
-/* 현장 운영 (#285). Phone first: one column, 48px touch targets. Follows OM01 Field Home. */
+/*
+ * 현장 운영 (#285, layout #468). Phone: Figma OM01 Field Home (622:7). From 1024px: TL01 Queue + Selected
+ * Detail (620:7). Sizes and text styles follow those frames; colours are SCENE tokens only.
+ */
 .event-field {
   display: flex;
   flex-direction: column;
@@ -6,80 +9,143 @@
   box-sizing: border-box;
   width: 100%;
   max-width: 760px;
-  padding: 20px 16px 40px;
+  padding: 20px 16px 32px;
   word-break: keep-all;
+}
+
+.event-field__sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* OM01 622:12 (Heading/M) · 622:13 (Body/S tertiary) · chip 622:10 */
+.event-field__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.event-field__titles {
+  min-width: 0;
 }
 
 .event-field__event {
   margin: 0;
-  color: var(--color-text-secondary);
-  font: var(--scene-body-m);
-}
-
-.event-field__summary {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.event-field__count {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin: 0;
-  padding: 12px;
-  border: 1px solid var(--color-border-default);
-  border-radius: 12px;
-  background: var(--color-bg-surface);
-}
-
-.event-field__count:first-child {
-  border-color: var(--color-border-selected);
-  background: var(--color-bg-brand-subtle);
-}
-
-.event-field__count-label {
-  color: var(--color-text-secondary);
-  font: var(--scene-label-m);
-}
-
-.event-field__count strong {
   color: var(--color-text-primary);
   font: var(--scene-heading-m);
+  overflow-wrap: anywhere;
+}
+
+.event-field__context {
+  margin: 4px 0 0;
+  color: var(--color-text-tertiary);
+  font: var(--scene-body-s);
+}
+
+/* "확인 14:50": 11px bold, brand-subtle pill, text-brand. A button, so the hit area is padded out. */
+.event-field__read {
+  flex: none;
+  position: relative;
+  margin-top: 2px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--color-bg-brand-subtle);
+  color: var(--color-text-brand);
+  font: 700 11px/16px "Noto Sans KR", sans-serif;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.event-field__read::after {
+  content: "";
+  position: absolute;
+  inset: -8px -4px;
+}
+
+.event-field__read:hover:not(:disabled) {
+  background: var(--color-bg-selected);
+}
+
+.event-field__read[aria-busy="true"] {
+  opacity: 0.6;
+}
+
+.event-field__read:disabled {
+  background: var(--color-bg-subtle);
+  color: var(--color-text-tertiary);
+  cursor: default;
+}
+
+.event-field__read:focus-visible,
+.event-field__scan-open:focus-visible,
+.event-field__filter:focus-visible,
+.event-field__view:focus-visible,
+.event-field__row-main:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
 }
 
 .event-field__blocked {
   margin: 0;
-  padding: 12px 14px;
-  border-radius: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
   background: var(--color-warning-bg);
   color: var(--color-warning-fg);
-  font: var(--scene-body-m);
+  font: var(--scene-body-s);
+}
+
+.event-field__layout,
+.event-field__queue {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* OM01 Quick Search 622:14: 52 high, radius 10, border-control, 14px placeholder, no visible label. */
+.event-field__tools {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .event-field__search {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  position: relative;
+  flex: 1;
+  min-width: 0;
 }
 
-.event-field__search-label {
-  font: var(--scene-label-m);
-  color: var(--color-text-primary);
+.event-field__search-icon {
+  position: absolute;
+  top: 16px;
+  left: 14px;
+  pointer-events: none;
 }
 
 .event-field__search-input {
   box-sizing: border-box;
   width: 100%;
   height: 52px;
-  padding: 0 16px;
+  padding: 0 14px 0 46px;
   border: 1px solid var(--color-border-control);
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--color-bg-surface);
   color: var(--color-text-primary);
+  font: var(--scene-body-m);
   /* 16px keeps iOS Safari from zooming in on focus. */
-  font: var(--scene-body-l);
   font-size: 16px;
+}
+
+.event-field__search-input::placeholder {
+  color: var(--color-text-tertiary);
+  font-size: 14px;
 }
 
 .event-field__search-input:focus {
@@ -91,20 +157,96 @@
   outline-offset: 2px;
 }
 
+/* QR 스캔 (#286): a square control the height of the search box, so it sits beside it. */
+.event-field__scan-open {
+  display: inline-flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  border: 1px solid var(--color-border-control);
+  border-radius: 10px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-brand);
+  font: 700 11px/14px "Noto Sans KR", sans-serif;
+  cursor: pointer;
+}
+
+.event-field__scan-open:hover:not(:disabled) {
+  background: var(--color-bg-subtle);
+}
+
+.event-field__scan-open[aria-expanded="true"] {
+  border-color: var(--color-border-selected);
+  background: var(--color-bg-selected);
+}
+
+.event-field__scan-open:disabled {
+  border-color: var(--color-border-default);
+  background: var(--color-action-primary-bg-disabled);
+  color: var(--color-text-disabled);
+  cursor: default;
+}
+
+/* OM01 622:21: one SCENE/Title line. */
+.event-field__summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 6px;
+  margin-top: 4px;
+}
+
+.event-field__count {
+  margin: 0;
+  color: var(--color-text-primary);
+  font: var(--scene-title);
+}
+
+.event-field__count strong {
+  font: inherit;
+}
+
+.event-field__count + .event-field__count::before {
+  content: "·";
+  margin-right: 6px;
+  color: var(--color-text-tertiary);
+}
+
+.event-field__count--done {
+  color: var(--color-text-secondary);
+}
+
+/* TL01 filter chips 620:19 (27 high, 11px bold) and count chip 620:17; the 전체/조별 switch sits at the end. */
+.event-field__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin-top: -6px;
+}
+
 .event-field__filters {
   display: flex;
-  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
 }
 
 .event-field__filter {
-  min-width: 72px;
-  min-height: 44px;
-  padding: 0 16px;
+  position: relative;
+  min-height: 28px;
+  padding: 0 11px;
   border: 1px solid var(--color-chip-default-border);
   border-radius: 999px;
   background: var(--color-chip-default-bg);
   color: var(--color-chip-default-text);
-  font: var(--scene-label-m);
+  font: var(--scene-label-s);
   cursor: pointer;
 }
 
@@ -112,11 +254,50 @@
   border-color: var(--color-chip-selected-border);
   background: var(--color-chip-selected-bg);
   color: var(--color-chip-selected-text);
+  font-weight: 700;
 }
 
-.event-field__filter:focus-visible {
-  outline: 2px solid var(--color-focus-ring);
-  outline-offset: 2px;
+.event-field__filter::after,
+.event-field__view::after {
+  content: "";
+  position: absolute;
+  inset: -8px -2px;
+}
+
+.event-field__count-chip {
+  margin-left: 2px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: var(--color-bg-brand-subtle);
+  color: var(--color-text-brand);
+  font: 700 11px/16px "Noto Sans KR", sans-serif;
+}
+
+.event-field__views {
+  display: inline-flex;
+  margin-left: auto;
+  padding: 2px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 8px;
+  background: var(--color-bg-surface);
+}
+
+.event-field__view {
+  position: relative;
+  min-height: 26px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font: var(--scene-label-s);
+  cursor: pointer;
+}
+
+.event-field__view[aria-pressed="true"] {
+  background: var(--color-bg-selected);
+  color: var(--color-text-brand);
+  font-weight: 700;
 }
 
 .event-field__notice-slot:empty {
@@ -125,9 +306,9 @@
 
 .event-field__notice {
   margin: 0;
-  padding: 12px 14px;
-  border-radius: 12px;
-  font: var(--scene-body-m);
+  padding: 10px 12px;
+  border-radius: 10px;
+  font: var(--scene-body-s);
 }
 
 .event-field__notice--success {
@@ -147,8 +328,8 @@
 
 .event-field__muted {
   margin: 0;
-  color: var(--color-text-secondary);
-  font: var(--scene-body-m);
+  color: var(--color-text-tertiary);
+  font: var(--scene-body-s);
 }
 
 .event-field__inline-error {
@@ -156,72 +337,122 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  grid-column: 1 / -1;
 }
 
 .event-field__inline-error p {
   margin: 0;
   color: var(--color-danger-fg);
-  font: var(--scene-body-m);
+  font: var(--scene-body-s);
 }
 
+/* SCENE / Field / Participant Item (616:3971): surface, border-default, radius 10, 13/14 padding. */
 .event-field__list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
 .event-field__row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-areas:
-    "main badge"
-    "action action";
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
   gap: 12px;
-  padding: 16px;
+  padding: 13px 14px;
   border: 1px solid var(--color-border-default);
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--color-bg-surface);
 }
 
-.event-field__row-main {
-  grid-area: main;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
+.event-field__row--selected {
+  border-color: var(--color-border-selected);
+  box-shadow: inset 0 0 0 1px var(--color-border-selected);
 }
 
+.event-field__row-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+button.event-field__row-main {
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.event-field__record {
+  margin-top: auto;
+  padding-top: 4px;
+}
+
+/* Chip on top, the one action under it (OM01 keeps the chip top right). */
+.event-field__row-side {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* 15 semibold in Figma; no SCENE text style sits at that size. */
 .event-field__name {
-  margin: 0;
   color: var(--color-text-primary);
-  font: var(--scene-heading-s);
+  font: 600 15px/22px "Noto Sans KR", sans-serif;
   overflow-wrap: anywhere;
 }
 
 .event-field__meta {
   margin: 0;
-  color: var(--color-text-secondary);
-  font: var(--scene-body-s);
+  color: var(--color-text-tertiary);
+  font: var(--scene-caption-m);
 }
 
+/* Status chip: pill, bg-subtle, Label/S, 10px empty circle (Icon · empty circle 1813:91301). */
 .event-field__badge {
-  grid-area: badge;
-  align-self: start;
-  padding: 4px 10px;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 9px;
   border-radius: 999px;
   background: var(--color-bg-subtle);
   color: var(--color-text-secondary);
-  font: var(--scene-body-s);
+  font: var(--scene-label-s);
   white-space: nowrap;
 }
 
+.event-field__badge-dot {
+  box-sizing: border-box;
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+}
+
+.event-field__badge-check {
+  box-sizing: border-box;
+  width: 9px;
+  height: 5px;
+  margin: 0 1px 3px;
+  border-bottom: 1.6px solid currentColor;
+  border-left: 1.6px solid currentColor;
+  transform: rotate(-45deg);
+}
+
 .event-field__badge--done {
-  background: var(--color-success-bg);
-  color: var(--color-success-fg);
+  background: var(--color-badge-attendance-full-bg);
+  color: var(--color-badge-attendance-full-fg);
 }
 
 /* #287: a request whose result is not known is never shown as done. */
@@ -231,13 +462,84 @@
 }
 
 .event-field__row-action {
-  grid-area: action;
-  display: flex;
+  flex: none;
 }
 
-.event-field__row-action .scene-button,
+.event-field__row-action .scene-button {
+  min-width: 88px;
+}
+
 .event-field__more {
   width: 100%;
+}
+
+/* OM01 Connection Status 622:42 and OM10: a surface card with a warning chip. */
+.event-field__connection {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 10px;
+  background: var(--color-bg-surface);
+}
+
+.event-field__offline {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font: var(--scene-body-s);
+}
+
+.event-field__connection-chip {
+  display: inline-block;
+  margin-right: 8px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--color-warning-bg);
+  color: var(--color-warning-fg);
+  font: 700 10px/14px "Noto Sans KR", sans-serif;
+  vertical-align: 1px;
+}
+
+.event-field__pending {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.event-field__pending-title {
+  margin: 0;
+  color: var(--color-warning-fg);
+  font: var(--scene-body-s-strong);
+}
+
+.event-field__pending-note {
+  margin: 0;
+  color: var(--color-text-tertiary);
+  font: var(--scene-caption-m);
+}
+
+.event-field__pending-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.event-field__pending-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-top: 1px solid var(--color-border-default);
+}
+
+.event-field__pending-name {
+  margin: 0;
+  color: var(--color-text-primary);
+  font: var(--scene-body-s-strong);
 }
 
 .event-field__reason-label {
@@ -261,34 +563,14 @@
   resize: vertical;
 }
 
-@media (min-width: 640px) {
-  .event-field {
-    padding: 28px 32px 40px;
-  }
-
-  .event-field__row {
-    grid-template-columns: minmax(0, 1fr) auto 160px;
-    grid-template-areas: "main badge action";
-    align-items: center;
-  }
-
-  .event-field__badge {
-    align-self: center;
-  }
-}
-
-/* QR 스캔 (#286). The name and 또래 are the largest text so the operator can check the person. */
-.event-field__scan-open {
-  width: 100%;
-}
-
+/* QR 스캔 (#286). The name is the largest text so the operator can check the person. */
 .event-field__scan {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 16px;
+  padding: 14px;
   border: 1px solid var(--color-border-default);
-  border-radius: 16px;
+  border-radius: 10px;
   background: var(--color-bg-surface);
 }
 
@@ -302,7 +584,7 @@
 .event-field__scan-title {
   margin: 0;
   color: var(--color-text-primary);
-  font: var(--scene-heading-s);
+  font: var(--scene-title);
 }
 
 .event-field__scan-view {
@@ -310,8 +592,8 @@
   overflow: hidden;
   width: 100%;
   aspect-ratio: 1 / 1;
-  max-height: 60vh;
-  border-radius: 12px;
+  max-height: 56vh;
+  border-radius: 10px;
   background: #000;
 }
 
@@ -329,7 +611,7 @@
   position: absolute;
   inset: 18%;
   border: 3px solid rgb(255 255 255 / 0.9);
-  border-radius: 16px;
+  border-radius: 14px;
   box-shadow: 0 0 0 999px rgb(0 0 0 / 0.25);
   pointer-events: none;
 }
@@ -339,7 +621,7 @@
   inset: auto 0 12px;
   margin: 0;
   color: #fff;
-  font: var(--scene-body-m);
+  font: var(--scene-body-s);
   text-align: center;
 }
 
@@ -351,8 +633,8 @@
 
 .event-field__scan-status {
   margin: 0;
-  color: var(--color-text-secondary);
-  font: var(--scene-body-m);
+  color: var(--color-text-tertiary);
+  font: var(--scene-body-s);
   text-align: center;
 }
 
@@ -360,9 +642,9 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 20px 16px 16px;
-  border-radius: 12px;
+  gap: 4px;
+  padding: 16px 14px 14px;
+  border-radius: 10px;
   text-align: center;
 }
 
@@ -383,11 +665,12 @@
 
 .event-field__scan-label {
   margin: 0;
-  font: var(--scene-heading-s);
+  font: var(--scene-body-m-strong);
 }
 
+/* TL01 detail name size (SCENE/Display). */
 .event-field__scan-name {
-  margin: 4px 0 0;
+  margin: 2px 0 0;
   color: var(--color-text-primary);
   font: var(--scene-display);
   /* "94 김하늘": 또래 and 이름 break as a unit before breaking inside the name. */
@@ -397,23 +680,23 @@
 
 .event-field__scan-detail {
   margin: 0;
-  font: var(--scene-body-m);
+  font: var(--scene-body-s);
 }
 
 .event-field__scan-next {
   width: 100%;
-  margin-top: 10px;
+  margin-top: 8px;
 }
 
 .event-field__scan-error {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 16px;
-  border-radius: 12px;
+  gap: 6px;
+  padding: 14px;
+  border-radius: 10px;
   background: var(--color-warning-bg);
   color: var(--color-warning-fg);
-  font: var(--scene-body-m);
+  font: var(--scene-body-s);
 }
 
 .event-field__scan-error p {
@@ -421,7 +704,7 @@
 }
 
 .event-field__scan-error-title {
-  font: var(--scene-body-l-strong);
+  font: var(--scene-body-m-strong);
 }
 
 .event-field__scan-actions {
@@ -435,126 +718,35 @@
   flex: 1 1 140px;
 }
 
-/* #287 offline notice and requests not confirmed yet. Memory only; the note says they go with the screen. */
-.event-field__offline {
-  margin: 0;
-  padding: 12px 14px;
-  border-radius: 12px;
-  background: var(--color-info-bg);
-  color: var(--color-info-fg);
-  font: var(--scene-body-m);
-}
-
-.event-field__pending {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 14px;
-  border: 1px solid var(--color-warning-fg);
-  border-radius: 12px;
-  background: var(--color-warning-bg);
-}
-
-.event-field__pending-title {
-  margin: 0;
-  color: var(--color-warning-fg);
-  font: var(--scene-label-m);
-}
-
-.event-field__pending-note {
-  margin: 0;
-  color: var(--color-text-primary);
-  font: var(--scene-body-s);
-}
-
-.event-field__pending-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.event-field__pending-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  background: var(--color-bg-surface);
-}
-
-.event-field__pending-name {
-  margin: 0;
-  color: var(--color-text-primary);
-  font: var(--scene-body-m);
-}
-
 /* QR result: the published group, so the operator can say where to go (#288). */
 .event-field__scan-group {
-  margin: 4px 0 0;
+  margin: 2px 0 0;
   color: var(--color-text-primary);
-  font: var(--scene-heading-m);
+  font: var(--scene-heading-s);
 }
 
 .event-field__scan-group-label {
-  color: var(--color-text-secondary);
-  font: var(--scene-label-m);
-}
-
-/* 전체 / 조별 (#288) */
-.event-field__views {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  margin-top: 4px;
-  padding: 4px;
-  border-radius: 12px;
-  background: var(--color-bg-canvas);
-  border: 1px solid var(--color-border-default);
-}
-
-.event-field__view {
-  min-height: 40px;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--color-text-secondary);
-  font: var(--scene-label-m);
-  cursor: pointer;
-}
-
-.event-field__view[aria-pressed="true"] {
-  background: var(--color-bg-surface);
-  color: var(--color-text-primary);
-  box-shadow: 0 1px 2px color-mix(in srgb, var(--color-text-primary) 16%, transparent);
-}
-
-.event-field__view:focus-visible {
-  outline: 2px solid var(--color-focus-ring);
-  outline-offset: 2px;
-}
-
-.event-field__filters-label {
-  align-self: center;
-  margin-right: 4px;
-  color: var(--color-text-secondary);
+  color: var(--color-text-tertiary);
   font: var(--scene-label-s);
 }
 
+/* 조별 (#288): group cards in the participant item's shape. */
 .field-groups {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+.field-groups__summary {
+  margin-top: -4px;
 }
 
 .field-groups__group {
   border: 1px solid var(--color-border-default);
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--color-bg-surface);
   overflow: hidden;
 }
@@ -565,8 +757,7 @@
   align-items: stretch;
   gap: 4px;
   width: 100%;
-  min-height: 48px;
-  padding: 14px 16px;
+  padding: 13px 14px;
   border: 0;
   background: transparent;
   color: inherit;
@@ -588,13 +779,13 @@
 
 .field-groups__name {
   color: var(--color-text-primary);
-  font: var(--scene-heading-s);
+  font: var(--scene-title);
   overflow-wrap: anywhere;
 }
 
 .field-groups__line {
-  color: var(--color-text-secondary);
-  font: var(--scene-body-s);
+  color: var(--color-text-tertiary);
+  font: var(--scene-caption-m);
   word-break: keep-all;
   overflow-wrap: anywhere;
 }
@@ -604,40 +795,130 @@
 }
 
 .field-groups__toggle {
+  margin-top: 2px;
   color: var(--color-text-brand);
-  font: var(--scene-label-m);
+  font: var(--scene-label-s);
 }
 
 .field-groups__members {
-  padding: 0 8px 8px;
+  padding: 0 10px 10px;
 }
 
-/* 새로 고침 (#408): stays at the bottom of the phone screen, where a thumb reaches it. */
-.event-field__refresh {
-  position: sticky;
-  bottom: 0;
-  z-index: 1;
+.field-groups__members .event-field__row {
+  border-color: var(--color-border-default);
+  background: var(--color-bg-surface);
+}
+
+/* TL01 (620:7): queue 472px on the left, Participant Detail Panel (620:56) on the right. */
+@media (min-width: 1024px) {
+  .event-field {
+    max-width: 1180px;
+    padding: 24px 24px 40px;
+    gap: 20px;
+  }
+
+  .event-field__layout--wide {
+    display: grid;
+    grid-template-columns: minmax(360px, 472px) minmax(0, 1fr);
+    align-items: start;
+    gap: 24px;
+  }
+
+  .event-field__side {
+    position: sticky;
+    top: 24px;
+    min-width: 0;
+  }
+
+  .event-field__side .event-field__scan {
+    padding: 20px 24px 24px;
+    border-radius: 12px;
+  }
+
+  .event-field__side .event-field__scan-view {
+    max-height: 52vh;
+  }
+}
+
+.event-field__detail {
+  display: flex;
+  flex-direction: column;
+  padding: 26px 26px 28px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 12px;
+  background: var(--color-bg-surface);
+}
+
+.event-field__detail-kicker {
+  margin: 0;
+  color: var(--color-text-brand);
+  font: var(--scene-body-s-strong);
+}
+
+.event-field__detail-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin: 0 -16px -40px;
-  padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
-  border-top: 1px solid var(--color-border-default);
-  background: var(--color-bg-surface);
-  box-shadow: 0 -2px 8px var(--color-shadow-sticky);
+  margin-top: 10px;
 }
 
-.event-field__refresh-time {
+.event-field__detail-name {
+  margin: 0;
+  color: var(--color-text-primary);
+  font: var(--scene-display);
+  overflow-wrap: anywhere;
+}
+
+.event-field__detail-meta {
+  margin: 10px 0 0;
+  color: var(--color-text-tertiary);
+  font: var(--scene-body-m);
+}
+
+/* Read-only fields: 48 high, radius 8, border-default (TL01 620:64). */
+.event-field__detail-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 28px;
+  margin: 20px 0 0;
+  padding-top: 24px;
+  border-top: 1px solid var(--color-border-default);
+}
+
+.event-field__detail-field {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 7px;
+  min-width: 0;
+}
+
+.event-field__detail-field--wide {
+  grid-column: 1 / -1;
+}
+
+.event-field__detail-field dt {
+  color: var(--color-text-tertiary);
+  font: var(--scene-label-s);
+}
+
+.event-field__detail-field dd {
+  box-sizing: border-box;
+  min-height: 48px;
   margin: 0;
+  padding: 13px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 8px;
   color: var(--color-text-primary);
   font: var(--scene-label-m);
 }
 
-.event-field__refresh-note {
-  color: var(--color-text-secondary);
-  font: var(--scene-caption-m);
+.event-field__detail-action {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 32px;
+}
+
+.event-field__detail-action .scene-button {
+  min-width: 50%;
 }
