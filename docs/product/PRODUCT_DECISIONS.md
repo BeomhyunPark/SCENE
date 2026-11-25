@@ -3293,6 +3293,20 @@ I3 운영자 알림과 A6 "수정됨"·변경 전후([#437](https://github.com/B
 | 5 | 운영자 행이 없는 공간 OWNER·ADMIN도 신청 변경 알림을 받나 | 받지 않음 / `seesEveryEvent`면 받음 | 받지 않음(지금 운영자 경로가 모두 그렇다) | 받게 하려면 받는 사람 계산과 운영자 경로 판정을 함께 바꾼다 |
 
 후속(이번 범위 밖): 들어오기 잠금 경고(DEC-078 표 "잠금")를 운영자 알림으로 보내기, `operator_notices` 삭제 마이그레이션, 여러 행사를 모은 알림 목록.
+
+### Follow-up (2026-11-25, #463)
+
+B5 참가자 알림함을 만들며 정한 점이다. 경로 계약은 api.md "참가자 알림"(`GET /participant/notifications`, `POST …/read`)을 그대로 쓴다.
+
+1. **진입점은 머리글 오른쪽의 종 아이콘이다(정함).** 하단 탭은 다섯 개(홈·일정·공지·내 조·내 정보)로 고정이라 알림함을 탭으로 넣지 않는다. 홈 화면 위에만 두면 공지·일정 탭을 보다가 새 알림을 알려면 홈으로 돌아가야 하므로, B3가 비워 둔 머리글 자리(`participant-shell__actions`)에 두어 **모든 탭에서** 읽지 않은 수를 보이고 한 번에 연다. 운영자 화면(I3)도 머리글·하단 막대의 배지로 같은 수를 보인다. 숫자는 운영자와 같이 99를 넘으면 "99+"다. 알림함 주소는 `/participate/{eventId}/inbox`이고 숙소 화면처럼 **홈 탭 아래**에 있다(현재 탭 "홈").
+2. **새 폴링을 만들지 않는다.** 목록은 `participantNotifications` 쿼리 키에 두어, 기존 `updates`의 `notifications`(`latestSeq`·`unreadCount`)가 바뀌면 그 확인이 다시 읽게 한다(`updateTargets.ts`). 그래서 공개 뒤 한 번의 확인(20–30초) 안에 열린 알림함에 한 줄이 생긴다. 종의 숫자는 `updates` 값이고, 읽음 처리의 응답(`unreadCount`)을 다음 `updates`까지 바로 보인다(공지 상세에서 읽을 때도).
+3. **읽음:** 목록을 여는 것만으로는 읽지 않는다(api.md). 한 줄을 누르면 그 한 건(`notificationIds`)을 읽고 그 화면으로 간다. "모두 읽음"은 맨 위 `seq`까지(`upToSeq`). 공지 상세는 지금처럼 그 공지를 가리키는 알림을 모두 읽는다(`target`).
+4. **누르면 가는 곳(`inboxRoutes.ts` 한곳):** `NOTICE_PUBLISHED`·`NOTICE_UPDATED` → 공지 상세, `SCHEDULE_PUBLISHED`·`SCHEDULE_CHANGED` → 일정 탭, `GROUP_PUBLISHED` → 내 조, `ROOM_PUBLISHED` → `/participate/{eventId}/rooms`(G4 숙소 화면), `APPLICATION_UPDATED_BY_OPERATOR`(A12 #462가 서버에서 쌓음) → 내 정보. 표에 없는 종류(`MEAL_ORDER_PUBLISHED` 포함), `id`가 없는 공지, `home.features`에서 꺼진 영역은 제목·본문만 보이고 누를 수 없다.
+5. **`GROUP_PUBLISHED`를 서버가 만든다(위 Consequence의 "B5에서").** 조 편성 공개의 트랜잭션에서 직전 공개본과 조·조장 표시가 다른 활성 참가자(첫 공개는 배정된 전원)에게 만든다. `target`은 그 사람의 조(빠졌으면 `null`), 문구는 내 조 이름까지다(계약 §7.2·api.md). 같은 문구의 사람은 한 번에 넣는다.
+6. **대상 필터는 만들 때 정해진다.** 조장 대상 공지는 공개본의 조장에게만, 운영진 대상 공지는 운영자 알림으로만 가므로 일반 참가자의 목록에 없다. `ParticipantInboxHttpIT`(통합 테스트)와 로컬 실제 서버 클릭으로 확인했다.
+7. **mock:** 참가자 알림을 `participantNotificationStore` 한곳에 모았다. 공지·일정 공개·조 공개·숙소 공개(`publishParticipantRooms`) mock이 서버와 같은 문구로 여기에 쓴다.
+
+범위 밖(이번에 만들지 않음): 웹 푸시·문자, 읽음 수 통계, 오래된 알림 지우기, 알림 설정.
 ---
 
 ## DEC-081 — 일정표는 조 편성과 같은 작업본·공개본 계약을 쓰고, 운영자는 항목 하나를 "저장하고 바로 공개"하며, 참가자는 24시간 동안 "변경됨"을 본다

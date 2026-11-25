@@ -31,6 +31,7 @@ void Promise.all([
   import("./participantFeedStore"),
   import("./scheduleStore"),
   import("./participantRoomStore"),
-]).then(([forms, operator, participants, groups, operations, tasks, feed, schedule, rooms]) => {
-  Object.assign(window, { sceneMock: { forms, operator, participants, groups, operations, tasks, feed, schedule, rooms } });
+  import("./participantNotificationStore"),
+]).then(([forms, operator, participants, groups, operations, tasks, feed, schedule, rooms, inbox]) => {
+  Object.assign(window, { sceneMock: { forms, operator, participants, groups, operations, tasks, feed, schedule, rooms, inbox } });
 });

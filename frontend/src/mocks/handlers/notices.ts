@@ -9,7 +9,6 @@ import {
   patchOperatorNotice,
   readOperatorNotice,
   readParticipantNotice,
-  readParticipantNotifications,
   type NoticeFailure,
 } from "../noticeStore";
 import { currentParticipant } from "../participantStore";
@@ -80,13 +79,6 @@ export const noticeHandlers = [
     if (!participant) return problem(401, "AUTHENTICATION_REQUIRED", { detail: "hidden" });
     const result = readParticipantNotice(participant.eventId, participant.participantId, String(params.noticeId));
     return "code" in result ? fail(result as NoticeFailure) : HttpResponse.json(result, NO_STORE);
-  }),
-  http.post("/api/v1/participant/notifications/read", async ({ request, cookies }) => {
-    if (!csrfMatches(request, cookies)) return problem(403, "FORBIDDEN", { detail: "hidden" });
-    const participant = currentParticipant();
-    if (!participant) return problem(401, "AUTHENTICATION_REQUIRED", { detail: "hidden" });
-    const result = readParticipantNotifications(participant.participantId, await readJson(request));
-    return "code" in result ? fail(result as NoticeFailure) : HttpResponse.json(result);
   }),
 ];
 
