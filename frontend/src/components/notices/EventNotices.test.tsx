@@ -74,6 +74,16 @@ describe("operator notices", () => {
     expect(screen.queryByRole("button", { name: "지우기" })).not.toBeInTheDocument();
   });
 
+  it("marks only a leaders or staff audience on the list, not the default 전체 (#483)", async () => {
+    seed({ title: "모두에게" });
+    seed({ title: "조장에게", audience: "LEADERS" });
+    await open(`/events/${EVENT}/notices`);
+    const everyone = await screen.findByRole("link", { name: /^모두에게/ }, WAIT);
+    const leaders = screen.getByRole("link", { name: /조장에게/ });
+    expect(within(everyone).queryByText("전체")).not.toBeInTheDocument();
+    expect(within(leaders).getByText("조장")).toBeInTheDocument();
+  });
+
   it("deletes a draft after confirming", async () => {
     const draft = seed({ title: "지울 초안", publish: false });
     await open(`/events/${EVENT}/notices/${draft.noticeId}`);
