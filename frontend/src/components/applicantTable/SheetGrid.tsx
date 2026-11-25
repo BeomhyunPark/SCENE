@@ -421,7 +421,7 @@ export function SheetGrid({
         {notice}
       </p>
       <details className="roster__keys">
-        <summary>도움말</summary>
+        <summary className="scene-press scene-press--text">도움말</summary>
         <p className="roster__hint">
           {`칸을 누르고 화살표로 움직여요. Shift로 범위를 넓히고 Ctrl(⌘)+C로 복사, Enter나 두 번 누르기로 상세를 열어요.${onEdit ? " E로 운영 정보를 고쳐요." : ""}`}
         </p>
