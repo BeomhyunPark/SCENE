@@ -226,7 +226,7 @@ describe("participant group", () => {
     expect(screen.queryByText(/이수진/)).not.toBeInTheDocument();
   });
 
-  it("shows a leader 조원 현황: 미도착 first, every member with arrival, and 끼니별 인원", async () => {
+  it("shows a leader 조원 현황: 미도착 first, every member with arrival, and 식사별 인원", async () => {
     server.use(...signedIn(), group(LEADER));
     openApp();
     const status = await screen.findByRole("region", { name: "조원 현황" });
@@ -242,7 +242,7 @@ describe("participant group", () => {
       "95 이수진여최근 수정미도착",
       "박지훈미도착",
     ]);
-    const slots = within(status).getByLabelText("끼니별 조 인원");
+    const slots = within(status).getByLabelText("식사별 조 인원");
     expect(within(slots).getAllByRole("definition").map((item) => item.textContent)).toEqual([
       "저녁 1 · 집회 1",
       "아침 1 · 점심 1 · 저녁 2 · 집회 2",

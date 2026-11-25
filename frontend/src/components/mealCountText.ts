@@ -26,7 +26,7 @@ export function mealLine({ dayLabel, slot }: MealLine): string {
 /** The text to copy: a heading with the time it was read, the lines, and a note for unknown meals. */
 export function kitchenText(eventName: string, data: MealCounts, lines: MealLine[]): string {
   const out = [`[${eventName}] 식수 (${asOfLabel(data.asOf)} 기준)`, ...lines.map(mealLine)];
-  if (data.unknown.count > 0) out.push(`끼니를 모르는 신청 ${count(data.unknown.count)}명은 빠져 있어요.`);
+  if (data.unknown.count > 0) out.push(`어느 식사인지 모르는 신청 ${count(data.unknown.count)}명은 빠져 있어요.`);
   return out.join("\n");
 }
 

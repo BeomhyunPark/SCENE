@@ -71,7 +71,7 @@ function MealsBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
       <div className="event-home meals">
         <div className="meals__title">
           <h2>식수 현황</h2>
-          <p>신청 답과 도착 체크인으로 계산해요. 끼니마다 세지 않아요.</p>
+          <p>신청 답과 도착 체크인으로 계산해요. 식사 때마다 따로 세지 않아요.</p>
         </div>
         {counts.isPending ? <p role="status">불러오는 중이에요.</p> : null}
         {counts.isError && !counts.data ? (
@@ -94,8 +94,8 @@ function MealsBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
             eventId={eventId}
             data={counts.data}
             copied={copied}
-            onCopyNext={(line) => void copy([line], "다음 끼니")}
-            onCopyRest={(lines) => void copy(lines, "남은 끼니")}
+            onCopyNext={(line) => void copy([line], "다음 식사")}
+            onCopyRest={(lines) => void copy(lines, "남은 식사")}
           />
         ) : null}
         {counts.data ? (
@@ -136,7 +136,7 @@ function MealsContent({
     return (
       <section className="meals__notice">
         <h3>식사 칸이 없어요</h3>
-        <p>신청서 설정에서 일차별 식사를 고르면 끼니마다 식수를 볼 수 있어요.</p>
+        <p>신청서 설정에서 일차별 식사를 고르면 식사마다 식수를 볼 수 있어요.</p>
         <Link className="meals__link" to={`/events/${eventId}/participants/setup`}>
           신청서 설정으로 가기
         </Link>
@@ -151,7 +151,7 @@ function MealsContent({
       {next ? (
         <section className="meals__next" aria-labelledby="meals-next-title">
           <p className="meals__next-kicker" id="meals-next-title">
-            다음 끼니 · {next.dayLabel} {next.slot.label} {next.slot.startTime}
+            다음 식사 · {next.dayLabel} {next.slot.label} {next.slot.startTime}
             <span className="meals__time-source"> ({next.slot.timeFromSchedule ? "일정표" : "기본 시각"})</span>
           </p>
           <p className="meals__next-count">
@@ -161,19 +161,19 @@ function MealsContent({
           <Breakdown slot={next.slot} />
           <div className="meals__actions">
             <Button type="button" variant="primary" size={48} onClick={() => onCopyNext(next)}>
-              다음 끼니 복사
+              다음 식사 복사
             </Button>
             {rest.length > 1 ? (
               <Button type="button" variant="secondary" size={48} onClick={() => onCopyRest(rest)}>
-                남은 끼니 복사
+                남은 식사 복사
               </Button>
             ) : null}
           </div>
         </section>
       ) : (
         <section className="meals__notice" role="status">
-          <h3>남은 끼니가 없어요</h3>
-          <p>모든 끼니 시각이 지났어요. 아래 표에서 끼니마다 숫자를 볼 수 있어요.</p>
+          <h3>남은 식사가 없어요</h3>
+          <p>모든 식사 시각이 지났어요. 아래 표에서 식사마다 숫자를 볼 수 있어요.</p>
         </section>
       )}
       {copied ? (
@@ -186,12 +186,12 @@ function MealsContent({
       ) : null}
       {data.unknown.count > 0 ? (
         <p className="meals__unknown" role="note">
-          끼니를 모르는 신청 {count(data.unknown.count)}명(그중 도착 {count(data.unknown.arrived)}명)은 어느 끼니에도 세지
+          어느 식사인지 모르는 신청 {count(data.unknown.count)}명(그중 도착 {count(data.unknown.arrived)}명)은 어느 식사에도 세지
           않았어요. 신청 답을 확인해 손으로 더해 주세요.
         </p>
       ) : null}
 
-      <section className="meals__table" aria-label="끼니별 식수">
+      <section className="meals__table" aria-label="식사별 식수">
         {data.days.map((day) => (
           <div key={day.day} className="meals__day">
             <h3>{day.label}</h3>
@@ -230,11 +230,11 @@ function MealsContent({
       <details className="meals__how">
         <summary>숫자는 이렇게 나와요</summary>
         <ul>
-          <li>예정: 그 끼니에 참석한다고 신청한 사람이에요. 고친 신청은 지금 답으로, 취소된 신청은 빼고 세요.</li>
+          <li>예정: 그 식사에 참석한다고 신청한 사람이에요. 고친 신청은 지금 답으로, 취소된 신청은 빼고 세요.</li>
           <li>도착: 도착 체크인을 한 사람이에요. 체크인을 취소하면 안 온 사람이에요.</li>
-          <li>올 예정: 아직 안 왔지만 도착하기로 한 끼니가 아직 지나지 않은 사람이에요.</li>
-          <li>아직 안 옴: 도착하기로 한 끼니가 지났는데 체크인이 없는 사람이에요. 도착 반영에서 빠져요.</li>
-          <li>도착 반영 = 도착 + 올 예정. 끼니는 시작 1시간 뒤에 지나요. 시각은 일정표의 식사 항목, 없으면 기본 시각(아침 8시·점심 12시·저녁 6시)이에요.</li>
+          <li>올 예정: 아직 안 왔지만 도착하기로 한 식사가 아직 지나지 않은 사람이에요.</li>
+          <li>아직 안 옴: 도착하기로 한 식사가 지났는데 체크인이 없는 사람이에요. 도착 반영에서 빠져요.</li>
+          <li>도착 반영 = 도착 + 올 예정. 식사는 시작 1시간 뒤에 지나요. 시각은 일정표의 식사 항목, 없으면 기본 시각(아침 8시·점심 12시·저녁 6시)이에요.</li>
         </ul>
       </details>
     </>

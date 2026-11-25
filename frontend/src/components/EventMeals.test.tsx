@@ -56,12 +56,12 @@ describe("식수 현황 screen", () => {
     await login({ userId: OWNER });
     openMeals();
 
-    const next = await screen.findByRole("region", { name: /다음 끼니/ });
-    expect(next).toHaveTextContent("다음 끼니 · 1월 23일 (토) 아침 08:00 (기본 시각)");
+    const next = await screen.findByRole("region", { name: /다음 식사/ });
+    expect(next).toHaveTextContent("다음 식사 · 1월 23일 (토) 아침 08:00 (기본 시각)");
     expect(within(next).getByText("1명")).toBeInTheDocument();
     expect(next).toHaveTextContent("예정 2 · 도착 1 · 올 예정 0 · 아직 안 옴 1");
 
-    const table = within(screen.getByRole("region", { name: "끼니별 식수" }));
+    const table = within(screen.getByRole("region", { name: "식사별 식수" }));
     expect(table.getByRole("heading", { name: "1월 22일 (금)" })).toBeInTheDocument();
     const dinner = row("1월 22일 (금) 저녁");
     expect(dinner.getByText("지남")).toBeInTheDocument();
@@ -82,13 +82,13 @@ describe("식수 현황 screen", () => {
     await login({ userId: OWNER });
     openMeals();
 
-    fireEvent.click(await screen.findByRole("button", { name: "다음 끼니 복사" }));
-    expect(await screen.findByText("다음 끼니를 복사했어요. 주방 연락처에 붙여 넣어 주세요.")).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("button", { name: "다음 식사 복사" }));
+    expect(await screen.findByText("다음 식사를 복사했어요. 주방 연락처에 붙여 넣어 주세요.")).toBeInTheDocument();
     expect(writeText).toHaveBeenLastCalledWith(
       "[겨울 수련회] 식수 (1/22 19:10 기준)\n1월 23일 (토) 아침 1명 (신청 2명, 아직 안 온 1명 제외)",
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "남은 끼니 복사" }));
+    fireEvent.click(screen.getByRole("button", { name: "남은 식사 복사" }));
     const text = String(writeText.mock.lastCall?.[0]);
     expect(text.split("\n")).toEqual([
       "[겨울 수련회] 식수 (1/22 19:10 기준)",
@@ -107,7 +107,7 @@ describe("식수 현황 screen", () => {
     await login({ userId: OWNER });
     openMeals();
 
-    fireEvent.click(await screen.findByRole("button", { name: "다음 끼니 복사" }));
+    fireEvent.click(await screen.findByRole("button", { name: "다음 식사 복사" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("복사하지 못했어요");
     expect(screen.getByRole("textbox", { name: "복사할 글" })).toHaveValue(
       "[겨울 수련회] 식수 (1/20 09:00 기준)\n1월 22일 (금) 저녁 2명",
@@ -121,7 +121,7 @@ describe("식수 현황 screen", () => {
     await login({ userId: OWNER });
     openMeals();
 
-    const next = await screen.findByRole("region", { name: /다음 끼니/ });
+    const next = await screen.findByRole("region", { name: /다음 식사/ });
     expect(next).toHaveTextContent("1월 23일 (토) 아침 07:00 (일정표)");
     expect(row("1월 23일 (토) 저녁").getByText("예정").parentElement).toHaveTextContent("예정3");
 
@@ -149,7 +149,7 @@ describe("식수 현황 screen", () => {
       });
       await login({ userId: OWNER });
       openMeals();
-      await screen.findByRole("region", { name: /다음 끼니/ });
+      await screen.findByRole("region", { name: /다음 식사/ });
       const first = reads;
       await act(async () => {
         await vi.advanceTimersByTimeAsync(10_500);
