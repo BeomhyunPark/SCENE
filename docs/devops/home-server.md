@@ -54,6 +54,11 @@ cd ~/scene/deploy/home && cp .env.example .env && chmod 600 .env
    - **첫 관리자(DEC-069):** `SCENE_BOOTSTRAP_OWNER_EMAIL`에 첫 관리자의 Google 이메일을, `SCENE_BOOTSTRAP_SPACE_NAME`에 조직 이름을 넣는다.
      - 그 계정이 처음 로그인할 때 조직이 아직 없으면 조직을 만들고 OWNER로 넣는다. 한 번만 일어난다.
    - **체크인 QR(DEC-071):** `SCENE_CHECKIN_CODE_SECRET`에 `openssl rand -base64 32`로 만든 값을 넣는다. 비어 있으면 QR 체크인이 꺼지고 수동 체크인만 된다. 행사 기간에 바꾸면 이미 보여 준 QR이 모두 무효가 된다.
+   - **초대 메일(#470):** 비워 두면 초대 링크를 화면에서 한 번 보여 주고 운영자가 직접 전달한다. 메일로 바로 보내려면:
+     - 보낼 Gmail 계정에서 2단계 인증을 켜고 Google 계정 → 보안 → 앱 비밀번호에서 16자리 비밀번호를 만든다.
+     - `SCENE_MAIL_ENABLED=true`, `SCENE_MAIL_HOST=smtp.gmail.com`, `SCENE_MAIL_PORT=587`, `SCENE_MAIL_USERNAME=<그 Gmail 주소>`, `SCENE_MAIL_PASSWORD=<앱 비밀번호>`, `SCENE_MAIL_FROM=SCENE <그 Gmail 주소>`를 넣는다. 메일 속 주소는 `https://${SCENE_HOST}`로 자동으로 만든다.
+     - `SCENE_MAIL_ENABLED=true`인데 `SCENE_MAIL_FROM`이 비어 있으면 백엔드가 뜨지 않는다. 다른 SMTP 업체도 HOST·PORT·계정만 바꾸면 된다. Gmail은 하루 약 500통까지 보낸다.
+     - 확인: 운영 멤버 화면에서 본인 다른 주소로 초대 → "초대 메일을 보냈어요"와 메일 수신, 메일 링크로 로그인 후 수락.
 5. 실행한다.
 
 ```bash

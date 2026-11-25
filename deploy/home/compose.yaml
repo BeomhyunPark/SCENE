@@ -38,6 +38,14 @@ services:
       SCENE_BOOTSTRAP_SPACE_NAME: ${SCENE_BOOTSTRAP_SPACE_NAME:-}
       # Check-in QR signing (#282, DEC-071). Empty means QR check-in answers 404.
       SCENE_CHECKIN_CODE_SECRET: ${SCENE_CHECKIN_CODE_SECRET:-}
+      # Invitation mail (#470). false or empty keeps "copy the link once"; true mails the link.
+      SCENE_MAIL_ENABLED: ${SCENE_MAIL_ENABLED:-false}
+      SCENE_MAIL_HOST: ${SCENE_MAIL_HOST:-}
+      SCENE_MAIL_PORT: ${SCENE_MAIL_PORT:-587}
+      SCENE_MAIL_USERNAME: ${SCENE_MAIL_USERNAME:-}
+      SCENE_MAIL_PASSWORD: ${SCENE_MAIL_PASSWORD:-}
+      SCENE_MAIL_FROM: ${SCENE_MAIL_FROM:-}
+      SCENE_MAIL_LINK_BASE_URL: https://${SCENE_HOST}
       # Participant sign-in and public submit limits (DEC-078, #401). Empty keeps the app default.
       # Changing .env and running `docker compose up -d backend` applies them without a deploy.
       SCENE_PARTICIPANT_LOCKFAILURES: ${SCENE_PARTICIPANT_LOCKFAILURES:-}

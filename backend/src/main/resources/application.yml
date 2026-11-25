@@ -18,6 +18,21 @@ spring:
             client-id: ${SCENE_GOOGLE_CLIENT_ID:google-client-id-not-set}
             client-secret: ${SCENE_GOOGLE_CLIENT_SECRET:google-client-secret-not-set}
             scope: openid,email,profile
+  # Invitation mail (#470). Used only when scene.mail.enabled is true. Any SMTP account works,
+  # e.g. Gmail smtp.gmail.com:587 with an app password. Real values come from the environment.
+  mail:
+    host: ${SCENE_MAIL_HOST:}
+    port: ${SCENE_MAIL_PORT:587}
+    username: ${SCENE_MAIL_USERNAME:}
+    password: ${SCENE_MAIL_PASSWORD:}
+    default-encoding: UTF-8
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+      mail.smtp.starttls.required: true
+      mail.smtp.connectiontimeout: 10000
+      mail.smtp.timeout: 10000
+      mail.smtp.writetimeout: 10000
   session:
     # DEC-067 Follow-up (2026-11-02). An operator session expires after 60 minutes
     # without a request. Participant session TTL is still OPEN (DEC-064).
@@ -46,6 +61,13 @@ scene:
   # Changing it voids every QR already shown, so it does not change during an event.
   checkin:
     code-secret: ${SCENE_CHECKIN_CODE_SECRET:}
+  # Invitation mail (#470). false (default): create and resend return the link once for the owner
+  # to pass on. true: the link is mailed to the invited address through spring.mail and is not
+  # returned. from and link-base-url must be set when true, or the server does not start.
+  mail:
+    enabled: ${SCENE_MAIL_ENABLED:false}
+    from: ${SCENE_MAIL_FROM:}
+    link-base-url: ${SCENE_MAIL_LINK_BASE_URL:}
   security:
     cors:
       allowed-origins: http://scene-frontend.placeholder.invalid
@@ -73,3 +95,7 @@ management:
   endpoint:
     health:
       show-details: never
+  health:
+    # The mail server is not part of liveness. A send failure answers MAIL_SEND_FAILED instead.
+    mail:
+      enabled: false

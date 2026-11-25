@@ -2,6 +2,8 @@ package app.scene.event.invitation;
 
 import app.scene.common.error.ErrorCode;
 import app.scene.common.error.SceneException;
+import app.scene.common.invitation.InvitationMail;
+import app.scene.common.invitation.InvitationMailer;
 import app.scene.common.invitation.InvitationTokens;
 import app.scene.common.web.ItemPage;
 import app.scene.common.web.PageRequest;
@@ -27,8 +29,9 @@ import tools.jackson.databind.JsonNode;
 
 /**
  * DEC-060 invitation commands. The document names no audit action for create, resend, revoke,
- * preview, or accept, so this service does not write one. Create and resend return the fragment
- * link once (DEC-060 Follow-up 2026-11-16). It is not stored, logged, or audited.
+ * preview, or accept, so this service does not write one. Create and resend mail the link to the
+ * invited address when the mail adapter is on (#470); otherwise they return the fragment link once
+ * (DEC-060 Follow-up 2026-11-16). It is not stored, logged, or audited.
  */
 @Service
 public class EventInvitationService {
@@ -202,8 +205,22 @@ public class EventInvitationService {
     Instant expiresAt = now.plus(INVITATION_TTL);
     invitations.savePending(
         id, location.spaceId(), location.id(), email, role, issued.hash(), expiresAt, actorId, now);
-    mailer.send(new InvitationMail(email, role, location.name(), issued.link()));
-    return new IssuedInvitation(id, role, PENDING, expiresAt, issued.link());
+    mailer.send(
+        new InvitationMail(
+            InvitationMail.Kind.EVENT,
+            email,
+            role,
+            location.name(),
+            inviterName(actorId),
+            issued.link(),
+            expiresAt));
+    return new IssuedInvitation(
+        id,
+        role,
+        PENDING,
+        expiresAt,
+        mailer.linkForResponse(issued.link()),
+        mailer.delivery().name());
   }
 
   private InvitationRow byToken(String token) {

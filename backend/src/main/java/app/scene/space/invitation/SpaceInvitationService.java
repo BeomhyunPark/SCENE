@@ -4,6 +4,8 @@ import app.scene.common.audit.AuditActions;
 import app.scene.common.audit.AuditLogRepository;
 import app.scene.common.error.ErrorCode;
 import app.scene.common.error.SceneException;
+import app.scene.common.invitation.InvitationMail;
+import app.scene.common.invitation.InvitationMailer;
 import app.scene.common.invitation.InvitationTokens;
 import app.scene.common.tenant.OperatorAccess;
 import app.scene.common.tenant.SpaceMembership;
@@ -27,9 +29,10 @@ import tools.jackson.databind.json.JsonMapper;
 /**
  * Space (organization) invitations (DEC-076, #361). The contract follows event invitations (DEC-060
  * and its 2026-11-16 Follow-up): hash-only token, 7-day TTL, one PENDING per space and email,
- * resend supersedes, the link is returned once by create and resend and is never stored, logged or
- * audited. Preview and accept use the same judgement order, error codes and attempt limit. Unlike
- * event invitations, commands write an audit row (#361); details carry ids and the role only.
+ * resend supersedes, create and resend mail the link to the invited address when the mail adapter
+ * is on (#470) and otherwise return it once; it is never stored, logged or audited. Preview and
+ * accept use the same judgement order, error codes and attempt limit. Unlike event invitations,
+ * commands write an audit row (#361); details carry ids and the role only.
  *
  * <p>Access order on the space path: no membership row is {@code 404 RESOURCE_NOT_FOUND}, a {@code
  * LEFT} row is {@code 403 NOT_A_MEMBER}, an active member who may not invite is {@code 403
@@ -56,6 +59,7 @@ public class SpaceInvitationService {
   private final OperatorAccountRepository accounts;
   private final AuditLogRepository auditLogs;
   private final JsonMapper json;
+  private final InvitationMailer mailer;
   private final Clock clock;
 
   public SpaceInvitationService(
@@ -64,12 +68,14 @@ public class SpaceInvitationService {
       OperatorAccountRepository accounts,
       AuditLogRepository auditLogs,
       JsonMapper json,
+      InvitationMailer mailer,
       Clock clock) {
     this.invitations = invitations;
     this.access = access;
     this.accounts = accounts;
     this.auditLogs = auditLogs;
     this.json = json;
+    this.mailer = mailer;
     this.clock = clock;
   }
 
@@ -221,7 +227,22 @@ public class SpaceInvitationService {
     UUID id = UUID.randomUUID();
     Instant expiresAt = now.plus(InvitationTokens.TTL);
     invitations.savePending(id, spaceId, email, role, issued.hash(), expiresAt, actorId, now);
-    return new IssuedSpaceInvitation(id, role, PENDING, expiresAt, issued.link());
+    mailer.send(
+        new InvitationMail(
+            InvitationMail.Kind.SPACE,
+            email,
+            role,
+            invitations.spaceName(spaceId),
+            inviterName(actorId),
+            issued.link(),
+            expiresAt));
+    return new IssuedSpaceInvitation(
+        id,
+        role,
+        PENDING,
+        expiresAt,
+        mailer.linkForResponse(issued.link()),
+        mailer.delivery().name());
   }
 
   private SpaceMembership requireInviter(UUID actorId, UUID spaceId) {

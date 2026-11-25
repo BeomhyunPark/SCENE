@@ -15,9 +15,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import app.scene.common.audit.AuditActions;
 import app.scene.common.error.ErrorCode;
 import app.scene.common.error.SceneException;
+import app.scene.common.invitation.CapturingInvitationMailer;
+import app.scene.common.invitation.InvitationMail;
 import app.scene.common.web.RequestIdFilter;
-import app.scene.event.invitation.CapturingInvitationMailer;
-import app.scene.event.invitation.InvitationMail;
 import app.scene.event.lifecycle.OperatorActor;
 import app.scene.event.task.TaskProgressService;
 import app.scene.event.transfer.OwnerTransferService;
