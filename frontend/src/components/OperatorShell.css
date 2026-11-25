@@ -249,18 +249,22 @@ a.operator-shell__item {
   min-width: 0;
 }
 
+/*
+ * Framed screens on a desktop: the header and the page body share one column. Up to a 1440 window it
+ * follows Figma, 32px on each side (SCENE 02 행사 홈 v2.0 46:18286; Venture 2yztLB533ohOebuAKuwZr0 28:217,
+ * e.g. Dashboard 1366:73194 and Notes V1 Sidebar Collapsed 92:6342). The column stops at 1128px, the body
+ * width of those 1440 frames, and stays centred in the main area so a wide window does not pile the content
+ * to one side; the title and the body always start at the same x (#469). It applies to every direct child
+ * of the framed main, so a new screen gets it without being listed here. The two classes outrank a
+ * screen's own phone width (max-width: 760px and the like).
+ */
 @media (min-width: 1024px) {
-  .operator-shell__main--framed .operator-shell__header,
-  .operator-shell__main--framed .event-home,
-  .operator-shell__main--framed .event-flow,
-  .operator-shell__main--framed .event-list__body,
-  .operator-shell__main--framed .space-leave,
-  .operator-shell__main--framed .space-settings,
-  .operator-shell__main--framed .event-tasks,
-  .operator-shell__main--framed .task-detail,
-  .operator-shell__main--framed .menu-pending {
+  .operator-shell__main.operator-shell__main--framed > :not(dialog) {
     box-sizing: border-box;
     width: 100%;
+    max-width: none;
+    margin-left: 0;
+    margin-right: 0;
     padding-left: max(32px, calc((100% - 1128px) / 2));
     padding-right: max(32px, calc((100% - 1128px) / 2));
   }
