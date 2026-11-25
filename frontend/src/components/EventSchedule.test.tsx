@@ -321,3 +321,32 @@ describe("timetable (#466)", () => {
     expect(screen.queryByRole("button", { name: "오늘" })).not.toBeInTheDocument();
   });
 });
+
+describe("adding from the timetable (#466)", () => {
+  it("shows an empty day as a timetable and adds an item where free time is tapped", async () => {
+    period();
+    seedScheduleItem(EVENT, { day: 2, startTime: "09:00", endTime: "10:00", title: "둘째 날 집회" });
+    await openAs(0);
+    expect(await screen.findByText("이날은 일정이 없어요.", {}, WAIT)).toBeInTheDocument();
+    // Free time opens once the write permission is known.
+    await screen.findByText("빈 시간을 누르거나 끌어서 일정을 추가할 수 있어요.", {}, WAIT);
+    const list = screen.getByRole("list", { name: "1월 22일 (금)" });
+    const column = list.parentElement!;
+    // jsdom has no layout: the top of the column is the top of the day (07:00).
+    fireEvent.pointerDown(column, { button: 0, pointerType: "mouse", clientY: 0 });
+    fireEvent.pointerUp(column, { button: 0, pointerType: "mouse", clientY: 0 });
+    const form = await screen.findByRole("form", { name: "일정 추가" }, WAIT);
+    expect(within(form).getByLabelText("시작")).toHaveValue("07:00");
+    expect(within(form).getByLabelText("끝 (선택)")).toHaveValue("07:30");
+  });
+
+  it("does not offer free time to someone who cannot write", async () => {
+    period();
+    await openAs(2);
+    await screen.findByText(/일정 쓰기 권한이 없어 일정표만 볼 수 있어요/, {}, WAIT);
+    expect(screen.queryByText("빈 시간을 누르거나 끌어서 일정을 추가할 수 있어요.")).not.toBeInTheDocument();
+    expect(document.querySelector(".timetable__column--pick")).toBeNull();
+    expect(screen.getByRole("list", { name: "1월 22일 (금)" })).toBeInTheDocument();
+  });
+});
+

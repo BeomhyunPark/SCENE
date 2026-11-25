@@ -17,6 +17,10 @@ export const FOLD_MINUTES = 120;
 export const FOLD_HEIGHT = 24;
 /** A label and a grid line every hour, as in the SCENE 시간표 frame (172:3). */
 export const TICK_MINUTES = 60;
+/** Every day shows at least 07:00–24:00, like a calendar app, so an empty day is still a timetable to add to. */
+export const BASE_RANGE: [number, number] = [7 * 60, 24 * 60];
+/** A tap or drag on free time snaps to this many minutes. */
+export const PICK_STEP = 15;
 
 export type TimedRow = { startTime: string; endTime: string | null; endsNextDay: boolean };
 
@@ -155,6 +159,32 @@ export function axisTop(axis: Axis, minute: number): number {
     }
   }
   return axis.height;
+}
+
+/** The day minute at a position on the axis (the inverse of axisTop). Inside a fold it is the fold's end. */
+export function minuteAt(axis: Axis, top: number): number {
+  for (const part of axis.parts) {
+    const bottom = part.top + (part.kind === "time" ? part.to - part.from : FOLD_HEIGHT);
+    if (top < bottom || part === axis.parts[axis.parts.length - 1]) {
+      if (part.kind === "fold") return part.to;
+      return Math.min(Math.max(part.from + (top - part.top), part.from), part.to);
+    }
+  }
+  return 0;
+}
+
+/**
+ * The span a tap or drag on free time picks: snapped to 15 minutes, start before end. A tap (no drag) is
+ * 30 minutes from where it landed.
+ */
+export function pickedSpan(fromMinute: number, toMinute: number | null): { start: number; end: number } {
+  const snap = (minute: number) => Math.floor(minute / PICK_STEP) * PICK_STEP;
+  const a = snap(fromMinute);
+  if (toMinute === null) return { start: a, end: a + 30 };
+  const b = snap(toMinute);
+  const start = Math.min(a, b);
+  const end = Math.max(a, b) + PICK_STEP;
+  return { start, end };
 }
 
 const clockFormats = new Map<string, Intl.DateTimeFormat>();

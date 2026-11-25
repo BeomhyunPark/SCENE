@@ -495,3 +495,9 @@ a.event-schedule__row:hover {
     max-width: 1280px;
   }
 }
+
+.event-schedule__day-note {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font: var(--scene-body-s);
+}
