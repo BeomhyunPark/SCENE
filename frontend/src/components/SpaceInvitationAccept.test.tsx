@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { MemoryRouter, Route, Routes } from "react-router";
@@ -212,8 +212,10 @@ describe("space invitation from the members page to events", () => {
         <App />
       </MemoryRouter>,
     );
-    fireEvent.change(await screen.findByLabelText("이메일"), { target: { value: GUEST_EMAIL } });
-    fireEvent.click(screen.getByRole("button", { name: "초대 메일 보내기" }));
+    fireEvent.click(await screen.findByRole("button", { name: "멤버 초대" }));
+    const dialog = await screen.findByRole("dialog", { name: "멤버 초대" });
+    fireEvent.change(within(dialog).getByLabelText("이메일"), { target: { value: GUEST_EMAIL } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "초대 메일 보내기" }));
     expect(await screen.findByRole("status")).toHaveTextContent(`${GUEST_EMAIL}에게 초대 메일을 보냈어요.`);
     // The guest opens the link from the mail.
     const token = mailedLinks()[0].split("#")[1];

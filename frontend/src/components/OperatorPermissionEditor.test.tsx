@@ -27,6 +27,12 @@ async function operatorsRegion() {
   return region;
 }
 
+/** Opens the row's "⋯" menu and chooses an action (#494). */
+async function choose(region: HTMLElement, name: string, action: string) {
+  fireEvent.click(await within(region).findByRole("button", { name: `${name} 메뉴` }));
+  fireEvent.click(await screen.findByRole("menuitem", { name: action }));
+}
+
 function rowOf(region: HTMLElement, name: string) {
   const row = within(region).getByText(name).closest("li");
   if (!row) throw new Error(`no row for ${name}`);
@@ -42,9 +48,9 @@ describe("event owner edits an operator's permissions (DEC-079, #395)", () => {
     const region = await operatorsRegion();
     expect(await within(rowOf(region, "Local staff")).findByText("개별 권한 1개 더함")).toBeInTheDocument();
     expect(await within(rowOf(region, "Local manager")).findByText("역할 기본 권한")).toBeInTheDocument();
-    expect(within(rowOf(region, "Local owner")).queryByRole("button", { name: /권한/ })).not.toBeInTheDocument();
+    expect(within(rowOf(region, "Local owner")).queryByRole("button", { name: /메뉴$/ })).not.toBeInTheDocument();
 
-    fireEvent.click(within(region).getByRole("button", { name: "Local staff 권한" }));
+    await choose(region, "Local staff", "권한");
     const dialog = await screen.findByRole("dialog", { name: "Local staff님의 권한" });
     const checkIn = await within(dialog).findByRole("checkbox", { name: "체크인" });
     expect(checkIn).toBeChecked();
@@ -62,7 +68,7 @@ describe("event owner edits an operator's permissions (DEC-079, #395)", () => {
     openApp();
 
     const region = await operatorsRegion();
-    fireEvent.click(within(region).getByRole("button", { name: "Local manager 권한" }));
+    await choose(region, "Local manager", "권한");
     const dialog = await screen.findByRole("dialog", { name: "Local manager님의 권한" });
     expect(await within(dialog).findByRole("checkbox", { name: "일정 쓰기" })).toBeChecked();
     expect(within(dialog).getByRole("checkbox", { name: "공지 쓰기" })).toBeChecked();
@@ -78,7 +84,7 @@ describe("event owner edits an operator's permissions (DEC-079, #395)", () => {
     openApp();
 
     const region = await operatorsRegion();
-    fireEvent.click(within(region).getByRole("button", { name: "Local staff 권한" }));
+    await choose(region, "Local staff", "권한");
     const dialog = await screen.findByRole("dialog", { name: "Local staff님의 권한" });
     const save = within(dialog).getByRole("button", { name: "저장" });
     expect(save).toBeDisabled();
@@ -108,7 +114,7 @@ describe("event owner edits an operator's permissions (DEC-079, #395)", () => {
     openApp();
 
     const region = await operatorsRegion();
-    fireEvent.click(await within(region).findByRole("button", { name: "Local staff 권한" }));
+    await choose(region, "Local staff", "권한");
     const dialog = await screen.findByRole("dialog", { name: "Local staff님의 권한" });
     expect(await within(dialog).findByRole("checkbox", { name: "조 편성" })).toBeDisabled();
     const exportKey = within(dialog).getByRole("checkbox", { name: "명단 내려받기" });
@@ -123,7 +129,7 @@ describe("event owner edits an operator's permissions (DEC-079, #395)", () => {
     openApp();
 
     const region = await operatorsRegion();
-    await waitFor(() => expect(screen.queryByRole("heading", { name: "외부 협력자 초대" })).not.toBeInTheDocument());
-    expect(within(region).queryByRole("button", { name: /권한/ })).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("button", { name: "운영자 추가" })).not.toBeInTheDocument());
+    expect(within(region).queryByRole("button", { name: /메뉴$/ })).not.toBeInTheDocument();
   });
 });

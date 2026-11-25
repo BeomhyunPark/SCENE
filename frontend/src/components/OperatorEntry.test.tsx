@@ -44,6 +44,8 @@ describe("operator entry", () => {
     await signIn();
     fireEvent.click(screen.getByRole("button", { name: "새 행사" }));
     expect(await screen.findByRole("heading", { name: "새 행사 만들기" })).toBeInTheDocument();
+    // No guidance line under 기본 정보 that Figma P02-02 does not have (#495).
+    expect(screen.queryByText(/최소 정보만/)).not.toBeInTheDocument();
     chooseOption(screen.getByRole("combobox", { name: "행사 유형 (선택)" }), "RETREAT");
     fireEvent.change(screen.getByRole("textbox", { name: "행사명" }), { target: { value: "가을 수련회" } });
     fireEvent.change(document.getElementById("event-start-picker")!, { target: { value: "2026-10-24" } });

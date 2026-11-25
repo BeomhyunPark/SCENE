@@ -46,7 +46,7 @@ describe("organization menus outside an event (#376)", () => {
     fireEvent.click(sidebar().getByRole("link", { name: "멤버" }));
     expect(await screen.findByRole("list", { name: "멤버" })).toBeInTheDocument();
     expect(screen.getByTestId("where")).toHaveTextContent("/members");
-    expect(screen.getByRole("heading", { name: "멤버 초대하기" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "멤버 초대" })).toBeInTheDocument();
     expect(sidebar().getByRole("link", { name: "멤버" })).toHaveAttribute("aria-current", "page");
 
     fireEvent.click(screen.getByRole("button", { name: "뒤로" }));
@@ -75,7 +75,7 @@ describe("organization menus outside an event (#376)", () => {
     openApp("/settings");
     expect(await screen.findByRole("heading", { name: "조직에서 나가기" })).toBeInTheDocument();
     expect(screen.queryByRole("list", { name: "멤버" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "멤버 초대하기" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "멤버 초대" })).not.toBeInTheDocument();
     await waitFor(() => expect(operatorRequests.some((request) => request.url.includes("/members"))).toBe(false));
   });
 });

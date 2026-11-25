@@ -122,6 +122,9 @@ describe("운영자 알림 (#436)", () => {
     expect(items[0]).toHaveTextContent("2번");
     expect(items[0]).toHaveTextContent("이름");
     expect(items[0]).not.toHaveTextContent("010");
+    // No lead repeating the title (#495); the unread count is the only line above the list.
+    expect(screen.queryByText(/나에게 온 알림이에요/)).not.toBeInTheDocument();
+    expect(screen.getByText("읽지 않은 알림 1개")).toBeInTheDocument();
     // Badge in the sidebar and the phone bar.
     await waitFor(() => expect(screen.getAllByLabelText("읽지 않은 알림 1개").length).toBeGreaterThan(0), WAIT);
 

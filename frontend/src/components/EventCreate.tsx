@@ -113,7 +113,6 @@ export function EventCreate() {
       <div className="event-create__body">
         <div className="event-create__intro">
           <h2 className="event-create__title">기본 정보</h2>
-          <p className="event-create__support">행사 운영을 시작하는 데 필요한 최소 정보만 입력해요.</p>
         </div>
         <form className="event-create__form" onSubmit={create}>
           <div className="event-create__field">

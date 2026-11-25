@@ -425,7 +425,7 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
               />
             ) : null}
 
-            {/* TL01 filter chips (620:19) and count chip (620:17). */}
+            {/* TL01 filter chips (620:19); the count (620:17) only for a search. */}
             <div className="event-field__controls">
               {view === "all" ? (
                 <div className="event-field__filters" role="group" aria-label="체크인 상태로 보기">
@@ -440,7 +440,8 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
                       {label}
                     </button>
                   ))}
-                  {roster.data && items.length > 0 ? (
+                  {/* Without a search the count repeats the 체크인 현황 line above, so it shows only for a search (#495). */}
+                  {roster.data && items.length > 0 && q !== "" ? (
                     <span className="event-field__count-text" aria-live="polite">
                       {total.toLocaleString("ko-KR")}명
                     </span>

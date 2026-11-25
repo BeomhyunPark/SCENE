@@ -128,7 +128,6 @@ function RoomsBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
         {board.data ? (
           <Board
             eventId={eventId}
-            eventHref={eventHref}
             context={context}
             board={board.data}
             fetching={board.isFetching}
@@ -138,7 +137,7 @@ function RoomsBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
           />
         ) : (
           <>
-            <PageHead context={context} eventHref={eventHref} chip={null} primary={null} />
+            <PageHead context={context} chip={null} primary={null} />
             {isApiError(board.error) && board.error.status === 403 ? (
               <p className="event-groups__blocked" role="note">
                 숙소 배정판을 볼 권한이 없어요. 행사 OWNER에게 숙소 권한을 요청해 주세요.
@@ -160,7 +159,7 @@ function RoomsBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
   );
 }
 
-function PageHead({ context, eventHref, chip, primary }: { context: string; eventHref: string; chip: ReactNode; primary: ReactNode }) {
+function PageHead({ context, chip, primary }: { context: string; chip: ReactNode; primary: ReactNode }) {
   return (
     <section className="event-groups__head" aria-label="숙소 현황">
       <div className="event-groups__head-text">
@@ -169,9 +168,6 @@ function PageHead({ context, eventHref, chip, primary }: { context: string; even
       </div>
       <div className="event-groups__head-actions">
         {chip}
-        <Link className="scene-button scene-button--secondary scene-button--size-40 event-groups__home" to={eventHref}>
-          <span className="scene-button__label">행사 홈</span>
-        </Link>
         <div className="event-groups__primary-slot">{primary}</div>
       </div>
     </section>
@@ -180,7 +176,6 @@ function PageHead({ context, eventHref, chip, primary }: { context: string; even
 
 function Board({
   eventId,
-  eventHref,
   context,
   board,
   fetching,
@@ -189,7 +184,6 @@ function Board({
   permissionsPending,
 }: {
   eventId: string;
-  eventHref: string;
   context: string;
   board: RoomBoard;
   fetching: boolean;
@@ -484,13 +478,13 @@ function Board({
     start(event, { kind: "people", ids, label }, fromGrip);
   }
 
+  const hint = publicationHint(board);
   const targetId = target && board.rooms.some((room) => room.roomId === target) ? target : "";
 
   return (
     <>
       <PageHead
         context={context}
-        eventHref={eventHref}
         chip={
           <p className="event-groups__chip" aria-live="polite">
             배정 {count(assigned)} · 미배정 {count(board.publication.unassignedCount)}
@@ -513,14 +507,13 @@ function Board({
           </Button>
         }
       />
-      <p className="event-groups__hint">
-        바꾼 내용은 바로 저장되지만, 참가자에게는 공개해야 보여요. 정원·성별이 맞지 않아도 막지 않고 경고만 보여요.{" "}
-        <span className="event-groups__published">{publishedText(board)}</span>
-        {board.publication.hasUnpublishedChanges ? (
-          <span className="event-groups__unpublished"> 참가자에게 아직 공개하지 않은 변경이 있어요.</span>
-        ) : null}
-        {fetching ? <span className="event-groups__fetching"> 최신 상태를 확인하는 중…</span> : null}
-      </p>
+      {/* 저장·공개 안내는 한 문장만(#496): 공개 안 한 변경이 있으면 그 문장, 없으면 마지막 공개(D04 v2 머리와 같은 정보). */}
+      {hint || fetching ? (
+        <p className={`event-groups__hint${board.publication.hasUnpublishedChanges ? " event-groups__hint--unpublished" : ""}`}>
+          {hint}
+          {fetching ? <span className="event-groups__fetching"> 최신 상태를 확인하는 중…</span> : null}
+        </p>
+      ) : null}
 
       {blocked ? (
         <p className="event-groups__blocked" id="rooms-blocked" role="note">
@@ -1682,7 +1675,9 @@ function PoolCard({
         ) : null}
         {canPick ? <Grip label={`${label} 끌어서 옮기기`} onStart={(event) => onStart(event, true)} /> : null}
       </span>
-      <AttendanceBar slots={board.slots} person={person} />
+      <span className="event-groups__pool-slots">
+        <AttendanceBar slots={board.slots} person={person} />
+      </span>
       <span className="event-groups__pool-meta">
         <span className={`event-rooms__tag event-rooms__tag--${person.lodging.toLowerCase().replace("_", "-")}`}>
           {person.lodging === "LODGING" ? nightsText(person) : LODGING_LABEL[person.lodging]}
@@ -1695,7 +1690,7 @@ function PoolCard({
   if (!canPick) return <div className={`event-groups__pool-card${blockedHere ? " event-rooms__pool-card--blocked" : ""}`}>{body}</div>;
   return (
     <label
-      className={`event-groups__pool-card event-groups__pool-card--selectable${checked ? " event-groups__pool-card--checked" : ""}${dragging ? " event-groups__pool-card--dragging" : ""}`}
+      className={`event-groups__pool-card event-groups__pool-card--selectable scene-press scene-press--row${checked ? " event-groups__pool-card--checked" : ""}${dragging ? " event-groups__pool-card--dragging" : ""}`}
       onPointerDown={(event) => onStart(event, false)}
     >
       {body}
@@ -1749,9 +1744,11 @@ function count(value: number): string {
   return value.toLocaleString("ko-KR");
 }
 
-function publishedText(board: RoomBoard): string {
-  const { lastPublishedAt, lastPublishedByDisplayName } = board.publication;
-  if (!lastPublishedAt) return "아직 공개하지 않았어요.";
+/** The one line under the head (#496): unpublished changes first, otherwise when it was last published. */
+function publicationHint(board: RoomBoard): string | null {
+  const { lastPublishedAt, lastPublishedByDisplayName, hasUnpublishedChanges } = board.publication;
+  if (hasUnpublishedChanges) return "참가자에게 아직 공개하지 않은 변경이 있어요.";
+  if (!lastPublishedAt) return null;
   return `마지막 공개 ${formatPublishedAt(lastPublishedAt)}${lastPublishedByDisplayName ? ` · ${lastPublishedByDisplayName}` : ""}.`;
 }
 
