@@ -1217,7 +1217,7 @@ function PoolCard({
   if (!selectable) return <div className="event-groups__pool-card">{body}</div>;
   return (
     <label
-      className={`event-groups__pool-card event-groups__pool-card--selectable${checked ? " event-groups__pool-card--checked" : ""}${dragging ? " event-groups__pool-card--dragging" : ""}`}
+      className={`event-groups__pool-card event-groups__pool-card--selectable scene-press scene-press--row${checked ? " event-groups__pool-card--checked" : ""}${dragging ? " event-groups__pool-card--dragging" : ""}`}
       onPointerDown={(event) => onStart(event, false)}
     >
       {body}

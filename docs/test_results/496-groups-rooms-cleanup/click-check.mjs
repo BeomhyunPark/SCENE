@@ -59,9 +59,9 @@ for (const screen of ["groups", "rooms"]) {
   await name.click();
   log(`[${screen}] 이름 눌러 고르기 →`, await bar.locator(".event-groups__bar-count").textContent());
   await name.click();
-  const select = bar.locator("select");
-  const value = await select.locator("option").nth(2).getAttribute("value");
-  await select.selectOption(value);
+  // 보낼 조/방: 공용 Select(#492, role=combobox)를 열어 두 번째 조/방을 누른다.
+  await bar.getByRole("combobox").click();
+  await page.getByRole("option").filter({ hasText: screen === "groups" ? /^2조/ : /^302호/ }).first().click();
   await bar.getByRole("button", { name: "보내기" }).click();
   await page.waitForTimeout(900);
   log(`[${screen}] 보내기 →`, await notice(), "|", await chip());

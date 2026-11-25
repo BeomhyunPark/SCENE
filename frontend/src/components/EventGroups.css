@@ -683,7 +683,8 @@ body.event-groups--dragging {
   background: var(--color-bg-selected);
 }
 
-.event-groups__pool-card.event-groups__pool-card--checked {
+/* 공용 scene-press--row hover(pressable.css)보다 고른 행의 바탕이 이기도록 한 단계 더 구체적으로 쓴다. */
+.event-groups__people > li > .event-groups__pool-card.event-groups__pool-card--checked {
   background: var(--color-bg-selected);
 }
 
@@ -1009,14 +1010,6 @@ body.event-groups--dragging {
   .event-groups__pool-card > .event-rooms__blocked-note {
     grid-column: 1 / -1;
   }
-}
-
-.event-groups__pool-card--selectable {
-  cursor: pointer;
-}
-
-.event-groups__pool-card--selectable:hover {
-  background: var(--color-bg-hover-row);
 }
 
 .event-groups__card-name {
