@@ -12,6 +12,7 @@ import app.scene.event.lifecycle.EventAccessGate;
 import app.scene.event.lifecycle.EventLocation;
 import app.scene.event.lifecycle.EventRepository;
 import app.scene.event.lifecycle.EventRow;
+import app.scene.event.room.RoomDesk;
 import app.scene.space.EventUserPermissionRepository;
 import java.time.Clock;
 import java.time.Instant;
@@ -52,6 +53,7 @@ public class CheckInService {
   private final EventRepository events;
   private final CheckInRepository checkIns;
   private final CheckInCodes codes;
+  private final RoomDesk roomDesk;
   private final EventUserPermissionRepository permissions;
   private final AuditLogRepository auditLogs;
   private final JsonMapper json;
@@ -62,6 +64,7 @@ public class CheckInService {
       EventRepository events,
       CheckInRepository checkIns,
       CheckInCodes codes,
+      RoomDesk roomDesk,
       EventUserPermissionRepository permissions,
       AuditLogRepository auditLogs,
       JsonMapper json,
@@ -70,6 +73,7 @@ public class CheckInService {
     this.events = events;
     this.checkIns = checkIns;
     this.codes = codes;
+    this.roomDesk = roomDesk;
     this.permissions = permissions;
     this.auditLogs = auditLogs;
     this.json = json;
@@ -107,6 +111,7 @@ public class CheckInService {
     Boolean filter = checkedInFilter(checkedIn);
     boolean phoneVisible = allows(opened, actorId, Permission.CHECKIN_WRITE);
     boolean byPhone = phoneVisible && text != null && PHONE_LAST4.matcher(text).matches();
+    RoomDesk.Stays stays = roomDesk.all(opened.location().spaceId(), eventId);
     UUID spaceId = opened.location().spaceId();
     long total = checkIns.countRoster(spaceId, eventId, text, byPhone, filter);
     List<RosterItem> items = new ArrayList<>();
@@ -120,13 +125,16 @@ public class CheckInService {
                   row.method(),
                   row.checkedInAt(),
                   row.checkedInByDisplayName());
+      RoomDesk.Stay stay = stays.of(row.participantId());
       items.add(
           new RosterItem(
               row.participantId(),
               row.name(),
               row.cohort(),
               phoneVisible ? row.phoneLast4() : null,
-              brief));
+              brief,
+              CheckInRoom.of(stay),
+              stay.lodging()));
     }
     return ItemPage.of(items, request, total);
   }
@@ -166,8 +174,12 @@ public class CheckInService {
           || !keyed.participantId().equals(target.participantId())) {
         throw new SceneException(ErrorCode.CONFLICT);
       }
-      return new CheckInResult(
-          CheckIn.CHECKED_IN, participant(target), current(spaceId, eventId, keyed.checkInId()));
+      return result(
+          spaceId,
+          eventId,
+          CheckIn.CHECKED_IN,
+          target,
+          current(spaceId, eventId, keyed.checkInId()));
     }
     if (!target.submitted()) {
       throw new SceneException(
@@ -177,7 +189,7 @@ public class CheckInService {
     CheckIn existing =
         checkIns.findByParticipant(spaceId, eventId, target.participantId()).orElse(null);
     if (existing != null && existing.checkedIn()) {
-      return new CheckInResult("ALREADY_CHECKED_IN", participant(target), existing);
+      return result(spaceId, eventId, "ALREADY_CHECKED_IN", target, existing);
     }
     Instant now = now();
     UUID checkInId;
@@ -212,8 +224,8 @@ public class CheckInService {
         request.method(),
         null,
         now);
-    return new CheckInResult(
-        CheckIn.CHECKED_IN, participant(target), current(spaceId, eventId, checkInId));
+    return result(
+        spaceId, eventId, CheckIn.CHECKED_IN, target, current(spaceId, eventId, checkInId));
   }
 
   @Transactional
@@ -294,6 +306,15 @@ public class CheckInService {
     return checkIns
         .find(spaceId, eventId, checkInId)
         .orElseThrow(() -> new IllegalStateException("check-in row is missing"));
+  }
+
+  /** A check-in result with the published room (G5 #460) for the desk to say right away. */
+  private CheckInResult result(
+      UUID spaceId, UUID eventId, String result, CheckInTarget target, CheckIn checkIn) {
+    RoomDesk.Stay stay =
+        roomDesk.of(spaceId, eventId, List.of(target.participantId())).of(target.participantId());
+    return new CheckInResult(
+        result, participant(target), checkIn, CheckInRoom.of(stay), stay.lodging());
   }
 
   private static CheckInParticipant participant(CheckInTarget target) {

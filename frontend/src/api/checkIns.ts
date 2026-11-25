@@ -2,6 +2,7 @@ import { apiRequest } from "./client";
 import { ApiError } from "./errors";
 import type { LifecycleStatus } from "./events";
 import type { ItemPage } from "./types";
+import { parseDeskRoom, parseLodging, type DeskRoom, type Lodging } from "./deskRoom";
 
 /**
  * Operator check-in (#282, DEC-071). Reads need EVENT_READ or an active space OWNER·ADMIN. Check-in
@@ -31,6 +32,10 @@ export type RosterItem = {
   participantId: string;
   name: string;
   cohort: string | null;
+  /** Room of the latest room publication (G5 #460); null before it, when unassigned, or from an older server. */
+  room: DeskRoom | null;
+  /** Lodging state now; null from an older server. */
+  lodging: Lodging | null;
   /** Only with CHECKIN_WRITE. */
   phoneLast4: string | null;
   checkIn: RosterCheckIn | null;
@@ -54,6 +59,9 @@ export type CheckInResult = {
   result: "CHECKED_IN" | "ALREADY_CHECKED_IN";
   participant: { participantId: string; name: string; cohort: string | null };
   checkIn: CheckIn;
+  /** The published room to tell right away (G5 #460); null before publication or when unassigned. */
+  room: DeskRoom | null;
+  lodging: Lodging | null;
 };
 
 export type CancelResult = {
@@ -197,6 +205,8 @@ function parseRosterItem(value: unknown): RosterItem {
     participantId: value.participantId,
     name: value.name,
     cohort: value.cohort,
+    room: parseDeskRoom(value.room),
+    lodging: parseLodging(value.lodging),
     phoneLast4: value.phoneLast4,
     checkIn: value.checkIn === null || value.checkIn === undefined ? null : parseRosterCheckIn(value.checkIn),
   };
@@ -266,6 +276,8 @@ function parseCheckInResult(value: unknown): CheckInResult {
       cohort: stringOrNull(value.participant.cohort),
     },
     checkIn: parseCheckIn(value.checkIn),
+    room: parseDeskRoom(value.room),
+    lodging: parseLodging(value.lodging),
   };
 }
 

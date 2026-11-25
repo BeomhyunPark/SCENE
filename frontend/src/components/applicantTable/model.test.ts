@@ -89,6 +89,8 @@ function row(id: string, answers: Record<string, Record<string, unknown>>, extra
     operation: EMPTY_OPERATION,
     revision: 1,
     revisedBy: null,
+    room: null,
+    lodging: null,
     ...extra,
   };
 }
@@ -137,6 +139,7 @@ const TABLE: ApplicationTable = {
   rows: ROWS,
   slots: null,
   withdrawn: [],
+  roomPublishedAt: null,
 };
 const COLS = buildColumns(TABLE);
 const col = (id: string): ColumnDef => COLS.find((item) => item.id === id)!;
@@ -150,6 +153,7 @@ describe("columns", () => {
       "연락처",
       "현재 상태",
       "조 배정",
+      "방",
       "참석 범위",
       "또래",
       "성별",

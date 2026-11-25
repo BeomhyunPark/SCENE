@@ -1364,10 +1364,11 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
 
 - 칸 값은 [신청 원본 조회](#get-apiv1operatoreventseventidapplicationsapplicationid) 화면과 같은 규칙으로 쓴다(`frontend/src/components/answerDisplay.ts`, 서버는 `AnswerText`). 선택형은 지금 보기 문구, 묶음이 있는 보기는 `1일차 저녁`, 여러 개는 `, `로 잇고, `other`는 `기타: …`, 모르는 보기 id는 `알 수 없는 보기`다. 날짜는 `2027. 1. 22.`·`2027. 1. 22. 14:30`, 기간은 `… ~ …`, 숫자는 단위를 붙이고, 예/아니오는 질문의 문구(없으면 `예`·`아니오`, 동의형은 `동의함`·`동의 안 함`)다.
 - 설정이 `RANGE`(DEC-074)이고 칸이 있으면 마지막에 `참석 일정` 열이 하나 더 있다. 그 사람이 참석하는 칸을 `1월 22일 (금) 저녁, 1월 22일 (금) 집회` 꼴로 칸 순서대로 쉼표로 잇는다. 집계·편성판·참가 현황 표와 같은 규칙이고, 모름이면 빈칸이다. `SLOTS` 설정에서는 이 열이 없다(`MEALS` 열이 그 답이다).
+- 마지막 열은 늘 `방`이다(#460, DEC-085 §10). 숙소 **가장 최근 공개본**의 방 이름이고, 공개본에 방이 없는 사람 가운데 숙박하지 않는 사람(`NOT_LODGING`)은 `숙박 안 함`, 그 밖(공개 전·미배정·숙박 모름)은 빈칸이다. 작업본의 방은 쓰지 않는다. `참석 일정` 열이 있으면 그 뒤에 온다.
 - 숨긴 질문은 열로 남고 제목 뒤에 ` (숨김)`이 붙는다. 숨긴 보기를 고른 답도 보기 문구 뒤에 ` (숨김)`이 붙는다(DEC-068 §6).
 - 답이 없으면 빈칸이다. 조건에 맞지 않아 보이지 않은 질문은 답을 저장하지 않으므로(DEC-068) 빈칸이다. 원본 조회 화면의 "답변 없음"은 쓰지 않는다.
 
-신청이 0건이면 머리글 한 줄만 있는 파일이다. 신청서가 없으면 `제출 시각` 열만 있다.
+신청이 0건이면 머리글 한 줄만 있는 파일이다. 신청서가 없으면 `제출 시각`과 `방` 열만 있다.
 
 파일은 요청 안에서 만들어 바로 보낸다. 그래서 권한은 내려받을 때마다 다시 본다. #12의 목적 선택, 재인증, 생성 작업과 만료 다운로드 링크는 없다. 내려받을 때마다 audit `APPLICATIONS_EXPORTED` 한 줄을 남긴다. 행사·실행자·시각은 그 행의 열이고, detail은 `{ "count" }`(행 수)뿐이다. 답·이름·전화는 audit·로그·오류 응답에 넣지 않는다. 권한이 없어 막힌 요청은 남기지 않는다.
 
@@ -1512,9 +1513,12 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
       "group": { "groupId": "…", "name": "2조", "leader": false },
       "checkedInAt": null,
       "slotIds": ["opt_d1_dinner", "opt_d1_worship"],
-      "operation": { "memo": "토 저녁 잠시 외출", "version": 1, "updatedAt": "…", "updatedByDisplayName": "김운영" }
+      "operation": { "memo": "토 저녁 잠시 외출", "version": 1, "updatedAt": "…", "updatedByDisplayName": "김운영" },
+      "room": { "roomId": "…", "name": "301호" },
+      "lodging": "LODGING"
     }
   ],
+  "roomPublishedAt": "2027-01-20T03:00:00Z",
   "slots": [
     {
       "slotId": "opt_d1_dinner",
@@ -1537,6 +1541,7 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
 - 0건이면 `rows`가 빈 배열이고 `columns`는 그대로다.
 - `participantId`는 조 편성판·`group-assignments`가 쓰는 참가자 id다. 서랍에서 조를 바꿀 때 쓴다(#335).
 - `operation`은 운영 정보다(#335, DEC-075). 모양은 [운영 정보 저장](#put-apiv1operatoreventseventidapplicationsapplicationidoperation)의 응답과 같고, 저장된 것이 없으면 `{ "memo": "", "version": 0, "updatedAt": null, "updatedByDisplayName": null }`이다. 표를 읽을 수 있으면 모두 본다. `answers`는 언제나 참가자가 낸 원본이다.
+- `room`·`lodging`·`roomPublishedAt`(#460, DEC-085 §10)은 숙소 **가장 최근 공개본**의 방, 지금 숙박 상태(`LODGING`·`NOT_LODGING`·`UNKNOWN`, 배정판과 같은 규칙), 그 공개 시각이다. 공개 전이면 `roomPublishedAt`과 모든 `room`이 `null`이고, 미배정도 `null`이다. 작업본의 방은 배정판에서만 보인다. 표를 읽을 수 있으면 모두 본다(조와 달리 공개된 값이다). 화면은 공개본이 있으면 `방` 열을 기본으로 보이고, `room`이 없고 `NOT_LODGING`이면 "숙박 안 함"으로 거른다. `withdrawn`에는 방이 없다.
 - `withdrawn`은 취소된 신청자다(DEC-084 §9). `rows`와 따로 있어 표의 어떤 숫자에도 들어가지 않는다. 최근 취소가 먼저다. 화면은 기본으로 숨기고 "취소 N"으로 연다.
 
 ```json
@@ -2261,6 +2266,21 @@ CSRF와 `Idempotency-Key` 헤더(1–100자)가 필요하다. 헤더가 없거�
 
 두 운영자가 같은 참가자를 동시에 체크인하면 먼저 커밋한 쪽이 `CHECKED_IN`, 다른 쪽이 `ALREADY_CHECKED_IN`이다.
 
+### 명단·체크인 결과의 방
+
+[#460](https://github.com/BeomhyunPark/SCENE/issues/460)(로드맵 G5, [DEC-085](../../docs/product/PRODUCT_DECISIONS.md) §10)에서 더했다. [명단](#get-apiv1operatoreventseventidcheck-in-roster) 항목과 체크인 `200`(수동·QR, `CHECKED_IN`·`ALREADY_CHECKED_IN`, 같은 키 재전송 모두)에 두 키가 붙는다. 접수대가 체크인하면서 방을 바로 안내하게 하려는 것이다.
+
+```json
+{
+  "room": { "name": "301호", "locationNote": "본관 3층 왼쪽" },
+  "lodging": "LODGING"
+}
+```
+
+- `room`은 **가장 최근 숙소 공개본**의 방이다. 공개 전, 공개본에서 미배정, 공개 뒤 취소로 빠진 사람은 `null`이다. 작업본(배정판)의 방은 여기에 오지 않는다. `locationNote`가 없으면 `null`이다. 방 id·정원·같은 방 사람은 없다.
+- `lodging`은 지금 숙박 상태 `LODGING`·`NOT_LODGING`·`UNKNOWN`이다(배정판 `participants[].lodging`과 같은 규칙). 공개 전에도 값이 있다. 화면은 `room`이 없고 `NOT_LODGING`이면 "숙박 안 함"으로 보인다.
+- 읽는 권한은 명단·체크인과 같다(방은 참가자도 보는 값이라 따로 가리지 않는다). 서버는 `event/room/RoomDesk`(`PublishedRooms.placements` + 숙박 판정)를 쓴다. 명단 쿼리(`q`·`checkedIn`)와 순서는 그대로다.
+
 ### `POST /api/v1/operator/events/{eventId}/check-ins/{checkInId}/cancel`
 
 CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고 생략할 수 있다. `reason`은 앞뒤 공백을 자르고 200자 이하다. 넘으면 `400 VALIDATION_FAILED`이고 필드는 `reason`이다. 자른 뒤 비면 `null`로 저장한다. 철회된 신청이어도 취소는 된다. 그 행사의 체크인이 아니면 `404 RESOURCE_NOT_FOUND`다.
@@ -2697,7 +2717,7 @@ audit `GROUPS_PUBLISHED`: detail은 `publicationId`, `boardVersion`, `assignedCo
 
 ## 숙소
 
-> [#457](https://github.com/BeomhyunPark/SCENE/issues/457)(로드맵 G2)에서 서버에 열었다. 컨트롤러 `event/room/RoomController`·`ParticipantRoomController`, 스키마 `V26__rooms.sql`. 정책은 [DEC-085](../../docs/product/PRODUCT_DECISIONS.md)와 그 Follow-up(2026-11-20, 2026-11-24 #457)이다. "다시 볼 것"(A11 [#461](https://github.com/BeomhyunPark/SCENE/issues/461))의 `review`와 확인 경로, 운영자 화면(G3 [#458](https://github.com/BeomhyunPark/SCENE/issues/458), `/events/{eventId}/rooms`)은 작업 브랜치 `claude/g3-room-board`에 있다(DEC-085 Follow-up 2026-11-25 G3·A11). 참가자 화면(G4 [#459](https://github.com/BeomhyunPark/SCENE/issues/459))·참가 현황 표·CSV·현장 명단의 방(G5 [#460](https://github.com/BeomhyunPark/SCENE/issues/460))은 아직 없다.
+> [#457](https://github.com/BeomhyunPark/SCENE/issues/457)(로드맵 G2)에서 서버에 열었다. 컨트롤러 `event/room/RoomController`·`ParticipantRoomController`, 스키마 `V26__rooms.sql`. 정책은 [DEC-085](../../docs/product/PRODUCT_DECISIONS.md)와 그 Follow-up(2026-11-20, 2026-11-24 #457, 2026-11-25 G3·A11·G4·G5)이다. "다시 볼 것"(A11 [#461](https://github.com/BeomhyunPark/SCENE/issues/461))의 `review`와 확인 경로, 운영자 화면(G3 [#458](https://github.com/BeomhyunPark/SCENE/issues/458), `/events/{eventId}/rooms`), 참가자 화면(G4 [#459](https://github.com/BeomhyunPark/SCENE/issues/459), `/participate/{eventId}/rooms`), 참가 현황 표·CSV·현장 명단의 방(G5 [#460](https://github.com/BeomhyunPark/SCENE/issues/460), [참가 현황 표](#get-apiv1operatoreventseventidapplicationstable)·[신청자 CSV](#post-apiv1operatoreventseventidapplicationsexport)·[명단·체크인 결과의 방](#명단체크인-결과의-방))은 작업 브랜치에 있고 3주차 통합 브랜치 `claude/week3-integration`에서 함께 합쳤다(main 아님).
 
 조 편성과 같은 모양이다. 운영자가 방을 만들고 사람을 넣는 **작업본**과, 공개할 때 한 번에 찍는 **공개본**(`room_publications` 스냅샷)이 따로 있다. 작업본 저장은 참가자·조장에게 보이지 않는다. 테이블·버전·공개는 조 편성과 따로다(`participants`에 `room_id`가 없다). 1월에는 **행사 전체에 참가자당 방 하나**다(배정 행 `night = 0`). 밤마다 다른 배정(G6)은 같은 행의 `night`로 더한다. 자동 편성은 없고 서버는 경고만 계산한다.
 
@@ -3022,14 +3042,14 @@ audit `GROUPS_PUBLISHED`: detail은 `publicationId`, `boardVersion`, `assignedCo
 
 ### 다음 작업이 더하는 것
 
-- **G5(#460)**: 참가 현황 표 `rows[].room: { "roomId", "name" }`와 `roomPublishedAt`, CSV 마지막 `방` 열, 현장 명단 항목 `room: { "name", "locationNote" }`. 모두 **가장 최근 공개본** 기준이고, 서버는 `event/room/PublishedRooms.placements`(참가자 → 공개본의 방, 한 번의 공개본 읽기)를 쓴다. 조별 보기(`groups/published`)에는 넣지 않는다.
+- **G5(#460)**: 더했다. 참가 현황 표 `rows[].room: { "roomId", "name" }`·`rows[].lodging`과 `roomPublishedAt`, CSV 마지막 `방` 열(숙박하지 않는 사람은 `숙박 안 함`), 현장 명단 항목과 체크인 결과의 `room: { "name", "locationNote" }`·`lodging`. 모두 **가장 최근 공개본** 기준이고, 서버는 `event/room/RoomDesk`가 `PublishedRooms.placements`와 배정판의 숙박 판정을 한 번에 읽는다. 조별 보기(`groups/published`)에는 넣지 않았다.
 - **확장 지점**: 밤마다 다른 배정(G6)은 `room_assignments.night`(1월부터 기본 키에 있다)와 요청 `changes[].night`, 스냅샷 `nights[]`로 더한다. 차량 배정은 같은 계약 모양으로 테이블을 따로 둔다. 공지·일정 대상 `ROOM`, 방 안 순서(`position`), 방장 표시, 방 묶음(층·동)은 열을 더하는 방식이다.
 
 ### 시험 조건
 
-숙소 계약 초안 §15의 14가지와 A11의 15번이다. `event/room/RoomHttpIT`가 갖는다(테스트 이름 위 주석에 번호). G5가 맡는 부분은 그 작업이 더한다.
+숙소 계약 초안 §15의 14가지와 A11의 15번이다. `event/room/RoomHttpIT`가 갖는다(테스트 이름 위 주석에 번호). 1의 G5 부분(참가 현황 표·CSV·현장 명단·체크인 결과)은 `event/room/RoomDeskHttpIT`가 갖는다.
 
-1. 작업본 저장(방 만들기·배정·지우기)은 `GET /participant/rooms`·`updates.rooms`·조장 `leaderView.members[].room`을 바꾸지 않는다. 공개하면 모두 바뀌고 `updates.rooms`가 정확히 1 오른다(참가 현황 표·현장 명단은 G5).
+1. 작업본 저장(방 만들기·배정·지우기)은 `GET /participant/rooms`·`updates.rooms`·조장 `leaderView.members[].room`을 바꾸지 않는다. 공개하면 모두 바뀌고 `updates.rooms`가 정확히 1 오른다. 참가 현황 표·CSV·현장 명단·체크인 결과도 같다(G5, `RoomDeskHttpIT`: 작업본에서 옮기거나 방을 지워도 다음 공개까지 그대로다).
 2. 같은 공개를 다시 보내면 `ALREADY_PUBLISHED`이고 `room_publications`·`updates.rooms`·알림·audit이 늘지 않는다.
 3. 두 운영자가 같은 사람을 다른 방으로 옮기면 늦은 쪽이 `409 CONCURRENT_MODIFICATION`이고 그 요청의 누구도 저장되지 않는다. 다른 사람이면 둘 다 저장된다.
 4. 정원 초과·성별 불일치·성별 답 없음은 `200`과 경고. 숙박하지 않는 사람이 하나라도 든 요청은 `409 INVALID_STATE_TRANSITION`(`reason: NOT_LODGING`)이고 누구도 저장되지 않으며 `boardVersion`이 그대로다. 빼는 요청은 `200`. `UNKNOWN`은 모두 배정된다.

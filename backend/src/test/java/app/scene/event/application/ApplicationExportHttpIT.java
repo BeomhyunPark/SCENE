@@ -158,7 +158,8 @@ class ApplicationExportHttpIT {
             "동의",
             "메모",
             "공식",
-            "옛 질문 (숨김)");
+            "옛 질문 (숨김)",
+            "방");
     assertThat(rows.get(1))
         .containsExactly(
             "2026. 12. 15. 12:00",
@@ -173,7 +174,8 @@ class ApplicationExportHttpIT {
             "동의함",
             "첫 줄, 쉼표\n둘째 줄 \"따옴표\"",
             "'=HYPERLINK(\"http://x\",\"y\")",
-            "숨긴답");
+            "숨긴답",
+            "");
     assertThat(rows.get(2))
         .containsExactly(
             "2026. 12. 15. 12:01",
@@ -188,6 +190,7 @@ class ApplicationExportHttpIT {
             "동의 안 함",
             "",
             "'+82 @x",
+            "",
             "");
     assertThat(text).contains("\"첫 줄, 쉼표\n둘째 줄 \"\"따옴표\"\"\"");
 
@@ -306,7 +309,7 @@ class ApplicationExportHttpIT {
     Held formless = openEvent("Formless owner");
     MockHttpServletResponse none = download(formless.owner, formless.eventId, "req-formless");
     assertThat(none.getStatus()).isEqualTo(200);
-    assertThat(parse(csv(none))).containsExactly(List.of("제출 시각"));
+    assertThat(parse(csv(none))).containsExactly(List.of("제출 시각", "방"));
   }
 
   @Test

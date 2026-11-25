@@ -1,6 +1,7 @@
 import { useId } from "react";
 import type { RosterItem } from "../api/checkIns";
 import { Button } from "./Button";
+import { FieldRoomLine } from "./FieldRoomLine";
 import { formatSubmittedAt } from "./eventFormat";
 import { participantLabel } from "./participantLabel";
 import type { PendingRequest } from "./useCheckInQueue";
@@ -39,6 +40,7 @@ export function FieldRosterRow({
         <p className="event-field__name" id={labelId}>
           {label}
         </p>
+        <FieldRoomLine room={item.room} lodging={item.lodging} />
         {meta ? <p className="event-field__meta">{meta}</p> : null}
         {done && item.checkIn ? (
           <p className="event-field__meta">
