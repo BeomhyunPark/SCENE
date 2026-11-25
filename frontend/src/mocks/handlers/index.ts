@@ -5,6 +5,7 @@ import { formHandlers } from "./forms";
 import { groupHandlers } from "./groups";
 import { invitationHandlers } from "./invitations";
 import { lifecycleHandlers } from "./lifecycle";
+import { mealCountHandlers } from "./mealCounts";
 import { notificationHandlers } from "./notifications";
 import { retrospectiveHandlers } from "./retrospective";
 import { roomBoardHandlers } from "./roomBoard";
@@ -36,6 +37,7 @@ export const handlers = [
   ...participantHomeHandlers,
   ...participantRoomHandlers,
   ...applicationHandlers,
+  ...mealCountHandlers,
   ...lifecycleHandlers,
   ...retrospectiveHandlers,
   ...noticeHandlers,

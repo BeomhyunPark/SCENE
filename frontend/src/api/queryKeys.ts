@@ -38,6 +38,8 @@ export const queryKeys = {
   applications: (eventId: string, page: number) => ["events", eventId, "applications", page] as const,
   applicationSummary: (eventId: string) => ["events", eventId, "applications", "summary"] as const,
   applicationTable: (eventId: string) => ["events", eventId, "applications", "table"] as const,
+  /** 식수 현황 (#454): read again every 10 seconds while visible. */
+  mealCounts: (eventId: string) => ["events", eventId, "meal-counts"] as const,
   application: (eventId: string, applicationId: string) =>
     ["events", eventId, "applications", "detail", applicationId] as const,
   /** Every notice list and detail of an event: one invalidation after any notice write (D3). */

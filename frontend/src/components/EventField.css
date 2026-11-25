@@ -641,3 +641,10 @@
   color: var(--color-text-secondary);
   font: var(--scene-caption-m);
 }
+
+/* 식수 현황 바로 가기 (#454, DEC-087 §11). */
+.event-field__meals-link {
+  align-self: flex-start;
+  color: var(--color-text-brand);
+  font: var(--scene-label-m);
+}
