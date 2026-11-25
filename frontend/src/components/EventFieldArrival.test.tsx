@@ -74,8 +74,10 @@ describe("현장 운영 도착 예정 (E4 #456)", () => {
     setMealCountsNow(new Date("2027-01-22T19:10:00+09:00"));
     await login({ userId: OWNER });
     const meals = open("meals");
-    const next = await screen.findByRole("region", { name: /다음 끼니/ }, WAIT);
-    expect(next).toHaveTextContent("아직 안 옴 1");
+    // The next meal's 아직 안 옴 is the last column of its row in the day table (#485).
+    const next = await screen.findByRole("row", { name: "1월 23일 (토) 아침" }, WAIT);
+    expect(within(next).getByText("다음")).toBeInTheDocument();
+    expect(within(next).getAllByRole("cell").at(-1)).toHaveTextContent("1");
     meals.unmount();
 
     open("field");
