@@ -5,21 +5,26 @@ import { queryKeys } from "../../api/queryKeys";
 import type { ScheduleDay } from "../../api/schedule";
 import { formatPublishedAt } from "../eventFormat";
 import { EmptyNote } from "./HomeCard";
-import { serverNow, useParticipantFeed } from "./participantFeed";
+import { Timetable, type TimetableColumn } from "../Timetable";
+import { isPast, nowLineMinute, nowOnDay, zonedClock } from "../timetable";
+import { useMinuteClock } from "../useMinuteClock";
+import { useParticipantFeed } from "./participantFeed";
 import { initialDay, scheduleNowNext } from "./scheduleNow";
-import { useParticipantScheduleQuery, useScheduleClock } from "./scheduleQuery";
+import { useParticipantScheduleQuery } from "./scheduleQuery";
 import { previousLines, timeRange } from "./scheduleView";
 import "./ParticipantSchedule.css";
 
 const NO_ITEMS: ParticipantScheduleItem[] = [];
 const NO_DAYS: ScheduleDay[] = [];
 
-type Row = { kind: "item"; item: ParticipantScheduleItem } | { kind: "removed"; item: ParticipantRemovedItem };
+type Timed = { startTime: string; endTime: string | null; endsNextDay: boolean };
+type Row = ({ kind: "item"; item: ParticipantScheduleItem } | { kind: "removed"; item: ParticipantRemovedItem }) & Timed;
 
 /**
- * 일정 tab (`/participate/{eventId}/schedule`, C5, schedule-contract §8). Day tabs open on today when it is
- * inside the event period. Items are in schedule order with times as sent (event local time); 지금·다음
- * are marked from the corrected clock. "변경됨"·"새 일정" with the previous values and "취소됨" lines come
+ * 일정 tab (`/participate/{eventId}/schedule`, C5, schedule-contract §8, #466). Day tabs open on today when
+ * it is inside the event period. The day is a timetable with times as sent (event local time): on an event
+ * day a line marks the current time from the corrected clock, 지금·다음 are marked and finished items go
+ * quiet. "변경됨"·"새 일정" with the previous values and "취소됨" lines come
  * from the server, which already dropped marks older than 24 hours. Opening the tab marks schedule
  * notifications read. Title, place and description are plain text.
  */
@@ -30,7 +35,7 @@ export function ScheduleTab() {
   const data = query.data;
   const items = data?.items ?? NO_ITEMS;
   const days = data?.days ?? NO_DAYS;
-  const now = useScheduleClock(items, days);
+  const now = useMinuteClock(feed.poll.serverOffsetMs);
   const [picked, setPicked] = useState<number | null>(null);
   const queryClient = useQueryClient();
   const publishedAt = data?.publishedAt ?? null;
@@ -52,21 +57,43 @@ export function ScheduleTab() {
     };
   }, [eventId, loaded, publishedAt, queryClient]);
 
-  const day = picked ?? initialDay(days, serverNow(feed), data?.timeZone);
-  const rows = useMemo<Row[]>(() => {
-    if (day === null) return [];
-    // Items keep server order; a cancelled line goes before the first item that starts later.
-    const list: Row[] = items.filter((item) => item.day === day).map((item) => ({ kind: "item" as const, item }));
-    const removed = (data?.removedItems ?? []).filter((item) => item.day === day);
-    for (const item of removed) {
-      const at = list.findIndex((row) => row.item.startTime > item.startTime);
-      list.splice(at === -1 ? list.length : at, 0, { kind: "removed", item });
-    }
-    return list;
-  }, [items, data?.removedItems, day]);
   const nowNext = scheduleNowNext(items, now, days);
   const nowId = nowNext.phase === "during" ? nowNext.now?.itemId : undefined;
   const nextId = nowNext.phase === "during" || nowNext.phase === "before" ? nowNext.next?.itemId : undefined;
+  // What is running now keeps its day (an overnight item stays on yesterday), else today, else day 1.
+  const running = nowNext.phase === "during" ? nowNext.now : null;
+  const day = picked ?? running?.day ?? initialDay(days, now, data?.timeZone);
+  const rows = useMemo<Row[]>(() => {
+    if (day === null) return [];
+    // A cancelled item keeps its start; it has no end, so its block stops at the next start (or an hour).
+    const list: Row[] = items.filter((item) => item.day === day).map((item) => ({ kind: "item" as const, item, startTime: item.startTime, endTime: item.endTime, endsNextDay: item.endsNextDay }));
+    for (const item of (data?.removedItems ?? []).filter((entry) => entry.day === day)) {
+      list.push({ kind: "removed", item, startTime: item.startTime, endTime: null, endsNextDay: false });
+    }
+    return list;
+  }, [items, data?.removedItems, day]);
+  const timeZone = data?.timeZone ?? "Asia/Seoul";
+  const todayDay = running?.day ?? days.find((entry) => entry.date === zonedClock(now, timeZone).date)?.day ?? null;
+  const [jumps, setJumps] = useState(0);
+  const date = days.find((entry) => entry.day === day)?.date ?? null;
+  const live = days.some((entry) => nowLineMinute(entry.date, items.filter((item) => item.day === entry.day), now, timeZone) !== null);
+  const columns: TimetableColumn<Row>[] =
+    date === null
+      ? []
+      : [
+          {
+            key: String(day),
+            label: days.find((entry) => entry.day === day)?.dayLabel ?? "일정",
+            rows,
+            nowMinute: nowLineMinute(date, rows.filter((row) => row.kind === "item"), now, timeZone),
+            header: (
+              <>
+                <span>{days.find((entry) => entry.day === day)?.dayLabel}</span>
+                <span className="participant-schedule__count">{rows.filter((row) => row.kind === "item").length}개 일정</span>
+              </>
+            ),
+          },
+        ];
 
   let body;
   if (!data) {
@@ -78,6 +105,18 @@ export function ScheduleTab() {
   } else {
     body = (
       <>
+        {todayDay !== null ? (
+          <button
+            type="button"
+            className="participant-schedule__today"
+            onClick={() => {
+              setPicked(todayDay);
+              setJumps((count) => count + 1);
+            }}
+          >
+            오늘
+          </button>
+        ) : null}
         {days.length > 1 ? (
           <div className="participant-schedule__days" role="tablist" aria-label="일차">
             {days.map((entry) => (
@@ -98,25 +137,44 @@ export function ScheduleTab() {
         {rows.length === 0 ? (
           <EmptyNote>이날은 일정이 없어요.</EmptyNote>
         ) : (
-          <ol className="participant-schedule__list" aria-label={days.find((entry) => entry.day === day)?.dayLabel ?? "일정"}>
-            {rows.map((row) =>
-              row.kind === "removed" ? (
-                <li key={`removed-${row.item.itemId}`} className="participant-schedule__item participant-schedule__item--removed">
-                  <span className="participant-schedule__time">
-                    <s>{row.item.startTime}</s>
-                  </span>
-                  <div className="participant-schedule__main">
-                    <p className="participant-schedule__title">
-                      <s>{row.item.title}</s>
-                      <span className="participant-schedule__badge participant-schedule__badge--removed">취소됨</span>
-                    </p>
-                  </div>
-                </li>
-              ) : (
-                <ItemRow key={row.item.itemId} item={row.item} days={days} now={row.item.itemId === nowId} next={row.item.itemId === nextId} />
-              ),
-            )}
-          </ol>
+          <div className="participant-schedule__timetable">
+            <Timetable
+              columns={columns}
+              scrollKey={`${day}:${jumps}`}
+              block={(placed) => {
+                const row = placed.row;
+                const past = live && date !== null && isPast(placed, nowOnDay(date, now, timeZone));
+                if (row.kind === "removed") {
+                  return {
+                    key: `removed-${row.item.itemId}`,
+                    className: "participant-schedule__item participant-schedule__item--removed",
+                    content: (
+                      <div className="participant-schedule__block">
+                        <span className="participant-schedule__time">
+                          <s>{row.item.startTime}</s>
+                        </span>
+                        <p className="participant-schedule__title">
+                          <s>{row.item.title}</s>
+                          <span className="participant-schedule__badge participant-schedule__badge--removed">취소됨</span>
+                        </p>
+                      </div>
+                    ),
+                  };
+                }
+                const isNow = row.item.itemId === nowId;
+                const classes = ["participant-schedule__item", "timetable__block--expandable"];
+                if (isNow) classes.push("participant-schedule__item--now");
+                else if (past) classes.push("participant-schedule__item--past");
+                if (row.item.change) classes.push("participant-schedule__item--changed");
+                return {
+                  key: row.item.itemId,
+                  className: classes.join(" "),
+                  current: isNow,
+                  content: <ItemRow item={row.item} days={days} now={isNow} next={row.item.itemId === nextId} />,
+                };
+              }}
+            />
+          </div>
         )}
       </>
     );
@@ -142,11 +200,9 @@ export function ScheduleTab() {
 
 function ItemRow({ item, days, now, next }: { item: ParticipantScheduleItem; days: ScheduleDay[]; now: boolean; next: boolean }) {
   const lines = previousLines(item, days);
-  const classes = ["participant-schedule__item"];
-  if (now) classes.push("participant-schedule__item--now");
-  if (item.change) classes.push("participant-schedule__item--changed");
   return (
-    <li className={classes.join(" ")} aria-current={now ? "time" : undefined}>
+    // Focusable so a tap opens the whole block (changes and the description) when it is short.
+    <div className="participant-schedule__block" tabIndex={0}>
       <span className="participant-schedule__time">{timeRange(item)}</span>
       <div className="participant-schedule__main">
         <p className="participant-schedule__title">
@@ -168,6 +224,6 @@ function ItemRow({ item, days, now, next }: { item: ParticipantScheduleItem; day
         ) : null}
         {item.description ? <p className="participant-schedule__description">{item.description}</p> : null}
       </div>
-    </li>
+    </div>
   );
 }
