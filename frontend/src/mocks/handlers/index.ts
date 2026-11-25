@@ -16,6 +16,7 @@ import { participantHandlers } from "./participant";
 import { participantCheckInHandlers } from "./participantCheckIn";
 import { participantGroupHandlers } from "./participantGroup";
 import { participantHomeHandlers } from "./participantHome";
+import { participantNotificationHandlers } from "./participantNotifications";
 import { participantRoomHandlers } from "./participantRooms";
 import { sessionHandlers } from "./session";
 import { spaceHandlers } from "./spaces";
@@ -35,6 +36,7 @@ export const handlers = [
   ...participantCheckInHandlers,
   ...participantGroupHandlers,
   ...participantHomeHandlers,
+  ...participantNotificationHandlers,
   ...participantRoomHandlers,
   ...applicationHandlers,
   ...mealCountHandlers,

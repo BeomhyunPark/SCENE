@@ -54,12 +54,6 @@ export const scheduleHandlers = [
       headers: { "Cache-Control": "no-store" },
     });
   }),
-  // Notifications themselves are B5's; the mock keeps none, so a read changes nothing.
-  http.post("/api/v1/participant/notifications/read", ({ request, cookies }) => {
-    if (!csrfMatches(request, cookies)) return problem(403, "FORBIDDEN", { detail: "hidden" });
-    if (!currentParticipant()) return problem(401, "AUTHENTICATION_REQUIRED", { detail: "hidden" });
-    return HttpResponse.json({ unreadCount: 0 });
-  }),
 ];
 
 function reply(result: ScheduleFailure | { status: number; body: unknown }): Response {
