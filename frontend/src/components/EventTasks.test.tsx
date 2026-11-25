@@ -134,8 +134,8 @@ describe("task month (#475)", () => {
 
   it("is refused by the server when a start comes without a due date or after it", () => {
     const owner = localUsers[0].userId;
-    expect(createTaskInStore(localEvent.eventId, owner, { title: "시작만", startDate: "2027-01-10" })).toMatchObject({ code: "VALIDATION_FAILED", errors: [{ field: "startDate" }] });
-    expect(createTaskInStore(localEvent.eventId, owner, { title: "거꾸로", startDate: "2027-01-20", dueDate: "2027-01-10" })).toMatchObject({ code: "VALIDATION_FAILED", errors: [{ field: "startDate" }] });
+    expect(createTaskInStore(localEvent.eventId, owner, { title: "시작만", startDate: "2027-01-10" })).toMatchObject({ code: "VALIDATION_FAILED", errors: [{ field: "dueDate" }] });
+    expect(createTaskInStore(localEvent.eventId, owner, { title: "거꾸로", startDate: "2027-01-20", dueDate: "2027-01-10" })).toMatchObject({ code: "VALIDATION_FAILED", errors: [{ field: "dueDate" }] });
     expect(createTaskInStore(localEvent.eventId, owner, { title: "날짜 아님", dueDate: "1월 10일" })).toMatchObject({ code: "VALIDATION_FAILED", errors: [{ field: "dueDate" }] });
     expect(createTaskInStore(localEvent.eventId, owner, { title: "하루", dueDate: "2027-01-10" })).toMatchObject({ startDate: null, dueDate: "2027-01-10" });
   });

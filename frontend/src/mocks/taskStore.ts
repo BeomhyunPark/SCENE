@@ -612,7 +612,8 @@ function readDates(
     else if (typeof value === "string" && ISO_DATE.test(value) && !Number.isNaN(Date.parse(`${value}T00:00:00Z`))) next[key] = value;
     else return { field: key };
   }
-  if (next.startDate !== null && (next.dueDate === null || next.startDate > next.dueDate)) return { field: "startDate" };
+  // The server names dueDate for both (TaskCommandService.requireDateRange).
+  if (next.startDate !== null && (next.dueDate === null || next.startDate > next.dueDate)) return { field: "dueDate" };
   return next;
 }
 
