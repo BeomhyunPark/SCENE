@@ -119,7 +119,8 @@ describe("participant schedule tab (C5)", () => {
     expect(within(rows[1]).getByText("산책").tagName).toBe("S");
     expect(within(rows[2]).getByText("시간 17:30–19:00 → 18:00–19:00")).toBeInTheDocument();
     expect(within(rows[2]).getByText("장소 식당 → 본관 식당")).toBeInTheDocument();
-    expect(within(rows[3]).getByText("22:00–00:30 (다음 날)")).toBeInTheDocument();
+    // The end time is its own span (a narrow block can drop it); the row still reads the whole range.
+    expect(rows[3].querySelector(".participant-schedule__time")).toHaveTextContent("22:00–00:30 (다음 날)");
     expect(screen.queryByText(/우리 조 순서/)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("tab", { name: /2일차/ }));

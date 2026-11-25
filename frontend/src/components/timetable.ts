@@ -17,24 +17,6 @@ export const FOLD_MINUTES = 120;
 export const FOLD_HEIGHT = 24;
 /** A label and a grid line every hour, as in the SCENE 시간표 frame (172:3). */
 export const TICK_MINUTES = 60;
-/** Blocks shorter than this on screen put time and title on one line. */
-export const SHORT_MINUTES = 45;
-/** Blocks at least this long also show the place and tags (the 172:3 frame: one hour is time and title only). */
-export const FULL_MINUTES = 70;
-
-export type BlockDensity = "line" | "compact" | "full";
-
-/**
- * How much a block shows for how long it is drawn, so no line is ever cut in half: one line of time and
- * title, time and title on two lines, or also place and tags. Sized for the densest scale (desktop,
- * 1.2px a minute): a line needs 28px, two lines 52px, three 76px.
- */
-export function blockDensity(block: { start: number; end: number }): BlockDensity {
-  const shown = Math.max(block.end - block.start, MIN_BLOCK_MINUTES);
-  if (shown < SHORT_MINUTES) return "line";
-  if (shown < FULL_MINUTES) return "compact";
-  return "full";
-}
 
 export type TimedRow = { startTime: string; endTime: string | null; endsNextDay: boolean };
 
