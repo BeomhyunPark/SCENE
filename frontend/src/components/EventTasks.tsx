@@ -137,7 +137,7 @@ function TaskList({
       }
     >
       <div className="event-tasks">
-        <p className="event-tasks__support">{event.name}의 준비 업무예요.</p>
+        <p className="event-tasks__support">행사 준비에 필요한 업무와 담당자, 마감 상태를 확인해요.</p>
         {canWrite ? (
           <form className="event-tasks__create" onSubmit={(form) => void add(form)}>
             <label htmlFor="task-title">업무 제목</label>
