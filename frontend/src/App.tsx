@@ -34,6 +34,7 @@ import { PublicHeader } from "./components/PublicHeader";
 import { PublicHome } from "./components/PublicHome";
 import { PublicInviteOnly } from "./components/PublicInviteOnly";
 import { PublicLogin } from "./components/PublicLogin";
+import { PublicPrivacy } from "./components/PublicPrivacy";
 import { PublicSignup } from "./components/PublicSignup";
 import { PublicFindOrganization } from "./components/PublicFindOrganization";
 import { PublicJoinPending } from "./components/PublicJoinPending";
@@ -80,6 +81,7 @@ export function App() {
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<PublicLogin />} />
         <Route path="/login/done" element={<LoginDone />} />
+        <Route path="/privacy" element={<PublicPrivacy />} />
         <Route element={<RequireOperator />}>
           <Route path="/events" element={<EventList />} />
           <Route path="/members" element={<SpaceMembers />} />
