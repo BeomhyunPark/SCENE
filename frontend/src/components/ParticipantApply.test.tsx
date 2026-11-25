@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -363,16 +363,20 @@ describe("participant apply", () => {
     );
     await login({ userId: localUsers[0].userId });
     await openApp(`/events/${EVENT}/participants`);
-    const address = await screen.findByRole("textbox", { name: "신청 주소" });
-    expect(address).toHaveValue(`${window.location.origin}/apply/${EVENT}/${FORM}`);
-    expect((address as HTMLInputElement).value).not.toContain("#");
-    fireEvent.click(screen.getByRole("button", { name: "복사" }));
+    // #497: both addresses open from 주소·QR as read-only label-value rows, not input boxes.
+    fireEvent.click(await screen.findByRole("button", { name: "주소·QR" }));
+    const dialog = screen.getByRole("dialog", { name: "주소·QR" });
+    const address = await within(dialog).findByTestId("apply-address");
+    expect(address).toHaveTextContent(`${window.location.origin}/apply/${EVENT}/${FORM}`);
+    expect(address.textContent).not.toContain("#");
+    expect(within(dialog).queryByRole("textbox")).not.toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "신청 주소 복사" }));
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith(`${window.location.origin}/apply/${EVENT}/${FORM}`);
     // DEC-078 §8: the one participant address, with its QR, for the group chat.
-    const participant = screen.getByRole("textbox", { name: "참가자 주소" });
-    expect(participant).toHaveValue(`${window.location.origin}/participate/${EVENT}`);
-    expect(screen.getByRole("img", { name: "참가자 주소 QR" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "주소 복사" }));
+    expect(within(dialog).getByTestId("participant-address")).toHaveTextContent(`${window.location.origin}/participate/${EVENT}`);
+    expect(within(dialog).getByRole("img", { name: "참가자 주소 QR" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "QR 복사" })).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "참가자 주소 복사" }));
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith(`${window.location.origin}/participate/${EVENT}`);
   });
 
@@ -387,7 +391,10 @@ describe("participant apply", () => {
     );
     await login({ userId: localUsers[0].userId });
     await openApp(`/events/${EVENT}/participants`);
+    fireEvent.click(await screen.findByRole("button", { name: "주소·QR" }));
     expect(await screen.findByText("신청을 열면 주소를 복사할 수 있어요.")).toBeInTheDocument();
-    expect(screen.queryByRole("textbox", { name: "신청 주소" })).not.toBeInTheDocument();
+    expect(screen.queryByTestId("apply-address")).not.toBeInTheDocument();
+    // The participant address does not wait for applications to open.
+    expect(screen.getByTestId("participant-address")).toBeInTheDocument();
   });
 });

@@ -55,12 +55,15 @@ describe("운영자 신청 고치기·직접 추가 (DEC-088, A12)", () => {
 
     fireEvent.click(await screen.findByRole("link", { name: "신청 고치기" }, WAIT));
     const name = await screen.findByLabelText(/^이름/, {}, WAIT);
-    expect(screen.getByText(/신청·수정을 닫은 뒤에도 고칠 수 있어요/)).toBeInTheDocument();
+    // #497: one lead line. Edits are still open for the participant, so the DEC-088 line shows.
     expect(screen.getByText("참가자가 직접 고칠 수 있으면 참가자에게 맡겨 주세요.")).toBeInTheDocument();
+    expect(screen.queryByText("신청·수정을 닫은 뒤에도 고칠 수 있어요.")).not.toBeInTheDocument();
     fireEvent.change(name, { target: { value: "김두나" } });
     fireEvent.click(screen.getByRole("button", { name: "고친 내용 저장" }));
 
-    expect(await screen.findByText("고친 내용을 저장했어요. 참가자에게 알림이 갔어요.", {}, WAIT)).toBeInTheDocument();
+    expect(
+      await screen.findByText("고친 내용을 저장했어요. 참가자에게 알림이 갔어요. 집계·조 편성·식수·숙소·CSV가 고친 값을 따라가요.", {}, WAIT),
+    ).toBeInTheDocument();
     expect(operatorRequests.some((request) => request.method === "PUT" && request.url.endsWith("/answers"))).toBe(true);
     const current = tableApplications(EVENT)[0];
     expect(current.revision).toBe(2);
@@ -70,6 +73,17 @@ describe("운영자 신청 고치기·직접 추가 (DEC-088, A12)", () => {
       revisedBy: "OPERATOR",
       revisedByUserId: OWNER,
     });
+  });
+
+  it("says the operator can still edit once the participant's edits are closed (#497)", async () => {
+    const { form, people } = seed(["김하나"]);
+    setAccepting(EVENT, form.formId, OWNER, { acceptingEdits: false });
+    await login({ userId: OWNER });
+    openApp(`/events/${EVENT}/participants/${people[0].applicationId}/edit`);
+
+    await screen.findByLabelText(/^이름/, {}, WAIT);
+    expect(screen.getByText("신청·수정을 닫은 뒤에도 고칠 수 있어요.")).toBeInTheDocument();
+    expect(screen.queryByText("참가자가 직접 고칠 수 있으면 참가자에게 맡겨 주세요.")).not.toBeInTheDocument();
   });
 
   it("adds a participant with a temporary number shown once and refuses a phone already used", async () => {
@@ -85,6 +99,8 @@ describe("운영자 신청 고치기·직접 추가 (DEC-088, A12)", () => {
     const pin = (await screen.findByLabelText("임시 번호", {}, WAIT)).textContent ?? "";
     expect(pin).toMatch(/^\d{6}$/);
     expect(screen.getByText("현장손님님을 추가했어요")).toBeInTheDocument();
+    // #497: the add form's lead is one line; "전해 주세요" waits for the screen with the number.
+    expect(screen.getByText("임시 번호예요. 이 화면을 벗어나면 다시 볼 수 없어요. 참가자에게 전해 주세요.")).toBeInTheDocument();
     const added = tableApplications(EVENT).find((row) => row.revisedBy === "OPERATOR")!;
     expect(added.revision).toBe(1);
     // The participant signs in with the temporary number and must choose a new one.

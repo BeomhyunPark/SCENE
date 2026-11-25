@@ -87,6 +87,13 @@
   min-width: 0;
 }
 
+/* 참가 현황 빈 상태 (#497): 주소·QR next to 참가 신청 준비. */
+.event-home__welcome-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .event-home__welcome-copy h2,
 .event-home__work-intro h2 {
   margin: 0;
@@ -341,31 +348,43 @@
   font: var(--scene-body-m);
 }
 
-.event-home__answers dl {
-  display: flex;
-  flex-direction: column;
-  margin: 0;
-  border: 1px solid var(--color-border-default);
-  border-radius: 4px;
-}
-
-.event-home__answers dl > div {
-  display: grid;
-  grid-template-columns: minmax(96px, 160px) 1fr;
-  gap: 12px;
-  padding: 14px 18px;
-}
-
-.event-home__answers dl > div + div {
+/*
+ * 신청자 상세 (#497): 운영 메모·신청 내용·변경 이력 are plain sections split by a hairline, and the
+ * answers are label-value rows without an outer box (Figma O05 390:30881, fe-handoff "박스를 쓰는 때").
+ * `>` keeps the rules off the 변경 전후 list nested in 변경 이력.
+ */
+.event-home__answers + .event-home__answers {
+  padding-top: 24px;
   border-top: 1px solid var(--color-border-default);
 }
 
-.event-home__answers dt {
-  color: var(--color-text-secondary);
-  font: var(--scene-label-m);
+.event-home__answers .event-home__applicants-head h2 {
+  font: var(--scene-body-m-strong);
 }
 
-.event-home__answers dd {
+.event-home__answers > dl {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+
+.event-home__answers > dl > div {
+  display: grid;
+  grid-template-columns: minmax(96px, 160px) 1fr;
+  gap: 12px;
+  padding: 10px 0;
+}
+
+.event-home__answers > dl > div + div {
+  border-top: 1px solid var(--color-border-default);
+}
+
+.event-home__answers > dl dt {
+  color: var(--color-text-tertiary);
+  font: var(--scene-body-m);
+}
+
+.event-home__answers > dl dd {
   margin: 0;
   color: var(--color-text-primary);
   font: var(--scene-body-m);
@@ -380,7 +399,7 @@
     gap: 4px;
   }
 
-  .event-home__answers dl > div {
+  .event-home__answers > dl > div {
     grid-template-columns: 1fr;
     gap: 4px;
   }
@@ -593,17 +612,7 @@
   color: var(--color-text-primary);
 }
 
-/* 참가자 주소와 QR (DEC-078 §8). */
-.event-home__qr {
-  border: 1px solid var(--color-border-default);
-  border-radius: 12px;
-}
-
-.event-home__address-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
+/* 참가자 주소와 QR (DEC-078 §8) moved into the 주소·QR dialog: ParticipantAddress.css (#497). */
 
 /*
  * Event home dashboard (#467, boxes cut down in #485). Layout from SCENE 「02 행사 홈 · v2.0 Candidate」
