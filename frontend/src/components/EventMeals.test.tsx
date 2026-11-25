@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -40,8 +40,15 @@ function seedThree() {
   return { retreat, arrived, late, partial };
 }
 
+/** One meal's row of the day table: 예정, 도착 반영, 올 예정, 아직 안 옴 (#485). */
 function row(name: string) {
-  return within(screen.getByRole("listitem", { name }));
+  return within(screen.getByRole("row", { name }));
+}
+
+function counts(name: string) {
+  return row(name)
+    .getAllByRole("cell")
+    .map((cell) => cell.textContent);
 }
 
 afterEach(() => {
@@ -59,7 +66,9 @@ describe("식수 현황 screen", () => {
     const next = await screen.findByRole("region", { name: /다음 끼니/ });
     expect(next).toHaveTextContent("다음 끼니 · 1월 23일 (토) 아침 08:00 (기본 시각)");
     expect(within(next).getByText("1명")).toBeInTheDocument();
-    expect(next).toHaveTextContent("예정 2 · 도착 1 · 올 예정 0 · 아직 안 옴 1");
+    // The split is in the table row marked 다음, once.
+    expect(row("1월 23일 (토) 아침").getByText("다음")).toBeInTheDocument();
+    expect(counts("1월 23일 (토) 아침")).toEqual(["2", "1", "0", "1"]);
 
     const table = within(screen.getByRole("region", { name: "끼니별 식수" }));
     expect(table.getByRole("heading", { name: "1월 22일 (금)" })).toBeInTheDocument();
@@ -67,11 +76,10 @@ describe("식수 현황 screen", () => {
     expect(dinner.getByText("지남")).toBeInTheDocument();
     // Day 2 lunch: the partial attendee is still coming, the late full attendee is missing.
     const lunch = row("1월 23일 (토) 점심");
-    expect(lunch.getByText("예정").parentElement).toHaveTextContent("예정3");
-    expect(lunch.getByText("도착 반영").parentElement).toHaveTextContent("도착 반영2");
-    expect(lunch.getByText("예정 3 · 도착 1 · 올 예정 1 · 아직 안 옴 1")).toBeInTheDocument();
+    expect(lunch.getByRole("rowheader")).toHaveTextContent("점심 12:00");
+    expect(counts("1월 23일 (토) 점심")).toEqual(["3", "2", "1", "1"]);
     // Worship slots are not meals.
-    expect(screen.queryByRole("listitem", { name: /집회/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("row", { name: /집회/ })).not.toBeInTheDocument();
   });
 
   it("copies the next meal and the remaining meals for the kitchen", async () => {
@@ -123,7 +131,7 @@ describe("식수 현황 screen", () => {
 
     const next = await screen.findByRole("region", { name: /다음 끼니/ });
     expect(next).toHaveTextContent("1월 23일 (토) 아침 07:00 (일정표)");
-    expect(row("1월 23일 (토) 저녁").getByText("예정").parentElement).toHaveTextContent("예정3");
+    expect(counts("1월 23일 (토) 저녁")[0]).toBe("3");
 
     // A4: the partial attendee drops dinner. A7: the late attendee is withdrawn.
     reviseApplication(RETREAT, partial, { [retreat.fieldId("MEALS")]: { optionIds: ["opt_d2_lunch"] } });
@@ -134,8 +142,8 @@ describe("식수 현황 screen", () => {
       reapplyBlocked: false,
     });
     fireEvent.click(screen.getByRole("button", { name: "새로 고침" }));
-    expect(await row("1월 23일 (토) 저녁").findByText("예정 1 · 도착 1 · 올 예정 0 · 아직 안 옴 0")).toBeInTheDocument();
-    expect(row("1월 23일 (토) 점심").getByText("예정 2 · 도착 1 · 올 예정 1 · 아직 안 옴 0")).toBeInTheDocument();
+    await waitFor(() => expect(counts("1월 23일 (토) 저녁")).toEqual(["1", "1", "0", "0"]));
+    expect(counts("1월 23일 (토) 점심")).toEqual(["2", "2", "1", "0"]);
   });
 
   it("reads again every 10 seconds", async () => {

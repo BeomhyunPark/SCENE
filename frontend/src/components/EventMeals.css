@@ -1,4 +1,7 @@
-/* 식수 현황 (#454, DEC-089). No dedicated Figma frame; follows the 신청 집계 cards. Phone first. */
+/*
+ * 식수 현황 (#454, DEC-089). No dedicated Figma frame. Phone first. The next meal is the one outlined block;
+ * the meals are a table per day with hairline rows (SCENE DS Data Workbench 50:17), not a box each (#485).
+ */
 
 .meals {
   gap: 16px;
@@ -10,12 +13,7 @@
   margin: 0;
 }
 
-.meals__title h2 {
-  font: var(--scene-heading-l);
-}
-
-.meals__title p {
-  margin-top: 4px;
+.meals__intro {
   color: var(--color-text-secondary);
   font: var(--scene-body-s);
 }
@@ -74,11 +72,6 @@
   font: var(--scene-display);
 }
 
-.meals__breakdown {
-  color: var(--color-text-secondary);
-  font: var(--scene-body-s);
-}
-
 .meals__actions {
   display: flex;
   flex-wrap: wrap;
@@ -128,60 +121,82 @@
 .meals__table {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 24px;
 }
 
 .meals__day h3 {
-  margin-bottom: 8px;
+  margin-bottom: 4px;
   font: var(--scene-title);
 }
 
-.meals__day ul {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
+/* Fixed columns, so the numbers line up from one day's table to the next. */
+.meals__day table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
 }
 
-.meals__row {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 12px 16px;
-  border: 1px solid var(--color-border-default);
-  border-radius: 8px;
-  background: var(--color-bg-surface);
+.meals__day th,
+.meals__day td {
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--color-border-default);
+  text-align: right;
+  vertical-align: baseline;
+}
+
+.meals__day th:first-child,
+.meals__day td:first-child {
+  padding-left: 4px;
+  text-align: left;
+}
+
+.meals__day thead th:first-child {
+  width: 40%;
+}
+
+.meals__day thead th {
+  padding-top: 6px;
+  padding-bottom: 6px;
+  color: var(--color-text-secondary);
+  font: var(--scene-label-s);
+}
+
+.meals__day tbody th {
+  font: var(--scene-label-m);
+}
+
+.meals__day td {
+  color: var(--color-text-primary);
+  font: var(--scene-body-m);
+}
+
+.meals__reflected {
+  font-weight: 700;
+}
+
+.meals__day td.meals__missing {
+  color: var(--color-warning-fg);
 }
 
 .meals__row--next {
-  border-color: var(--color-border-selected);
+  background: var(--color-bg-brand-subtle);
 }
 
-.meals__row--passed {
-  background: var(--color-bg-subtle);
-  color: var(--color-text-secondary);
-}
-
-.meals__row-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.meals__row-name {
-  flex: 1;
-  font: var(--scene-label-l);
+.meals__row--passed th,
+.meals__row--passed td {
+  color: var(--color-text-tertiary);
 }
 
 .meals__row-time {
   color: var(--color-text-tertiary);
-  font: var(--scene-label-m);
+  font: var(--scene-body-s);
 }
 
 .meals__tag {
-  padding: 2px 8px;
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 6px;
   border-radius: 999px;
   background: var(--color-bg-subtle);
   color: var(--color-text-secondary);
@@ -189,27 +204,33 @@
 }
 
 .meals__tag--next {
-  background: var(--color-bg-brand-subtle);
+  background: var(--color-bg-surface);
   color: var(--color-text-brand);
 }
 
-.meals__pair {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
+@media (max-width: 560px) {
+  .meals__day th,
+  .meals__day td {
+    padding-right: 4px;
+    padding-left: 4px;
+  }
 
-.meals__pair p {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  color: var(--color-text-secondary);
-  font: var(--scene-label-m);
-}
+  .meals__day thead th {
+    word-break: keep-all;
+  }
 
-.meals__pair strong {
-  color: var(--color-text-primary);
-  font: var(--scene-heading-m);
+  .meals__day thead th:first-child {
+    width: 24%;
+  }
+
+  /* 시각 and the tag go under the meal's name. */
+  .meals__row-time {
+    display: block;
+  }
+
+  .meals__tag {
+    margin-left: 0;
+  }
 }
 
 .meals__how {
