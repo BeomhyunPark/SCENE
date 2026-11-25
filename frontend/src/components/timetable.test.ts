@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { axisTop, blockDensity, buildAxis, clockOf, FOLD_HEIGHT, isPast, nowLineMinute, nowOnDay, placeDay, spanOf, zonedClock } from "./timetable";
+import { axisTop, buildAxis, clockOf, FOLD_HEIGHT, isPast, nowLineMinute, nowOnDay, placeDay, spanOf, zonedClock } from "./timetable";
 
 function row(startTime: string, endTime: string | null = null, endsNextDay = false) {
   return { startTime, endTime, endsNextDay };
@@ -86,18 +86,5 @@ describe("current time in the event time zone", () => {
     const [morning, afternoon] = placeDay([row("09:00", "10:00"), row("14:00", "15:00")]);
     expect(isPast(morning, 870)).toBe(true);
     expect(isPast(afternoon, 870)).toBe(false);
-  });
-});
-
-describe("what a block shows", () => {
-  it("shows one line, two lines or everything by drawn length", () => {
-    const [fifteen, fifty, hour, ninety] = placeDay([row("06:00", "06:15"), row("08:00", "08:50"), row("10:00", "11:00"), row("13:00", "14:30")]);
-    expect(blockDensity(fifteen)).toBe("line");
-    expect(blockDensity(fifty)).toBe("compact");
-    expect(blockDensity(hour)).toBe("compact");
-    expect(blockDensity(ninety)).toBe("full");
-    // An open end drawn up to the next start (21:40 → 22:30) counts as 50 minutes.
-    const [snack] = placeDay([row("21:40"), row("22:30", "00:30", true)]);
-    expect(blockDensity(snack)).toBe("compact");
   });
 });

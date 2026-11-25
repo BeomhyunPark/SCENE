@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, type CSSProperties, type ReactNode } from "react";
-import { axisTop, blockDensity, buildAxis, clockOf, placeDay, MIN_BLOCK_MINUTES, type Placed, type TimedRow } from "./timetable";
+import { axisTop, buildAxis, clockOf, placeDay, MIN_BLOCK_MINUTES, type Placed, type TimedRow } from "./timetable";
 import "./Timetable.css";
 
 export type TimetableColumn<T extends TimedRow> = {
@@ -102,9 +102,6 @@ export function Timetable<T extends TimedRow>({
                   const bottom = axisTop(axis, Math.max(entry.end, entry.start + MIN_BLOCK_MINUTES));
                   const classes = ["timetable__block"];
                   if (entry.realEnd === null) classes.push("timetable__block--open");
-                  const density = blockDensity(entry);
-                  if (density === "line") classes.push("timetable__block--short");
-                  if (density === "compact") classes.push("timetable__block--compact");
                   if (className) classes.push(className);
                   return (
                     <li

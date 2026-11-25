@@ -413,16 +413,25 @@ function BoardTimetable({
         else if (live && isPast(placed, nowOnDay(date, now, board.timeZone))) classes.push("event-schedule__block--past");
         if (item.publishState !== "UNCHANGED") classes.push("event-schedule__block--pending");
         const body = <ItemSummary item={item} board={board} now={item.itemId === nowId} next={item.itemId === nextId} />;
+        // A narrow block may draw only part of the time; the whole line stays in the tooltip.
+        const fullText = [itemTime(item), item.title, item.place].filter(Boolean).join(" · ");
         return {
           key: item.itemId,
           className: classes.join(" "),
           current: item.itemId === nowId,
           content: editable ? (
-            <Link className="event-schedule__row" to={`${eventHref}/schedule/${item.itemId}`} aria-label={`${item.startTime} ${item.title} 고치기`}>
+            <Link
+              className="event-schedule__row timetable__content"
+              to={`${eventHref}/schedule/${item.itemId}`}
+              aria-label={`${item.startTime} ${item.title} 고치기`}
+              title={fullText}
+            >
               {body}
             </Link>
           ) : (
-            <div className="event-schedule__row">{body}</div>
+            <div className="event-schedule__row timetable__content" title={fullText}>
+              {body}
+            </div>
           ),
         };
       }}
@@ -434,15 +443,18 @@ function ItemSummary({ item, board, now = false, next = false }: { item: Schedul
   const slot = item.slotId ? (board.slots?.find((entry) => entry.slotId === item.slotId) ?? null) : null;
   return (
     <>
-      <span className="event-schedule__when">
-        <span className="event-schedule__time">{itemTime(item)}</span>
-        {now ? <span className="event-schedule__tag event-schedule__tag--now">지금</span> : null}
-        {next ? <span className="event-schedule__tag event-schedule__tag--next">다음</span> : null}
+      <span className="event-schedule__when timetable__when">
+        <span className="event-schedule__time">
+          {item.startTime}
+          <span className="timetable__time-end">{itemTime(item).slice(item.startTime.length)}</span>
+        </span>
+        {now ? <span className="event-schedule__tag event-schedule__tag--now timetable__badge">지금</span> : null}
+        {next ? <span className="event-schedule__tag event-schedule__tag--next timetable__badge">다음</span> : null}
       </span>
       <span className="event-schedule__main">
-        <span className="event-schedule__title">{item.title}</span>
-        {item.place ? <span className="event-schedule__place timetable__extra">{item.place}</span> : null}
-        <span className="event-schedule__tags timetable__extra">
+        <span className="event-schedule__title timetable__title">{item.title}</span>
+        {item.place ? <span className="event-schedule__place timetable__place">{item.place}</span> : null}
+        <span className="event-schedule__tags timetable__tags">
           <span className="event-schedule__tag">{categoryLabel(item)}</span>
           {item.audience !== "ALL" ? <span className="event-schedule__tag event-schedule__tag--audience">{AUDIENCE_LABEL[item.audience]}만</span> : null}
           {item.slotId ? <span className="event-schedule__tag">{slot ? `${slot.label} 칸` : "신청서에 없는 칸"}</span> : null}

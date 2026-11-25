@@ -61,54 +61,35 @@
   min-width: 0;
 }
 
-.participant-schedule__block {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-  padding: 4px 10px 6px;
-  border-radius: 7px;
+/* Line layout and what fits are in Timetable.css (timetable__content and its container queries). */
+.participant-schedule__block:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: -2px;
 }
 
-/* One line: time and title (with its marks), cut with an ellipsis; a tap opens the rest. */
-.timetable__block--short .participant-schedule__block {
-  flex-flow: row nowrap;
+/* Title and its marks share one line; a mark that does not fit drops out whole, the title gets an ellipsis. */
+.timetable__block .participant-schedule__title {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0 6px;
-  padding-block: 2px;
-}
-
-.timetable__block--short .participant-schedule__time {
-  flex: 0 0 auto;
-}
-
-.timetable__block--short .participant-schedule__title {
-  flex: 0 1 auto;
-  min-width: 0;
-}
-
-/* Closed blocks keep the title row to one line; marks that do not fit drop out whole. */
-.timetable__block:not(:hover, :focus-within) .participant-schedule__title {
-  flex-wrap: wrap;
   max-height: 21px;
-  overflow: hidden;
 }
 
-.timetable__block:not(:hover, :focus-within) .participant-schedule__place {
+.participant-schedule__title-text {
+  min-width: 0;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.timetable__block--expandable:is(:hover, :focus-within) .participant-schedule__block {
-  flex-flow: column nowrap;
-  align-items: stretch;
+.timetable__block--expandable:is(:hover, :focus-within) .participant-schedule__title {
+  max-height: none;
 }
 
-.participant-schedule__block:focus-visible {
-  outline: 2px solid var(--color-focus-ring);
-  outline-offset: -2px;
+.timetable__block--expandable:is(:hover, :focus-within) .participant-schedule__title-text {
+  white-space: normal;
 }
 
 /* 지금: P06-PMOB01's current row. */
@@ -284,4 +265,10 @@
   font: var(--scene-label-l, var(--scene-label-m));
   letter-spacing: 0;
   overflow-wrap: anywhere;
+}
+
+/* The time is one run of text (start and end), not a row of items. */
+.timetable__block .participant-schedule__time.timetable__when {
+  display: block;
+  text-overflow: ellipsis;
 }

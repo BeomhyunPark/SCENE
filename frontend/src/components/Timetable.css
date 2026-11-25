@@ -123,18 +123,65 @@
   --block-bg: var(--color-bg-surface);
   background: var(--block-bg);
   color: var(--color-text-secondary);
+  container: block / size;
 }
 
-/* Lines inside a block keep their height; what does not fit is cut at the bottom. */
-/* Lines inside a block keep their height; what does not fit is hidden whole (timetable__extra). */
-.timetable__block > * > *,
-.timetable__block > * > * > * {
+/* What a block shows is decided by the size it is actually drawn at (container queries on the block), so
+   no line is ever cut: one line when there is room for one, then time and title, then place, then tags.
+   Line heights: time and title 21px, place 18px, tags 20px; padding 2px; gap 1px. */
+.timetable__block .timetable__content {
+  display: flex;
+  flex: 1;
+  flex-flow: row wrap;
+  align-content: flex-start;
+  align-items: center;
+  gap: 1px 6px;
+  min-width: 0;
+  min-height: 0;
+  padding: 2px 10px;
+  border-radius: 7px;
+}
+
+.timetable__block .timetable__content > *,
+.timetable__block .timetable__content > * > * {
   flex-shrink: 0;
 }
 
-/* Kept for screen readers when the block has no room to show it; never drawn half cut. */
-.timetable__block--short .timetable__extra,
-.timetable__block--compact .timetable__extra,
+.timetable__block .timetable__when,
+.timetable__block .timetable__title,
+.timetable__block .timetable__place,
+.timetable__block .timetable__tags {
+  flex: 1 0 100%;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.timetable__block .timetable__title,
+.timetable__block .timetable__place {
+  text-overflow: ellipsis;
+}
+
+.timetable__block .timetable__when {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Tags take one line; a tag that does not fit drops to a hidden second line whole, never cut. */
+.timetable__block .timetable__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-height: 20px;
+}
+
+.timetable__block .timetable__tags > * {
+  max-width: 100%;
+}
+
+/* Kept for screen readers when it is not drawn. */
 .timetable__block .timetable__detail {
   position: absolute;
   width: 1px;
@@ -144,13 +191,76 @@
   white-space: nowrap;
 }
 
-/* Tapped open (participant): everything shows. */
-.timetable__block--expandable:is(:hover, :focus-within) :is(.timetable__extra, .timetable__detail) {
+@container block (height < 87px) {
+  .timetable__block .timetable__tags {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    clip-path: inset(50%);
+  }
+}
+
+@container block (height < 66px) {
+  .timetable__block .timetable__place {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    clip-path: inset(50%);
+  }
+}
+
+/* One line: the title comes first; the end time goes when the block is narrow, then the whole time. */
+@container block (height < 47px) {
+  .timetable__block .timetable__content {
+    flex-wrap: nowrap;
+  }
+
+  .timetable__block .timetable__when,
+  .timetable__block .timetable__title {
+    flex: 0 1 auto;
+  }
+
+  .timetable__block .timetable__when {
+    flex-shrink: 0;
+  }
+}
+
+/* The end time goes first: on one line when the block is under 200px wide (the title needs the room),
+   on its own line only when even "15:30–17:30 지금" no longer fits. */
+@container block (width < 140px) {
+  .timetable__block .timetable__time-end {
+    display: none;
+  }
+}
+
+@container block (width < 200px) and (height < 47px) {
+  .timetable__block .timetable__time-end,
+  .timetable__block .timetable__when .timetable__badge {
+    display: none;
+  }
+}
+
+@container block (width < 120px) and (height < 47px) {
+  .timetable__block .timetable__when {
+    display: none;
+  }
+}
+
+/* Tapped open (participant): no size limit, everything shows. */
+.timetable__block--expandable:is(:hover, :focus-within) {
+  container-type: normal;
+}
+
+.timetable__block--expandable:is(:hover, :focus-within) .timetable__detail {
   position: relative;
   width: auto;
   height: auto;
   overflow: visible;
   clip-path: none;
+  white-space: normal;
+}
+
+.timetable__block--expandable:is(:hover, :focus-within) :is(.timetable__title, .timetable__place) {
   white-space: normal;
 }
 

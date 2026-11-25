@@ -149,11 +149,11 @@ export function ScheduleTab() {
                     key: `removed-${row.item.itemId}`,
                     className: "participant-schedule__item participant-schedule__item--removed",
                     content: (
-                      <div className="participant-schedule__block">
-                        <span className="participant-schedule__time">
+                      <div className="participant-schedule__block timetable__content" title={`${row.item.startTime} ${row.item.title} · 취소됨`}>
+                        <span className="participant-schedule__time timetable__when">
                           <s>{row.item.startTime}</s>
                         </span>
-                        <p className="participant-schedule__title">
+                        <p className="participant-schedule__title timetable__title">
                           <s>{row.item.title}</s>
                           <span className="participant-schedule__badge participant-schedule__badge--removed">취소됨</span>
                         </p>
@@ -202,11 +202,15 @@ function ItemRow({ item, days, now, next }: { item: ParticipantScheduleItem; day
   const lines = previousLines(item, days);
   return (
     // Focusable so a tap opens the whole block (changes and the description) when it is short.
-    <div className="participant-schedule__block" tabIndex={0}>
-      <span className="participant-schedule__time">{timeRange(item)}</span>
+    // The title attribute keeps the whole time when a narrow block draws only part of it.
+    <div className="participant-schedule__block timetable__content" tabIndex={0} title={[timeRange(item), item.title, item.place].filter(Boolean).join(" · ")}>
+      <span className="participant-schedule__time timetable__when">
+        {item.startTime}
+        <span className="timetable__time-end">{timeRange(item).slice(item.startTime.length)}</span>
+      </span>
       <div className="participant-schedule__main">
-        <p className="participant-schedule__title">
-          {item.title}
+        <p className="participant-schedule__title timetable__title">
+          <span className="participant-schedule__title-text">{item.title}</span>
           {now ? <span className="participant-schedule__badge participant-schedule__badge--now">지금</span> : null}
           {next ? <span className="participant-schedule__badge participant-schedule__badge--next">다음</span> : null}
           {item.change ? (
@@ -214,7 +218,7 @@ function ItemRow({ item, days, now, next }: { item: ParticipantScheduleItem; day
           ) : null}
           {item.leadersOnly ? <span className="participant-schedule__badge">조장</span> : null}
         </p>
-        {item.place ? <p className="participant-schedule__place timetable__extra">{item.place}</p> : null}
+        {item.place ? <p className="participant-schedule__place timetable__place">{item.place}</p> : null}
         {lines.length > 0 ? (
           <ul className="participant-schedule__previous timetable__detail" aria-label="바뀐 내용">
             {lines.map((line) => (
