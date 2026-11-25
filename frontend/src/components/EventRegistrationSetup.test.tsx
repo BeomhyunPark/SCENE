@@ -45,6 +45,22 @@ async function waitForField(label: string) {
 }
 
 describe("event registration setup", () => {
+  it("opens 행사 설정 from the header button (#483)", async () => {
+    await login({ userId: localUsers[0].userId });
+    render(
+      <QueryClientProvider client={createQueryClient()}>
+        <MemoryRouter initialEntries={[`/events/${localEvent.eventId}/participants/setup`]}>
+          <Routes>
+            <Route path="/events/:eventId/participants/setup" element={<EventRegistrationSetup />} />
+            <Route path="/events/:eventId/settings" element={<p>설정 화면</p>} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "행사 설정" }, { timeout: 4000 }));
+    expect(await screen.findByText("설정 화면")).toBeInTheDocument();
+  });
+
   it("creates a form and shows the system fields", async () => {
     await login({ userId: localUsers[0].userId });
     renderSetup();

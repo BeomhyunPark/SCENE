@@ -571,7 +571,8 @@ function Board({
         ) : null}
         {board.rooms.length > 0 ? <SlotLegend slots={board.slots} /> : null}
         {board.rooms.length === 0 ? (
-          <p className="event-groups__empty">{editable ? "아직 방이 없어요. 위의 + 방 추가로 방을 만들어 주세요." : "아직 만든 방이 없어요."}</p>
+          // 놓을 곳이 없는 빈 점선 박스와, 위 제목 "아직 방이 없어요"의 되풀이를 걷었다(#483). 할 일 한 줄만 남긴다.
+          editable ? <p className="event-groups__muted">위의 + 방 추가로 방을 만들어 주세요.</p> : null
         ) : (
           <ol className="event-rooms__grid">
             {board.rooms.map((room, index) => (

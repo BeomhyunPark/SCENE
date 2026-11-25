@@ -35,6 +35,8 @@ describe("operator entry", () => {
     await signIn();
     expect(await screen.findByText("1개의 행사")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Local event/ })).toBeInTheDocument();
+    // The line that repeated the "행사" title is gone (#483).
+    expect(screen.queryByText("준비 중인 행사와 종료된 기록을 한곳에서 관리해요.")).toBeNull();
   });
 
   it("creates an event with the retreat code and shows the server dates", async () => {
