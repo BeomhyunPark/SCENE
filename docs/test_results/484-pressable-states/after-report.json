@@ -1,0 +1,82 @@
+[
+ {
+  "name": "01-event-list",
+  "found": 1,
+  "rest": "pointer bg=rgb(255, 255, 255) border=rgb(218, 226, 228) outline=none/rgb(19, 33, 37)",
+  "hover": "pointer bg=rgb(237, 242, 243) border=rgb(185, 198, 201) outline=none/rgb(19, 33, 37)",
+  "focus": "pointer bg=rgb(255, 255, 255) border=rgb(218, 226, 228) outline=solid/rgb(47, 111, 235)",
+  "overflow": false
+ },
+ {
+  "name": "02-tasks",
+  "found": 1,
+  "rest": "pointer bg=rgb(255, 255, 255) border=rgb(218, 226, 228) outline=none/rgb(19, 33, 37)",
+  "hover": "pointer bg=rgb(237, 242, 243) border=rgb(185, 198, 201) outline=none/rgb(19, 33, 37)",
+  "focus": "pointer bg=rgb(255, 255, 255) border=rgb(218, 226, 228) outline=solid/rgb(47, 111, 235)",
+  "overflow": false
+ },
+ {
+  "name": "03-notices",
+  "found": 1,
+  "rest": "pointer bg=rgb(255, 255, 255) border=rgb(180, 35, 24) outline=none/rgb(19, 33, 37)",
+  "hover": "pointer bg=rgb(237, 242, 243) border=rgb(180, 35, 24) outline=none/rgb(19, 33, 37)",
+  "focus": "-",
+  "overflow": false
+ },
+ {
+  "name": "04-notices-filter",
+  "found": 1,
+  "rest": "pointer bg=rgb(255, 255, 255) border=rgb(111, 129, 133) outline=none/rgb(74, 91, 95)",
+  "hover": "pointer bg=rgb(237, 242, 243) border=rgb(111, 129, 133) outline=none/rgb(19, 33, 37)",
+  "focus": "-",
+  "overflow": false
+ },
+ {
+  "name": "05-event-home-task",
+  "found": 1,
+  "rest": "pointer bg=rgb(255, 255, 255) border=rgb(218, 226, 228) outline=none/rgb(19, 33, 37)",
+  "hover": "pointer bg=rgb(237, 242, 243) border=rgb(185, 198, 201) outline=none/rgb(19, 33, 37)",
+  "focus": "-",
+  "overflow": false
+ },
+ {
+  "name": "06-participation-card",
+  "found": 1,
+  "rest": "pointer bg=rgb(255, 255, 255) border=rgb(218, 226, 228) outline=none/rgb(19, 33, 37)",
+  "hover": "pointer bg=rgb(237, 242, 243) border=rgb(185, 198, 201) outline=none/rgb(19, 33, 37)",
+  "focus": "-",
+  "overflow": false
+ },
+ {
+  "name": "07-schedule-day",
+  "found": 0,
+  "rest": "없음",
+  "hover": "-",
+  "focus": "-",
+  "overflow": false
+ },
+ {
+  "name": "08-notifications",
+  "found": 0,
+  "rest": "없음",
+  "hover": "-",
+  "focus": "-",
+  "overflow": false
+ },
+ {
+  "name": "10-event-list-390",
+  "found": 1,
+  "rest": "pointer bg=rgb(255, 255, 255) border=rgb(218, 226, 228) outline=none/rgb(19, 33, 37)",
+  "hover": "-",
+  "focus": "-",
+  "overflow": false
+ },
+ {
+  "name": "11-tasks-390",
+  "found": 1,
+  "rest": "pointer bg=rgb(255, 255, 255) border=rgb(218, 226, 228) outline=none/rgb(19, 33, 37)",
+  "hover": "-",
+  "focus": "-",
+  "overflow": false
+ }
+]
