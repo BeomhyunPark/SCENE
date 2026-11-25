@@ -15,6 +15,7 @@ public interface ParticipantSettingsMapper {
       @Param("spaceId") UUID spaceId,
       @Param("eventId") UUID eventId,
       @Param("rosterVisible") boolean rosterVisible,
+      @Param("roomRosterScope") String roomRosterScope,
       @Param("updatedBy") UUID updatedBy,
       @Param("updatedAt") Instant updatedAt);
 
@@ -22,6 +23,7 @@ public interface ParticipantSettingsMapper {
       @Param("spaceId") UUID spaceId,
       @Param("eventId") UUID eventId,
       @Param("rosterVisible") boolean rosterVisible,
+      @Param("roomRosterScope") String roomRosterScope,
       @Param("expectedVersion") int expectedVersion,
       @Param("updatedBy") UUID updatedBy,
       @Param("updatedAt") Instant updatedAt);

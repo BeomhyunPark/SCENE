@@ -58,6 +58,15 @@ public final class AuditActions {
   public static final String GROUPS_PUBLISHED = "GROUPS_PUBLISHED";
 
   /**
+   * Room publication (#457, DEC-085). Details are {@code publicationId}, {@code boardVersion},
+   * {@code assignedCount}, {@code unassignedCount}, {@code changedParticipantCount}, {@code
+   * roomsWithWarnings}, {@code notify}, and {@code notifiedCount}. Not written for {@code
+   * ALREADY_PUBLISHED}. Room edits and assignment changes are not audited (they go to {@code
+   * room_assignment_logs}). No name or phone.
+   */
+  public static final String ROOMS_PUBLISHED = "ROOMS_PUBLISHED";
+
+  /**
    * Schedule publication (#435, DEC-081). Details are {@code publicationId}, {@code boardVersion},
    * {@code added}, {@code changed}, {@code removed} (counts), {@code notify}, and {@code
    * notifiedCount}. Not written for {@code ALREADY_PUBLISHED}. Item edits are not audited.

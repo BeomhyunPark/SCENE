@@ -18,6 +18,7 @@ import app.scene.event.group.Snapshot.SnapshotMember;
 import app.scene.event.participant.ParticipantSelf;
 import app.scene.event.participantsettings.ParticipantSettingsRepository;
 import app.scene.event.privacy.PrivacyLogs;
+import app.scene.event.room.PublishedRooms;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -57,6 +58,7 @@ public class ParticipantGroupService {
   private final ParticipantSettingsRepository settings;
   private final MemberApplicationReader applications;
   private final PrivacyLogs privacyLogs;
+  private final PublishedRooms rooms;
   private final JsonMapper json;
 
   public ParticipantGroupService(
@@ -65,12 +67,14 @@ public class ParticipantGroupService {
       ParticipantSettingsRepository settings,
       MemberApplicationReader applications,
       PrivacyLogs privacyLogs,
+      PublishedRooms rooms,
       JsonMapper json) {
     this.groups = groups;
     this.board = board;
     this.settings = settings;
     this.applications = applications;
     this.privacyLogs = privacyLogs;
+    this.rooms = rooms;
     this.json = json;
   }
 
@@ -202,7 +206,7 @@ public class ParticipantGroupService {
         phone ? row.phone() : null,
         checkIn(row),
         attendance(row, setup, days),
-        null,
+        room(rooms.placements(spaceId, eventId).of(targetId)),
         new ParticipantGroupMember.Application(
             application.submittedAt(),
             application.revisedAt(),
@@ -236,6 +240,7 @@ public class ParticipantGroupService {
     JsonNode setup = board.setup(spaceId, eventId);
     List<MealSlots.Day> days = board.slotDays(spaceId, eventId, setup);
     List<LeaderMember> out = new ArrayList<>();
+    PublishedRooms.Placements placements = rooms.placements(spaceId, eventId);
     long checkedIn = 0;
     for (Member member : members) {
       MemberRow row = member.row();
@@ -251,10 +256,18 @@ public class ParticipantGroupService {
               member.leader(),
               checkIn(row),
               attendance(row, setup, days),
-              null,
+              room(placements.of(row.participantId())),
               revisedAt(row)));
     }
     return new LeaderView(members.size(), checkedIn, GroupService.slots(days), out);
+  }
+
+  /**
+   * The member's room in the latest room publication, whatever {@code roomRosterScope} says
+   * (DEC-085 §10): name and location note only, null before publication or without a room.
+   */
+  private static ParticipantGroup.Room room(PublishedRooms.PublishedRoom room) {
+    return room == null ? null : new ParticipantGroup.Room(room.name(), room.locationNote());
   }
 
   private static CheckInState checkIn(MemberRow row) {
