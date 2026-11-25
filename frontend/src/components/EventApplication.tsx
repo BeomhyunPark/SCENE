@@ -77,7 +77,7 @@ function Detail({ event, spaceName, applicationId }: { event: EventDetail; space
         {notice ? (
           <p className="withdrawn__notice" role="status">
             {notice === "saved"
-              ? "고친 내용을 저장했어요. 참가자에게 알림이 갔어요."
+              ? "고친 내용을 저장했어요. 참가자에게 알림이 갔어요. 집계·조 편성·식수·숙소·CSV가 고친 값을 따라가요."
               : notice === "added"
                 ? "직접 추가한 참가자예요."
                 : "바뀐 답이 없어 그대로 두었어요."}

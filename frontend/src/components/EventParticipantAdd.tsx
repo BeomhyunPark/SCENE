@@ -127,13 +127,10 @@ function AddForm({
     <OperatorAnswerForm
       fields={fields}
       initial={{}}
-      lead={
-        <>
-          <p>신청하지 않은 사람을 운영자가 명단에 넣어요. 신청을 닫은 뒤나 현장 등록에도 쓸 수 있어요.</p>
-          <p>이름과 전화번호만 꼭 넣으면 돼요. 저장하면 임시 번호가 한 번 보여요. 참가자에게 전해 주세요.</p>
-          {hasConsent(formFields) ? <p>동의 질문은 비워 두어요. 참가자가 내 정보에서 신청을 고칠 때 직접 답해요.</p> : null}
-        </>
-      }
+      // One line, as O04-A01 (#497, #483 제안 16). (필수) on 이름·전화 says the rest may stay empty, the
+      // temporary number's "전해 주세요" is on the screen that shows it, and the consent line sits under the questions.
+      lead={<p>신청하지 않은 사람을 운영자가 명단에 넣어요.</p>}
+      after={hasConsent(formFields) ? <p>동의 질문은 비워 두어요. 참가자가 내 정보에서 신청을 고칠 때 직접 답해요.</p> : null}
       submitLabel="참가자 추가"
       pending={save.isPending}
       failure={failure}
@@ -195,7 +192,7 @@ function TemporaryPin({ eventId, added, onNext }: { eventId: string; added: { re
   return (
     <section className="operator-answers__pin" aria-labelledby="added-title">
       <h2 id="added-title">{added.name || "참가자"}님을 추가했어요</h2>
-      <p>임시 번호예요. 이 화면을 벗어나면 다시 볼 수 없어요.</p>
+      <p>임시 번호예요. 이 화면을 벗어나면 다시 볼 수 없어요. 참가자에게 전해 주세요.</p>
       <p className="operator-answers__pin-number" aria-label="임시 번호">
         {added.result.temporaryPin}
       </p>

@@ -70,7 +70,14 @@ function Edit({ event, spaceName, applicationId }: { event: EventDetail; spaceNa
     body = blocked ? (
       <p role="alert">{blocked}</p>
     ) : (
-      <EditForm key={application.data.applicationId} event={event} application={application.data} formFields={form.data.fields} />
+      <EditForm
+        key={application.data.applicationId}
+        event={event}
+        application={application.data}
+        formFields={form.data.fields}
+        // Participants can edit only while the event is ACTIVE and the form takes edits (participantApplication.ts).
+        participantCanEdit={form.data.acceptingEdits && event.lifecycleStatus === "ACTIVE"}
+      />
     );
   }
 
@@ -94,7 +101,17 @@ function Edit({ event, spaceName, applicationId }: { event: EventDetail; spaceNa
   );
 }
 
-function EditForm({ event, application, formFields }: { event: EventDetail; application: ApplicationDetail; formFields: FormField[] }) {
+function EditForm({
+  event,
+  application,
+  formFields,
+  participantCanEdit,
+}: {
+  event: EventDetail;
+  application: ApplicationDetail;
+  formFields: FormField[];
+  participantCanEdit: boolean;
+}) {
   const eventId = event.eventId;
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -123,18 +140,12 @@ function EditForm({ event, application, formFields }: { event: EventDetail; appl
     <OperatorAnswerForm
       fields={fields}
       initial={initial}
-      lead={
-        <>
-          <p>운영자가 참가자 대신 답을 고쳐요. 신청·수정을 닫은 뒤에도 고칠 수 있어요.</p>
-          {/* DEC-088 결정 대기 1 (사용자 2026-11-25): 운영자 수정은 예외적인 길이라 막지 않고 한 줄로 알린다. */}
-          <p>참가자가 직접 고칠 수 있으면 참가자에게 맡겨 주세요.</p>
-          <p>
-            저장하면 새 수정본으로 남고 "운영자가 고침"으로 보여요. 참가자에게 알림이 가고, 집계·조 편성·식수·숙소·CSV가 고친 값을
-            따라가요. 이름과 전화번호 말고는 비워 둘 수 있어요.
-          </p>
-          {hasConsent(formFields) ? <p>동의 질문은 참가자가 답한 그대로 두어요.</p> : null}
-        </>
-      }
+      // One line, as O04-A01 (#497, #483 제안 16). DEC-088 결정 대기 1 (사용자 2026-11-25): 운영자 수정은 예외적인
+      // 길이라 막지 않고 한 줄로 알린다 — while the participant can still edit, that line; after edits close, that
+      // the operator still can. "운영자가 고침"·알림·집계가 따라감 moved to the saved notice on the detail; (필수) on
+      // 이름·전화 says the rest may stay empty; the consent line sits under the questions.
+      lead={<p>{participantCanEdit ? "참가자가 직접 고칠 수 있으면 참가자에게 맡겨 주세요." : "신청·수정을 닫은 뒤에도 고칠 수 있어요."}</p>}
+      after={hasConsent(formFields) ? <p>동의 질문은 참가자가 답한 그대로 두어요.</p> : null}
       submitLabel="고친 내용 저장"
       pending={save.isPending}
       failure={failure}
