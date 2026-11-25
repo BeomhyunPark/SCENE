@@ -83,7 +83,8 @@ class CheckInHttpIT {
     int audits = auditCount(w.eventId);
 
     JsonNode first = json.readTree(ok(manual(w.owner, w.eventId, p, "k-1")));
-    assertThat(first.propertyNames()).containsExactly("result", "participant", "checkIn");
+    assertThat(first.propertyNames())
+        .containsExactly("result", "participant", "checkIn", "room", "lodging");
     assertThat(first.get("result").asString()).isEqualTo("CHECKED_IN");
     assertThat(first.get("participant").propertyNames())
         .containsExactly("participantId", "name", "cohort");
@@ -316,7 +317,8 @@ class CheckInHttpIT {
 
     JsonNode shown = json.readTree(ok(get(rosterPath(w.eventId)).cookie(login(staffId))));
     assertThat(shown.get("items").get(0).propertyNames())
-        .containsExactly("participantId", "name", "cohort", "phoneLast4", "checkIn");
+        .containsExactly(
+            "participantId", "name", "cohort", "phoneLast4", "checkIn", "room", "lodging");
     JsonNode byDigits =
         json.readTree(ok(get(rosterPath(w.eventId)).param("q", " 5432 ").cookie(login(staffId))));
     assertThat(byDigits.get("items").size()).isEqualTo(1);

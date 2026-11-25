@@ -256,16 +256,18 @@ class AttendanceRangeHttpIT {
             .getResponse()
             .getContentAsString(StandardCharsets.UTF_8);
     String[] lines = csv.split("\r?\n");
-    assertThat(lines[0]).endsWith(",참석 일정");
+    // G5 (#460): the room column comes last and is blank before rooms are published.
+    assertThat(lines[0]).endsWith(",참석 일정,방");
     for (String line : lines) {
       if (line.contains("나래")) {
-        assertThat(line).endsWith(",\"1월 22일 (금) 집회, 1월 23일 (토) 아침, 1월 23일 (토) 점심\"");
+        assertThat(line).endsWith(",\"1월 22일 (금) 집회, 1월 23일 (토) 아침, 1월 23일 (토) 점심\",");
       }
       if (line.contains("마루")) {
-        assertThat(line).endsWith(",1월 23일 (토) 저녁");
+        // One dinner and no night: no room, told apart as "숙박 안 함".
+        assertThat(line).endsWith(",1월 23일 (토) 저녁,숙박 안 함");
       }
       if (line.contains("바다")) {
-        assertThat(line).endsWith(",");
+        assertThat(line).endsWith(",,");
       }
     }
   }
