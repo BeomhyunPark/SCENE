@@ -1,4 +1,5 @@
-import { Navigate, Route, Routes, useParams } from "react-router";
+import { useEffect } from "react";
+import { Navigate, Route, Routes, useLocation, useParams } from "react-router";
 import { ParticipantGroup } from "../ParticipantGroup";
 import { GroupMemberDetail } from "./GroupMemberDetail";
 import { useParticipantFeed } from "./participantFeed";
@@ -11,6 +12,13 @@ import { participantPath } from "./participantTabs";
 export function GroupTab() {
   const feed = useParticipantFeed();
   const { eventId, name } = feed;
+  const { pathname } = useLocation();
+  // Coming from the home card (scrolled under the QR) or from a member, start at the top so the
+  // leader sees 미도착 on the first screen.
+  // "instant": the page has `scroll-behavior: smooth`, which would still show the old place while it moves.
+  useEffect(() => {
+    document.documentElement.scrollTo?.({ top: 0, behavior: "instant" });
+  }, [pathname]);
   return (
     <div className="participant-tab">
       <Routes>

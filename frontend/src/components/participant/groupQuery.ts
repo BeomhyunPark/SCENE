@@ -32,7 +32,9 @@ export function useParticipantGroupQuery(eventId: string, options: { leaderRefre
 export function useGroupMemberQuery(eventId: string, participantId: string) {
   const query = useQuery({
     queryKey: queryKeys.participantGroupMember(eventId, participantId),
-    queryFn: ({ signal }) => getGroupMemberDetail(participantId, signal),
+    // No abort signal: a read that reached the server is already logged, and cancelling it on a quick
+    // unmount/remount (StrictMode in dev, a fast back-and-forth) would only send a second logged read.
+    queryFn: () => getGroupMemberDetail(participantId),
     staleTime: Infinity,
     gcTime: 0,
     retry: false,
