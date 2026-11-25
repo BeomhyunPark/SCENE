@@ -86,7 +86,7 @@
 .event-list__row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 16px;
   width: 100%;
   padding: 16px;
@@ -97,6 +97,11 @@
   font: var(--scene-body-m);
   text-align: left;
   word-break: keep-all;
+}
+
+/* 이름(또는 이름·조직 묶음)은 왼쪽, 날짜·장소·상태는 오른쪽 끝 꺾쇠 바로 앞에 모은다 (#484). */
+.event-list__row > :first-child {
+  margin-right: auto;
 }
 
 .event-list__row-name {
