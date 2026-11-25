@@ -1,0 +1,9 @@
+1440c home sidebar 72 item0 [12,128,47,36] icon0 [26,136,20,20] current [12,128,47,36] toggle [24,60,24,24] avatar [20,1084,32,32] title.x 192 overflow false
+1440c events sidebar 72 item0 [12,128,47,36] icon0 [26,136,20,20] current [12,128,47,36] toggle [24,60,24,24] avatar [20,1084,32,32] title.x 192 overflow false
+1440c members sidebar 72 item0 [12,128,47,36] icon0 [26,136,20,20] current [12,208,47,36] toggle [24,60,24,24] avatar [20,1084,32,32] title.x 192 overflow false
+2000c home sidebar 72 item0 [12,128,47,36] icon0 [26,136,20,20] current [12,128,47,36] toggle [24,60,24,24] avatar [20,1084,32,32] title.x 472 overflow false
+2000c events sidebar 72 item0 [12,128,47,36] icon0 [26,136,20,20] current [12,128,47,36] toggle [24,60,24,24] avatar [20,1084,32,32] title.x 472 overflow false
+2000c members sidebar 72 item0 [12,128,47,36] icon0 [26,136,20,20] current [12,208,47,36] toggle [24,60,24,24] avatar [20,1084,32,32] title.x 472 overflow false
+1440-expanded home sidebar 248 item0 [16,128,215,36] icon0 [24,136,20,20] current [16,128,215,36] toggle [207,60,24,24] avatar [16,1084,32,32] title.x 280 overflow false
+1440-expanded events sidebar 248 item0 [16,128,215,36] icon0 [24,136,20,20] current [16,128,215,36] toggle [207,60,24,24] avatar [16,1084,32,32] title.x 280 overflow false
+1440-expanded members sidebar 248 item0 [16,128,215,36] icon0 [24,136,20,20] current [16,208,215,36] toggle [207,60,24,24] avatar [16,1084,32,32] title.x 280 overflow false
