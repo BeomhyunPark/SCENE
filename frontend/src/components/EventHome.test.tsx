@@ -51,7 +51,7 @@ describe("event home dashboard", () => {
 
   it("keeps every way in from the home of a new event, with nothing awkward at zero", async () => {
     const stats = await openHome("DRAFT");
-    expect(await within(stats).findByRole("link", { name: /^참가자.*신청 집계.*0명/ }, WAIT)).toHaveAttribute(
+    expect(await within(stats).findByRole("link", { name: /신청 집계.*참가자.*0명/ }, WAIT)).toHaveAttribute(
       "href",
       `/events/${EVENT}/participants/summary`,
     );

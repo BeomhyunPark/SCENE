@@ -517,7 +517,12 @@
   gap: 8px;
 }
 
-/* Event home dashboard (#467): Figma 「02 행사 홈 · v2.0 Candidate」 46:18286 in SCENE tokens. */
+/*
+ * Event home dashboard (#467). Layout from SCENE 「02 행사 홈 · v2.0 Candidate」 (RreFdEVMiwgHrV7teaCEOm
+ * 46:18286); card, row, agenda and badge shapes from Venture (2yztLB533ohOebuAKuwZr0 Dashboard
+ * 873:109446: stat card 539:33865, Upcoming Agenda 539:33910, Rows 652:38950; Analytics 14:2842 panels).
+ * Colours and type are SCENE tokens.
+ */
 .event-home--dashboard {
   background: var(--color-bg-canvas);
 }
@@ -532,7 +537,7 @@
 .event-home__modules {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px;
+  gap: 20px;
 }
 
 .event-home__stat,
@@ -541,26 +546,19 @@
   box-sizing: border-box;
   min-width: 0;
   border: 1px solid var(--color-border-default);
-  border-radius: 8px;
   background: var(--color-bg-surface);
   color: var(--color-text-primary);
 }
 
+/* Venture stat card: radius 4, padding 20, gap 12. */
 .event-home__stat,
 .event-home__module {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 18px 20px;
+  gap: 12px;
+  padding: 20px;
+  border-radius: 4px;
   text-decoration: none;
-}
-
-.event-home__stat {
-  min-height: 118px;
-}
-
-.event-home__stat--brand {
-  background: var(--color-bg-brand-subtle);
 }
 
 .event-home__stat:hover,
@@ -576,11 +574,38 @@
   outline-offset: 2px;
 }
 
-.event-home__stat-head {
+.event-home__card-top {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
+}
+
+.event-home__stat-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  background: var(--color-bg-subtle);
+}
+
+.event-home__stat-icon img {
+  width: 24px;
+  height: 24px;
+}
+
+.event-home__stat-go {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.event-home__caret {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  transform: rotate(-90deg);
 }
 
 .event-home__stat-hint {
@@ -588,10 +613,15 @@
   font: var(--scene-label-s);
 }
 
+.event-home__stat-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 .event-home__stat-label {
   color: var(--color-text-secondary);
-  font: var(--scene-body-s);
-  font-weight: 500;
+  font: var(--scene-label-m);
 }
 
 .event-home__stat-value {
@@ -605,10 +635,6 @@
   font: var(--scene-caption-m);
 }
 
-.event-home__module {
-  min-height: 94px;
-}
-
 .event-home__module-title {
   font: var(--scene-title);
 }
@@ -617,14 +643,16 @@
   display: grid;
   grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
   align-items: start;
-  gap: 20px;
+  gap: 24px;
 }
 
+/* Venture panel (Analytics 14:2842): radius 8, padding 20, gap 16. */
 .event-home__panel {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 18px 20px;
+  gap: 16px;
+  padding: 20px;
+  border-radius: 8px;
 }
 
 .event-home__panel-head {
@@ -635,7 +663,7 @@
 
 .event-home__panel-title {
   margin: 0;
-  font: var(--scene-heading-s);
+  font: var(--scene-heading-m);
 }
 
 .event-home__panel-support,
@@ -645,55 +673,47 @@
   font: var(--scene-body-s);
 }
 
-.event-home__empty {
-  padding: 8px 0;
-}
-
-.event-home__rows {
+.event-home__rows,
+.event-home__agenda {
   display: flex;
   flex-direction: column;
-  gap: 10px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.event-home__task,
-.event-home__slot {
+.event-home__rows {
+  gap: 12px;
+}
+
+.event-home__agenda {
+  gap: 16px;
+}
+
+/* Venture Rows 652:38950: white row, 1px border, radius 4, padding 12. */
+.event-home__task {
   display: flex;
   align-items: center;
+  gap: 12px;
   box-sizing: border-box;
-  min-height: 58px;
+  padding: 12px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 4px;
+  background: var(--color-bg-surface);
   color: var(--color-text-primary);
   text-decoration: none;
 }
 
-.event-home__task {
-  gap: 12px;
-  padding: 8px 12px;
-  border-radius: 6px;
-  background: var(--color-bg-subtle);
-}
-
 .event-home__task:hover {
+  border-color: var(--color-border-hover-row);
   background: var(--color-bg-hover-row);
-}
-
-.event-home__check {
-  flex: none;
-  box-sizing: border-box;
-  width: 18px;
-  height: 18px;
-  border: 1px solid var(--color-border-control);
-  border-radius: 4px;
-  background: var(--color-bg-surface);
 }
 
 .event-home__row-copy {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
   min-width: 0;
 }
 
@@ -705,7 +725,7 @@
 }
 
 .event-home__row-title {
-  font: var(--scene-label-m);
+  font: var(--scene-body-m);
 }
 
 .event-home__row-meta {
@@ -713,15 +733,26 @@
   font: var(--scene-caption-m);
 }
 
+/* Venture status badge: pill, padding 4/8, 8px dot, 12 medium. */
 .event-home__pill {
+  display: inline-flex;
   flex: none;
+  align-items: center;
+  gap: 8px;
   padding: 4px 8px;
   border-radius: 36px;
   font: var(--scene-label-s);
 }
 
+.event-home__pill-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
 .event-home__pill--neutral {
-  background: var(--color-bg-surface);
+  background: var(--color-bg-subtle);
   color: var(--color-text-secondary);
 }
 
@@ -735,26 +766,39 @@
   color: var(--color-success-fg);
 }
 
+/* Venture Upcoming Agenda 539:33910: time badge, title, description; gap 8. */
 .event-home__slot {
-  gap: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 4px 0;
+  border-radius: 4px;
+  color: var(--color-text-primary);
+  text-decoration: none;
+}
+
+.event-home__slot:hover .event-home__slot-title {
+  text-decoration: underline;
 }
 
 .event-home__slot-time {
-  flex: none;
-  width: 48px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  background: var(--color-bg-brand-subtle);
   color: var(--color-text-brand);
-  font: var(--scene-body-s-strong);
+  font: var(--scene-label-s);
   font-variant-numeric: tabular-nums;
 }
 
 .event-home__slot-title {
-  font: var(--scene-body-s);
-  font-weight: 500;
+  max-width: 100%;
+  font: var(--scene-label-m);
 }
 
 .event-home__slot-meta {
   color: var(--color-text-secondary);
-  font: var(--scene-caption-s);
+  font: var(--scene-caption-m);
 }
 
 .event-home__ended {
@@ -774,6 +818,7 @@
 
   .event-home__columns {
     grid-template-columns: 1fr;
+    gap: 20px;
   }
 }
 
@@ -784,7 +829,7 @@
     padding: 16px;
   }
 
-  .event-home__stat {
-    min-height: 0;
+  .event-home__stat-value {
+    font: var(--scene-heading-l);
   }
 }

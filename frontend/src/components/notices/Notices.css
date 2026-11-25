@@ -343,12 +343,12 @@
   gap: 8px;
 }
 
-/* 운영진 공지 on the operator event home: the same panel as 지금 할 일 (#467). */
+/* 운영진 공지 on the operator event home: the same Venture panel and rows as 지금 할 일 (#467). */
 .staff-notices {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 18px 20px;
+  gap: 16px;
+  padding: 20px;
   border: 1px solid var(--color-border-default);
   border-radius: 8px;
   background: var(--color-bg-surface);
@@ -363,7 +363,7 @@
 
 .staff-notices__head h2 {
   margin: 0;
-  font: var(--scene-heading-s);
+  font: var(--scene-heading-m);
 }
 
 .staff-notices__more {
@@ -379,27 +379,22 @@
 }
 
 .staff-notices__rows {
-  gap: 10px;
+  gap: 12px;
 }
 
 .staff-notices .staff-notices__row {
-  gap: 3px;
-  padding: 10px 12px;
-  border-color: transparent;
-  border-radius: 6px;
-  background: var(--color-bg-subtle);
+  gap: 2px;
+  padding: 12px;
+  border-radius: 4px;
 }
 
 .staff-notices .staff-notices__row:hover {
+  border-color: var(--color-border-hover-row);
   background: var(--color-bg-hover-row);
 }
 
-.staff-notices .staff-notices__row.notice-row--important {
-  border-color: var(--color-danger-fg);
-}
-
 .staff-notices .notice-row__title {
-  font: var(--scene-label-m);
+  font: var(--scene-body-m);
 }
 
 .staff-notices .notice-row__meta {

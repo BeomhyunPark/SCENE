@@ -1,6 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router";
 import arrowLeft from "../assets/event-create/arrow-left.svg";
+import addressIcon from "../assets/event-nav/address.svg";
+import bellIcon from "../assets/event-nav/bell.svg";
+import calendarIcon from "../assets/event-nav/calendar.svg";
+import caretIcon from "../assets/event-nav/caret.svg";
+import clipboardIcon from "../assets/event-nav/clipboard.svg";
 import { getApplicationSummary } from "../api/applicationSummary";
 import { getCheckInSummary } from "../api/checkIns";
 import type { EventDetail } from "../api/events";
@@ -126,36 +131,48 @@ function EventHomeBody({
 function ModuleLink({ to, title, detail }: { to: string; title: string; detail: string }) {
   return (
     <Link className="event-home__module" to={to}>
-      <span className="event-home__module-title">{title}</span>
+      <span className="event-home__card-top">
+        <span className="event-home__module-title">{title}</span>
+        <img className="event-home__caret" src={caretIcon} alt="" />
+      </span>
       <span className="event-home__module-detail">{detail}</span>
     </Link>
   );
 }
 
+/** Venture Dashboard stat card (2yztLB533ohOebuAKuwZr0 539:33865): icon tile and caret, label, value. */
 function SummaryCard({
   to,
+  icon,
   label,
   value,
   detail,
   hint,
-  brand = false,
 }: {
   to: string;
+  icon: string;
   label: string;
   value: string;
   detail: string;
   /** Where the card opens, when its label alone does not say (참가자 → 신청 집계). */
   hint?: string;
-  brand?: boolean;
 }) {
   return (
-    <Link className={`event-home__stat${brand ? " event-home__stat--brand" : ""}`} to={to}>
-      <span className="event-home__stat-head">
-        <span className="event-home__stat-label">{label}</span>
-        {hint ? <span className="event-home__stat-hint">{hint}</span> : null}
+    <Link className="event-home__stat" to={to}>
+      <span className="event-home__card-top">
+        <span className="event-home__stat-icon" aria-hidden="true">
+          <img src={icon} alt="" />
+        </span>
+        <span className="event-home__stat-go">
+          {hint ? <span className="event-home__stat-hint">{hint}</span> : null}
+          <img className="event-home__caret" src={caretIcon} alt="" />
+        </span>
       </span>
-      <span className="event-home__stat-value">{value}</span>
-      <span className="event-home__stat-detail">{detail}</span>
+      <span className="event-home__stat-copy">
+        <span className="event-home__stat-label">{label}</span>
+        <span className="event-home__stat-value">{value}</span>
+        <span className="event-home__stat-detail">{detail}</span>
+      </span>
     </Link>
   );
 }
@@ -234,10 +251,10 @@ function SummaryCards({ event }: { event: EventDetail }) {
 
   return (
     <section className="event-home__stats" aria-label="운영 요약">
-      <SummaryCard to={`/events/${eventId}/participants/summary`} label="참가자" hint="신청 집계" brand {...people} />
-      <SummaryCard to={`/events/${eventId}/tasks`} label="준비 업무" {...work} />
-      <SummaryCard to={`/events/${eventId}/schedule`} label="일정" {...plan} />
-      <SummaryCard to={`/events/${eventId}/notifications`} label="변경 요청" {...changes} />
+      <SummaryCard to={`/events/${eventId}/participants/summary`} icon={addressIcon} label="참가자" hint="신청 집계" {...people} />
+      <SummaryCard to={`/events/${eventId}/tasks`} icon={clipboardIcon} label="준비 업무" {...work} />
+      <SummaryCard to={`/events/${eventId}/schedule`} icon={calendarIcon} label="일정" {...plan} />
+      <SummaryCard to={`/events/${eventId}/notifications`} icon={bellIcon} label="변경 요청" {...changes} />
     </section>
   );
 }
@@ -289,12 +306,14 @@ function NowTasks({ eventId }: { eventId: string }) {
           {open.map((task) => (
             <li key={task.taskId}>
               <Link className="event-home__task" to={`/events/${eventId}/tasks/${task.taskId}`}>
-                <span className="event-home__check" aria-hidden="true" />
                 <span className="event-home__row-copy">
                   <span className="event-home__row-title">{task.title}</span>
                   <span className="event-home__row-meta">{taskMeta(task)}</span>
                 </span>
-                <span className={`event-home__pill event-home__pill--${BADGE_TONE[task.status]}`}>{taskStatusLabel(task.status)}</span>
+                <span className={`event-home__pill event-home__pill--${BADGE_TONE[task.status]}`}>
+                  <span className="event-home__pill-dot" aria-hidden="true" />
+                  {taskStatusLabel(task.status)}
+                </span>
               </Link>
             </li>
           ))}
@@ -339,15 +358,13 @@ function UpcomingSchedule({ eventId }: { eventId: string }) {
         <p className="event-home__empty">{schedule.data?.items.length ? "남은 일정이 없어요." : "아직 일정이 없어요."}</p>
       ) : null}
       {upcoming && upcoming.items.length > 0 ? (
-        <ul className="event-home__rows">
+        <ul className="event-home__agenda">
           {upcoming.items.map((item) => (
             <li key={item.itemId}>
               <Link className="event-home__slot" to={`/events/${eventId}/schedule/${item.itemId}`}>
-                <span className="event-home__slot-time">{item.startTime}</span>
-                <span className="event-home__row-copy">
-                  <span className="event-home__slot-title">{item.title}</span>
-                  {item.place ? <span className="event-home__slot-meta">{item.place}</span> : null}
-                </span>
+                <span className="event-home__slot-time">{item.endTime ? `${item.startTime}–${item.endTime}` : item.startTime}</span>
+                <span className="event-home__slot-title">{item.title}</span>
+                {item.place ? <span className="event-home__slot-meta">{item.place}</span> : null}
               </Link>
             </li>
           ))}
