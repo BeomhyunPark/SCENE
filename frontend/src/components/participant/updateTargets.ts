@@ -24,7 +24,7 @@ export const UPDATE_TARGETS: Record<FeedKey, (eventId: string) => readonly Query
     queryKeys.participantNotices(eventId),
     queryKeys.participantSchedule(eventId),
   ],
-  // A leader's member list shows each member's room (room-contract §10.2); a room publication does not raise `group`.
+  // A leader's member list shows each member's room (api.md "숙소" `GET /participant/rooms`); a room publication does not raise `group`.
   rooms: (eventId) => [queryKeys.participantRooms(eventId), queryKeys.participantGroup(eventId)],
   checkIn: (eventId) => [queryKeys.participantCheckIn(eventId)],
   application: (eventId) => [queryKeys.participantApplication(eventId)],

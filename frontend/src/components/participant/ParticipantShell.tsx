@@ -9,6 +9,7 @@ import { HomeTab } from "./HomeTab";
 import { MeTab } from "./MeTab";
 import { NoticesTab } from "./NoticesTab";
 import { ParticipantTabBar } from "./ParticipantTabBar";
+import { RoomsScreen } from "./RoomsScreen";
 import { ScheduleTab } from "./ScheduleTab";
 import { EmptyNote } from "./HomeCard";
 import { useParticipantHomeQuery } from "./homeQuery";
@@ -79,6 +80,8 @@ function Feed({
           <Route path="schedule/*" element={area("schedule", <ScheduleTab />)} />
           <Route path="notices/*" element={area("notices", <NoticesTab />)} />
           <Route path="group/*" element={area("groups", <GroupTab />)} />
+          {/* 숙소 opens from the home card and stays under the 홈 tab (DEC-085 Follow-up, G4 #459). */}
+          <Route path="rooms/*" element={area("rooms", <RoomsScreen />)} />
           <Route path="me/*" element={<MeTab onLeave={() => onLeave(true)} />} />
           <Route path="*" element={<Navigate to={participantPath(eventId, "home")} replace />} />
         </Routes>
