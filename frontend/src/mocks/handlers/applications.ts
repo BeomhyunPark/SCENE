@@ -25,6 +25,7 @@ import { problem } from "../problem";
 import { csrfMatches } from "../csrf";
 import { operationOf, writeOperation } from "../operationStore";
 import { applicationSummary } from "../applicationSummary";
+import { roomCell, roomPublishedAt, tableStay } from "../deskRooms";
 
 const DEFAULT_SIZE = 50;
 const MAX_SIZE = 100;
@@ -128,6 +129,7 @@ export const applicationHandlers = [
           operation: operationOf(row.applicationId),
           revision: row.revision,
           revisedBy: row.revisedBy,
+          ...tableStay(eventId, row.participantId),
         })),
         slots,
         withdrawn: withdrawnApplications(eventId).map((row) => ({
@@ -135,6 +137,7 @@ export const applicationHandlers = [
           previousGroup: groupVisible ? previousGroupOf(eventId, row.participantId) : null,
           checkedInAt: checkedInAtOf(eventId, row.participantId),
         })),
+        roomPublishedAt: roomPublishedAt(eventId),
       },
       { headers: { "Cache-Control": "no-store" } },
     );
@@ -310,6 +313,9 @@ export const applicationHandlers = [
     const form = eventFormDetail(eventId);
     const slots = form && form.formId === formId && attendanceMode(form) === "RANGE" ? formSlots(form) : null;
     if (slots) table[0].push("참석 일정");
+    // G5 (#460): 방 is always last, from the room publication.
+    table[0].push("방");
+    const participantOf = new Map(tableApplications(eventId).map((item) => [item.applicationId, item.participantId]));
     for (const row of rows) {
       const detail = submittedApplication(eventId, row.applicationId);
       const answers = detail?.answers ?? [];
@@ -328,6 +334,7 @@ export const applicationHandlers = [
             : slots.filter((slot) => ids.includes(slot.slotId)).map((slot) => `${slot.dayLabel} ${slot.label}`).join(", "),
         );
       }
+      line.push(roomCell(eventId, participantOf.get(row.applicationId)));
       table.push(line);
     }
     const body = "\uFEFF" + table.map((line) => line.map(csvCell).join(",")).join("\r\n") + "\r\n";

@@ -1,0 +1,19 @@
+/* 현장 운영 방 (G5 #460): the published room under the name, strong enough to read out at the desk. */
+.field-room {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  margin: 2px 0 0;
+  color: var(--color-text-primary);
+  font: var(--scene-label-m);
+  overflow-wrap: anywhere;
+}
+
+.field-room__label {
+  flex: none;
+  color: var(--color-text-secondary);
+}
+
+.field-room--away {
+  color: var(--color-text-secondary);
+}

@@ -31,6 +31,7 @@ import { FieldScan } from "./EventFieldScan";
 import { useFieldRefresh } from "./fieldRefresh";
 import { buildGroupStats, pendingFor, publishedGroupNames } from "./fieldGroupStats";
 import { FieldGroups } from "./FieldGroups";
+import { roomNoticeSuffix } from "../api/deskRoom";
 import { FieldRosterRow } from "./FieldRosterRow";
 import { EventScreen } from "./EventScreen";
 import { formatSubmittedAt } from "./eventFormat";
@@ -689,10 +690,11 @@ function checkInNotice(result: CheckInResult): Notice {
     const by = result.checkIn.checkedInByDisplayName ? ` · ${result.checkIn.checkedInByDisplayName}` : "";
     return {
       tone: "info",
-      text: `${name} 님은 이미 체크인했어요 (${formatSubmittedAt(result.checkIn.checkedInAt)}${by}).`,
+      text: `${name} 님은 이미 체크인했어요 (${formatSubmittedAt(result.checkIn.checkedInAt)}${by}).${roomNoticeSuffix(result.room, result.lodging)}`,
     };
   }
-  return { tone: "success", text: `${name} 님을 체크인했어요.` };
+  // 방 (G5 #460): the desk can tell the room right after the check-in.
+  return { tone: "success", text: `${name} 님을 체크인했어요.${roomNoticeSuffix(result.room, result.lodging)}` };
 }
 
 function cancelNotice(result: CancelResult, name: string): Notice {

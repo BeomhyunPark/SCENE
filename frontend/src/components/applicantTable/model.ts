@@ -3,6 +3,7 @@ import { cohortSortKey, compareCohort } from "../cohort";
 import type { AnswerType, FieldOption } from "../../api/forms";
 import { formatAnswer, HIDDEN_MARK } from "../answerDisplay";
 import { participantLabel } from "../participantLabel";
+import { roomColumn, summarizeRooms } from "./roomColumn";
 
 /**
  * 참가 현황 table model (#308). Pure functions over the server table: which columns there are, the
@@ -14,7 +15,17 @@ export const NONE = "__none";
 export const OTHER = "__other";
 export const NONE_LABEL = "응답 없음";
 
-export type ColumnType = "person" | "choice" | "multi" | "text" | "number" | "date" | "group" | "status" | "memo";
+export type ColumnType =
+  | "person"
+  | "choice"
+  | "multi"
+  | "text"
+  | "number"
+  | "date"
+  | "group"
+  | "room"
+  | "status"
+  | "memo";
 
 /** Id of the 수정 column (#437): rows the participant (or an operator) changed after applying. */
 export const EDITED = "edited";
@@ -182,6 +193,8 @@ export function buildColumns(table: ApplicationTable): ColumnDef[] {
       sortValue: (row) => row.group?.name ?? null,
     });
   }
+  // 방 (G5 #460): the published room, right after the group.
+  columns.push(roomColumn(table));
   if (attendance) columns.push({ ...questionColumn(attendance), label: "참석 범위", defaultVisible: true });
   if (table.slots) columns.push(slotColumn(table.slots));
 
@@ -624,6 +637,7 @@ export function summarize(rows: readonly TableRow[], column: ColumnDef): string 
   if (column.type === "person") return `${rows.length}명`;
   if (column.type === "status") return `도착 ${rows.filter((row) => row.checkedInAt).length} · 전 ${rows.filter((row) => !row.checkedInAt).length}`;
   if (column.type === "memo") return `메모 ${rows.filter((row) => row.operation.memo.trim()).length}`;
+  if (column.type === "room") return summarizeRooms(rows);
   if (column.type === "group") {
     const groups = new Set(rows.flatMap((row) => (row.group ? [row.group.groupId] : [])));
     return `배정 ${rows.filter((row) => row.group).length} · ${groups.size}개 조`;
@@ -699,7 +713,7 @@ export function moveColumn(order: readonly string[], id: string, delta: -1 | 1):
 export function defaultWidth(column: ColumnDef): number {
   if (column.type === "person") return 180;
   if (column.type === "status" || column.type === "number") return 120;
-  if (column.type === "group") return 120;
+  if (column.type === "group" || column.type === "room") return 120;
   if (column.type === "memo") return 220;
   if (column.type === "date") return 150;
   if (column.type === "multi") return 220;
