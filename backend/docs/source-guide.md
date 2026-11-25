@@ -283,7 +283,7 @@ Flyway만 스키마를 쓴다. `V1__baseline.sql`이 제품 테이블이고, `V2
 | 조 편성 작업본 | `event/group/GroupHttpIT` |
 | 조 편성 공개, 공개본, 참가자 내 조 | `event/group/GroupPublicationHttpIT` |
 | 조원 명단·조장 보기·조원 상세·전화 열람 기록·참가자 설정(DEC-083 시험 조건 12가지) | `event/group/ParticipantGroupRosterHttpIT` |
-| 숙소 방 CRUD·배정·경고·숙박 안 함 거절·공개·알림·참가자 숙소·공개 범위·신청 취소·조장 보기의 방(숙소 계약 초안의 시험 조건 14가지) | `event/room/RoomHttpIT` |
+| 숙소 방 CRUD·배정·경고·숙박 안 함 거절·공개·알림·참가자 숙소·공개 범위·신청 취소·조장 보기의 방·"다시 볼 것"(api.md "숙소" 시험 조건 1~15) | `event/room/RoomHttpIT` |
 | 참가 현황 표·CSV·체크인 명단·결과의 공개본 방(G5, 숙소 시험 조건 1의 G5 부분) | `event/room/RoomDeskHttpIT` |
 | 사람별 숙박 밤 | `event/form/MealSlotsLodgingTest`, 조장 보기와 집계 비교 `event/application/AttendanceRangeHttpIT` |
 | 참가자 홈, 갱신 값, 대상 판정, 알림 | `event/home/ParticipantHomeHttpIT` |
@@ -306,7 +306,7 @@ Flyway만 스키마를 쓴다. `V1__baseline.sql`이 제품 테이블이고, `V2
 
 - 비밀번호, 토큰 로그인
 - SMTP. 초대 링크는 `CapturingInvitationMailer`의 메모리에만 있다
-- 회비, 차량 테이블과 그 API. 체크인은 `V12__checkins.sql`과 운영자 API가 있고, 참가자 QR 받기는 #283이다. 조는 `V13__groups.sql`(작업본)·`V14__group_publications.sql`(공개본)과 운영자 API, 참가자 내 조(`GET /api/v1/participant/group`)·조장의 조원 상세가 있다. 숙소는 `V26__rooms.sql`과 운영자 API, 참가자 내 숙소(`GET /api/v1/participant/rooms`), 참가 현황 표·CSV·현장 명단의 공개본 방(G5)이 있고, "다시 볼 것"(A11)은 아직 없다
+- 회비, 차량 테이블과 그 API. 체크인은 `V12__checkins.sql`과 운영자 API가 있고, 참가자 QR 받기는 #283이다. 조는 `V13__groups.sql`(작업본)·`V14__group_publications.sql`(공개본)과 운영자 API, 참가자 내 조(`GET /api/v1/participant/group`)·조장의 조원 상세가 있다. 숙소는 `V26__rooms.sql`과 운영자 API, 참가자 내 숙소(`GET /api/v1/participant/rooms`), 참가 현황 표·CSV·현장 명단의 공개본 방(G5), "다시 볼 것"(A11)이 있다
 - 회비·차량 등 다른 권한 키는 쓰는 경로가 없다. 일정표는 `event/schedule`(`SCHEDULE_WRITE`), 공지는 `event/notice`에 있다
 
 `Permission`에 키가 있는 것은 그 API가 열렸다는 뜻이 아니다. `OWNER`는 등록된 키를 모두 갖고, 그 키를 쓰는 명령은 각 서비스에 있을 때만 동작한다.

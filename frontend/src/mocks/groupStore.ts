@@ -408,8 +408,8 @@ export type ParticipantGroupBody = {
 /**
  * GET /api/v1/participant/group (#300, DEC-072 §6, DEC-083 · #452) from the latest publication. Names, 또래
  * and 성별 are read now; withdrawn people drop out of the roster and the leader names. Members get the
- * roster while the event switch is on; the leader always gets it and `leaderView`. `room` stays null
- * before rooms (G2).
+ * roster while the event switch is on; the leader always gets it and `leaderView`. The server fills
+ * `leaderView.members[].room` from the latest room publication (G2 #457); this mock leaves it null.
  */
 export function readParticipantGroup(eventId: string, participantId: string): ParticipantGroupBody {
   const active = new Map(activePeople(eventId).map((person) => [person.participantId, person]));
