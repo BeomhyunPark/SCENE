@@ -187,7 +187,9 @@ describe("event-only collaborators see and open their events (#387)", () => {
     await login({ userId: OWNER.userId });
     openApp(`/events/${event}/operators`);
 
-    expect(await screen.findByRole("region", { name: "조직 멤버 추가" })).toBeInTheDocument();
+    // The member list loads when the 운영자 추가 dialog opens (#494).
+    fireEvent.click(await screen.findByRole("button", { name: "운영자 추가" }));
+    expect(await screen.findByRole("dialog", { name: "운영자 추가" })).toBeInTheDocument();
     await waitFor(() =>
       expect(operatorRequests.map((request) => request.url)).toContain(
         `/api/v1/operator/spaces/${zeta}/members?page=0&size=100`,

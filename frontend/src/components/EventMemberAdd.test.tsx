@@ -24,8 +24,16 @@ function openApp() {
   );
 }
 
-function addSection() {
-  return screen.findByRole("region", { name: "조직 멤버 추가" });
+/** Opens the "운영자 추가" dialog, which starts on the organization member way (#494). */
+async function addSection() {
+  fireEvent.click(await screen.findByRole("button", { name: "운영자 추가" }));
+  const dialog = await screen.findByRole("dialog", { name: "운영자 추가" });
+  expect(within(dialog).getByRole("radio", { name: "조직 멤버 추가" })).toBeChecked();
+  return dialog;
+}
+
+function operatorsRegion() {
+  return screen.getByRole("region", { name: "운영자" });
 }
 
 function postFails(status: number, code: string, errors?: { field: string }[]) {
@@ -41,12 +49,13 @@ describe("event owner adds organization members (#363)", () => {
     const member = (await within(section).findByLabelText("조직 멤버")) as HTMLSelectElement;
     const names = Array.from(member.options).map((option) => option.textContent);
     expect(names).toEqual(["Local member"]);
-    expect(within(section).getByLabelText("추가할 역할")).toHaveValue("STAFF");
+    expect(within(section).getByLabelText("역할")).toHaveValue("STAFF");
 
     fireEvent.click(within(section).getByRole("button", { name: "운영자로 추가" }));
 
-    expect(await within(section).findByRole("status")).toHaveTextContent("Local member님을 Staff 역할로 추가했어요.");
-    const operators = screen.getByRole("region", { name: "운영자" });
+    const operators = operatorsRegion();
+    expect(await within(operators).findByRole("status")).toHaveTextContent("Local member님을 Staff 역할로 추가했어요.");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     const row = (await within(operators).findByText("Local member")).closest("li");
     expect(row).toHaveTextContent("Staff");
     expect(within(operators).getByText("4명")).toBeInTheDocument();
@@ -54,7 +63,9 @@ describe("event owner adds organization members (#363)", () => {
       userId: MEMBER.userId,
       role: "STAFF",
     });
-    expect(await within(section).findByText("추가할 수 있는 조직 멤버가 없어요. 모두 이 행사의 운영자예요.")).toBeInTheDocument();
+    const again = await addSection();
+    expect(await within(again).findByText("추가할 수 있는 조직 멤버가 없어요. 모두 이 행사의 운영자예요.")).toBeInTheDocument();
+    expect(within(again).getByRole("button", { name: "운영자로 추가" })).toBeDisabled();
   });
 
   it("says in one line what MANAGER and STAFF do by default (DEC-079 Follow-up 2026-11-20)", async () => {
@@ -62,7 +73,7 @@ describe("event owner adds organization members (#363)", () => {
     openApp();
 
     const section = await addSection();
-    const role = await within(section).findByLabelText("추가할 역할");
+    const role = await within(section).findByLabelText("역할");
     expect(role).toHaveAccessibleDescription(
       "Manager: 행사 시작·종료와 운영 멤버 관리만 빼고 모두 할 수 있어요 · Staff: 체크인과 보기만 할 수 있어요",
     );
@@ -73,7 +84,7 @@ describe("event owner adds organization members (#363)", () => {
     openApp();
 
     const section = await addSection();
-    fireEvent.change(await within(section).findByLabelText("추가할 역할"), { target: { value: "MANAGER" } });
+    fireEvent.change(await within(section).findByLabelText("역할"), { target: { value: "MANAGER" } });
     fireEvent.click(within(section).getByRole("button", { name: "운영자로 추가" }));
 
     const operators = screen.getByRole("region", { name: "운영자" });
@@ -86,7 +97,7 @@ describe("event owner adds organization members (#363)", () => {
     openApp();
 
     expect(await screen.findByText("Local owner")).toBeInTheDocument();
-    await waitFor(() => expect(screen.queryByRole("heading", { name: "조직 멤버 추가" })).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole("button", { name: "운영자 추가" })).not.toBeInTheDocument());
     expect(screen.queryByRole("button", { name: "운영자로 추가" })).not.toBeInTheDocument();
     expect(operatorRequests.some((request) => request.url.includes("/members"))).toBe(false);
   });
@@ -148,9 +159,13 @@ describe("event owner adds organization members (#363)", () => {
     await login({ userId: OWNER });
     openApp();
 
-    const section = await addSection();
-    expect(within(section).getByText("보관된 행사에는 운영자를 추가할 수 없어요.")).toBeInTheDocument();
-    expect(within(section).queryByRole("button", { name: "운영자로 추가" })).not.toBeInTheDocument();
+    const operators = await screen.findByRole("region", { name: "운영자" });
+    expect(
+      await within(operators).findByText(
+        "보관된 행사에는 운영자를 추가할 수 없어요. 역할은 바꿀 수 없고 운영자 빼기는 할 수 있어요.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "운영자 추가" })).not.toBeInTheDocument();
   });
 
   it("explains a forbidden add", async () => {
@@ -165,12 +180,31 @@ describe("event owner adds organization members (#363)", () => {
     expect(await within(section).findByRole("alert")).toHaveTextContent("운영자를 추가할 권한이 없어요.");
   });
 
-  it("keeps the outsider invitation under its own heading", async () => {
+  it("keeps the outsider invitation as the other way in the same dialog", async () => {
     await login({ userId: OWNER });
     openApp();
 
-    const invite = await screen.findByRole("region", { name: "외부 협력자 초대" });
-    expect(within(invite).getByText(/조직 멤버가 아닌 분은 이메일로 초대해 주세요/)).toBeInTheDocument();
-    expect(within(invite).getByRole("button", { name: "초대 메일 보내기" })).toBeInTheDocument();
+    const dialog = await addSection();
+    fireEvent.click(within(dialog).getByRole("radio", { name: "외부 협력자 초대" }));
+    expect(within(dialog).getByText(/같은 이메일로 로그인하면 운영 멤버가 돼요/)).toBeInTheDocument();
+    expect(within(dialog).getByLabelText("이메일")).toBeInTheDocument();
+    expect(within(dialog).queryByLabelText("조직 멤버")).not.toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "초대 메일 보내기" })).toBeInTheDocument();
+    // The role picker and its summary appear once for either way (DEC-079 Follow-up).
+    expect(within(dialog).getAllByLabelText("역할")).toHaveLength(1);
+    expect(within(dialog).getByLabelText("역할")).toHaveAccessibleDescription(/^Manager: .* · Staff: /);
+  });
+
+  it("closes with Escape and returns focus to the add button", async () => {
+    await login({ userId: OWNER });
+    openApp();
+
+    const opener = await screen.findByRole("button", { name: "운영자 추가" });
+    opener.focus();
+    const dialog = await addSection();
+    expect(dialog).toHaveFocus();
+    fireEvent.keyDown(dialog, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(opener).toHaveFocus();
   });
 });

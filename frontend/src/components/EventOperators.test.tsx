@@ -20,10 +20,15 @@ function openApp(path: string) {
   );
 }
 
+/** "운영자 추가" → 외부 협력자 초대 in the dialog (#494). */
 async function invite(email: string, role: "MANAGER" | "STAFF") {
-  fireEvent.change(await screen.findByLabelText("이메일"), { target: { value: email } });
-  fireEvent.change(screen.getByLabelText("역할"), { target: { value: role } });
-  fireEvent.click(screen.getByRole("button", { name: "초대 메일 보내기" }));
+  fireEvent.click(await screen.findByRole("button", { name: "운영자 추가" }));
+  const dialog = await screen.findByRole("dialog", { name: "운영자 추가" });
+  fireEvent.click(within(dialog).getByRole("radio", { name: "외부 협력자 초대" }));
+  fireEvent.change(within(dialog).getByLabelText("이메일"), { target: { value: email } });
+  fireEvent.change(within(dialog).getByLabelText("역할"), { target: { value: role } });
+  fireEvent.click(within(dialog).getByRole("button", { name: "초대 메일 보내기" }));
+  return dialog;
 }
 
 describe("event operators and invitations", () => {
@@ -53,6 +58,9 @@ describe("event operators and invitations", () => {
     await invite("New@Example.com", "MANAGER");
 
     expect(await screen.findByRole("status")).toHaveTextContent("new@example.com에게 초대 메일을 보냈어요.");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    // An empty list says so once, without a 0건 count beside it (#494).
+    expect(screen.queryByText("0건")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("초대 링크")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "복사" })).not.toBeInTheDocument();
     const mailed = mailedLinks();
@@ -110,9 +118,10 @@ describe("event operators and invitations", () => {
     await login({ userId: OWNER });
     openApp(`/events/${EVENT}/operators`);
 
-    await invite("not-an-email", "STAFF");
+    const dialog = await invite("not-an-email", "STAFF");
 
-    expect(await screen.findByText("이메일을 확인해 주세요.")).toBeInTheDocument();
+    expect(await within(dialog).findByText("이메일을 확인해 주세요.")).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "운영자 추가" })).toBeInTheDocument();
     expect(screen.queryByLabelText("초대 링크")).not.toBeInTheDocument();
   });
 
@@ -121,7 +130,8 @@ describe("event operators and invitations", () => {
     openApp(`/events/${EVENT}/operators`);
 
     expect(await screen.findByText("Local owner")).toBeInTheDocument();
-    await waitFor(() => expect(screen.queryByRole("heading", { name: "외부 협력자 초대" })).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole("button", { name: "운영자 추가" })).not.toBeInTheDocument());
+    expect(screen.queryByRole("heading", { name: "대기 중인 초대" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("이메일")).not.toBeInTheDocument();
   });
 
@@ -130,7 +140,8 @@ describe("event operators and invitations", () => {
     await login({ userId: OWNER });
     openApp(`/events/${EVENT}/operators`);
 
-    expect(await screen.findAllByText("보관된 행사에는 초대할 수 없어요.")).not.toHaveLength(0);
+    expect(await screen.findByText(/보관된 행사에는 운영자를 추가할 수 없어요./)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "운영자 추가" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "초대 메일 보내기" })).not.toBeInTheDocument();
   });
 
