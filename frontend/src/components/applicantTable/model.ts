@@ -713,7 +713,9 @@ export function moveColumn(order: readonly string[], id: string, delta: -1 | 1):
 export function defaultWidth(column: ColumnDef): number {
   if (column.type === "person") return 180;
   if (column.type === "status" || column.type === "number") return 120;
-  if (column.type === "group" || column.type === "room") return 120;
+  if (column.type === "group") return 120;
+  // 방: room names are short, but the summary "배정 N · M개 방 · 숙박 안 함 K" needs room.
+  if (column.type === "room") return 200;
   if (column.type === "memo") return 220;
   if (column.type === "date") return 150;
   if (column.type === "multi") return 220;
