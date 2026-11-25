@@ -154,7 +154,11 @@ function Collaborations({
       <ul className="event-list__rows">
         {items.map((event) => (
           <li key={event.eventId}>
-            <button className="event-list__row" type="button" onClick={() => navigate(`/events/${event.eventId}`)}>
+            <button
+              className="event-list__row scene-press scene-press--card"
+              type="button"
+              onClick={() => navigate(`/events/${event.eventId}`)}
+            >
               <span className="event-list__row-main">
                 <span className="event-list__row-name">{event.name}</span>
                 <span className="event-list__row-org">
@@ -163,6 +167,7 @@ function Collaborations({
               </span>
               <span>{eventContext(event)}</span>
               <span className="event-list__badge">{lifecycleLabel(event.lifecycleStatus)}</span>
+              <span className="scene-chevron" aria-hidden="true" />
             </button>
           </li>
         ))}
@@ -266,13 +271,14 @@ function EventRows({
             {events.data.items.map((event) => (
               <li key={event.eventId}>
                 <button
-                  className="event-list__row"
+                  className="event-list__row scene-press scene-press--card"
                   type="button"
                   onClick={() => navigate(`/events/${event.eventId}`)}
                 >
                   <span className="event-list__row-name">{event.name}</span>
                   <span>{eventContext(event)}</span>
                   <span className="event-list__badge">{lifecycleLabel(event.lifecycleStatus)}</span>
+                  <span className="scene-chevron" aria-hidden="true" />
                 </button>
               </li>
             ))}
