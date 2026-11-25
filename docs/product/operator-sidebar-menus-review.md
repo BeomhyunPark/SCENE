@@ -1,13 +1,13 @@
 # 운영자 사이드바 메뉴 목적지 정리
 
 - 정리일: 2026-11-17
-- 상태: 하위 이슈 결정 완료(2026-11-17). 2026-11-19 [#376](https://github.com/BeomhyunPark/SCENE/issues/376)으로 행사 밖 메뉴를 조직 메뉴만으로 바꿨다(#267·#268의 행사 고르기는 없앴다).
+- 상태: 하위 이슈 결정 완료(2026-11-17). 2026-11-25 [#495](https://github.com/BeomhyunPark/SCENE/issues/495)로 준비 중 메뉴를 숨겼다. 2026-11-19 [#376](https://github.com/BeomhyunPark/SCENE/issues/376)으로 행사 밖 메뉴를 조직 메뉴만으로 바꿨다(#267·#268의 행사 고르기는 없앴다).
 - 상위 이슈: [#263 사이드바의 모든 메뉴가 화면으로 이어진다](https://github.com/BeomhyunPark/SCENE/issues/263)
 - 근거: [OperatorShell.tsx](../../frontend/src/components/OperatorShell.tsx), [App.tsx](../../frontend/src/App.tsx), [인수인계 2026-10-20 "눌러도 아직 안 가는 곳"](../handover/2026-10-20.md), 백엔드 `@*Mapping` 목록, Figma `RreFdEVMiwgHrV7teaCEOm`
 
 ## 이미 정한 것
 
-- 메뉴는 숨기지 않고 모두 남긴다.
+- ~~메뉴는 숨기지 않고 모두 남긴다.~~ 2026-11-25 [#495](https://github.com/BeomhyunPark/SCENE/issues/495)로 바뀌었다(아래).
 - 화면이 아직 없는 메뉴는 "준비 중" 안내 화면으로 보내고, 여유가 될 때 하나씩 실제 기능으로 바꾼다.
 - 2026-11-17 [#264](https://github.com/BeomhyunPark/SCENE/issues/264): "준비 중" 화면은 메뉴별 실제 주소에 둔다. 조직 사이드바는 아래 "목적지 주소"대로 연결했다.
 - 2026-11-17 [#267](https://github.com/BeomhyunPark/SCENE/issues/267): 조직 사이드바의 준비 업무·참가자·운영 멤버(`/tasks`, `/participants`, `/operators`)는 진행 중인 행사가 하나면 그 행사의 화면으로 바로 가고, 여럿이면 행사를 고르게 한다. 종료·보관된 행사는 고르기 목록에서 빼고 행사 목록에서 연다. 서버의 행사 목록 API(첫 50개)를 그대로 쓰고 새 API는 만들지 않는다.
@@ -21,6 +21,7 @@
 - 2026-11-19 [#376](https://github.com/BeomhyunPark/SCENE/issues/376): **행사 밖에는 조직 메뉴만, 행사 운영 메뉴는 행사 안에만 둔다.** 행사 밖 사이드바·서랍은 행사 · 알림 · 멤버 · 기록 · 안내 · 일정 / 연동 · 설정이다. "행사 운영" 묶음(현장 운영 · 참가 현황 · 운영 멤버)과 준비 업무를 뺐고, 행사 고르기(`MenuEventPicker`)는 지웠다. 예전 주소 `/field` `/participants` `/operators` `/tasks`는 `/events`로 바꿔 보낸다(replace). 조직 멤버 목록·초대는 설정에서 `/members`로 옮겼고 설정에는 조직에서 나가기가 남는다. 휴대폰 하단 막대는 행사 밖 행사 · 알림 · 멤버 · 전체 메뉴, 행사 안 홈 · 현장 운영 · 참가 현황 · 알림이다. 아래 #267·#268의 행사 고르기 결정은 이것으로 대체된다.
 - 2026-11-17 [#302](https://github.com/BeomhyunPark/SCENE/issues/302): 사이드바 메뉴 이름 "참가자"를 Figma 행사 안 사이드바(1325:5059)대로 "참가 현황"으로 바꾼다. 조직 사이드바와 행사 고르기 화면 제목도 같다. 주소(`/participants`)는 그대로다.
 - 2026-11-20 [#442](https://github.com/BeomhyunPark/SCENE/issues/442): **공지는 행사 안 사이드바·전체 메뉴 "행사 운영"(조 편성 아래)의 "공지"다**(`/events/:eventId/notices`, 아이콘은 조직 메뉴 "안내"와 같은 봉투). 휴대폰 하단 막대는 그대로이고 전체 메뉴에서 간다. 조직 메뉴 "안내"(`/guides`)는 행사 밖이라 "준비 중"으로 남기고 참가자 안내 페이지 편집의 자리로 둔다. 근거는 DEC-082 Follow-up (2026-11-20, #442 #443).
+- 2026-11-25 [#495](https://github.com/BeomhyunPark/SCENE/issues/495) (사용자 결정: 준비 중 메뉴 숨김, #483 제안 #14): **눌러도 "준비 중" 화면으로만 가는 메뉴는 화면이 생길 때까지 사이드바·휴대폰 전체 메뉴에서 숨긴다.** 숨긴 것은 조직 메뉴 기록(`/history`)·안내(`/guides`)·일정(`/schedule`)·연동(`/integrations`)과 행사 안 "다른 기능 시작"(`/events/:eventId/areas`)이다. 행사 밖 메뉴는 행사 · 알림 · 멤버 / 설정, 행사 안 마지막 묶음은 설정만 남는다. 메뉴 정의(`frontend/src/components/operatorMenu.ts`)에 `pending: true` 표시만 두어 그 한 줄을 지우면 되살아난다. 주소와 "준비 중" 화면(`MenuPending`·`EventMenuPending`)은 남겨 저장된 주소로 들어오면 안내가 보이고, 그 주소에서는 사이드바의 어느 메뉴도 현재 위치로 표시하지 않는다. 휴대폰 하단 막대는 원래 이 메뉴들이 없어 그대로다. Figma 사이드바(1325:5059 등)에는 이 메뉴들이 있으므로 **Figma와 다른 점**으로 둔다.
 
 ## 확인 방법
 

@@ -57,11 +57,11 @@ function useApplicationQuery(eventId: string) {
 }
 
 function MyInfo({ onLeave }: { onLeave: () => void }) {
-  const { name } = useParticipantFeed();
   const notice = (useLocation().state ?? {}) as MeNotice;
   return (
     <div className="participant-tab">
-      <h1 className="participant-tab__title">{name.length > 0 ? `${name}님의 정보` : "내 정보"}</h1>
+      {/* fe-handoff §5: a user's own screen does not call them by name (#495). */}
+      <h1 className="participant-tab__title">내 정보</h1>
       {notice.saved ? (
         <p className="participant-tab__done" role="status">
           신청을 고쳤어요.

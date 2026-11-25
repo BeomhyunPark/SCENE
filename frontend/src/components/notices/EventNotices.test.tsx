@@ -44,6 +44,9 @@ describe("operator notices", () => {
       taps += 1;
       fireEvent.click(element);
     };
+    // Only the pinned count above the list; no line explaining who sees notices (#495).
+    expect(await screen.findByText("고정 0/3", {}, WAIT)).toBeInTheDocument();
+    expect(screen.queryByText(/보이는 공지예요/)).not.toBeInTheDocument();
     tap(await screen.findByRole("button", { name: "공지 쓰기" }, WAIT));
     fireEvent.change(await screen.findByLabelText("제목", {}, WAIT), { target: { value: "집회 장소 변경" } });
     fireEvent.change(screen.getByLabelText("내용"), { target: { value: "대강당으로 와 주세요.\n7시 50분까지" } });
