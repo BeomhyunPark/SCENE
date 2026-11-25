@@ -305,7 +305,7 @@ html {
 
   .public-home__start {
     min-height: 48px;
-    font: var(--scene-label-l);
+    font: var(--scene-body-l-strong);
   }
 
   .public-home__scene {

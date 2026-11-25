@@ -43,7 +43,7 @@
 
 .notices__link {
   color: var(--color-text-brand);
-  font: var(--scene-label-l);
+  font: var(--scene-label-m);
   text-decoration: underline;
   text-underline-offset: 3px;
 }
@@ -58,15 +58,24 @@
 .notice-form__choice {
   display: inline-flex;
   align-items: center;
+  position: relative;
   gap: 6px;
-  min-height: 40px;
-  padding: 0 16px;
+  min-height: 32px;
+  padding: 0 12px;
   border: 1px solid var(--color-chip-default-border);
   border-radius: 999px;
   background: var(--color-chip-default-bg);
   color: var(--color-chip-default-text);
-  font: var(--scene-label-l);
+  font: var(--scene-label-m);
   cursor: pointer;
+}
+
+/* The chip reads at 32px but keeps a 40px touch target (the 8px row gap absorbs the extra 4px each side). */
+.notices__filter::after,
+.notice-form__choice::after {
+  content: "";
+  position: absolute;
+  inset: -4px 0;
 }
 
 .notices__filter[aria-pressed="true"],
@@ -241,7 +250,7 @@
 .notice-form__field > legend {
   padding: 0;
   margin-bottom: 6px;
-  font: var(--scene-label-l);
+  font: var(--scene-label-m);
 }
 
 .notice-form__field input:not([type]),

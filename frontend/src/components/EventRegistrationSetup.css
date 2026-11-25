@@ -80,7 +80,7 @@
 }
 
 .registration-setup__form label {
-  font: var(--scene-label-l);
+  font: var(--scene-label-m);
   letter-spacing: 0;
 }
 
