@@ -1,22 +1,34 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
-import { MemoryRouter } from "react-router";
+import { MemoryRouter, useNavigate } from "react-router";
 import { describe, expect, it } from "vitest";
 import { App } from "../App";
 import { localEvent } from "../mocks/fixtures/seed";
 
+/** Opens an address the way a typed or saved link would; the sidebar no longer offers it (#495). */
+function GoTo({ to }: { to: string }) {
+  const navigate = useNavigate();
+  return (
+    <button type="button" onClick={() => navigate(to)}>
+      주소로 열기
+    </button>
+  );
+}
+
 describe("event sidebar pending menus", () => {
-  it("shows the not-ready page inside the event and links back to it", async () => {
+  it("hides 다른 기능 시작 but still explains its address inside the event and links back to it", async () => {
     render(
       <MemoryRouter initialEntries={["/login"]}>
         <App />
+        <GoTo to={`/events/${localEvent.eventId}/areas`} />
       </MemoryRouter>,
     );
     fireEvent.click(await screen.findByRole("button", { name: "들어가기" }));
     fireEvent.click(await screen.findByRole("button", { name: /Local event/ }));
-    fireEvent.click(await screen.findByRole("link", { name: "다른 기능 시작" }));
+    await screen.findAllByRole("link", { name: "현장 운영" });
+    expect(screen.queryByRole("link", { name: "다른 기능 시작" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "주소로 열기" }));
     expect(await screen.findByRole("heading", { name: "아직 준비 중이에요" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 1, name: "다른 기능 시작" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "다른 기능 시작" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("link", { name: "행사로 돌아가기" })).toHaveAttribute(
       "href",
       `/events/${localEvent.eventId}`,

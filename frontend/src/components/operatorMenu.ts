@@ -19,22 +19,32 @@ export function matchesPath(pathname: string, href?: string): boolean {
 
 /**
  * Organization sidebar: organization menus only (#376). Event operation menus (준비 업무, 현장 운영,
- * 참가 현황, 운영 멤버) live inside an event. Menus without a screen yet open the shared "준비 중" page
- * at their own address.
+ * 참가 현황, 운영 멤버) live inside an event.
+ *
+ * `pending: true` hides a menu whose screen is not built yet (#495, 2026-11-25): it would only open the
+ * "준비 중" page. Its address and that page stay, so a typed or saved address still explains itself.
+ * Delete the flag to show the menu again once its screen exists.
  */
 const primary = [
   { key: "events" as const, label: "행사", icon: events, to: "/events" },
   { key: "notifications" as const, label: "알림", icon: bell, to: "/notifications" },
   { key: "members" as const, label: "멤버", icon: people, to: "/members" },
-  { key: "history" as const, label: "기록", icon: note, to: "/history" },
-  { key: "guides" as const, label: "안내", icon: envelope, to: "/guides" },
-  { key: "schedule" as const, label: "일정", icon: calendar, to: "/schedule" },
+  { key: "history" as const, label: "기록", icon: note, to: "/history", pending: true },
+  { key: "guides" as const, label: "안내", icon: envelope, to: "/guides", pending: true },
+  { key: "schedule" as const, label: "일정", icon: calendar, to: "/schedule", pending: true },
 ];
 
 const system = [
-  { key: "integrations" as const, label: "연동", icon: squares, to: "/integrations" },
+  { key: "integrations" as const, label: "연동", icon: squares, to: "/integrations", pending: true },
   { key: "settings" as const, label: "설정", icon: gear, to: "/settings" },
 ];
+
+/** Leaves out menus marked `pending` and any section they leave empty, so no divider stands alone. */
+function withoutPending(sections: MenuSection[]): MenuSection[] {
+  return sections
+    .map((section) => ({ ...section, items: section.items.filter((item) => !item.pending) }))
+    .filter((section) => section.items.length > 0);
+}
 
 export type OperatorMenu = {
   eventName?: string;
@@ -68,7 +78,16 @@ export type MenuKey =
   | "notices"
   | "areas";
 
-export type MenuItem = { key: MenuKey; label: string; icon: string; to?: string; current: boolean; badge?: string | null };
+export type MenuItem = {
+  key: MenuKey;
+  label: string;
+  icon: string;
+  to?: string;
+  current: boolean;
+  badge?: string | null;
+  /** Not built yet: left out of every menu (#495). */
+  pending?: boolean;
+};
 export type MenuSection = { label?: string; items: MenuItem[] };
 
 /** The operator menu for this place: the organization menus, or the menus of one event. */
@@ -81,11 +100,12 @@ export function operatorMenuSections(menu: OperatorMenu, pathname: string): Menu
     to,
     current,
   });
+  const define = (menu: { key: MenuKey; label: string; icon: string; to: string; pending?: boolean }) => ({
+    ...item(menu.key, menu.label, menu.icon, menu.to),
+    pending: menu.pending,
+  });
   if (!eventName) {
-    return [
-      { items: primary.map((menu) => item(menu.key, menu.label, menu.icon, menu.to)) },
-      { items: system.map((menu) => item(menu.key, menu.label, menu.icon, menu.to)) },
-    ];
+    return withoutPending([{ items: primary.map(define) }, { items: system.map(define) }]);
   }
   // 알림 inside an event is that event's list with its unread badge (#436, DEC-080 §7.5).
   const sections: MenuSection[] = [
@@ -117,11 +137,12 @@ export function operatorMenuSections(menu: OperatorMenu, pathname: string): Menu
   }
   sections.push({
     items: [
-      item("areas", "다른 기능 시작", squares, eventHref ? `${eventHref}/areas` : undefined),
+      // 다른 기능 시작 (#266) only opens "준비 중" until areas can be picked and stored: hidden (#495).
+      { ...item("areas", "다른 기능 시작", squares, eventHref ? `${eventHref}/areas` : undefined), pending: true },
       item("settings", "설정", gear, eventHref ? `${eventHref}/settings` : undefined),
     ],
   });
-  return sections;
+  return withoutPending(sections);
 }
 
 
