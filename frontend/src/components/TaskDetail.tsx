@@ -310,24 +310,28 @@ function Detail({ event, spaceName, taskId }: { event: EventDetail; spaceName?: 
         </ul>
         {!readOnly ? (
           <div className="task-detail__actions">
-            <Button
-              type="button"
-              variant="primary"
-              size={40}
-              disabled={!body.actions.canComplete || pending}
-              onClick={() => void run(() => completeTask(eventId, taskId, body.version))}
-            >
-              완료
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              size={40}
-              disabled={!body.actions.canReopen || pending}
-              onClick={() => void run(() => reopenTask(eventId, taskId, { version: body.version, reason: reason || undefined }))}
-            >
-              다시 진행
-            </Button>
+            {/* 완료와 다시 진행 중 지금 쓸 수 있는 쪽만 둔다(#483, Figma P07-D01은 "업무 완료" 하나). */}
+            {body.status === "DONE" ? (
+              <Button
+                type="button"
+                variant="secondary"
+                size={40}
+                disabled={!body.actions.canReopen || pending}
+                onClick={() => void run(() => reopenTask(eventId, taskId, { version: body.version, reason: reason || undefined }))}
+              >
+                다시 진행
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                variant="primary"
+                size={40}
+                disabled={!body.actions.canComplete || pending}
+                onClick={() => void run(() => completeTask(eventId, taskId, body.version))}
+              >
+                완료
+              </Button>
+            )}
             {canWrite ? (
               <>
                 <Button type="button" variant="secondary" size={40} onClick={() => setConfirm("cancel")}>

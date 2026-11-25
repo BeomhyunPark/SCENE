@@ -12,7 +12,8 @@ import type { PendingRequest } from "./useCheckInQueue";
  * `SCENE / Field / Participant Item` (Figma 616:3971, used in OM01 622:7 and TL01 620:7): name, meta and the
  * check-in record on the left, the status chip on the right. The check-in button stays on
  * the card so one tap still checks a person in. On desktop (TL01) the name area also selects the card for
- * the detail panel.
+ * the detail panel, and the row's button turns quiet (a text button) so the panel's is the one main
+ * button on screen (#485). Rows are list rows split by hairlines, not boxes (EventField.css).
  */
 export function FieldRosterRow({
   item,
@@ -80,6 +81,7 @@ export function FieldRosterRow({
         <div className="event-field__row-action">
           <RowAction
             label={label}
+            quiet={onSelect !== undefined}
             done={done}
             busy={busy}
             request={unknown ? request : undefined}
@@ -108,6 +110,7 @@ export function StatusChip({ done, unknown }: { done: boolean; unknown: boolean 
 /** The check-in, cancel or retry button for one participant. Its name always carries the person's label. */
 export function RowAction({
   label,
+  quiet = false,
   done,
   busy,
   request,
@@ -117,6 +120,11 @@ export function RowAction({
   onRetry,
 }: {
   label: string;
+  /**
+   * A text button at 32, for a row whose person also shows in the detail panel beside it. 체크인 취소 is a
+   * text button everywhere: it is the rarer action, so it does not get an outline beside each name (#485).
+   */
+  quiet?: boolean;
   done: boolean;
   busy: boolean;
   /** A request whose result is unknown; shown as "다시 시도". */
@@ -144,8 +152,8 @@ export function RowAction({
     return (
       <Button
         type="button"
-        variant="secondary"
-        size={40}
+        variant="tertiary"
+        size={quiet ? 32 : 40}
         disabled={disabled || busy}
         loading={busy}
         aria-describedby={disabled ? "field-blocked" : undefined}
@@ -159,8 +167,8 @@ export function RowAction({
   return (
     <Button
       type="button"
-      variant="primary"
-      size={40}
+      variant={quiet ? "tertiary" : "primary"}
+      size={quiet ? 32 : 40}
       disabled={disabled}
       loading={busy}
       aria-describedby={disabled ? "field-blocked" : undefined}

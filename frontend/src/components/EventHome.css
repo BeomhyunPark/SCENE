@@ -518,13 +518,14 @@
 }
 
 /*
- * Event home dashboard (#467). Layout from SCENE 「02 행사 홈 · v2.0 Candidate」 (RreFdEVMiwgHrV7teaCEOm
- * 46:18286); card, row, agenda and badge shapes from Venture (2yztLB533ohOebuAKuwZr0 Dashboard
- * 873:109446: stat card 539:33865, Upcoming Agenda 539:33910, Rows 652:38950; Analytics 14:2842 panels).
- * Colours and type are SCENE tokens.
+ * Event home dashboard (#467, boxes cut down in #485). Layout from SCENE 「02 행사 홈 · v2.0 Candidate」
+ * (RreFdEVMiwgHrV7teaCEOm 46:18286). One bordered strip holds the counts, each cell a way in; 지금 할 일,
+ * 다가오는 일정 and 운영진 공지 are plain sections — a heading, then rows split by hairlines (Venture Contact
+ * List / SCENE DS Data Workbench 50:17), no panel or row boxes. Colours and type are SCENE tokens.
  */
 .event-home--dashboard {
-  background: var(--color-bg-canvas);
+  gap: 32px;
+  background: var(--color-bg-surface);
 }
 
 .event-home__retrospective {
@@ -533,72 +534,65 @@
   text-underline-offset: 3px;
 }
 
-.event-home__stats,
-.event-home__modules {
+/* The strip: one 1px outline, hairline dividers from a 1px grid gap over the border colour. */
+.event-home__stats {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(var(--cells, 4), minmax(0, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid var(--color-border-default);
+  border-radius: 8px;
+  background: var(--color-border-default);
 }
 
-.event-home__stat,
-.event-home__module,
-.event-home__panel {
+.event-home__stat-cell {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  background: var(--color-bg-surface);
+}
+
+.event-home__stat {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
   box-sizing: border-box;
   min-width: 0;
-  border: 1px solid var(--color-border-default);
+  padding: 18px 20px;
   background: var(--color-bg-surface);
   color: var(--color-text-primary);
-}
-
-/* Venture stat card: radius 4, padding 20, gap 12. */
-.event-home__stat,
-.event-home__module {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 20px;
-  border-radius: 4px;
   text-decoration: none;
 }
 
-.event-home__stat:hover,
-.event-home__module:hover {
-  border-color: var(--color-border-hover-row);
+.event-home__stat:hover {
+  background: var(--color-bg-hover-row);
 }
 
 .event-home__stat:focus-visible,
-.event-home__module:focus-visible,
-.event-home__task:focus-visible,
-.event-home__slot:focus-visible {
+.event-home__stat-extra:focus-visible,
+.event-home__row:focus-visible,
+.event-home__more:focus-visible {
   outline: 2px solid var(--color-focus-ring);
-  outline-offset: 2px;
+  outline-offset: -2px;
 }
 
-.event-home__card-top {
+.event-home__stat-label {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.event-home__stat-icon {
-  display: grid;
-  flex: none;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  background: var(--color-bg-subtle);
-}
-
-.event-home__stat-icon img {
-  width: 24px;
-  height: 24px;
-}
-
-.event-home__stat-go {
-  display: inline-flex;
-  align-items: center;
   gap: 4px;
+  color: var(--color-text-secondary);
+  font: var(--scene-label-m);
+}
+
+/* 신청 집계 sits in the 참가자 cell's top right, beside the cell link. */
+.event-home__stat-extra {
+  position: absolute;
+  top: 18px;
+  right: 20px;
+  color: var(--color-text-brand);
+  font: var(--scene-label-s);
+  text-underline-offset: 3px;
 }
 
 .event-home__caret {
@@ -608,104 +602,78 @@
   transform: rotate(-90deg);
 }
 
-.event-home__stat-hint {
-  color: var(--color-text-brand);
-  font: var(--scene-label-s);
-}
-
-.event-home__stat-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.event-home__stat-label {
-  color: var(--color-text-secondary);
-  font: var(--scene-label-m);
-}
-
 .event-home__stat-value {
-  font: var(--scene-display);
+  margin-top: 4px;
+  font: var(--scene-heading-l);
   font-variant-numeric: tabular-nums;
 }
 
-.event-home__stat-detail,
-.event-home__module-detail {
+.event-home__stat-detail {
   color: var(--color-text-secondary);
   font: var(--scene-caption-m);
 }
 
-.event-home__module-title {
+.event-home__columns {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: start;
+  gap: 32px;
+}
+
+.event-home__section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.event-home__section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+}
+
+.event-home__section-title {
+  margin: 0;
   font: var(--scene-title);
 }
 
-.event-home__columns {
-  display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
-  align-items: start;
-  gap: 24px;
+.event-home__more {
+  margin-left: auto;
+  color: var(--color-text-brand);
+  font: var(--scene-label-s);
+  text-underline-offset: 3px;
 }
 
-/* Venture panel (Analytics 14:2842): radius 8, padding 20, gap 16. */
-.event-home__panel {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding: 20px;
-  border-radius: 8px;
-}
-
-.event-home__panel-head {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.event-home__panel-title {
-  margin: 0;
-  font: var(--scene-heading-m);
-}
-
-.event-home__panel-support,
+.event-home__support,
 .event-home__empty {
   margin: 0;
   color: var(--color-text-secondary);
   font: var(--scene-body-s);
 }
 
-.event-home__rows,
-.event-home__agenda {
+.event-home__rows {
   display: flex;
   flex-direction: column;
   margin: 0;
   padding: 0;
+  border-bottom: 1px solid var(--color-border-default);
   list-style: none;
 }
 
-.event-home__rows {
-  gap: 12px;
-}
-
-.event-home__agenda {
-  gap: 16px;
-}
-
-/* Venture Rows 652:38950: white row, 1px border, radius 4, padding 12. */
-.event-home__task {
+/* A list row: a hairline above, no box. */
+.event-home__row {
   display: flex;
   align-items: center;
   gap: 12px;
-  box-sizing: border-box;
-  padding: 12px;
-  border: 1px solid var(--color-border-default);
-  border-radius: 4px;
-  background: var(--color-bg-surface);
+  padding: 10px 4px;
+  border-top: 1px solid var(--color-border-default);
   color: var(--color-text-primary);
   text-decoration: none;
 }
 
-.event-home__task:hover {
-  border-color: var(--color-border-hover-row);
+.event-home__row:hover {
   background: var(--color-bg-hover-row);
 }
 
@@ -717,15 +685,15 @@
   min-width: 0;
 }
 
-.event-home__row-title,
-.event-home__slot-title {
+.event-home__row-title {
   overflow: hidden;
+  font: var(--scene-body-m);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.event-home__row-title {
-  font: var(--scene-body-m);
+.event-home__row-title .notice-badge {
+  margin-right: 6px;
 }
 
 .event-home__row-meta {
@@ -738,15 +706,15 @@
   display: inline-flex;
   flex: none;
   align-items: center;
-  gap: 8px;
-  padding: 4px 8px;
+  gap: 6px;
+  padding: 2px 8px;
   border-radius: 36px;
   font: var(--scene-label-s);
 }
 
 .event-home__pill-dot {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: currentColor;
 }
@@ -766,70 +734,62 @@
   color: var(--color-success-fg);
 }
 
-/* Venture Upcoming Agenda 539:33910: time badge, title, description; gap 8. */
+/* 다가오는 일정: the time in a fixed column, then the title and place. */
 .event-home__slot {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 4px 0;
-  border-radius: 4px;
-  color: var(--color-text-primary);
-  text-decoration: none;
-}
-
-.event-home__slot:hover .event-home__slot-title {
-  text-decoration: underline;
+  align-items: baseline;
 }
 
 .event-home__slot-time {
-  padding: 4px 6px;
-  border-radius: 4px;
-  background: var(--color-bg-brand-subtle);
+  flex: none;
+  min-width: 48px;
   color: var(--color-text-brand);
-  font: var(--scene-label-s);
+  font: var(--scene-label-m);
   font-variant-numeric: tabular-nums;
 }
 
-.event-home__slot-title {
-  max-width: 100%;
-  font: var(--scene-label-m);
-}
-
-.event-home__slot-meta {
-  color: var(--color-text-secondary);
-  font: var(--scene-caption-m);
-}
-
+/* 종료·보관: a tinted notice, no outline. */
 .event-home__ended {
-  flex-direction: row;
+  display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px 16px;
+  padding: 16px 20px;
+  border-radius: 8px;
+  background: var(--color-bg-brand-subtle);
+}
+
+.event-home__ended .event-home__support {
+  margin-top: 2px;
 }
 
 @media (max-width: 1023px) {
-  .event-home__stats,
-  .event-home__modules {
+  .event-home__stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
+  }
+
+  /* An odd last cell takes the whole row, so no empty corner shows the divider colour. */
+  .event-home__stats > :last-child:nth-child(odd) {
+    grid-column: 1 / -1;
   }
 
   .event-home__columns {
     grid-template-columns: 1fr;
-    gap: 20px;
+    gap: 28px;
   }
 }
 
 @media (max-width: 560px) {
-  .event-home__stat,
-  .event-home__module,
-  .event-home__panel {
-    padding: 16px;
+  .event-home__stat {
+    padding: 14px 16px;
+  }
+
+  .event-home__stat-extra {
+    top: 14px;
+    right: 16px;
   }
 
   .event-home__stat-value {
-    font: var(--scene-heading-l);
+    font: var(--scene-heading-m);
   }
 }

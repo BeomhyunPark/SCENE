@@ -259,7 +259,8 @@ describe("ways into the schedule (C4)", () => {
   it("opens the schedule from the event menu and from the event home", async () => {
     period();
     await openAs(0, `/events/${EVENT}`);
-    const shortcuts = await screen.findByRole("navigation", { name: "바로가기" }, WAIT);
+    // The summary strip is the home's way into each area (#485).
+    const shortcuts = await screen.findByRole("region", { name: "운영 요약" }, WAIT);
     const link = within(shortcuts).getByRole("link", { name: /^일정/ });
     expect(link).toHaveAttribute("href", `/events/${EVENT}/schedule`);
     fireEvent.click(link);

@@ -4,7 +4,7 @@ import { Link, useParams } from "react-router";
 import arrowLeft from "../assets/event-create/arrow-left.svg";
 import type { EventDetail } from "../api/events";
 import { isApiError } from "../api/errors";
-import { getMealCounts, type MealCounts, type MealCountSlot } from "../api/mealCounts";
+import { getMealCounts, type MealCounts } from "../api/mealCounts";
 import { reloadQuery } from "../api/queryClient";
 import { queryKeys } from "../api/queryKeys";
 import { Button } from "./Button";
@@ -20,7 +20,8 @@ import "./EventMeals.css";
  * 식수 현황 (#454, DEC-089): per meal, 예정 (신청 기준) next to 도착 반영 (도착 + 올 예정), with the next meal on
  * top and its numbers ready to copy for the kitchen. Nobody is counted at a meal (로드맵 결정 1): the numbers come
  * from the application answers and the arrival check-ins. Read again every 10 seconds while the page is visible,
- * like 현장 운영 (#408). No dedicated Figma frame; it follows the 신청 집계 cards. Copy is a draft.
+ * like 현장 운영 (#408). No dedicated Figma frame: the next meal is the one emphasised block, and the meals are
+ * a table per day (SCENE DS Data Workbench ZFajaGIQ3VneNqkncKYXbJ 50:17, #485). Copy is a draft.
  */
 export function EventMeals() {
   const { eventId = "" } = useParams();
@@ -69,10 +70,8 @@ function MealsBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
       }
     >
       <div className="event-home meals">
-        <div className="meals__title">
-          <h2>식수 현황</h2>
-          <p>신청 답과 도착 체크인으로 계산해요. 끼니마다 세지 않아요.</p>
-        </div>
+        {/* The header already says 식수 현황, so the body starts with how the numbers are made (#485). */}
+        <p className="meals__intro">신청 답과 도착 체크인으로 계산해요. 끼니마다 세지 않아요.</p>
         {counts.isPending ? <p role="status">불러오는 중이에요.</p> : null}
         {counts.isError && !counts.data ? (
           isApiError(counts.error) && counts.error.status === 403 ? (
@@ -158,7 +157,7 @@ function MealsContent({
             <span>도착 반영</span>
             <strong>{count(next.slot.reflected)}명</strong>
           </p>
-          <Breakdown slot={next.slot} />
+          {/* Its split (예정·올 예정·아직 안 옴) is in the table row marked 다음, so it is not repeated here. */}
           <div className="meals__actions">
             <Button type="button" variant="primary" size={48} onClick={() => onCopyNext(next)}>
               다음 끼니 복사
@@ -191,38 +190,42 @@ function MealsContent({
         </p>
       ) : null}
 
+      {/* One table per day instead of a box per meal (#485): each number once, in its own column. */}
       <section className="meals__table" aria-label="끼니별 식수">
         {data.days.map((day) => (
           <div key={day.day} className="meals__day">
-            <h3>{day.label}</h3>
-            <ul>
-              {day.slots.map((slot) => (
-                <li
-                  key={slot.slotId}
-                  className={`meals__row${slot.passed ? " meals__row--passed" : ""}${slot.slotId === data.nextSlotId ? " meals__row--next" : ""}`}
-                  aria-label={`${day.label} ${slot.label}`}
-                >
-                  <div className="meals__row-head">
-                    <span className="meals__row-name">
-                      {slot.label} <span className="meals__row-time">{slot.startTime}</span>
-                    </span>
-                    {slot.passed ? <span className="meals__tag">지남</span> : null}
-                    {slot.slotId === data.nextSlotId ? <span className="meals__tag meals__tag--next">다음</span> : null}
-                  </div>
-                  <div className="meals__pair">
-                    <p>
-                      <span>예정</span>
-                      <strong>{count(slot.planned)}</strong>
-                    </p>
-                    <p>
-                      <span>도착 반영</span>
-                      <strong>{count(slot.reflected)}</strong>
-                    </p>
-                  </div>
-                  <Breakdown slot={slot} />
-                </li>
-              ))}
-            </ul>
+            <h3 id={`meals-day-${day.day}`}>{day.label}</h3>
+            <table aria-labelledby={`meals-day-${day.day}`}>
+              <thead>
+                <tr>
+                  <th scope="col">끼니</th>
+                  <th scope="col">예정</th>
+                  <th scope="col">도착 반영</th>
+                  <th scope="col">올 예정</th>
+                  <th scope="col">아직 안 옴</th>
+                </tr>
+              </thead>
+              <tbody>
+                {day.slots.map((slot) => (
+                  <tr
+                    key={slot.slotId}
+                    className={`${slot.passed ? "meals__row--passed" : ""}${slot.slotId === data.nextSlotId ? " meals__row--next" : ""}`.trim() || undefined}
+                    aria-label={`${day.label} ${slot.label}`}
+                  >
+                    <th scope="row">
+                      <span className="meals__row-name">{slot.label}</span>{" "}
+                      <span className="meals__row-time">{slot.startTime}</span>
+                      {slot.passed ? <span className="meals__tag">지남</span> : null}
+                      {slot.slotId === data.nextSlotId ? <span className="meals__tag meals__tag--next">다음</span> : null}
+                    </th>
+                    <td>{count(slot.planned)}</td>
+                    <td className="meals__reflected">{count(slot.reflected)}</td>
+                    <td>{count(slot.coming)}</td>
+                    <td className={slot.missing > 0 ? "meals__missing" : undefined}>{count(slot.missing)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         ))}
       </section>
@@ -238,14 +241,6 @@ function MealsContent({
         </ul>
       </details>
     </>
-  );
-}
-
-function Breakdown({ slot }: { slot: MealCountSlot }) {
-  return (
-    <p className="meals__breakdown">
-      예정 {count(slot.planned)} · 도착 {count(slot.arrived)} · 올 예정 {count(slot.coming)} · 아직 안 옴 {count(slot.missing)}
-    </p>
   );
 }
 
