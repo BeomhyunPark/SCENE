@@ -83,7 +83,7 @@ function RetrospectiveBody({ event, spaceName }: { event: EventDetail; spaceName
       eventHref={`/events/${eventId}`}
       framed
       leading={
-        <Link className="event-home__back" to={`/events/${eventId}`} aria-label="행사 홈">
+        <Link className="event-home__back scene-press scene-press--text" to={`/events/${eventId}`} aria-label="행사 홈">
           <img src={arrowLeft} alt="" />
         </Link>
       }

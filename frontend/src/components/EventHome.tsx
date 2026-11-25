@@ -63,7 +63,7 @@ function EventHomeBody({
       tasksHref={areas.includes("tasks") && eventId ? `/events/${eventId}/tasks` : undefined}
       framed
       leading={
-        <Link className="event-home__back" to="/events" aria-label="행사 목록">
+        <Link className="event-home__back scene-press scene-press--text" to="/events" aria-label="행사 목록">
           <img src={arrowLeft} alt="" />
         </Link>
       }
@@ -82,7 +82,7 @@ function EventHomeBody({
               {draftStatus || closed ? null : (
                 <>
                   {" · "}
-                  <Link className="event-home__retrospective" to={`/events/${eventId}/retrospective`}>
+                  <Link className="event-home__retrospective scene-press scene-press--text" to={`/events/${eventId}/retrospective`}>
                     회고
                   </Link>
                 </>
@@ -122,7 +122,7 @@ function EventHomeBody({
  */
 function SummaryLink({ to, label, value, detail }: { to: string; label: string; value: string; detail: string }) {
   return (
-    <Link className="event-home__stat" to={to}>
+    <Link className="event-home__stat scene-press scene-press--row scene-press--inset" to={to}>
       <span className="event-home__stat-label">
         {label}
         <img className="event-home__caret" src={caretIcon} alt="" />
@@ -217,7 +217,7 @@ function SummaryCards({ event }: { event: EventDetail }) {
       {/* 참가 현황 and 신청 집계 both start here; two sibling links, as a link cannot hold another. */}
       <div className="event-home__stat-cell">
         <SummaryLink to={`/events/${eventId}/participants`} label="참가자" {...people} />
-        <Link className="event-home__stat-extra" to={`/events/${eventId}/participants/summary`}>
+        <Link className="event-home__stat-extra scene-press scene-press--text" to={`/events/${eventId}/participants/summary`}>
           신청 집계
         </Link>
       </div>
@@ -274,7 +274,7 @@ function NowTasks({ eventId }: { eventId: string }) {
         <ul className="event-home__rows">
           {open.map((task) => (
             <li key={task.taskId}>
-              <Link className="event-home__row" to={`/events/${eventId}/tasks/${task.taskId}`}>
+              <Link className="event-home__row scene-press scene-press--row scene-press--inset" to={`/events/${eventId}/tasks/${task.taskId}`}>
                 <span className="event-home__row-copy">
                   <span className="event-home__row-title">{task.title}</span>
                   <span className="event-home__row-meta">{taskMeta(task)}</span>
@@ -330,7 +330,7 @@ function UpcomingSchedule({ eventId }: { eventId: string }) {
         <ul className="event-home__rows">
           {upcoming.items.map((item) => (
             <li key={item.itemId}>
-              <Link className="event-home__row event-home__slot" to={`/events/${eventId}/schedule/${item.itemId}`}>
+              <Link className="event-home__row event-home__slot scene-press scene-press--row scene-press--inset" to={`/events/${eventId}/schedule/${item.itemId}`}>
                 <span className="event-home__slot-time">{item.endTime ? `${item.startTime}–${item.endTime}` : item.startTime}</span>
                 <span className="event-home__row-copy">
                   <span className="event-home__row-title">{item.title}</span>

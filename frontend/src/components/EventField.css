@@ -402,6 +402,20 @@ button.event-field__row-main {
   cursor: pointer;
 }
 
+/*
+ * 행 전체가 눌리는 자리처럼 보이게 (#484): 버튼(row-main)은 행 안쪽 칸이라, hover·눌림은 행에 깐다.
+ * 선택된 행은 선택 색을 그대로 둔다.
+ */
+@media (hover: hover) {
+  .event-field__row:not(.event-field__row--selected):has(> button.event-field__row-main:hover) {
+    background: var(--color-bg-hover-row);
+  }
+}
+
+.event-field__row:not(.event-field__row--selected):has(> button.event-field__row-main:active) {
+  background: var(--color-bg-subtle);
+}
+
 .event-field__record {
   margin-top: auto;
   padding-top: 4px;

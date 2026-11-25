@@ -9,6 +9,7 @@ import { seedDemoRoster } from "../mocks/fixtures/demoRoster";
 import { localEvent, localUsers } from "../mocks/fixtures/seed";
 import { setLifecycle } from "../mocks/operatorStore";
 import { tableApplications } from "../mocks/participantStore";
+import { chooseOption } from "../test/select";
 
 /** The camera is replaced: tests push decoded values through `read`, as the decoder would. */
 const camera = vi.hoisted(() => ({ read: (() => {}) as (code: string) => void }));
@@ -126,7 +127,7 @@ describe("참가 현황 방 (G5 #460)", () => {
     expect(within(grid).getAllByRole("row").at(-1)).toHaveTextContent("배정 2 · 1개 방 · 숙박 안 함 1");
 
     fireEvent.click(screen.getByRole("button", { name: "필터" }));
-    fireEvent.change(screen.getByRole("combobox", { name: "조건 더하기" }), { target: { value: "room" } });
+    chooseOption(screen.getByRole("combobox", { name: "조건 더하기" }), "room");
     const room = screen.getByRole("group", { name: /방/ });
     fireEvent.click(within(room).getByRole("checkbox", { name: /^숙박 안 함/ }));
     expect(document.querySelector(".roster__summary strong")?.textContent).toBe("1명");
