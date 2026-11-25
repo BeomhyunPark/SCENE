@@ -1,7 +1,7 @@
 import type { ArrivalSlot, RosterArrival, SummaryArrival } from "../api/checkIns";
 
 /**
- * Words for the arrival standing on 현장 운영 (E4 #456, DEC-087 Follow-up). The server decides the
+ * Words for the arrival standing on 현장 운영 (E4 #456, DEC-089 Follow-up). The server decides the
  * standing with the meal counts' clock, so "왔어야 함" is the same people as 식수 현황's 아직 안 옴.
  */
 export type ArrivalTone = "overdue" | "coming" | "muted";

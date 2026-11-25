@@ -202,7 +202,7 @@ CSRF 쿠키는 `XSRF-TOKEN`, 헤더는 `X-XSRF-TOKEN`이다. 변경 요청은 �
 | 숙소 배정판, 방 만들기·고치기·지우기·순서, 배정, 공개, 공개본 조회 | `event/room/RoomController` |
 | 일정표 작업본, 항목 만들기·고치기·지우기, 공개, 저장하고 바로 공개, 공개본 조회 | `event/schedule/ScheduleController` |
 | 공지 목록·상세·만들기·고치기·지우기·발행·보관·보관 해제 | `event/notice/NoticeController` |
-| 식수 현황(끼니별 예정·도착 반영 식수, DEC-087) | `event/application/MealCountController` |
+| 식수 현황(끼니별 예정·도착 반영 식수, DEC-089) | `event/application/MealCountController` |
 | 운영자의 신청 고치기·참가자 직접 추가(DEC-088, A12) | `event/application/OperatorApplicationEditController` |
 
 참가자 경로(`/api/v1/participant`, 쿠키 `SCENE_PSESSION`)와 공개 경로(`/api/v1/public`)다.
@@ -259,7 +259,7 @@ Flyway만 스키마를 쓴다. `V1__baseline.sql`이 제품 테이블이고, `V2
 
 `local` 프로파일만 `db/seed/R__local_seed.sql`을 넣는다. dev, stg, prod와 테스트는 이 시드를 쓰지 않는다. 테스트는 Testcontainers의 PostgreSQL을 띄운다.
 
-`audit_logs`는 쓰이지만 읽는 URL이 없다. `V20__participant_feed_and_notifications.sql`이 `participant_feed_versions`와 `notifications`를, `V22__notices.sql`이 `notices`와 `notice_boards`를, `V23__schedule.sql`이 일정표의 `schedule_boards`·`schedule_items`·`schedule_publications`를 더한다. 어떤 명령이 어떤 `action`을 남기는지는 [API의 기록 절](api.md#응답에-안-나오는-기록)에 있다. `V24__operator_notices_to_notifications.sql`(#436)이 `operator_notices`의 행을 `notifications`로 옮겼고, 코드는 더 이상 `operator_notices`에 쓰지 않는다. 그 테이블은 되돌림에 대비해 남겼고 나중 마이그레이션에서 지운다. `V25__participant_settings_and_privacy_logs.sql`(#452, DEC-083)이 행사 참가자 설정 `event_participant_settings`와 참가자 행위자도 받는 열람 기록 `privacy_logs`를 더한다. `privacy_logs`도 읽는 URL이 없다. `V26__rooms.sql`(#457, DEC-085)이 숙소의 `room_boards`·`rooms`·`room_assignments`·`room_assignment_logs`·`room_publications`와 `event_participant_settings.room_roster_scope`를 더한다. `room_assignment_logs`도 읽는 URL이 없다. `V27__operator_added_application.sql`(#462, DEC-088)이 `applications_revision_shape` 제약을 넓혀, 운영자가 직접 추가한 첫 revision이 `revised_by = 'OPERATOR'`와 `revised_by_user_id`를 갖게 한다.
+`audit_logs`는 쓰이지만 읽는 URL이 없다. `V20__participant_feed_and_notifications.sql`이 `participant_feed_versions`와 `notifications`를, `V22__notices.sql`이 `notices`와 `notice_boards`를, `V23__schedule.sql`이 일정표의 `schedule_boards`·`schedule_items`·`schedule_publications`를 더한다. 어떤 명령이 어떤 `action`을 남기는지는 [API의 기록 절](api.md#응답에-안-나오는-기록)에 있다. `V24__operator_notices_to_notifications.sql`(#436)이 `operator_notices`의 행을 `notifications`로 옮겼고, 코드는 더 이상 `operator_notices`에 쓰지 않는다. 그 테이블은 되돌림에 대비해 남겼고 나중 마이그레이션에서 지운다. `V26__participant_settings_and_privacy_logs.sql`(#452, DEC-083)이 행사 참가자 설정 `event_participant_settings`와 참가자 행위자도 받는 열람 기록 `privacy_logs`를 더한다. `privacy_logs`도 읽는 URL이 없다. `V27__rooms.sql`(#457, DEC-085)이 숙소의 `room_boards`·`rooms`·`room_assignments`·`room_assignment_logs`·`room_publications`와 `event_participant_settings.room_roster_scope`를 더한다. `room_assignment_logs`도 읽는 URL이 없다. `V28__operator_added_application.sql`(#462, DEC-088)이 `applications_revision_shape` 제약을 넓혀, 운영자가 직접 추가한 첫 revision이 `revised_by = 'OPERATOR'`와 `revised_by_user_id`를 갖게 한다.
 
 설계 문서의 참가자, 신청, 재정, 조, 방, 차량, 체크인 테이블은 이 마이그레이션에 없다.
 
@@ -309,7 +309,7 @@ Flyway만 스키마를 쓴다. `V1__baseline.sql`이 제품 테이블이고, `V2
 
 - 비밀번호, 토큰 로그인
 - SMTP. 초대 링크는 `CapturingInvitationMailer`의 메모리에만 있다
-- 회비, 차량 테이블과 그 API. 체크인은 `V12__checkins.sql`과 운영자 API가 있고, 참가자 QR 받기는 #283이다. 조는 `V13__groups.sql`(작업본)·`V14__group_publications.sql`(공개본)과 운영자 API, 참가자 내 조(`GET /api/v1/participant/group`)·조장의 조원 상세가 있다. 숙소는 `V26__rooms.sql`과 운영자 API, 참가자 내 숙소(`GET /api/v1/participant/rooms`), 참가 현황 표·CSV·현장 명단의 공개본 방(G5), "다시 볼 것"(A11)이 있다
+- 회비, 차량 테이블과 그 API. 체크인은 `V12__checkins.sql`과 운영자 API가 있고, 참가자 QR 받기는 #283이다. 조는 `V13__groups.sql`(작업본)·`V14__group_publications.sql`(공개본)과 운영자 API, 참가자 내 조(`GET /api/v1/participant/group`)·조장의 조원 상세가 있다. 숙소는 `V27__rooms.sql`과 운영자 API, 참가자 내 숙소(`GET /api/v1/participant/rooms`), 참가 현황 표·CSV·현장 명단의 공개본 방(G5), "다시 볼 것"(A11)이 있다
 - 회비·차량 등 다른 권한 키는 쓰는 경로가 없다. 일정표는 `event/schedule`(`SCHEDULE_WRITE`), 공지는 `event/notice`에 있다
 
 `Permission`에 키가 있는 것은 그 API가 열렸다는 뜻이 아니다. `OWNER`는 등록된 키를 모두 갖고, 그 키를 쓰는 명령은 각 서비스에 있을 때만 동작한다.

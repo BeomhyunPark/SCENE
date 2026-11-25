@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
-/** 식수 현황 (#454, DEC-087). A read; no CSRF, no {@code Idempotency-Key}. */
+/** 식수 현황 (#454, DEC-089). A read; no CSRF, no {@code Idempotency-Key}. */
 @RestController
 public class MealCountController {
 

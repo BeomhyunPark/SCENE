@@ -75,7 +75,7 @@ type Notice = { tone: "success" | "info" | "error"; text: string };
  * Layout (#468): the phone follows Figma OM01 Field Home (622:7), one column of search, one status line and
  * participant cards; from 1024px it follows TL01 (620:7), the queue on the left and the picked participant
  * on the right, where the QR scanner also opens. Each row shows the 도착 예정 칸 and the room (G5 #460), and
- * the summary splits 미완료 into 왔어야 함·올 예정·지남·예정 모름 by the next meal (E4 #456, DEC-087
+ * the summary splits 미완료 into 왔어야 함·올 예정·지남·예정 모름 by the next meal (E4 #456, DEC-089
  * Follow-up); "왔어야 함" lists the same people as 식수 현황's 아직 안 옴. Copy is a draft.
  */
 export function EventField() {
@@ -419,7 +419,7 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
               />
             ) : null}
 
-            {/* 식수 현황 바로 가기 (#454, DEC-087 §11). */}
+            {/* 식수 현황 바로 가기 (#454, DEC-089 §11). */}
             <Link className="event-field__meals-link" to={`${eventHref}/meals`}>
               식수 현황 보기
             </Link>

@@ -1412,7 +1412,7 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
 ```
 
 - 임시 번호는 이 응답에서 한 번만 나온다(6자리 초기화와 같은 규칙: 해시만 저장, `pin_temporary`, 로그·audit에 없음). 참가자는 이름·전화번호·임시 번호로 들어와 새 번호를 정한다(`pinChangeRequired`). 세션은 만들지 않는다.
-- 첫 revision은 `revision: 1`, `revisedBy: OPERATOR`, `revisedByUserId` = 추가한 운영자, `changes: []`다(V27).
+- 첫 revision은 `revision: 1`, `revisedBy: OPERATOR`, `revisedByUserId` = 추가한 운영자, `changes: []`다(V28).
 - audit `PARTICIPANT_ADDED` — details `{ "participantId", "applicationId" }`.
 - `PARTICIPANT_READ`를 가진 다른 운영자에게 알림 `APPLICATION_ADDED`(제목 "OO님을 운영자가 직접 추가했어요"). 참가자 알림은 없다.
 
@@ -2284,7 +2284,7 @@ CSRF가 필요하다.
 
 `total`은 `SUBMITTED` 신청이 있는 참가자 수다. `checkedIn`은 그중 `CHECKED_IN`인 수다. 취소는 미완료다.
 
-**도착 예정 (E4 [#456](https://github.com/BeomhyunPark/SCENE/issues/456), DEC-087 Follow-up, 더하기만).** 응답에 `arrival`이 더해진다.
+**도착 예정 (E4 [#456](https://github.com/BeomhyunPark/SCENE/issues/456), DEC-089 Follow-up, 더하기만).** 응답에 `arrival`이 더해진다.
 
 ```json
 {
@@ -2327,7 +2327,7 @@ CSRF가 필요하다.
 
 #### 도착 상태
 
-요청 때마다 식수 현황(DEC-087)과 같은 입력으로 정한다. 지금 칸은 지나지 않은 첫 칸(집회 포함, 시작 1시간 뒤에 지남, 시각은 일정표 작업본 또는 기본 시각), 다음 끼니는 지금 칸이거나 그 뒤인 첫 식사 칸이다. 도착 예정 칸은 `ArrivalSlots.dueSlot`(연속 참석 칸 묶음의 첫 칸)이다.
+요청 때마다 식수 현황(DEC-089)과 같은 입력으로 정한다. 지금 칸은 지나지 않은 첫 칸(집회 포함, 시작 1시간 뒤에 지남, 시각은 일정표 작업본 또는 기본 시각), 다음 끼니는 지금 칸이거나 그 뒤인 첫 식사 칸이다. 도착 예정 칸은 `ArrivalSlots.dueSlot`(연속 참석 칸 묶음의 첫 칸)이다.
 
 | `status` | 뜻 | `slot` |
 | --- | --- | --- |
@@ -2410,7 +2410,7 @@ CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고
 
 ## 조 편성
 
-> 작업본(편성판, 조, 배정, 조장)은 [#299](https://github.com/BeomhyunPark/SCENE/issues/299), 공개·공개본 조회·참가자 내 조는 [#300](https://github.com/BeomhyunPark/SCENE/issues/300), 조원 명단·조장 보기·조원 상세·참가자 설정은 [#452](https://github.com/BeomhyunPark/SCENE/issues/452)에서 서버에 열었다(컨트롤러 `event/group/GroupController`·`ParticipantGroupController`, `event/participantsettings/ParticipantSettingsController`, 스키마 `V13__groups.sql`·`V14__group_publications.sql`·`V25__participant_settings_and_privacy_logs.sql`). 정책은 [DEC-072](../../docs/product/PRODUCT_DECISIONS.md)·DEC-083과 DEC-040~048이다.
+> 작업본(편성판, 조, 배정, 조장)은 [#299](https://github.com/BeomhyunPark/SCENE/issues/299), 공개·공개본 조회·참가자 내 조는 [#300](https://github.com/BeomhyunPark/SCENE/issues/300), 조원 명단·조장 보기·조원 상세·참가자 설정은 [#452](https://github.com/BeomhyunPark/SCENE/issues/452)에서 서버에 열었다(컨트롤러 `event/group/GroupController`·`ParticipantGroupController`, `event/participantsettings/ParticipantSettingsController`, 스키마 `V13__groups.sql`·`V14__group_publications.sql`·`V26__participant_settings_and_privacy_logs.sql`). 정책은 [DEC-072](../../docs/product/PRODUCT_DECISIONS.md)·DEC-083과 DEC-040~048이다.
 
 운영자가 조를 만들고 참가자를 넣는 **작업본**과, 공개할 때 한 번에 찍는 **공개본**(스냅샷)이 따로 있다. 작업본 저장은 참가자에게 보이지 않는다. 참가자와 조장은 가장 최근 공개본만 본다.
 
@@ -2783,7 +2783,7 @@ CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고
 | `detail` | `{ "groupPublicationId", "fields": ["phone", "<fieldId>", …] }`. 번호·이름·답 값은 넣지 않는다 |
 | `occurred_at` | 시각 |
 
-`audit_logs.actor_user_id`는 운영자만 받으므로 별도 테이블이다(`V25__participant_settings_and_privacy_logs.sql`). 운영자 연락처 열람의 audit `APPLICANT_CONTACTS_VIEWED`는 그대로 둔다.
+`audit_logs.actor_user_id`는 운영자만 받으므로 별도 테이블이다(`V26__participant_settings_and_privacy_logs.sql`). 운영자 연락처 열람의 audit `APPLICANT_CONTACTS_VIEWED`는 그대로 둔다.
 
 ### `GET /api/v1/operator/events/{eventId}/participant-settings`
 
@@ -2821,7 +2821,7 @@ audit `GROUPS_PUBLISHED`: detail은 `publicationId`, `boardVersion`, `assignedCo
 
 ## 숙소
 
-> [#457](https://github.com/BeomhyunPark/SCENE/issues/457)(로드맵 G2)에서 서버에 열었다. 컨트롤러 `event/room/RoomController`·`ParticipantRoomController`, 스키마 `V26__rooms.sql`. 정책은 [DEC-085](../../docs/product/PRODUCT_DECISIONS.md)와 그 Follow-up(2026-11-20, 2026-11-24 #457, 2026-11-25 G3·A11·G4·G5)이다. "다시 볼 것"(A11 [#461](https://github.com/BeomhyunPark/SCENE/issues/461))의 `review`와 확인 경로, 운영자 화면(G3 [#458](https://github.com/BeomhyunPark/SCENE/issues/458), `/events/{eventId}/rooms`), 참가자 화면(G4 [#459](https://github.com/BeomhyunPark/SCENE/issues/459), `/participate/{eventId}/rooms`), 참가 현황 표·CSV·현장 명단의 방(G5 [#460](https://github.com/BeomhyunPark/SCENE/issues/460), [참가 현황 표](#get-apiv1operatoreventseventidapplicationstable)·[신청자 CSV](#post-apiv1operatoreventseventidapplicationsexport)·[명단·체크인 결과의 방](#명단체크인-결과의-방))은 작업 브랜치에 있고 3주차 통합 브랜치 `claude/week3-integration`에서 함께 합쳤다(main 아님).
+> [#457](https://github.com/BeomhyunPark/SCENE/issues/457)(로드맵 G2)에서 서버에 열었다. 컨트롤러 `event/room/RoomController`·`ParticipantRoomController`, 스키마 `V27__rooms.sql`. 정책은 [DEC-085](../../docs/product/PRODUCT_DECISIONS.md)와 그 Follow-up(2026-11-20, 2026-11-24 #457, 2026-11-25 G3·A11·G4·G5)이다. "다시 볼 것"(A11 [#461](https://github.com/BeomhyunPark/SCENE/issues/461))의 `review`와 확인 경로, 운영자 화면(G3 [#458](https://github.com/BeomhyunPark/SCENE/issues/458), `/events/{eventId}/rooms`), 참가자 화면(G4 [#459](https://github.com/BeomhyunPark/SCENE/issues/459), `/participate/{eventId}/rooms`), 참가 현황 표·CSV·현장 명단의 방(G5 [#460](https://github.com/BeomhyunPark/SCENE/issues/460), [참가 현황 표](#get-apiv1operatoreventseventidapplicationstable)·[신청자 CSV](#post-apiv1operatoreventseventidapplicationsexport)·[명단·체크인 결과의 방](#명단체크인-결과의-방))은 작업 브랜치에 있고 3주차 통합 브랜치 `claude/week3-integration`에서 함께 합쳤다(main 아님).
 
 조 편성과 같은 모양이다. 운영자가 방을 만들고 사람을 넣는 **작업본**과, 공개할 때 한 번에 찍는 **공개본**(`room_publications` 스냅샷)이 따로 있다. 작업본 저장은 참가자·조장에게 보이지 않는다. 테이블·버전·공개는 조 편성과 따로다(`participants`에 `room_id`가 없다). 1월에는 **행사 전체에 참가자당 방 하나**다(배정 행 `night = 0`). 밤마다 다른 배정(G6)은 같은 행의 `night`로 더한다. 자동 편성은 없고 서버는 경고만 계산한다.
 
@@ -3538,7 +3538,7 @@ audit `ROOMS_PUBLISHED`: detail은 `publicationId`, `boardVersion`, `assignedCou
 
 ## 식수 현황
 
-끼니마다 신청 기준 예정 식수와 도착을 반영한 식수를 나란히 준다([#454](https://github.com/BeomhyunPark/SCENE/issues/454), [DEC-087](../../docs/product/PRODUCT_DECISIONS.md)). 끼니마다 세지 않는다(로드맵 결정 1). 숫자는 신청 답과 [도착 체크인](#체크인)만으로 계산한다. 컨트롤러는 `event/application/MealCountController`, 서비스는 `MealCountService`, 계산 규칙은 `MealTally`다.
+끼니마다 신청 기준 예정 식수와 도착을 반영한 식수를 나란히 준다([#454](https://github.com/BeomhyunPark/SCENE/issues/454), [DEC-089](../../docs/product/PRODUCT_DECISIONS.md)). 끼니마다 세지 않는다(로드맵 결정 1). 숫자는 신청 답과 [도착 체크인](#체크인)만으로 계산한다. 컨트롤러는 `event/application/MealCountController`, 서비스는 `MealCountService`, 계산 규칙은 `MealTally`다.
 
 ### `GET /api/v1/operator/events/{eventId}/meal-counts`
 
@@ -3578,7 +3578,7 @@ audit `ROOMS_PUBLISHED`: detail은 `publicationId`, `boardVersion`, `assignedCou
 - **시각:** `startTime`은 일정표 작업본에서 그 `slotId`를 가진 항목의 시작 시각이고(`timeFromSchedule: true`), 없으면 기본 시각(아침 `08:00`, 점심 `12:00`, 저녁 `18:00`, 집회 `19:30`)이다. 행사 시간대(Asia/Seoul) 기준이다. 칸은 시작 1시간 뒤에 `passed: true`가 된다. 지나지 않은 첫 칸(집회 포함)이 지금 칸이고, `nextSlotId`는 지금 칸이거나 그 뒤인 첫 식사 칸이다. 모두 지났으면 `null`이다. `asOf`는 서버가 계산한 시각이다.
 - **칸의 숫자:** 그 칸에 참석하는 사람(`planned`)을 나눈다. 도착했으면 `arrived`. 안 왔고 그 칸의 도착 예정 칸(그 칸을 포함하는 연속 참석 칸 묶음의 첫 칸, `ArrivalSlots.dueSlot`)이 지금 칸이거나 그 뒤면 `coming`, 이미 지났으면 `missing`. `reflected` = `arrived` + `coming`(도착 반영 식수), `planned` = `arrived` + `coming` + `missing`이다.
 - **`unknown`:** 참석 칸을 모르는 신청(답 없음·꺼진 질문·거꾸로 된 범위). 어느 칸에도 세지 않는다(신청 집계 `meals.unanswered`와 같은 수). `arrived`는 그중 도착한 수다.
-- 주방에 보낼 글은 화면이 이 응답으로 만든다(DEC-087 §9).
+- 주방에 보낼 글은 화면이 이 응답으로 만든다(DEC-089 §9).
 
 ## 응답에 안 나오는 기록
 

@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, type CSSProperties, type ReactNode } from "react";
-import { axisTop, buildAxis, clockOf, placeDay, MIN_BLOCK_MINUTES, type Placed, type TimedRow } from "./timetable";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode } from "react";
+import { axisTop, BASE_RANGE, buildAxis, clockOf, minuteAt, pickedSpan, placeDay, MIN_BLOCK_MINUTES, type Placed, type TimedRow } from "./timetable";
 import "./Timetable.css";
 
 export type TimetableColumn<T extends TimedRow> = {
@@ -26,19 +26,28 @@ export type TimetableBlock = { key: string; className?: string; current?: boolea
  * Each column is an `<ol>` of blocks in time order, so the list still reads top to bottom without the
  * picture. `scrollKey` brings the current-time line into view once each time it changes (opening the
  * screen, picking another day); the minute ticks do not scroll.
+ *
+ * Every day shows at least 07:00–24:00, so an empty day is still a timetable. With `onPick`, free time
+ * works like a calendar app: a tap picks 30 minutes there, a mouse drag picks the span dragged over
+ * (15-minute steps), with a draft block showing the span while dragging. On touch screens a drag scrolls
+ * the page, so a tap is the way in.
  */
 export function Timetable<T extends TimedRow>({
   columns,
   block,
   scrollKey,
+  onPick,
 }: {
   columns: TimetableColumn<T>[];
   block: (placed: Placed<T>, column: TimetableColumn<T>) => TimetableBlock;
   scrollKey?: string;
+  /** Free time tapped or dragged on a column: day minutes, end past 1440 after midnight. */
+  onPick?: (column: TimetableColumn<T>, start: number, end: number) => void;
 }) {
   const layouts = useMemo(() => columns.map((column) => placeDay(column.rows)), [columns]);
   const axis = useMemo(() => {
     const stretches: [number, number][] = layouts.flat().map((entry) => [entry.start, Math.max(entry.end, entry.start + MIN_BLOCK_MINUTES)]);
+    stretches.push(BASE_RANGE);
     for (const column of columns) {
       if (column.nowMinute !== null) stretches.push([column.nowMinute, column.nowMinute + 1]);
     }
@@ -55,6 +64,38 @@ export function Timetable<T extends TimedRow>({
     if (line && typeof line.scrollIntoView === "function") line.scrollIntoView({ block: "center" });
     scrolled.current = scrollKey;
   }, [scrollKey, hasLine]);
+
+  // Drag to pick: where it started and where the pointer is now, in day minutes.
+  const [draft, setDraft] = useState<{ key: string; from: number; to: number | null } | null>(null);
+  const pointer = (event: PointerEvent<HTMLDivElement>) => {
+    const box = event.currentTarget.getBoundingClientRect();
+    const scale = Number.parseFloat(getComputedStyle(event.currentTarget).getPropertyValue("--timetable-scale")) || 1;
+    return minuteAt(axis, (event.clientY - box.top) / scale);
+  };
+  const pickHandlers = (column: TimetableColumn<T>) =>
+    onPick
+      ? {
+          onPointerDown: (event: PointerEvent<HTMLDivElement>) => {
+            // Only free time: a press on a block opens that block.
+            if (event.button !== 0 || (event.target as Element).closest(".timetable__block")) return;
+            const target = event.currentTarget;
+            if (event.pointerType === "mouse" && typeof target.setPointerCapture === "function") target.setPointerCapture(event.pointerId);
+            setDraft({ key: column.key, from: pointer(event), to: null });
+          },
+          onPointerMove: (event: PointerEvent<HTMLDivElement>) => {
+            if (!draft || draft.key !== column.key || event.pointerType !== "mouse") return;
+            const at = pointer(event);
+            if (draft.to !== null || Math.abs(at - draft.from) >= 10) setDraft({ ...draft, to: at });
+          },
+          onPointerUp: () => {
+            if (!draft || draft.key !== column.key) return;
+            const span = pickedSpan(draft.from, draft.to);
+            setDraft(null);
+            onPick(column, span.start, span.end);
+          },
+          onPointerCancel: () => setDraft(null),
+        }
+      : {};
 
   const multi = columns.length > 1;
   const style = { "--timetable-columns": columns.length, "--timetable-height": axis.height } as CSSProperties;
@@ -84,7 +125,7 @@ export function Timetable<T extends TimedRow>({
           const placed = layouts[index];
           const attach = index === lineColumn;
           return (
-            <div key={column.key} className="timetable__column">
+            <div key={column.key} className={`timetable__column${onPick ? " timetable__column--pick" : ""}`} {...pickHandlers(column)}>
               <div className="timetable__grid" aria-hidden="true">
                 {axis.ticks.map((tick) => (
                   <span key={tick.minute} className="timetable__hour" style={{ top: `calc(var(--timetable-scale) * ${tick.top})` }} />
@@ -120,6 +161,21 @@ export function Timetable<T extends TimedRow>({
                   );
                 })}
               </ol>
+              {draft && draft.key === column.key && draft.to !== null
+                ? (() => {
+                    const span = pickedSpan(draft.from, draft.to);
+                    const top = axisTop(axis, span.start);
+                    return (
+                      <div
+                        className="timetable__draft"
+                        aria-hidden="true"
+                        style={{ top: `calc(var(--timetable-scale) * ${top})`, height: `calc(var(--timetable-scale) * ${axisTop(axis, span.end) - top})` }}
+                      >
+                        {clockOf(span.start)}–{clockOf(span.end)}
+                      </div>
+                    );
+                  })()
+                : null}
               {column.nowMinute !== null ? (
                 <div
                   ref={attach ? lineRef : undefined}

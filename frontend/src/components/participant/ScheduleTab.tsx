@@ -134,9 +134,8 @@ export function ScheduleTab() {
             ))}
           </div>
         ) : null}
-        {rows.length === 0 ? (
-          <EmptyNote>이날은 일정이 없어요.</EmptyNote>
-        ) : (
+        {rows.length === 0 ? <EmptyNote>이날은 일정이 없어요.</EmptyNote> : null}
+        {columns.length > 0 ? (
           <div className="participant-schedule__timetable">
             <Timetable
               columns={columns}
@@ -175,7 +174,7 @@ export function ScheduleTab() {
               }}
             />
           </div>
-        )}
+        ) : null}
       </>
     );
   }

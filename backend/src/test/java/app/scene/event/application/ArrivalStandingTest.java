@@ -12,7 +12,7 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 /**
- * The arrival roster rule (E4 #456, DEC-087 Follow-up) at fixed times, and that its {@code OVERDUE}
+ * The arrival roster rule (E4 #456, DEC-089 Follow-up) at fixed times, and that its {@code OVERDUE}
  * people are always the next meal's {@code missing} in the meal counts.
  */
 class ArrivalStandingTest {

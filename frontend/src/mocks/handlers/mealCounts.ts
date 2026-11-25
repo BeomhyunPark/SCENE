@@ -5,7 +5,7 @@ import { mealCounts } from "../mealCounts";
 import { eventById, operatorRequests } from "../operatorStore";
 import { problem } from "../problem";
 
-/** 식수 현황 (#454, DEC-087), shaped like MealCountController. Same read gate as the summary. */
+/** 식수 현황 (#454, DEC-089), shaped like MealCountController. Same read gate as the summary. */
 export const mealCountHandlers = [
   http.get("/api/v1/operator/events/:eventId/meal-counts", ({ request, params }) => {
     const operator = currentOperator();

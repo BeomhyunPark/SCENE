@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
-/** The counting rule of DEC-087 §5–§7 at fixed times. */
+/** The counting rule of DEC-089 §5–§7 at fixed times. */
 class MealTallyTest {
 
   private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");

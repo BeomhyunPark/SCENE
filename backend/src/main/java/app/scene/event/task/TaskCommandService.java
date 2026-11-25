@@ -9,6 +9,7 @@ import app.scene.event.lifecycle.EventRow;
 import app.scene.event.lifecycle.OperatorActor;
 import app.scene.space.EventUserPermissionRepository;
 import app.scene.space.EventUserRepository;
+import java.time.LocalDate;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -19,8 +20,9 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * DEC-062 task create, patch, and delete. Create, patch, and delete require effective {@code
  * TASK_WRITE}. The assignee exception on check, complete, and reopen does not apply. Version is not
- * checked here. A title-only change does not increment it. Assignee set or clear, and a real change
- * to {@code CANCELLED}, increment it once. No audit action is written.
+ * checked here. A title-only or dates-only change does not increment it. Assignee set or clear, and
+ * a real change to {@code CANCELLED}, increment it once. No audit action is written. The task date
+ * range (#475) is checked here after merging a patch with the locked row.
  */
 @Service
 public class TaskCommandService {
@@ -49,15 +51,22 @@ public class TaskCommandService {
 
   @Transactional
   public UUID create(
-      UUID spaceId, UUID eventId, String title, UUID assigneeUserId, OperatorActor actor) {
+      UUID spaceId,
+      UUID eventId,
+      String title,
+      UUID assigneeUserId,
+      LocalDate startDate,
+      LocalDate dueDate,
+      OperatorActor actor) {
     EventRow event = events.getForUpdate(spaceId, eventId);
     requireTaskWrite(spaceId, eventId, actor);
     requireWritable(event);
     if (assigneeUserId != null) {
       requireAssignee(spaceId, eventId, assigneeUserId);
     }
+    requireDateRange(startDate, dueDate);
     UUID id = UUID.randomUUID();
-    if (tasks.insert(id, spaceId, eventId, title, assigneeUserId) != 1) {
+    if (tasks.insert(id, spaceId, eventId, title, assigneeUserId, startDate, dueDate) != 1) {
       throw new IllegalStateException("task insert did not write a row");
     }
     return id;
@@ -90,12 +99,25 @@ public class TaskCommandService {
       nextStatus = CANCELLED;
       statusChanged = true;
     }
-    if (!titleChanged && !assigneeChanged && !statusChanged) {
+    LocalDate nextStart = patch.startDatePresent() ? patch.startDate() : task.startDate();
+    LocalDate nextDue = patch.dueDatePresent() ? patch.dueDate() : task.dueDate();
+    requireDateRange(nextStart, nextDue);
+    boolean datesChanged =
+        !Objects.equals(nextStart, task.startDate()) || !Objects.equals(nextDue, task.dueDate());
+    if (!titleChanged && !assigneeChanged && !statusChanged && !datesChanged) {
       return;
     }
     int versionDelta = assigneeChanged || statusChanged ? 1 : 0;
     if (tasks.updateFields(
-            spaceId, eventId, taskId, nextTitle, nextAssignee, nextStatus, versionDelta)
+            spaceId,
+            eventId,
+            taskId,
+            nextTitle,
+            nextAssignee,
+            nextStatus,
+            nextStart,
+            nextDue,
+            versionDelta)
         != 1) {
       throw new IllegalStateException("task disappeared after it was locked");
     }
@@ -135,6 +157,19 @@ public class TaskCommandService {
   private void requireAssignee(UUID spaceId, UUID eventId, UUID userId) {
     if (eventUsers.findRoleForUpdate(spaceId, eventId, userId).isEmpty()) {
       throw new SceneException(ErrorCode.VALIDATION_FAILED, Map.of("field", "assigneeUserId"));
+    }
+  }
+
+  /**
+   * A start date needs a due date on or after it. A due date alone is a one-day task. The failing
+   * field is {@code dueDate} in both cases, matching the {@code tasks_date_range} check.
+   */
+  static void requireDateRange(LocalDate startDate, LocalDate dueDate) {
+    if (startDate == null) {
+      return;
+    }
+    if (dueDate == null || startDate.isAfter(dueDate)) {
+      throw new SceneException(ErrorCode.VALIDATION_FAILED, Map.of("field", "dueDate"));
     }
   }
 

@@ -46,3 +46,34 @@
   gap: 8px;
   font: var(--scene-body-m);
 }
+
+.task-detail__dates {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px 12px;
+}
+
+.task-detail__dates label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--color-text-secondary);
+  font: var(--scene-label-m);
+}
+
+.task-detail__dates input {
+  height: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--color-border-control);
+  border-radius: 8px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font: var(--scene-body-m);
+}
+
+.task-detail__period {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font: var(--scene-body-m);
+}

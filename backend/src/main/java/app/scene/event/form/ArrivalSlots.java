@@ -6,7 +6,7 @@ import java.util.Set;
 
 /**
  * When a participant is due to arrive, from their attended slots ({@link MealSlots#attended}). The
- * meal counts (DEC-087 §4) use it to tell "still coming" from "should have come", and the arrival
+ * meal counts (DEC-089 §4) use it to tell "still coming" from "should have come", and the arrival
  * roster (E4, #456) can show the same slot.
  */
 public final class ArrivalSlots {

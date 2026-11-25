@@ -162,7 +162,7 @@ class OperatorApplicationEditHttpIT {
     assertThat(after.get("attendance").get("partial").asLong()).isEqualTo(1);
     assertThat(slot(after, "opt_d2_dinner")).isEqualTo(dinner2 - 1);
     assertThat(night(after, "opt_n1")).isEqualTo(night1 - 1);
-    // Meal counts (DEC-087) read the same slots.
+    // Meal counts (DEC-089) read the same slots.
     assertThat(mealPlanned(form, "opt_d2_dinner")).isEqualTo(mealsDinner2 - 1);
     // Group board (DEC-072): the attended slots end at 2일차 lunch.
     JsonNode boardPerson = boardPerson(form, garam);

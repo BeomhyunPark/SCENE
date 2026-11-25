@@ -2,7 +2,7 @@ import { apiRequest } from "./client";
 import { ApiError } from "./errors";
 
 /**
- * 식수 현황 (#454, DEC-087): per meal slot the planned count (신청 기준) and the count that reflects
+ * 식수 현황 (#454, DEC-089): per meal slot the planned count (신청 기준) and the count that reflects
  * arrivals. Contract: backend/docs/api.md "식수 현황". Numbers only; no names, phones or ids.
  * `reflected` = `arrived` + `coming`; `planned` = `arrived` + `coming` + `missing`.
  */

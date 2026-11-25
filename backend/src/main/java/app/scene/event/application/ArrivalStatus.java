@@ -1,7 +1,7 @@
 package app.scene.event.application;
 
 /**
- * Where one submitted participant stands on the arrival roster (E4 #456, DEC-087 Follow-up). The
+ * Where one submitted participant stands on the arrival roster (E4 #456, DEC-089 Follow-up). The
  * rule is {@code MealTally.standing}: the same cursor and due slots as the meal counts, so {@link
  * #OVERDUE} names exactly the next meal's "아직 안 옴".
  */

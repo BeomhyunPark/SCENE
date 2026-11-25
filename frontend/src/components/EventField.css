@@ -929,7 +929,7 @@ button.event-field__row-main {
   min-width: 50%;
 }
 
-/* 식수 현황 바로 가기 (#454, DEC-087 §11). */
+/* 식수 현황 바로 가기 (#454, DEC-089 §11). */
 .event-field__meals-link {
   align-self: flex-start;
   color: var(--color-text-brand);

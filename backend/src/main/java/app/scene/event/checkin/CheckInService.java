@@ -39,7 +39,7 @@ import tools.jackson.databind.json.JsonMapper;
  * serialize and the later one sees {@code ALREADY_CHECKED_IN}. Each write adds a history row and an
  * audit row in the same transaction. Names, phones, and the QR value never go to audit or logs.
  *
- * <p>The summary and every roster item carry the arrival standing (E4 #456, DEC-087 Follow-up) from
+ * <p>The summary and every roster item carry the arrival standing (E4 #456, DEC-089 Follow-up) from
  * {@link ArrivalRoster}: the meal counts' inputs and cursor, so {@code OVERDUE} is the next meal's
  * "아직 안 옴". The roster's {@code arrival} filter reads every matching row, then pages in memory.
  */

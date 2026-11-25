@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router";
 import arrowLeft from "../assets/event-create/arrow-left.svg";
@@ -7,7 +7,7 @@ import { isApiError } from "../api/errors";
 import { getMyPermissions } from "../api/operators";
 import { queryKeys } from "../api/queryKeys";
 import { getMe } from "../api/session";
-import { createTask, listTasks } from "../api/tasks";
+import { createTask, listTasks, type TaskListItem } from "../api/tasks";
 import { taskSuggester as defaultSuggester } from "../ai/taskSuggestions";
 import type { TaskSuggester } from "../ai/taskSuggestions";
 import { Button } from "./Button";
@@ -17,7 +17,27 @@ import { reloadQuery } from "../api/queryClient";
 import { readEventAreas, markEventArea } from "./eventLocalState";
 import { TaskSuggestionPanel } from "./TaskSuggestionPanel";
 import { taskFieldCopy, taskStatusLabel } from "./taskCopy";
+import { TaskMonth } from "./TaskMonth";
+import { periodText } from "./taskMonth";
+import { localDate } from "./participant/scheduleNow";
 import "./EventTasks.css";
+
+type View = "list" | "month";
+const WIDE_QUERY = "(min-width: 720px)";
+
+/** The month grid needs room; phones get the month as a list by day (SCENE DS 65:25). */
+function useWideMonth(): boolean {
+  const [wide, setWide] = useState(() => typeof window.matchMedia === "function" && window.matchMedia(WIDE_QUERY).matches);
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const list = window.matchMedia(WIDE_QUERY);
+    const update = () => setWide(list.matches);
+    update();
+    list.addEventListener("change", update);
+    return () => list.removeEventListener("change", update);
+  }, []);
+  return wide;
+}
 
 export function EventTasks({ suggester = defaultSuggester }: { suggester?: TaskSuggester }) {
   const { eventId = "" } = useParams();
@@ -54,6 +74,12 @@ function TaskList({
     queryFn: () => listTasks(eventId, { page: 0, size: 50 }),
   });
   const [title, setTitle] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [dueDate, setDueDate] = useState("");
+  const [view, setView] = useState<View>("list");
+  const wide = useWideMonth();
+  const titleInput = useRef<HTMLInputElement>(null);
+  const [today] = useState(() => localDate(Date.now()));
   const [fieldError, setFieldError] = useState("");
   const [formError, setFormError] = useState("");
   const [pending, setPending] = useState(false);
@@ -77,8 +103,10 @@ function TaskList({
     }
     setPending(true);
     try {
-      await createTask(eventId, { title: trimmed });
+      await createTask(eventId, { title: trimmed, startDate: startDate || null, dueDate: dueDate || null });
       setTitle("");
+      setStartDate("");
+      setDueDate("");
       await reloadQuery(tasks);
     } catch (caught) {
       if (isApiError(caught, "VALIDATION_FAILED")) {
@@ -115,10 +143,19 @@ function TaskList({
             <label htmlFor="task-title">업무 제목</label>
             <input
               id="task-title"
+              ref={titleInput}
               value={title}
               aria-invalid={fieldError.length > 0}
               onChange={(change) => setTitle(change.target.value)}
             />
+            <label className="event-tasks__date">
+              시작일 (선택)
+              <input type="date" value={startDate} max={dueDate || undefined} onChange={(change) => setStartDate(change.target.value)} />
+            </label>
+            <label className="event-tasks__date">
+              마감일 (선택)
+              <input type="date" value={dueDate} min={startDate || undefined} onChange={(change) => setDueDate(change.target.value)} />
+            </label>
             <Button type="submit" variant="primary" size={40} loading={pending}>
               업무 추가
             </Button>
@@ -133,7 +170,44 @@ function TaskList({
           </Button>
         ) : null}
         {tasks.data && tasks.data.page.totalItems === 0 ? <p>아직 준비 업무가 없어요</p> : null}
-        {tasks.data && tasks.data.items.length > 0 ? (
+        {tasks.data ? (
+          <div className="event-tasks__views" role="group" aria-label="보기">
+            <Button type="button" variant={view === "list" ? "primary" : "secondary"} size={32} aria-pressed={view === "list"} onClick={() => setView("list")}>
+              목록
+            </Button>
+            <Button type="button" variant={view === "month" ? "primary" : "secondary"} size={32} aria-pressed={view === "month"} onClick={() => setView("month")}>
+              월
+            </Button>
+          </div>
+        ) : null}
+        {tasks.data && view === "month" ? (
+          <>
+            <TaskMonth
+              tasks={tasks.data.items}
+              period={{ startDate: event.startDate, endDate: event.endDate }}
+              today={today}
+              wide={wide}
+              onOpen={(taskId) => navigate(`/events/${eventId}/tasks/${taskId}`)}
+              onPick={
+                canWrite
+                  ? (range) => {
+                      setStartDate(range.startDate === range.dueDate ? "" : range.startDate);
+                      setDueDate(range.dueDate);
+                      titleInput.current?.focus();
+                      titleInput.current?.scrollIntoView?.({ block: "center" });
+                    }
+                  : undefined
+              }
+            />
+            {tasks.data.items.some((task) => task.dueDate === null) ? (
+              <section className="event-tasks__undated" aria-label="날짜 없는 업무">
+                <h3>날짜 없는 업무</h3>
+                <TaskRows tasks={tasks.data.items.filter((task) => task.dueDate === null)} onOpen={(taskId) => navigate(`/events/${eventId}/tasks/${taskId}`)} />
+              </section>
+            ) : null}
+          </>
+        ) : null}
+        {tasks.data && view === "list" && tasks.data.items.length > 0 ? (
           <ul className="event-tasks__rows">
             {tasks.data.items.map((task) => (
               <li key={task.taskId}>
@@ -141,6 +215,7 @@ function TaskList({
                   <span>{task.title}</span>
                   <span className="event-tasks__badge">{taskStatusLabel(task.status)}</span>
                   <span>{task.assigneeDisplayName ?? "담당 없음"}</span>
+                  {task.dueDate ? <span className="event-tasks__period">{periodText(task)}</span> : null}
                   {task.checklist.total > 0 ? (
                     <span>
                       {task.checklist.done}/{task.checklist.total}
@@ -160,5 +235,21 @@ function TaskList({
         )}
       </div>
     </OperatorShell>
+  );
+}
+
+function TaskRows({ tasks, onOpen }: { tasks: readonly TaskListItem[]; onOpen: (taskId: string) => void }) {
+  return (
+    <ul className="event-tasks__rows">
+      {tasks.map((task) => (
+        <li key={task.taskId}>
+          <button type="button" onClick={() => onOpen(task.taskId)}>
+            <span>{task.title}</span>
+            <span className="event-tasks__badge">{taskStatusLabel(task.status)}</span>
+            <span>{task.assigneeDisplayName ?? "담당 없음"}</span>
+          </button>
+        </li>
+      ))}
+    </ul>
   );
 }

@@ -34,7 +34,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * 식수 현황 (#454, DEC-087, api.md "식수 현황"). Planned counts match the summary; check-in, cancel, an
+ * 식수 현황 (#454, DEC-089, api.md "식수 현황"). Planned counts match the summary; check-in, cancel, an
  * edit (A4) and a withdrawal (A7) move the numbers at once. The time rule itself is {@code
  * MealTallyTest}; here an event far in the future has every slot ahead, and one in the past has
  * every slot passed.

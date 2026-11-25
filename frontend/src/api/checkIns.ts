@@ -14,7 +14,7 @@ export type CheckInStatus = "CHECKED_IN" | "CANCELLED";
 export type CheckInMethod = "QR" | "MANUAL";
 
 /**
- * Arrival standing (E4 #456, DEC-087 Follow-up): the meal counts' clock and due slots. OVERDUE is
+ * Arrival standing (E4 #456, DEC-089 Follow-up): the meal counts' clock and due slots. OVERDUE is
  * "지금까지 왔어야 하는 사람", the same people as the next meal's 아직 안 옴 on 식수 현황.
  */
 export type ArrivalStatus = "ARRIVED" | "OVERDUE" | "COMING" | "PASSED" | "UNKNOWN";

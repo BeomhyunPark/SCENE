@@ -4,7 +4,7 @@ import java.time.Instant;
 import java.util.List;
 
 /**
- * Meal counts for the operator 식수 현황 screen (#454, DEC-087). Numbers only: no name, phone or id.
+ * Meal counts for the operator 식수 현황 screen (#454, DEC-089). Numbers only: no name, phone or id.
  * {@code days} is empty when there is no setup or no meal slot. {@code nextSlotId} is the next meal
  * by the schedule times, or null when every slot has passed.
  */

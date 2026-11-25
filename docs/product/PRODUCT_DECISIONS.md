@@ -3599,7 +3599,7 @@ DEC-072 §6은 일반 참가자에게 조원 명단을 주지 않고 조장에�
 
 ### Follow-up 2026-11-24 — F2 서버 구현에서 계약 초안과 다르게 정한 것 (#452)
 
-**Status:** 구현 세션의 판단(추천안). PR 검토에서 사용자가 확인한다. 서버는 작업 브랜치 `claude/f2-participant-group-roster`에 있고(V25), 계약 내용은 [api.md "조 편성"](../../backend/docs/api.md#get-apiv1participantgroup)으로 옮기고 초안을 지웠다. 시험 조건 12가지는 통합 테스트 `ParticipantGroupRosterHttpIT`이고, 조장 보기의 칸·숙박 밤이 편성판·신청 집계와 같은지는 `AttendanceRangeHttpIT`가 본다. 운영 서버 확인과 실제 클릭은 하지 않았다.
+**Status:** 구현 세션의 판단(추천안). PR 검토에서 사용자가 확인한다. 서버는 작업 브랜치 `claude/f2-participant-group-roster`에 있고(작업 때 V25, main의 `V25__task_dates`와 겹쳐 병합 때 V26), 계약 내용은 [api.md "조 편성"](../../backend/docs/api.md#get-apiv1participantgroup)으로 옮기고 초안을 지웠다. 시험 조건 12가지는 통합 테스트 `ParticipantGroupRosterHttpIT`이고, 조장 보기의 칸·숙박 밤이 편성판·신청 집계와 같은지는 `AttendanceRangeHttpIT`가 본다. 운영 서버 확인과 실제 클릭은 하지 않았다.
 
 결정 대기 두 건은 추천안대로 만들었다: 스위치 기본 켬(행이 없으면 켬), 조장이 받는 전화는 신청 전화와 `format: PHONE` 단답 답 모두(둘 다 `privacy_logs.detail.fields`에 남는다).
 
@@ -3808,7 +3808,7 @@ DEC-072 §6은 일반 참가자에게 조원 명단을 주지 않고 조장에�
 
 ### Follow-up 2026-11-25 — G2 서버 구현에서 계약 초안과 다르게 정한 것 (#457)
 
-**Status:** 구현 세션의 판단(추천안). PR 검토에서 사용자가 확인한다. 서버는 작업 브랜치 `claude/g2-room-server`(F2 브랜치 위, V26)에 있고, 계약 내용은 [api.md "숙소"](../../backend/docs/api.md#숙소)로 옮기고 초안(`docs/architecture/room-contract.md`)을 지웠다. 계약 §10의 DEC-080 쪽(홈 숙소 카드·`features.rooms`·`updates.rooms`·`ROOM_PUBLISHED` 받는 사람)은 [참가자 홈 계약](../architecture/participant-home-contract.md)에, DEC-083 쪽(`roomRosterScope`, `leaderView.members[].room`·조원 상세 `room`)은 api.md "조 편성"에 반영했다. 시험 조건 14가지는 통합 테스트 `RoomHttpIT`(13개)이고 `./gradlew check` 전체가 통과했다. 운영 서버 확인과 실제 클릭은 하지 않았다. 화면(G3·G4), 표·CSV·현장 명단의 방(G5), "다시 볼 것"(A11)은 하지 않았다.
+**Status:** 구현 세션의 판단(추천안). PR 검토에서 사용자가 확인한다. 서버는 작업 브랜치 `claude/g2-room-server`(F2 브랜치 위, 작업 때 V26, 병합 때 V27)에 있고, 계약 내용은 [api.md "숙소"](../../backend/docs/api.md#숙소)로 옮기고 초안(`docs/architecture/room-contract.md`)을 지웠다. 계약 §10의 DEC-080 쪽(홈 숙소 카드·`features.rooms`·`updates.rooms`·`ROOM_PUBLISHED` 받는 사람)은 [참가자 홈 계약](../architecture/participant-home-contract.md)에, DEC-083 쪽(`roomRosterScope`, `leaderView.members[].room`·조원 상세 `room`)은 api.md "조 편성"에 반영했다. 시험 조건 14가지는 통합 테스트 `RoomHttpIT`(13개)이고 `./gradlew check` 전체가 통과했다. 운영 서버 확인과 실제 클릭은 하지 않았다. 화면(G3·G4), 표·CSV·현장 명단의 방(G5), "다시 볼 것"(A11)은 하지 않았다.
 
 1. **"다시 볼 것"(A11)을 위해 배정 행에 근거를 저장한다(읽을 때 다른 것과 비교하지 않는다).** 방에 넣거나 옮길 때마다 `room_assignments.basis`에 `{ genderOptionId(보이는 보기만), lodgingNights, slotIds }`와 `basis_at`을 찍는다. A11은 배정판을 읽을 때 이 값과 지금 값을 비교해 `review.reasons`를 붙이고, "확인"하면 같은 열을 다시 찍는다. 이유: (가) "배정할 때의 값"은 저장하지 않으면 되살리기 어렵다. 신청 revision으로 거꾸로 찾으려면 배정 시각의 revision을 골라 다시 계산해야 하고, 운영자가 고친 값(A12)은 revision 밖에 생긴다(DEC-075 §1). (나) "확인"은 방을 바꾸지 않고 기준점만 옮기는 동작이라 어차피 저장할 자리가 필요하다. (다) 근거 값만 비교하므로 숙소와 상관없는 답(셀 이름 등)을 고쳐도 표시가 붙지 않는다(위 Alternatives). G2의 배정판 `review`는 키만 있고 늘 `null`이며 확인 경로(`POST …/room-assignments/review`)는 A11이 연다. `NOT_LODGING` 경고·`notLodgingAssignedCount`·공개 때 `confirmNotLodging` 확인은 지금 값으로 계산하므로 G2에서 이미 동작한다.
 2. **취소한 본인은 `NOT_ELIGIBLE` 대신 `401`을 받는다.** 신청을 취소하면 세션이 끝나고(DEC-084 §4) 세션은 `SUBMITTED` 신청이 있을 때만 유효해서 숙소 읽기에 닿지 않는다(DEC-083 Follow-up 4와 같다). 시험 조건 7은 `401`로 확인한다. `NOT_ELIGIBLE` 판정은 서비스에 남는다.
@@ -3957,7 +3957,39 @@ DEC-072 §6은 일반 참가자에게 조원 명단을 주지 않고 조장에�
 - **함께 빠진 것:** 홈 "다음 식사" 카드(B3·H4), 조장 화면의 식사 순서(F4, DEC-083 확장 지점 3), 행사 메뉴의 "식사"(I5), 알림 `MEAL_ORDER_PUBLISHED`.
 - **다시 시작할 때:** 사용자에게 다시 할지 묻는다 → 이 절의 결정 대기를 확인받는다 → H2(서버)부터 계약 초안대로 만들고, `ParticipantFeatures`의 유형 기본값에 `mealOrder`를 다시 넣을지 정한다. 기록: [#384](https://github.com/BeomhyunPark/SCENE/issues/384), [#426](https://github.com/BeomhyunPark/SCENE/issues/426).
 
-## DEC-087 — 식수 현황은 끼니마다 예정·도착·올 예정·아직 안 옴을 신청 답과 도착 체크인으로 계산하고, "도착 반영"은 도착 + 올 예정이며, 다음 끼니는 일정표 시각(없으면 기본 시각)으로 정한다
+## DEC-087 — 준비 업무는 선택 시작일·마감일을 갖고, 운영자는 월 달력에서 기간과 행사 기간을 함께 본다
+
+**Date:** 2026-11-25
+
+**Status:** CONFIRMED (날짜 모양·달력 내용은 사용자 결정 2026-11-25, 세부는 추천안으로 진행하고 PR 검토에서 확인)
+
+### Context
+
+사용자가 "월 달력 같은 건 운영진들이 해야 할 일 할 때 써야 하니까 만들어 달라"고 했다(2026-11-25, [#475](https://github.com/BeomhyunPark/SCENE/issues/475)). 준비 업무(DEC-062·065)에는 날짜가 없어서 달력에 놓을 수 없었다. 사용자는 날짜 모양으로 "시작일~마감일 기간"을, 달력 내용으로 "할 일 + 행사 기간"을 골랐다.
+
+### Decision
+
+1. **업무에 선택 날짜 둘:** `startDate`·`dueDate`(`YYYY-MM-DD`, 시각 없음, 둘 다 null 가능). 마감일만 있으면 하루짜리 업무다. **시작일만은 둘 수 없고**, 시작일은 마감일과 같거나 앞서야 한다. 날짜 모양이 아니면 그 칸(`startDate`·`dueDate`), 기간이 어긋나면 `dueDate`를 `field`로 `400 VALIDATION_FAILED`를 돌려준다(DB CHECK `tasks_date_range`와 같은 규칙). 새 ErrorCode는 없다.
+2. **API:** 목록·상세·만들기·고치기 응답에 두 값을 더한다. 만들기·고치기 요청은 선택이고, PATCH는 담당자처럼 "보내면 바꾸고 null이면 지운다". 날짜만 바꾸면 제목처럼 업무 `version`을 올리지 않는다(진행 상태가 아니라서). 체크·완료·다시 진행 응답(진행 모양)에는 넣지 않는다.
+3. **화면:** 준비 업무에 "목록 / 월" 보기. 월은 Venture Calendar Monthly(853:86993)를 SCENE 토큰으로 옮긴 6주 격자다. 업무는 시작~마감 날을 잇는 막대(한 주 안에서 같은 줄), 행사 기간은 칸 색, 오늘은 날짜 동그라미, 마감이 지났는데 열린 업무는 위험 색, 완료·취소는 흐리게 줄긋기. 하루 칸은 세 줄까지 보이고 나머지는 "+N개"다. 쓰기 권한이 있으면 날짜를 누르거나 끌어서 새 업무의 기간을 채운다. 날짜 없는 업무는 달력 아래 "날짜 없는 업무"로 모은다.
+4. **휴대폰(720px 미만):** SCENE DS 43. PATTERNS — CALENDAR(65:25)의 "월 격자를 휴대폰에 줄이지 않는다"에 따라 그달의 날짜별 목록(업무가 있는 날·행사 기간·오늘)으로 보이고, 날마다 "+ 업무"가 있다.
+5. **"오늘"은 행사 시간대(Asia/Seoul) 날짜**다.
+
+### Alternatives
+
+- **마감일 하나:** 가장 단순하지만 며칠에 걸친 준비(숙소 배정, 배차)를 표현하지 못한다. 사용자가 기간을 골랐다.
+- **마감 날짜+시각:** 현장 직전 업무에는 맞지만 입력이 늘고 월 달력에는 시각이 보이지 않는다.
+- **일정표 항목까지 월 달력에:** 행사 날 칸이 넘친다. 일정은 일정표(DEC-081)의 시간표로 본다.
+
+### Consequence
+
+- 서버: `V25__task_dates.sql`(`tasks.start_date`·`due_date`, 시작일이 있으면 마감일이 있고 그보다 늦지 않다는 CHECK), 업무 매퍼·응답·검증, 통합 테스트.
+- 화면: `TaskMonth`·`taskMonth`, 준비 업무 만들기 칸과 상세에 날짜 입력, 목업(`taskStore`) 검증.
+- **확장 지점:** 담당자별 거르기, 마감 알림(D7 웹 푸시와 함께), 업무를 끌어 날짜 옮기기.
+
+## DEC-089 — 식수 현황은 끼니마다 예정·도착·올 예정·아직 안 옴을 신청 답과 도착 체크인으로 계산하고, "도착 반영"은 도착 + 올 예정이며, 다음 끼니는 일정표 시각(없으면 기본 시각)으로 정한다
+
+> **2026-11-25 메모:** 작업 중에는 DEC-087로 불렀다. main의 DEC-087(준비 업무)과 번호가 겹쳐 병합 때 DEC-089로 바꿨다. 이슈 #454·#456과 그 커밋의 DEC-087은 이 결정을 가리킨다.
 
 **Date:** 2026-11-24
 
@@ -4064,7 +4096,7 @@ DEC-072 §6은 일반 참가자에게 조원 명단을 주지 않고 조장에�
 
 ### Decision
 
-**1. 저장은 A4와 같은 revision이다.** 운영자가 고친 답은 새 `applications` 행(`SUBMITTED`, `revision` +1)이고 이전 행은 `SUPERSEDED`다. `revised_by = OPERATOR`, `revised_by_user_id = 고친 운영자`, `changes`는 바뀐 질문 목록(값 없음)이다. 원본 답 옆에 운영 값을 따로 두지 않으므로(`application_operations`는 운영 메모만) 집계(DEC-073)·편성판(DEC-072)·CSV·참가 현황 표·식수 현황(DEC-087)·도착 명단·숙소 배정판(DEC-085)·조장 보기(DEC-083)가 이미 읽는 `SUBMITTED` 행에서 고친 값을 그대로 쓴다. 참가자가 다시 고치면 마지막 revision이 이긴다. 조 배정·방 배정·체크인은 참가자에 붙어 그대로이고, 운영 메모는 새 행으로 옮긴다(DEC-078 §4와 같다).
+**1. 저장은 A4와 같은 revision이다.** 운영자가 고친 답은 새 `applications` 행(`SUBMITTED`, `revision` +1)이고 이전 행은 `SUPERSEDED`다. `revised_by = OPERATOR`, `revised_by_user_id = 고친 운영자`, `changes`는 바뀐 질문 목록(값 없음)이다. 원본 답 옆에 운영 값을 따로 두지 않으므로(`application_operations`는 운영 메모만) 집계(DEC-073)·편성판(DEC-072)·CSV·참가 현황 표·식수 현황(DEC-089)·도착 명단·숙소 배정판(DEC-085)·조장 보기(DEC-083)가 이미 읽는 `SUBMITTED` 행에서 고친 값을 그대로 쓴다. 참가자가 다시 고치면 마지막 revision이 이긴다. 조 배정·방 배정·체크인은 참가자에 붙어 그대로이고, 운영 메모는 새 행으로 옮긴다(DEC-078 §4와 같다).
 - 이유: 변경 기록(revision 목록)·운영자 알림(I3)·"수정됨" 표시(A6)·조장 상세의 "운영자가 고친 값"(F2)이 모두 같은 자료(`revised_by`·`changes`)를 읽는다. 따로 두면 네 곳이 "운영 값이 있으면 운영 값"을 각자 계산해야 하고 참가자가 다시 고쳤을 때 어느 쪽이 이기는지 헷갈린다(DEC-078 Alternatives).
 
 **2. 운영자 수정 `PUT …/applications/{applicationId}/answers`.** 본문은 참가자 수정과 같은 `{ expectedRevision, answers }`다(질문 전부를 보낸다).
@@ -4091,7 +4123,7 @@ DEC-072 §6은 일반 참가자에게 조원 명단을 주지 않고 조장에�
 - **전화번호 하나가 참가자 한 명(DEC-078 §1, DB 제약 `participants_phone_key`)** 은 그대로다. 그 전화의 참가자가 이미 있으면 새로 만들지 않고 `409 APPLICATION_ALREADY_EXISTS`(`details.applicationId` = 그 참가자의 마지막 신청, `details.status` = 그 상태)를 돌려준다. 화면은 그 신청을 여는 링크를 보인다. 운영자는 이미 그 신청을 볼 수 있으므로 정보가 새지 않는다.
 - **취소된 사람(DEC-084)** 도 같은 참가자다. 직접 추가로 되살리지 않는다: `409 APPLICATION_ALREADY_EXISTS`(`status: WITHDRAWN`)로 알려 주고, 운영자는 취소 목록에서 되돌린 뒤(조 배정은 돌아오지 않는다) 신청 고치기로 답을 맞춘다. 되돌리기 한 경로만 조 배정·알림·audit 규칙을 지키면 된다.
 - 새 참가자는 임시 번호를 받는다(A3b와 같은 방식): 서버가 만든 6자리의 해시를 `pin_temporary = true`로 저장하고, 응답 `201 { applicationId, participantId, revision: 1, temporaryPin }`에 **한 번만** 넣는다(`Cache-Control: no-store`, 로그·audit에 없음). 참가자는 이름·전화번호·임시 번호로 들어와 새 번호를 정해야 다음 화면으로 간다(DEC-078 §2). 세션은 만들지 않는다.
-- 첫 revision은 `revision = 1`, `revised_by = OPERATOR`, `revised_by_user_id = 추가한 운영자`, `changes = []`다. **뒤집기 어렵다: 데이터 모양** — V27이 `applications_revision_shape` 제약을 "revision 1은 `revised_by`가 비었거나 `OPERATOR`"로 넓힌다. revision 1의 `OPERATOR`는 "운영자가 직접 추가"라는 뜻이다.
+- 첫 revision은 `revision = 1`, `revised_by = OPERATOR`, `revised_by_user_id = 추가한 운영자`, `changes = []`다. **뒤집기 어렵다: 데이터 모양** — V28(작업 때 V27)이 `applications_revision_shape` 제약을 "revision 1은 `revised_by`가 비었거나 `OPERATOR`"로 넓힌다. revision 1의 `OPERATOR`는 "운영자가 직접 추가"라는 뜻이다.
 
 **4. 권한과 기록.** 둘 다 effective `PARTICIPANT_WRITE`(OWNER·MANAGER 기본, STAFF는 GRANT — DEC-079 Follow-up)다. audit은 `APPLICATION_REVISED_BY_OPERATOR`(`applicationId`·`previousApplicationId`·`participantId`·`revision`·`fieldIds`)와 `PARTICIPANT_ADDED`(`participantId`·`applicationId`)다. 답 값·이름·전화번호·임시 번호는 audit·로그·오류 응답에 없다. 새 ErrorCode·권한 키는 없다.
 
@@ -4138,7 +4170,7 @@ DEC-072 §6은 일반 참가자에게 조원 명단을 주지 않고 조장에�
 
 ### Consequence
 
-계약은 [api.md "운영자의 신청 고치기·직접 추가"](../../backend/docs/api.md#운영자의-신청-고치기직접-추가)에 있다. 서버: `event/application/OperatorApplicationEditService`·`OperatorApplicationEditController`, `AnswerEvaluator`의 운영자 검사, `ApplicationRevisions`의 동의 답 옮기기, `ApplicationNotices.operatorRevised`·`operatorAdded`, 마이그레이션 V27. 화면: 신청 상세의 "신청 고치기"(`/events/{eventId}/participants/{applicationId}/edit`), 참가 현황의 "참가자 직접 추가"(`/events/{eventId}/participants/new`), mock.
+계약은 [api.md "운영자의 신청 고치기·직접 추가"](../../backend/docs/api.md#운영자의-신청-고치기직접-추가)에 있다. 서버: `event/application/OperatorApplicationEditService`·`OperatorApplicationEditController`, `AnswerEvaluator`의 운영자 검사, `ApplicationRevisions`의 동의 답 옮기기, `ApplicationNotices.operatorRevised`·`operatorAdded`, 마이그레이션 V28(작업 때 V27, main의 `V25__task_dates`로 3주차 번호가 하나씩 밀림). 화면: 신청 상세의 "신청 고치기"(`/events/{eventId}/participants/{applicationId}/edit`), 참가 현황의 "참가자 직접 추가"(`/events/{eventId}/participants/new`), mock.
 
 ### Evidence
 
