@@ -7,7 +7,8 @@ import { Button } from "./Button";
  * "신청 수정 받기" (DEC-078 §6, #427): whether participants may still change what they submitted,
  * apart from taking new applications. Closing applications keeps edits open; closing edits makes the
  * participant's 내 정보 read-only. Opening needs an ACTIVE event; an ended event takes no edits at all.
- * Without `FORM_WRITE` the state is shown without the button.
+ * Without `FORM_WRITE` the state is shown without the button. It sits under the 신청 열기·닫기 row in
+ * the same block, divided by a line (#498).
  */
 export function EditsSwitch({
   eventId,
@@ -42,7 +43,8 @@ export function EditsSwitch({
 
   let note: string;
   if (ended) note = "행사가 끝나서 신청을 고칠 수 없어요.";
-  else if (on) note = form.acceptingApplications ? "참가자가 낸 신청을 직접 고칠 수 있어요." : "신청은 닫혔지만 이미 낸 신청은 고칠 수 있어요.";
+  // "신청은 닫혔지만" only once applications came in and were closed (#498); before opening it reads as open.
+  else if (on) note = form.acceptingApplications || !form.locked ? "참가자가 낸 신청을 직접 고칠 수 있어요." : "신청은 닫혔지만 이미 낸 신청은 고칠 수 있어요.";
   else note = "참가자는 낸 신청을 보기만 해요.";
 
   return (
