@@ -10,7 +10,8 @@ const MISSING_SHOWN = 5;
 /**
  * 조별 현황 (#288, DEC-071·DEC-072): one card per published group with 도착 n / 전체 m, the leaders and the
  * people not arrived. Opening a card lists its members with the same check-in·cancel·retry row as the
- * 전체 list. No dedicated Figma frame; it follows the 현장 운영 rows and chips. Copy is a draft.
+ * 전체 list. No dedicated Figma frame; the cards follow the OM01 participant item (radius 10, 13/14 padding,
+ * 12px meta) and its pill chip. Copy is a draft.
  */
 export function FieldGroups({
   stats,
@@ -19,6 +20,8 @@ export function FieldGroups({
   onCheckIn,
   onCancel,
   onRetry,
+  selectedId,
+  onSelect,
 }: {
   stats: GroupStat[];
   pendingByTarget: Map<string, PendingRequest>;
@@ -26,6 +29,9 @@ export function FieldGroups({
   onCheckIn: (item: RosterItem) => void;
   onCancel: (item: RosterItem) => void;
   onRetry: (request: PendingRequest) => void;
+  /** Desktop (TL01): the participant in the detail panel. */
+  selectedId?: string | null;
+  onSelect?: (item: RosterItem) => void;
 }) {
   const [open, setOpen] = useState<Set<string>>(new Set());
   const groupsWithMissing = stats.filter((group) => group.key !== NO_GROUP && group.missing.length > 0).length;
@@ -42,7 +48,7 @@ export function FieldGroups({
 
   return (
     <>
-      <p className="event-field__muted">
+      <p className="event-field__muted field-groups__summary">
         {groupCount.toLocaleString("ko-KR")}개 조 중 {groupsWithMissing.toLocaleString("ko-KR")}개 조에 미도착이 있어요.
       </p>
       <ul className="field-groups" aria-label="조별 체크인 현황">
@@ -95,6 +101,8 @@ export function FieldGroups({
                         onCheckIn={() => onCheckIn(item)}
                         onCancel={() => onCancel(item)}
                         onRetry={() => request && onRetry(request)}
+                        selected={onSelect ? selectedId === item.participantId : undefined}
+                        onSelect={onSelect ? () => onSelect(item) : undefined}
                       />
                     );
                   })}

@@ -1,0 +1,79 @@
+390	home-active	20	20	350	0			
+390	home-new	20	20	350	0			
+390	field-1-list	20	16	358	0			
+390	field-2-groups	20	16	358	0			
+390	field-3-qr	20	16	358	0			
+390	field-4-offline	20	16	358	0			
+390	schedule-all	20	16	358	0			[15:30–17:30 166x147 NOW] [16:00–16:15 40x147 V H NOW] [17:30–17:50 40x298 H] [21:40 68x298 V]
+390	schedule-item	20	16	358	0		event-schedule__actions -16/16	
+390	notices	20	16	358	0			
+390	notifications	20	16	358	0			
+390	groups	20	16	358	0			
+390	participants	20	20	350	0			
+390	summary	20	16	358	0			
+390	home-active	20	20	350	0			
+390	click	참가자 카드 → 신청 집계	OK /events/:id/participants/summary 「Local event」
+390	home-active	20	20	350	0			
+390	click	일정 카드 → 일정표	OK /events/:id/schedule 「Local event」
+390	home-active	20	20	350	0			
+390	click	공지 모두 보기 → 공지	OK /events/:id/notices 「공지」
+390	home-active	20	20	350	0			
+390	click	바로가기 현장 운영	OK /events/:id/field 「현장 운영」
+390	home-active	20	20	350	0			
+390	click	바로가기 일정	OK /events/:id/schedule 「Local event」
+390	home-active	20	20	350	0			
+390	click	사이드바 현장 운영	OK /events/:id/field 「현장 운영」
+1440	home-active	280	280	1128	0			
+1440	home-new	280	280	1128	0			
+1440	field-1-list	280	280	1128	0			
+1440	field-2-groups	280	280	1128	0			
+1440	field-3-qr	280	280	1128	0			
+1440	field-4-offline	280	280	1128	0			
+1440	schedule-all	280	280	1128	0			[15:30–17:30 142x171 NOW] [16:00–16:15 34x171 V H NOW] [17:30–17:50 34x345 H] [21:40 58x345 V]
+1440	schedule-day	280	280	1128	0			[15:30–17:30 142x528 NOW] [16:00–16:15 34x528 H NOW] [17:30–17:50 34x1060 H] [21:40 58x1060 V]
+1440	schedule-item	280	280	1128	0			
+1440	notices	280	280	1128	0			
+1440	notifications	280	280	1128	0			
+1440	groups	280	280	1128	0			
+1440	participants	280	280	1128	0			
+1440	summary	280	280	1128	0			
+1440	home-active	280	280	1128	0			
+1440	click	참가자 카드 → 신청 집계	OK /events/:id/participants/summary 「Local event」
+1440	home-active	280	280	1128	0			
+1440	click	일정 카드 → 일정표	OK /events/:id/schedule 「Local event」
+1440	home-active	280	280	1128	0			
+1440	click	공지 모두 보기 → 공지	OK /events/:id/notices 「공지」
+1440	home-active	280	280	1128	0			
+1440	click	바로가기 현장 운영	OK /events/:id/field 「현장 운영」
+1440	home-active	280	280	1128	0			
+1440	click	바로가기 일정	OK /events/:id/schedule 「Local event」
+1440	home-active	280	280	1128	0			
+1440	click	사이드바 현장 운영	OK /events/:id/field 「현장 운영」
+2000	home-active	560	560	1128	0			
+2000	home-new	560	560	1128	0			
+2000	field-1-list	560	560	1128	0			
+2000	field-2-groups	560	560	1128	0			
+2000	field-3-qr	560	560	1128	0			
+2000	field-4-offline	560	560	1128	0			
+2000	schedule-all	560	560	1128	0			[15:30–17:30 142x171 NOW] [16:00–16:15 34x171 V H NOW] [17:30–17:50 34x345 H] [21:40 58x345 V]
+2000	schedule-day	560	560	1128	0			[15:30–17:30 142x528 NOW] [16:00–16:15 34x528 H NOW] [17:30–17:50 34x1060 H] [21:40 58x1060 V]
+2000	schedule-item	560	560	1128	0			
+2000	notices	560	560	1128	0			
+2000	notifications	560	560	1128	0			
+2000	groups	560	560	1128	0			
+2000	participants	560	560	1128	0			
+2000	summary	560	560	1128	0			
+1440c	home-active	192	192	1128	0			
+1440c	home-new	192	192	1128	0			
+1440c	field-1-list	192	192	1128	0			
+1440c	field-2-groups	192	192	1128	0			
+1440c	field-3-qr	192	192	1128	0			
+1440c	field-4-offline	192	192	1128	0			
+1440c	schedule-all	192	192	1128	0			[15:30–17:30 142x171 NOW] [16:00–16:15 34x171 V H NOW] [17:30–17:50 34x345 H] [21:40 58x345 V]
+1440c	schedule-day	192	192	1128	0			[15:30–17:30 142x528 NOW] [16:00–16:15 34x528 H NOW] [17:30–17:50 34x1060 H] [21:40 58x1060 V]
+1440c	schedule-item	192	192	1128	0			
+1440c	notices	192	192	1128	0			
+1440c	notifications	192	192	1128	0			
+1440c	groups	192	192	1128	0			
+1440c	participants	192	192	1128	0			
+1440c	summary	192	192	1128	0			

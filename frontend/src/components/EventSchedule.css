@@ -402,3 +402,103 @@ a.event-schedule__row:hover {
   vertical-align: top;
   overflow-wrap: anywhere;
 }
+
+/* Timetable blocks (#466). Frame and line layout are in Timetable.css; here only the type and colours of
+   Calendar / Event Item (79:33): time → title → place → tags. */
+.event-schedule__block .event-schedule__row {
+  color: inherit;
+}
+
+.event-schedule__block .event-schedule__main {
+  display: contents;
+}
+
+.event-schedule__block .event-schedule__time,
+.event-schedule__block .event-schedule__title {
+  font: var(--scene-label-m);
+}
+
+.event-schedule__block .event-schedule__time {
+  color: var(--color-text-secondary);
+}
+
+.event-schedule__block .event-schedule__title {
+  color: var(--color-text-primary);
+}
+
+.event-schedule__block .event-schedule__place {
+  font: var(--scene-caption-m);
+}
+
+.event-schedule__block a.event-schedule__row:hover {
+  background: var(--color-bg-hover-row);
+}
+
+/* 지금: P06-PMOB01's current row (brand surface, selected border). */
+.event-schedule__block--now {
+  border: 1.5px solid var(--color-border-selected);
+  --block-bg: var(--color-bg-brand-subtle);
+}
+
+.event-schedule__block--now .event-schedule__time {
+  color: var(--color-text-brand);
+}
+
+/* Finished: quiet, like P06-PMOB01's 완료 rows. */
+.event-schedule__block--past {
+  border-style: dashed;
+  --block-bg: var(--color-bg-canvas);
+}
+
+.event-schedule__block--past .event-schedule__time,
+.event-schedule__block--past .event-schedule__title,
+.event-schedule__block--past .event-schedule__place {
+  color: var(--color-text-tertiary);
+}
+
+/* Saved but not published yet. */
+.event-schedule__block--pending {
+  border: 1.5px dashed var(--color-warning-fg);
+}
+
+.event-schedule__tag--now {
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+}
+
+.event-schedule__tag--next {
+  background: var(--color-info-bg);
+  color: var(--color-info-fg);
+}
+
+.event-schedule__column-count {
+  color: var(--color-text-tertiary);
+  font: var(--scene-caption-m);
+}
+
+.event-schedule__views {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.event-schedule__view-switch {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+@media (min-width: 1024px) {
+  /* The phone bar bleeds into the 16px page padding; the framed desktop body has 32px or more (#469), so the
+     bar keeps to the body column there and its buttons line up with the fields above. */
+  .operator-shell__main--framed .event-schedule__actions {
+    margin-inline: 0;
+    padding-inline: 0;
+  }
+
+  .event-schedule--board {
+    max-width: 1280px;
+  }
+}
