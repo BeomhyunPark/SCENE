@@ -86,9 +86,13 @@
       CAST(#{changes} AS jsonb), #{actorUserId}, #{at})
   </insert>
 
-  <!-- Participant read: event period and the latest publication in one statement. -->
+  <!--
+    Participant read: event period and the latest publication in one statement. e.id keeps one
+    column non-null: with no period and no publication every other column is NULL, and MyBatis
+    would map that row to null (read as a missing event, 401).
+  -->
   <select id="findParticipantSchedule" resultType="app.scene.event.schedule.ParticipantScheduleRow">
-    SELECT e.start_date, e.end_date, latest.published_at, latest.snapshot
+    SELECT e.id AS event_id, e.start_date, e.end_date, latest.published_at, latest.snapshot
     FROM events e
     LEFT JOIN LATERAL (
       SELECT sp.published_at, sp.snapshot::text AS snapshot

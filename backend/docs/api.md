@@ -3080,7 +3080,7 @@ audit `GROUPS_PUBLISHED`: detail은 `publicationId`, `boardVersion`, `assignedCo
 
 ### 시험 조건
 
-숙소 계약 초안 §15의 14가지와 A11의 15번이다. `event/room/RoomHttpIT`가 갖는다(테스트 이름 위 주석에 번호). 1의 G5 부분(참가 현황 표·CSV·현장 명단·체크인 결과)은 `event/room/RoomDeskHttpIT`가 갖는다.
+아래 1~14는 숙소 계약 초안 §15(초안은 G2 #457에서 이 절로 옮기고 지웠다)의 14가지, 15는 A11이다. `event/room/RoomHttpIT`가 갖는다(테스트 이름 위 주석에 번호). 1의 G5 부분(참가 현황 표·CSV·현장 명단·체크인 결과)은 `event/room/RoomDeskHttpIT`가 갖는다.
 
 1. 작업본 저장(방 만들기·배정·지우기)은 `GET /participant/rooms`·`updates.rooms`·조장 `leaderView.members[].room`을 바꾸지 않는다. 공개하면 모두 바뀌고 `updates.rooms`가 정확히 1 오른다. 참가 현황 표·CSV·현장 명단·체크인 결과도 같다(G5, `RoomDeskHttpIT`: 작업본에서 옮기거나 방을 지워도 다음 공개까지 그대로다).
 2. 같은 공개를 다시 보내면 `ALREADY_PUBLISHED`이고 `room_publications`·`updates.rooms`·알림·audit이 늘지 않는다.

@@ -274,6 +274,19 @@ class ScheduleHttpIT {
     return id;
   }
 
+  @Test
+  void participantReadsAnEventWithoutPeriodOrPublication() throws Exception {
+    // Every selected column is NULL here: no period and no publication. The read must still be
+    // 200 NOT_PUBLISHED with no days, not a 401 that sends the participant back to login.
+    World w = f.world();
+    Person p = w.participant("가");
+    jdbc.update("UPDATE events SET start_date = NULL, end_date = NULL WHERE id = ?", w.eventId);
+    JsonNode seen = w.schedule(p);
+    assertThat(seen.get("status").asString()).isEqualTo("NOT_PUBLISHED");
+    assertThat(seen.get("days")).isEmpty();
+    assertThat(seen.get("items")).isEmpty();
+  }
+
   // ------------------------------------------------------------------ publication
 
   @Test

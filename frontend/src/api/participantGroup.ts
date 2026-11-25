@@ -41,7 +41,7 @@ export type GroupAttendance = {
 
 export type GroupCheckIn = { checkedIn: boolean; checkedInAt: string | null };
 
-/** Empty before rooms (G2); F4 fills it. */
+/** The member's room in the latest room publication (G2 #457); null before one or without a room. */
 export type GroupRoom = { name: string; locationNote: string | null };
 
 export type LeaderViewMember = {
