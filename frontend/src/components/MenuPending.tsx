@@ -5,7 +5,8 @@ import "./MenuPending.css";
 
 /**
  * Shared "준비 중" page for organization sidebar menus that have no screen yet (#264).
- * Each menu keeps its own address so the real screen can replace this one later.
+ * Each menu keeps its own address so the real screen can replace this one later. The menus themselves
+ * are hidden until then (#495); this page answers a typed or saved address.
  */
 export function MenuPending({ title }: { title: string }) {
   const { space } = useCurrentSpace();

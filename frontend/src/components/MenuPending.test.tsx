@@ -21,6 +21,7 @@ describe("menu pending page", () => {
     expect(screen.getByRole("heading", { level: 1, name: "일정" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "아직 준비 중이에요" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "행사 목록으로" })).toHaveAttribute("href", "/events");
-    expect(screen.getByRole("link", { name: "일정" })).toHaveAttribute("aria-current", "page");
+    // The menu itself is hidden until the screen exists (#495); the address still explains itself.
+    expect(screen.queryByRole("link", { name: "일정" })).not.toBeInTheDocument();
   });
 });
