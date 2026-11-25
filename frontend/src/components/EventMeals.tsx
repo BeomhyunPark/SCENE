@@ -15,8 +15,8 @@ import "./EventHome.css";
 import "./EventMeals.css";
 
 /**
- * 식수 현황 (#454, DEC-089): per meal two numbers, 예정 (신청 기준) and 도착 (of those, checked in now), and one state,
- * 예정 or 식사 완료. The next meal sits on top. The user cut the copy for the kitchen and the 도착 반영 breakdown
+ * 식수 현황 (#454, DEC-089): per meal two numbers, 예정 (신청 기준) and 도착 (of those, checked in now). A meal that
+ * has passed says 식사 완료; the others carry no state word. The next meal sits on top. The user cut the copy for the kitchen and the 도착 반영 breakdown
  * (2026-11-25); the server still sends them. Nobody is counted at a meal (로드맵 결정 1). Read again every 10 seconds
  * while the page is visible, like 현장 운영 (#408). No dedicated Figma frame; it follows the 신청 집계 cards.
  */
@@ -140,7 +140,7 @@ function MealsContent({ eventId, data }: { eventId: string; data: MealCounts }) 
                     <span className="meals__row-name">
                       {slot.label} <span className="meals__row-time">{slot.startTime}</span>
                     </span>
-                    <span className="meals__state">{slot.passed ? "식사 완료" : "예정"}</span>
+                    {slot.passed ? <span className="meals__state">식사 완료</span> : null}
                   </div>
                   <Counts slot={slot} />
                 </li>

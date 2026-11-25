@@ -54,7 +54,7 @@ afterEach(() => {
 });
 
 describe("식수 현황 screen", () => {
-  it("shows each meal with only 예정 and 도착, and 예정 or 식사 완료", async () => {
+  it("shows each meal with only 예정 and 도착, and 식사 완료 on past meals only", async () => {
     seedThree();
     // 19:10 on day 1: dinner has passed, so the next meal is day 2 breakfast.
     setMealCountsNow(new Date("2027-01-22T19:10:00+09:00"));
@@ -72,7 +72,10 @@ describe("식수 현황 screen", () => {
     expect(dinner.getByText("식사 완료")).toBeInTheDocument();
     // Day 2 lunch: three signed up, one checked in. The partial attendee coming later is not split out.
     const lunch = row("1월 23일 (토) 점심");
-    expect(lunch.getByText("예정", { selector: ".meals__state" })).toBeInTheDocument();
+    // Meals still to come carry no state word; only the counts say 예정.
+    expect(lunch.queryByText("예정", { selector: ".meals__state" })).not.toBeInTheDocument();
+    expect(lunch.getAllByText("예정")).toHaveLength(1);
+    expect(within(next).getAllByText("예정")).toHaveLength(1);
     expect(planned("1월 23일 (토) 점심")).toHaveTextContent("예정3명");
     expect(lunch.getByText("도착").parentElement).toHaveTextContent("도착1명");
     // Worship slots are not meals.
