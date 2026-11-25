@@ -421,7 +421,12 @@ class ParticipantGroupRosterHttpIT {
     JsonNode defaults = json.readTree(ok(get(settingsPath(w)).cookie(w.owner)));
     assertThat(defaults.propertyNames())
         .containsExactly(
-            "groupRosterVisibleToMembers", "version", "updatedAt", "updatedByDisplayName");
+            "groupRosterVisibleToMembers",
+            "roomRosterScope",
+            "version",
+            "updatedAt",
+            "updatedByDisplayName");
+    assertThat(defaults.get("roomRosterScope").asString()).isEqualTo("ALL");
     assertThat(defaults.get("groupRosterVisibleToMembers").asBoolean()).isTrue();
     assertThat(defaults.get("version").asInt()).isZero();
     assertThat(defaults.get("updatedAt").isNull()).isTrue();
