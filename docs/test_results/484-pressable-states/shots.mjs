@@ -13,10 +13,13 @@ const SCREENS = [
   ["02-tasks", `/events/${EVENT}/tasks?view=list`, ".event-tasks__rows button", { focus: true }],
   ["03-notices", `/events/${EVENT}/notices`, ".notice-row", {}],
   ["04-notices-filter", `/events/${EVENT}/notices`, ".notices__filter:not([aria-pressed=true])", {}],
-  ["05-event-home-task", `/events/${EVENT}`, ".event-home__task", {}],
+  ["05-event-home-task", `/events/${EVENT}`, ".event-home__row", {}],
+  ["05b-event-home-stat", `/events/${EVENT}`, ".event-home__stat", { focus: true }],
+  ["09-field-row", `/events/${EVENT}/field`, ".event-field__row:not(.event-field__row--selected) button.event-field__row-main", { measure: ".event-field__row" }],
   ["06-participation-card", `/events/${EVENT}/participants`, ".event-home__card.scene-press, .event-home__card", {}],
   ["07-schedule-day", `/events/${EVENT}/schedule`, ".event-schedule__day:not([aria-selected=true])", {}],
   ["08-notifications", `/events/${EVENT}/notifications`, ".event-notifications__item", {}],
+  ["12-meals", `/events/${EVENT}/meals`, ".meals__how summary, .meals__link", {}],
   ["10-event-list-390", "/events", ".event-list__row", { width: 390, noHover: true }],
   ["11-tasks-390", `/events/${EVENT}/tasks?view=list`, ".event-tasks__rows button", { width: 390, noHover: true }],
 ];
@@ -43,7 +46,7 @@ for (const [name, path, sel, opt] of SCREENS) {
   await page.waitForTimeout(1500);
   const el = page.locator(sel).first();
   const found = await el.count();
-  const style = async () => found ? el.evaluate((e) => { const s = getComputedStyle(e); return `${s.cursor} bg=${s.backgroundColor} border=${s.borderColor} outline=${s.outlineStyle}/${s.outlineColor}`; }) : "없음";
+  const style = async () => found ? el.evaluate((e, m) => { const s = getComputedStyle(m ? e.closest(m) : e); return `${s.cursor} bg=${s.backgroundColor} border=${s.borderColor} outline=${s.outlineStyle}/${s.outlineColor}`; }, opt.measure) : "없음";
   await page.mouse.move(2, 2);
   await page.screenshot({ path: `${outDir}/${prefix}-${name}-default.png` });
   const rest = await style();

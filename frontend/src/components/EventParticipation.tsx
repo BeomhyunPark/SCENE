@@ -265,11 +265,7 @@ function ParticipationBody({ event, spaceName }: { event: EventDetail; spaceName
           {ways.map((item) => (
             <button
               key={item.title}
-              className={
-                (item.title === "신청 링크 만들기" && setupPath) || item.title === "참가자 직접 추가"
-                  ? "event-home__card scene-press scene-press--card"
-                  : "event-home__card"
-              }
+              className="event-home__card scene-press scene-press--card"
               type="button"
               aria-label={item.title}
               onClick={() => navigate(setupPath)}

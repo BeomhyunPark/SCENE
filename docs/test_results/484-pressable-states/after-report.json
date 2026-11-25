@@ -1,17 +1,9 @@
 [
  {
-  "name": "01-event-list",
+  "name": "06-participation-card",
   "found": 1,
   "rest": "pointer bg=rgb(255, 255, 255) border=rgb(218, 226, 228) outline=none/rgb(19, 33, 37)",
   "hover": "pointer bg=rgb(237, 242, 243) border=rgb(185, 198, 201) outline=none/rgb(19, 33, 37)",
-  "focus": "pointer bg=rgb(255, 255, 255) border=rgb(218, 226, 228) outline=solid/rgb(47, 111, 235)",
-  "overflow": false
- },
- {
-  "name": "10-event-list-390",
-  "found": 1,
-  "rest": "pointer bg=rgb(255, 255, 255) border=rgb(218, 226, 228) outline=none/rgb(19, 33, 37)",
-  "hover": "-",
   "focus": "-",
   "overflow": false
  }

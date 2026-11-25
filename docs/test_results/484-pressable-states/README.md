@@ -44,7 +44,7 @@
 | 준비 업무 | 업무 행 | cursor default, hover 변화 없음 | pointer, 같은 카드 hover, 꺾쇠 › |
 | 공지 | 공지 행(중요) | hover 변화 없음 | 바탕 #EDF2F3, 빨간 테두리 유지 |
 | 공지 | 상태 칩 | hover 변화 없음 | 칩 hover 바탕·글자색 |
-| 행사 홈 | 업무 행 | 바탕 #F4F7F8(canvas와 같음) | 바탕 #EDF2F3 |
+| 행사 홈 | 업무 행 | 바탕 #F4F7F8(canvas와 같음) | #488 뒤 구분선 행: 바탕 #F4F7F8(흰 바탕 위), 눌림·포커스 추가 |
 | 참가자 | 참가 방법 카드 | hover 변화 없음, 동작 없는 카드도 pointer | 동작 있는 카드만 hover·pointer |
 | 390 | 행사 목록·업무 | — | 가로 넘침 없음, 꺾쇠 포함 한 줄 유지 |
 
@@ -111,6 +111,24 @@
 | 비밀번호 찾기 뒤로, 가입 약관 보기, 조직 등록 가입 요청 | PublicForgotPassword·PublicSignup·PublicRegisterOrganization | ✗ | ✓ | ⓐ/✓ | `--text` |
 | 비밀번호 보기 눈, 약관 창 닫기 | PublicResetPassword·PublicSignup·PublicTermsDialog | ✗ | ✓ | ✓ | `--quiet` |
 | 공개 홈 시작하기, Google 로그인 | PublicHome·PublicLogin | ✓ | ✓ | ✓ | 그대로(이미 hover·눌림) |
+
+## 후속: main(#481·#488·#490) 병합 뒤 (2026-11-25)
+
+- 행사 목록 행: 꺾쇠가 들어가며 `space-between`의 자식이 늘어 상태 배지가 행 가운데로 밀렸다. 이제 이름(묶음)만 왼쪽에 두고 날짜·장소·상태는 꺾쇠 바로 앞에 붙는다(`EventList.css`, TSX 구조·문구는 그대로). 업무 목록 행은 내용이 왼쪽에 모이고 꺾쇠만 `--end`로 끝에 있어 밀림이 없다.
+- #488(박스 줄이기)과 충돌한 3곳(`EventHome.tsx`, `EventField.tsx`, `notices/StaffNoticesCard.tsx`)은 merge로 풀었다. 박스는 되살리지 않았고, 새 구조에 반응을 다시 입혔다.
+  - 행사 홈 업무·일정 구분선 행, 운영진 공지 구분선 행: `--row --inset`
+  - 요약 칸(`event-home__stat`): `--row --inset`, 포커스 링을 새로 줌
+  - 요약 칸 "신청 집계", 운영진 공지 "모두 보기", 현장 "식수 현황 보기": `--text`
+- 현장 운영 명단 행: 누르는 버튼(`event-field__row-main`)이 행 안쪽 칸이라 hover가 행 전체에 보이지 않았다. 이제 행(`event-field__row`) 전체에 `bg/hover-row`, 눌림은 `bg/subtle`을 깐다. 선택된 행은 선택 색을 그대로 둔다.
+- #490(불필요한 요소 정리)은 충돌 없이 합쳐졌다. `EventList.tsx`의 정리된 문구는 그대로 두었다. 참가 방법 카드는 "신청 링크 만들기" 하나만 남아 늘 눌리므로 `--card`를 조건 없이 준다.
+- 합친 상태에서 행사 목록 행의 상태 배지가 꺾쇠 바로 앞에 붙는 것을 확인했다(`after-01-event-list-hover.png`).
+- 식수 현황: 목업에는 식사 칸이 없어 "신청서 설정으로 가기" 글자 링크와 펼침(summary)만 있다. 둘 다 hover·포커스 규칙을 받는다(`after-12-meals-hover.png`).
+- 검사: typecheck·lint 통과, test 103개 파일 773개 통과.
+- 새 스크린샷:
+  - 행사 목록: `after-01-event-list-{default,hover,focus}.png`
+  - 행사 홈 구분선 행: `after-05-event-home-task-hover.png`
+  - 행사 홈 요약 칸: `after-05b-event-home-stat-{hover,focus}.png`
+  - 현장 운영 명단 행: `after-09-field-row-hover.png`
 
 ## 고치지 않은 것과 이유
 
