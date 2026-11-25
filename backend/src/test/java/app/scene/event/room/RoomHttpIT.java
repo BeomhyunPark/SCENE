@@ -556,10 +556,10 @@ class RoomHttpIT {
   }
 
   /**
-   * §15.6 (the parts G2 owns; the "review again" marks are A11, #461): someone who drops lodging
-   * after being assigned stays in the room with a NOT_LODGING warning, publishing needs {@code
-   * confirmNotLodging}, they are on the published room list, and they cannot move to another room.
-   * The assignment basis is stored for A11.
+   * §15.6: someone who drops lodging after being assigned stays in the room with a NOT_LODGING
+   * warning and a NOT_LODGING "다시 볼 것" mark (A11), publishing needs {@code confirmNotLodging}, they
+   * are on the published room list, and they cannot move to another room. The assignment basis is
+   * stored for A11.
    */
   @Test
   void droppingLodgingAfterAssignmentKeepsTheRoomAndNeedsConfirmation() throws Exception {
@@ -584,7 +584,9 @@ class RoomHttpIT {
     JsonNode board = board(w);
     assertThat(lodgingOf(board, quit)).isEqualTo("NOT_LODGING");
     assertThat(person(board, quit).get("roomId").asString()).isEqualTo(r1);
-    assertThat(person(board, quit).get("review").isNull()).isTrue();
+    assertThat(strings(person(board, quit).get("review").get("reasons")))
+        .containsExactly("NOT_LODGING");
+    assertThat(person(board, stay).get("review").isNull()).isTrue();
     assertThat(
             strings(
                 warnings(board.get("rooms").get(0).get("warnings"))
@@ -618,6 +620,147 @@ class RoomHttpIT {
     JsonNode out = myRooms(quit);
     assertThat(out.get("status").asString()).isEqualTo("UNASSIGNED");
     assertThat(out.get("notLodging").asBoolean()).isTrue();
+  }
+
+  /**
+   * A11 (#461, DEC-085 §8): after an application edit, the board marks assigned people whose basis
+   * (lodging nights, 참석 칸, shown gender) differs, with the reasons; an edit of any other answer
+   * adds no mark. "확인" stamps the current values without moving anyone, writing history or moving
+   * {@code boardVersion}; a repeat is {@code unchanged}. Someone who dropped lodging loses the mark
+   * on 확인 but keeps the room warning and the publish confirmation. Moving someone restamps too.
+   */
+  @Test
+  void reviewMarksFollowTheBasisAndClearOnConfirm() throws Exception {
+    World w = world();
+    w.lodgingQuestions();
+    UUID gender = w.preset("GENDER", "SINGLE_CHOICE", GENDER_OPTIONS);
+    UUID cell = w.custom("셀", "SHORT_TEXT", "{}");
+    Person nights = w.participant("가밤", "010-8450-0001", "90", FULL);
+    Person quits = w.participant("나뺌", "010-8450-0002", "91", FULL);
+    Person turns = w.participant("다성별", "010-8450-0003", "92", FULL);
+    Person other = w.participant("라셀", "010-8450-0004", "93", FULL);
+    Person moved = w.participant("마옮김", "010-8450-0005", "94", FULL);
+    Person waiting = w.participant("바대기", "010-8450-0006", "95", FULL);
+    for (Person p : List.of(nights, quits, turns, other, moved, waiting)) {
+      w.answer(p.id, gender, "{\"optionId\":\"opt_male\"}");
+    }
+    w.answer(other.id, cell, "{\"text\":\"다윗셀\"}");
+    String r1 = createRoom(w, "301호", null, null, "opt_male");
+    String r2 = createRoom(w, "302호", null, null);
+    assign(
+        w,
+        change(nights.id, null, r1),
+        change(quits.id, null, r1),
+        change(turns.id, null, r1),
+        change(other.id, null, r1),
+        change(moved.id, null, r1));
+    JsonNode before = board(w);
+    for (JsonNode person : before.get("participants")) {
+      assertThat(person.get("review").isNull()).isTrue();
+    }
+
+    // A4 edits: other nights, no lodging, another gender, and an answer outside the basis.
+    w.reanswer(nights.id, w.fieldIds.get("ATTENDANCE"), PARTIAL);
+    w.answer(nights.id, w.fieldIds.get("LODGING"), "{\"optionIds\":[\"opt_n1\"]}");
+    w.answer(quits.id, w.fieldIds.get("NO_LODGING"), "{\"optionIds\":[\"opt_no_lodging\"]}");
+    w.reanswer(turns.id, gender, "{\"optionId\":\"opt_female\"}");
+    w.reanswer(other.id, cell, "{\"text\":\"요셉셀\"}");
+    w.reanswer(moved.id, gender, "{\"optionId\":\"opt_gone\"}");
+    w.reanswer(waiting.id, gender, "{\"optionId\":\"opt_female\"}");
+
+    JsonNode board = board(w);
+    long version = board.get("boardVersion").asLong();
+    JsonNode nightsReview = person(board, nights).get("review");
+    assertThat(strings(nightsReview.get("reasons"))).containsExactly("LODGING_CHANGED");
+    assertThat(nightsReview.get("assignedAt").isString()).isTrue();
+    assertThat(strings(person(board, quits).get("review").get("reasons")))
+        .containsExactly("NOT_LODGING");
+    assertThat(strings(person(board, turns).get("review").get("reasons")))
+        .containsExactly("GENDER_CHANGED");
+    // A shown option replaced by a hidden one is "no gender" now: also a change.
+    assertThat(strings(person(board, moved).get("review").get("reasons")))
+        .containsExactly("GENDER_CHANGED");
+    assertThat(person(board, other).get("review").isNull()).isTrue();
+    assertThat(person(board, waiting).get("review").isNull()).isTrue();
+    assertThat(board.get("review")).isNull();
+
+    // Moving restamps: the mark clears and the room changes as usual.
+    assign(w, change(moved.id, r1, r2));
+    assertThat(person(board(w), moved).get("review").isNull()).isTrue();
+    version++;
+
+    int logs = count("SELECT count(*) FROM room_assignment_logs WHERE event_id = ?", w.eventId);
+    JsonNode confirmed =
+        json.readTree(
+            ok(
+                reviewRequest(
+                    w,
+                    ids(
+                        "participantIds",
+                        nights.id.toString(),
+                        quits.id.toString(),
+                        other.id.toString(),
+                        waiting.id.toString()))));
+    assertThat(confirmed.get("confirmed").asInt()).isEqualTo(2);
+    assertThat(confirmed.get("unchanged").asInt()).isEqualTo(1);
+    assertThat(confirmed.get("notAssigned").asInt()).isEqualTo(1);
+    assertThat(confirmed.get("boardVersion").asLong()).isEqualTo(version);
+    JsonNode after = board(w);
+    assertThat(after.get("boardVersion").asLong()).isEqualTo(version);
+    assertThat(person(after, nights).get("review").isNull()).isTrue();
+    assertThat(person(after, nights).get("roomId").asString()).isEqualTo(r1);
+    assertThat(person(after, quits).get("review").isNull()).isTrue();
+    assertThat(strings(person(after, turns).get("review").get("reasons")))
+        .containsExactly("GENDER_CHANGED");
+    assertThat(count("SELECT count(*) FROM room_assignment_logs WHERE event_id = ?", w.eventId))
+        .isEqualTo(logs);
+    JsonNode basis =
+        json.readTree(
+            jdbc.queryForObject(
+                "SELECT basis::text FROM room_assignments WHERE participant_id = ?",
+                String.class,
+                nights.id));
+    assertThat(basis.get("lodgingNights").toString()).isEqualTo("[1]");
+    // Confirming does not hide that someone who does not sleep over is still in a room.
+    Map<String, JsonNode> roomWarnings = warnings(after.get("rooms").get(0).get("warnings"));
+    assertThat(strings(roomWarnings.get("NOT_LODGING").get("participantIds")))
+        .containsExactly(quits.id.toString());
+    assertThat(strings(roomWarnings.get("GENDER_MISMATCH").get("participantIds")))
+        .containsExactly(turns.id.toString());
+    assertThat(after.get("publication").get("notLodgingAssignedCount").asLong()).isEqualTo(1);
+    problem(publishRequest(w, true, false, true), 409, "CONFIRMATION_REQUIRED")
+        .andExpect(jsonPath("$.notLodgingAssignedCount").value(1));
+
+    // Sending the same confirmation again changes nothing.
+    JsonNode again =
+        json.readTree(ok(reviewRequest(w, ids("participantIds", nights.id.toString()))));
+    assertThat(again.get("confirmed").asInt()).isZero();
+    assertThat(again.get("unchanged").asInt()).isEqualTo(1);
+
+    // Form, unknown participant, permission and event state.
+    problem(reviewRequest(w, "{\"participantIds\":[]}"), 400, "VALIDATION_FAILED")
+        .andExpect(jsonPath("$.errors[0].field").value("participantIds"));
+    problem(
+            reviewRequest(w, ids("participantIds", turns.id.toString(), turns.id.toString())),
+            400,
+            "VALIDATION_FAILED")
+        .andExpect(jsonPath("$.errors[0].field").value("participantIds"));
+    problem(
+        reviewRequest(w, ids("participantIds", UUID.randomUUID().toString())),
+        404,
+        "RESOURCE_NOT_FOUND");
+    Cookie staff = login(w.operator("Staff", "STAFF"));
+    problem(
+        write(post(assignPath(w) + "/review"), staff, ids("participantIds", turns.id.toString())),
+        403,
+        "FORBIDDEN");
+    lifecycle(w.eventId, "ENDED");
+    problem(reviewRequest(w, ids("participantIds", turns.id.toString())), 409, "EVENT_ENDED");
+    lifecycle(w.eventId, "ACTIVE");
+
+    // Participants never see the marks.
+    publish(w, true, true);
+    assertThat(json.writeValueAsString(myRooms(turns))).doesNotContain("review");
   }
 
   /**
@@ -1106,6 +1249,10 @@ class RoomHttpIT {
     return write(post(assignPath(w)), session, "{\"changes\":[" + String.join(",", changes) + "]}");
   }
 
+  private MockHttpServletRequestBuilder reviewRequest(World w, String body) {
+    return write(post(assignPath(w) + "/review"), w.owner, body);
+  }
+
   private static String change(UUID participantId, String from, String to) {
     return "{\"participantId\":\""
         + participantId
@@ -1491,6 +1638,15 @@ class RoomHttpIT {
           applications.get(participantId),
           fieldId,
           value);
+    }
+
+    /** Replaces the stored answer, like an application edit (A4) of that question. */
+    void reanswer(UUID participantId, UUID fieldId, String value) {
+      jdbc.update(
+          "DELETE FROM answers WHERE application_id = ? AND field_id = ?",
+          applications.get(participantId),
+          fieldId);
+      answer(participantId, fieldId, value);
     }
 
     /**

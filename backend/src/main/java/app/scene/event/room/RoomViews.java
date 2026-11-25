@@ -56,7 +56,7 @@ public final class RoomViews {
   /**
    * An active participant on the board. {@code group} is from the latest group publication; {@code
    * draftGroupId} is the group working copy's group, only for a reader with {@code GROUP_WRITE}.
-   * {@code review} is the "review again" mark of A11 (#461) and is null until that lands.
+   * {@code review} is the "다시 볼 것" mark of A11 (#461), null when the basis still holds.
    */
   public record BoardPerson(
       UUID participantId,
@@ -75,8 +75,20 @@ public final class RoomViews {
 
   public record GroupRef(UUID groupId, String name) {}
 
-  /** The "review again" mark (A11). Not filled in G2. */
-  public record Review(List<String> reasons, Instant assignedAt) {}
+  /**
+   * The "다시 볼 것" mark (A11 #461, DEC-085 §8). {@code reasons} say which basis value differs now;
+   * {@code assignedAt} is when the basis was last stamped (put in, moved or confirmed).
+   */
+  public record Review(List<String> reasons, Instant assignedAt) {
+
+    public static final String NOT_LODGING = "NOT_LODGING";
+    public static final String LODGING_CHANGED = "LODGING_CHANGED";
+    public static final String ATTENDANCE_CHANGED = "ATTENDANCE_CHANGED";
+    public static final String GENDER_CHANGED = "GENDER_CHANGED";
+  }
+
+  /** {@code POST …/room-assignments/review}. */
+  public record Reviewed(int confirmed, int unchanged, int notAssigned, long boardVersion) {}
 
   /** A participant who is not active any more but still has an assignment row. */
   public record Withdrawn(UUID participantId, String name, UUID roomId) {}

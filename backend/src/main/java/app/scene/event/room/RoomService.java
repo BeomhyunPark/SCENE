@@ -32,6 +32,8 @@ import app.scene.event.room.RoomViews.GroupRef;
 import app.scene.event.room.RoomViews.PublicationSummary;
 import app.scene.event.room.RoomViews.PublishResult;
 import app.scene.event.room.RoomViews.Published;
+import app.scene.event.room.RoomViews.Review;
+import app.scene.event.room.RoomViews.Reviewed;
 import app.scene.event.room.RoomViews.RoomDeleted;
 import app.scene.event.room.RoomViews.RoomState;
 import app.scene.event.room.RoomViews.RoomWritten;
@@ -174,7 +176,7 @@ public class RoomService {
               draftGroups.get(row.participantId()),
               row.roomId(),
               published == null ? null : published.roomId(),
-              null));
+              review(person)));
     }
     List<Withdrawn> withdrawn = new ArrayList<>();
     for (Facts person : people) {
@@ -523,6 +525,97 @@ public class RoomService {
       }
     }
     return new Assigned(moves.size(), alreadyApplied, boardVersion, states);
+  }
+
+  // ---- review again (A11) ----
+
+  /**
+   * "확인" of the "다시 볼 것" marks (A11 #461, DEC-085 §8): stamps the current values as the new basis
+   * of each named participant who is active and in a room, so the mark clears. The room does not
+   * change, no history row is written and {@code boardVersion} does not move. People who are
+   * unassigned or no longer active are skipped ({@code notAssigned}); people with no difference are
+   * {@code unchanged}, so sending the same request again changes nothing.
+   */
+  @Transactional
+  public Reviewed confirmReview(UUID actorId, UUID eventId, JsonNode body) {
+    UUID spaceId = openForWrite(actorId, eventId);
+    List<UUID> ids = uuidList(field(body, "participantIds"), "participantIds");
+    if (ids.isEmpty() || ids.size() > CHANGES_MAX || new HashSet<>(ids).size() != ids.size()) {
+      throw invalid("participantIds");
+    }
+    lockWritable(spaceId, eventId);
+
+    Context context = context(spaceId, eventId);
+    List<Facts> people = facts(rooms.people(spaceId, eventId, ids), context);
+    if (people.size() != ids.size()) {
+      throw new SceneException(ErrorCode.RESOURCE_NOT_FOUND);
+    }
+    Instant at = now();
+    int confirmed = 0;
+    int unchanged = 0;
+    int notAssigned = 0;
+    for (Facts person : people) {
+      if (!person.row().submitted() || person.row().roomId() == null) {
+        notAssigned++;
+      } else if (review(person) == null) {
+        unchanged++;
+      } else {
+        rooms.restamp(spaceId, eventId, person.row().participantId(), basis(person), actorId, at);
+        confirmed++;
+      }
+    }
+    return new Reviewed(confirmed, unchanged, notAssigned, rooms.boardVersion(spaceId, eventId));
+  }
+
+  /**
+   * The "다시 볼 것" mark of an active, assigned participant (DEC-085 §8, A11): the reasons their
+   * current values differ from the stored basis, in the order {@code NOT_LODGING} (no night now) or
+   * {@code LODGING_CHANGED} (other nights), {@code ATTENDANCE_CHANGED} (other 참석 칸), {@code
+   * GENDER_CHANGED} (other shown GENDER option). Null when nothing differs, when unassigned, or for
+   * a withdrawn person. Only the basis values count, so an edit of any other answer (셀 이름 등) adds
+   * no mark. Slot ids compare as sets.
+   */
+  Review review(Facts person) {
+    PersonRow row = person.row();
+    if (!row.submitted() || row.roomId() == null || row.basis() == null) {
+      return null;
+    }
+    JsonNode basis = json.readTree(row.basis());
+    List<String> reasons = new ArrayList<>();
+    if (!Objects.equals(ints(basis.get("lodgingNights")), person.nights())) {
+      reasons.add(
+          person.lodging() == Lodging.NOT_LODGING ? Review.NOT_LODGING : Review.LODGING_CHANGED);
+    }
+    List<String> slots = strings(basis.get("slotIds"));
+    if (!Objects.equals(
+        slots == null ? null : new HashSet<>(slots),
+        person.slotIds() == null ? null : new HashSet<>(person.slotIds()))) {
+      reasons.add(Review.ATTENDANCE_CHANGED);
+    }
+    JsonNode gender = basis.get("genderOptionId");
+    String was = gender == null || !gender.isString() ? null : gender.asString();
+    if (!Objects.equals(was, person.genderId())) {
+      reasons.add(Review.GENDER_CHANGED);
+    }
+    return reasons.isEmpty() ? null : new Review(reasons, row.basisAt());
+  }
+
+  private static List<Integer> ints(JsonNode node) {
+    if (node == null || !node.isArray()) {
+      return null;
+    }
+    List<Integer> out = new ArrayList<>();
+    node.forEach(item -> out.add(item.asInt()));
+    return out;
+  }
+
+  private static List<String> strings(JsonNode node) {
+    if (node == null || !node.isArray()) {
+      return null;
+    }
+    List<String> out = new ArrayList<>();
+    node.forEach(item -> out.add(item.asString()));
+    return out;
   }
 
   // ---- publication ----
