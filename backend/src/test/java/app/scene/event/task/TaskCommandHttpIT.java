@@ -1,6 +1,7 @@
 package app.scene.event.task;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -22,6 +23,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers;
@@ -95,7 +97,9 @@ class TaskCommandHttpIT {
             "completedByDisplayName",
             "completedAt",
             "actions",
-            "outcome");
+            "outcome",
+            "startDate",
+            "dueDate");
     UUID taskId = UUID.fromString(body.get("taskId").asString());
     assertThat(body.get("title").asString()).isEqualTo("안내");
     assertThat(body.get("status").asString()).isEqualTo("TODO");
@@ -105,6 +109,8 @@ class TaskCommandHttpIT {
     assertThat(body.get("completedByUserId").isNull()).isTrue();
     assertThat(body.get("completedAt").isNull()).isTrue();
     assertThat(body.get("outcome").isNull()).isTrue();
+    assertThat(body.get("startDate").isNull()).isTrue();
+    assertThat(body.get("dueDate").isNull()).isTrue();
     assertThat(body.get("checklist").get("done").asInt()).isZero();
     assertThat(body.get("checklist").get("total").asInt()).isZero();
     assertThat(body.get("checklist").get("items")).isEmpty();
@@ -158,6 +164,8 @@ class TaskCommandHttpIT {
     assertThat(json.readTree(completed).get("outcome").asString()).isEqualTo("COMPLETED");
     assertThat(json.readTree(completed).get("status").asString()).isEqualTo("DONE");
     assertThat(json.readTree(completed).has("title")).isFalse();
+    assertThat(json.readTree(completed).has("startDate")).isFalse();
+    assertThat(json.readTree(completed).has("dueDate")).isFalse();
     assertThat(taskStatus(taskId)).isEqualTo("DONE");
   }
 
@@ -864,7 +872,9 @@ class TaskCommandHttpIT {
             "assigneeUserId",
             "assigneeDisplayName",
             "checklist",
-            "version");
+            "version",
+            "startDate",
+            "dueDate");
     assertThat(item.get("checklist").propertyNames()).containsExactly("done", "total");
     assertThat(listed).doesNotContain("itemId", "email", "token", "session");
     List<UUID> ordered = orderedIds(fx.eventId);
@@ -953,6 +963,267 @@ class TaskCommandHttpIT {
     assertThat(assignee(done)).isNull();
     assertThat(taskCount(fx.eventId)).isEqualTo(3);
     assertThat(itemsOnEvent(fx.eventId)).isEqualTo(3);
+  }
+
+  /** #475. Create takes optional dates. The list and detail show them as YYYY-MM-DD. */
+  @Test
+  void createStoresDatesAndListShowsThem() throws Exception {
+    Fixture fx = seed("ACTIVE");
+    Cookie owner = login(fx.ownerId);
+
+    JsonNode ranged =
+        json.readTree(
+            created(
+                write(
+                    post(tasks(fx.eventId)),
+                    owner,
+                    "{\"title\":\"대관\",\"startDate\":\"2026-12-01\",\"dueDate\":\"2026-12-05\"}",
+                    "req-dates-range")));
+    assertThat(ranged.get("startDate").asString()).isEqualTo("2026-12-01");
+    assertThat(ranged.get("dueDate").asString()).isEqualTo("2026-12-05");
+    assertThat(ranged.get("version").asInt()).isZero();
+    UUID rangedId = UUID.fromString(ranged.get("taskId").asString());
+    assertThat(taskDate(rangedId, "start_date")).isEqualTo("2026-12-01");
+    assertThat(taskDate(rangedId, "due_date")).isEqualTo("2026-12-05");
+
+    JsonNode oneDay =
+        json.readTree(
+            created(
+                write(
+                    post(tasks(fx.eventId)),
+                    owner,
+                    "{\"title\":\"하루\",\"startDate\":null,\"dueDate\":\"2026-12-10\"}",
+                    "req-dates-one-day")));
+    assertThat(oneDay.get("startDate").isNull()).isTrue();
+    assertThat(oneDay.get("dueDate").asString()).isEqualTo("2026-12-10");
+    UUID oneDayId = UUID.fromString(oneDay.get("taskId").asString());
+
+    JsonNode sameDay =
+        json.readTree(
+            created(
+                write(
+                    post(tasks(fx.eventId)),
+                    owner,
+                    "{\"title\":\"같은 날\",\"startDate\":\"2026-12-11\",\"dueDate\":\"2026-12-11\"}",
+                    "req-dates-same-day")));
+    assertThat(sameDay.get("startDate").asString()).isEqualTo("2026-12-11");
+    assertThat(sameDay.get("dueDate").asString()).isEqualTo("2026-12-11");
+
+    JsonNode detail = json.readTree(ok(read(owner, taskPath(fx.eventId, rangedId), "req-dd")));
+    assertThat(detail.get("startDate").asString()).isEqualTo("2026-12-01");
+    assertThat(detail.get("dueDate").asString()).isEqualTo("2026-12-05");
+
+    JsonNode listed = json.readTree(ok(read(owner, tasks(fx.eventId), "req-dates-list")));
+    assertThat(listed.get("items")).hasSize(3);
+    for (JsonNode item : listed.get("items")) {
+      UUID id = UUID.fromString(item.get("taskId").asString());
+      if (id.equals(rangedId)) {
+        assertThat(item.get("startDate").asString()).isEqualTo("2026-12-01");
+        assertThat(item.get("dueDate").asString()).isEqualTo("2026-12-05");
+      } else if (id.equals(oneDayId)) {
+        assertThat(item.get("startDate").isNull()).isTrue();
+        assertThat(item.get("dueDate").asString()).isEqualTo("2026-12-10");
+      } else {
+        assertThat(item.get("startDate").asString()).isEqualTo("2026-12-11");
+        assertThat(item.get("dueDate").asString()).isEqualTo("2026-12-11");
+      }
+    }
+  }
+
+  /** #475. A bad date, a start without a due date, and a start after the due date are rejected. */
+  @Test
+  void createRejectsBadDates() throws Exception {
+    Fixture fx = seed("ACTIVE");
+    Cookie owner = login(fx.ownerId);
+
+    assertRejectedCreate(fx, owner, "{\"title\":\"a\",\"startDate\":\"2026-12-01\"}", "dueDate");
+    assertRejectedCreate(
+        fx, owner, "{\"title\":\"a\",\"startDate\":\"2026-12-01\",\"dueDate\":null}", "dueDate");
+    assertRejectedCreate(
+        fx,
+        owner,
+        "{\"title\":\"a\",\"startDate\":\"2026-12-06\",\"dueDate\":\"2026-12-05\"}",
+        "dueDate");
+    assertRejectedCreate(fx, owner, "{\"title\":\"a\",\"dueDate\":\"2026-13-01\"}", "dueDate");
+    assertRejectedCreate(fx, owner, "{\"title\":\"a\",\"dueDate\":\"2026-02-30\"}", "dueDate");
+    assertRejectedCreate(
+        fx, owner, "{\"title\":\"a\",\"dueDate\":\"2026-12-01T10:00:00\"}", "dueDate");
+    assertRejectedCreate(fx, owner, "{\"title\":\"a\",\"dueDate\":20261201}", "dueDate");
+    assertRejectedCreate(
+        fx,
+        owner,
+        "{\"title\":\"a\",\"startDate\":\"12/01/2026\",\"dueDate\":\"2026-12-05\"}",
+        "startDate");
+    assertThat(taskCount(fx.eventId)).isZero();
+  }
+
+  /**
+   * #475. PATCH dates use presence semantics: present null clears, absent keeps. A dates-only
+   * change does not increment version, like a title-only change. The range is checked after merging
+   * with the stored row.
+   */
+  @Test
+  void patchSetsAndClearsDatesWithoutIncrementingVersion() throws Exception {
+    Fixture fx = seed("ACTIVE");
+    UUID taskId = task(fx, "안내", "DOING", fx.staffId);
+    Cookie owner = login(fx.ownerId);
+
+    JsonNode due =
+        json.readTree(
+            ok(
+                write(
+                    patch(taskPath(fx.eventId, taskId)),
+                    owner,
+                    "{\"dueDate\":\"2026-12-05\"}",
+                    "req-patch-due")));
+    assertThat(due.get("startDate").isNull()).isTrue();
+    assertThat(due.get("dueDate").asString()).isEqualTo("2026-12-05");
+    assertThat(due.get("version").asInt()).isZero();
+    assertThat(due.get("title").asString()).isEqualTo("안내");
+    assertThat(due.get("assigneeUserId").asString()).isEqualTo(fx.staffId.toString());
+    assertThat(taskVersion(taskId)).isZero();
+
+    JsonNode start =
+        json.readTree(
+            ok(
+                write(
+                    patch(taskPath(fx.eventId, taskId)),
+                    owner,
+                    "{\"startDate\":\"2026-12-01\"}",
+                    "req-patch-start")));
+    assertThat(start.get("startDate").asString()).isEqualTo("2026-12-01");
+    assertThat(start.get("dueDate").asString()).isEqualTo("2026-12-05");
+    assertThat(start.get("version").asInt()).isZero();
+
+    JsonNode titled =
+        json.readTree(
+            ok(
+                write(
+                    patch(taskPath(fx.eventId, taskId)),
+                    owner,
+                    "{\"title\":\"새 제목\"}",
+                    "req-patch-title-keeps-dates")));
+    assertThat(titled.get("startDate").asString()).isEqualTo("2026-12-01");
+    assertThat(titled.get("dueDate").asString()).isEqualTo("2026-12-05");
+
+    problem(
+        write(
+            patch(taskPath(fx.eventId, taskId)),
+            owner,
+            "{\"dueDate\":null}",
+            "req-patch-clear-due-only"),
+        400,
+        "VALIDATION_FAILED",
+        "req-patch-clear-due-only");
+    assertField("clear due keeps start", lastProblem, "dueDate");
+    problem(
+        write(
+            patch(taskPath(fx.eventId, taskId)),
+            owner,
+            "{\"dueDate\":\"2026-11-30\"}",
+            "req-patch-due-before-start"),
+        400,
+        "VALIDATION_FAILED",
+        "req-patch-due-before-start");
+    assertField("due before stored start", lastProblem, "dueDate");
+    problem(
+        write(
+            patch(taskPath(fx.eventId, taskId)),
+            owner,
+            "{\"startDate\":\"2026-12-06\"}",
+            "req-patch-start-after-due"),
+        400,
+        "VALIDATION_FAILED",
+        "req-patch-start-after-due");
+    assertField("start after stored due", lastProblem, "dueDate");
+    problem(
+        write(
+            patch(taskPath(fx.eventId, taskId)),
+            owner,
+            "{\"startDate\":\"not-a-date\"}",
+            "req-patch-bad-start"),
+        400,
+        "VALIDATION_FAILED",
+        "req-patch-bad-start");
+    assertField("bad start", lastProblem, "startDate");
+    assertThat(taskDate(taskId, "start_date")).isEqualTo("2026-12-01");
+    assertThat(taskDate(taskId, "due_date")).isEqualTo("2026-12-05");
+    assertThat(taskVersion(taskId)).isZero();
+
+    JsonNode cleared =
+        json.readTree(
+            ok(
+                write(
+                    patch(taskPath(fx.eventId, taskId)),
+                    owner,
+                    "{\"startDate\":null,\"dueDate\":null}",
+                    "req-patch-clear")));
+    assertThat(cleared.get("startDate").isNull()).isTrue();
+    assertThat(cleared.get("dueDate").isNull()).isTrue();
+    assertThat(cleared.get("version").asInt()).isZero();
+    assertThat(taskDate(taskId, "start_date")).isNull();
+    assertThat(taskDate(taskId, "due_date")).isNull();
+
+    problem(
+        write(
+            patch(taskPath(fx.eventId, taskId)),
+            owner,
+            "{\"startDate\":\"2026-12-01\"}",
+            "req-patch-start-no-due"),
+        400,
+        "VALIDATION_FAILED",
+        "req-patch-start-no-due");
+    assertField("start without due", lastProblem, "dueDate");
+    assertThat(taskDate(taskId, "start_date")).isNull();
+
+    JsonNode withAssignee =
+        json.readTree(
+            ok(
+                write(
+                    patch(taskPath(fx.eventId, taskId)),
+                    owner,
+                    "{\"dueDate\":\"2026-12-20\",\"assigneeUserId\":\"" + fx.managerId + "\"}",
+                    "req-patch-due-assignee")));
+    assertThat(withAssignee.get("dueDate").asString()).isEqualTo("2026-12-20");
+    assertThat(withAssignee.get("version").asInt()).isEqualTo(1);
+    assertThat(taskVersion(taskId)).isEqualTo(1);
+    assertThat(auditRows(fx.eventId)).isZero();
+  }
+
+  /** #475. The database check backs the service rule. */
+  @Test
+  void databaseRejectsStartWithoutDueOrAfterDue() {
+    Fixture fx = seed("ACTIVE");
+    UUID taskId = task(fx, "안내", "TODO", null);
+    assertThatThrownBy(
+            () ->
+                jdbc.update("UPDATE tasks SET start_date = DATE '2026-12-01' WHERE id = ?", taskId))
+        .isInstanceOf(DataIntegrityViolationException.class);
+    assertThatThrownBy(
+            () ->
+                jdbc.update(
+                    "UPDATE tasks SET start_date = DATE '2026-12-02', due_date = DATE '2026-12-01'"
+                        + " WHERE id = ?",
+                    taskId))
+        .isInstanceOf(DataIntegrityViolationException.class);
+    jdbc.update("UPDATE tasks SET due_date = DATE '2026-12-01' WHERE id = ?", taskId);
+    assertThat(taskDate(taskId, "due_date")).isEqualTo("2026-12-01");
+  }
+
+  private void assertRejectedCreate(Fixture fx, Cookie owner, String body, String field)
+      throws Exception {
+    String requestId = "req-create-date-" + Integer.toHexString(body.hashCode());
+    problem(
+        write(post(tasks(fx.eventId)), owner, body, requestId),
+        400,
+        "VALIDATION_FAILED",
+        requestId);
+    assertField(body, lastProblem, field);
+  }
+
+  private String taskDate(UUID taskId, String column) {
+    return jdbc.queryForObject(
+        "SELECT " + column + "::text FROM tasks WHERE id = ?", String.class, taskId);
   }
 
   private String lastProblem;

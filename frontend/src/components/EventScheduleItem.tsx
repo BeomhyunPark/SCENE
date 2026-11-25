@@ -78,7 +78,10 @@ function ItemLoader({ event, itemId }: { event: EventDetail; itemId: string }) {
   }
   const requestedDay = Number(params.get("day"));
   const day = board.data.days.some((entry) => entry.day === requestedDay) ? requestedDay : (board.data.days[0]?.day ?? 1);
-  return <ItemForm key={itemId} eventId={event.eventId} board={board.data} item={item} initialDay={day} />;
+  // From the timetable: a tap or drag on free time opens this with ?start=HH:mm&end=HH:mm (#466).
+  const clock = (value: string | null) => (value && /^([01]\d|2[0-3]):[0-5]\d$/.test(value) ? value : "");
+  const span = { startTime: clock(params.get("start")), endTime: clock(params.get("end")) };
+  return <ItemForm key={itemId} eventId={event.eventId} board={board.data} item={item} initialDay={day} initialSpan={span} />;
 }
 
 type Draft = {
@@ -156,7 +159,19 @@ const FIELD_LABEL: Record<keyof ScheduleItemInput, string> = {
   slotId: "칸",
 };
 
-function ItemForm({ eventId, board, item, initialDay }: { eventId: string; board: ScheduleBoard; item: ScheduleItem | null; initialDay: number }) {
+function ItemForm({
+  eventId,
+  board,
+  item,
+  initialDay,
+  initialSpan,
+}: {
+  eventId: string;
+  board: ScheduleBoard;
+  item: ScheduleItem | null;
+  initialDay: number;
+  initialSpan?: { startTime: string; endTime: string };
+}) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { mayWrite, pending } = useScheduleWrite(eventId);
@@ -178,7 +193,12 @@ function ItemForm({ eventId, board, item, initialDay }: { eventId: string; board
     input: item ? inputOf(item) : empty,
     version: item?.version ?? 0,
   }));
-  const [draft, setDraft] = useState<Draft>(() => draftOf(baseline.input));
+  // A new item picked on the timetable starts with that time filled in (still a change to save).
+  const [draft, setDraft] = useState<Draft>(() => {
+    const start = draftOf(baseline.input);
+    if (!creating || !initialSpan?.startTime) return start;
+    return { ...start, startTime: initialSpan.startTime, endTime: initialSpan.endTime };
+  });
   const [notify, setNotify] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<{ field: keyof ScheduleItemInput | null; text: string } | null>(null);

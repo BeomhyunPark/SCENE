@@ -1,6 +1,7 @@
 package app.scene.event.task;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.UUID;
 
 public record TaskRow(
@@ -12,4 +13,6 @@ public record TaskRow(
     UUID assigneeUserId,
     UUID completedByUserId,
     Instant completedAt,
-    String lifecycleStatus) {}
+    String lifecycleStatus,
+    LocalDate startDate,
+    LocalDate dueDate) {}
