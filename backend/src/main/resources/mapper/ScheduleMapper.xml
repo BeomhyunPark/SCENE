@@ -21,7 +21,7 @@
     SELECT si.id AS item_id, si.day, to_char(si.start_time, 'HH24:MI') AS start_time,
            to_char(si.end_time, 'HH24:MI') AS end_time, si.title, si.place, si.description,
            si.category, si.audience::text AS audience, si.slot_id, si.sort_order, si.version,
-           si.updated_at, u.display_name AS updated_by_display_name
+           si.updated_at, u.display_name AS updated_by_display_name, si.auto_filled
     FROM schedule_items si
     JOIN users u ON u.id = si.updated_by
     WHERE si.space_id = #{spaceId} AND si.event_id = #{eventId}
@@ -45,12 +45,13 @@
   <insert id="insertItem">
     INSERT INTO schedule_items (
       id, space_id, event_id, day, start_time, end_time, title, place, description, category,
-      audience, slot_id, sort_order, version, created_by, created_at, updated_by, updated_at)
+      audience, slot_id, sort_order, version, created_by, created_at, updated_by, updated_at,
+      auto_filled)
     VALUES (
       #{itemId}, #{spaceId}, #{eventId}, #{day}, CAST(#{startTime} AS time),
       CAST(#{endTime} AS time), #{title}, #{place}, #{description}, #{category},
       CAST(#{audience} AS jsonb), #{slotId}, #{sortOrder}, 1, #{actorUserId}, #{at},
-      #{actorUserId}, #{at})
+      #{actorUserId}, #{at}, #{autoFilled})
   </insert>
 
   <update id="updateItem">
@@ -66,6 +67,25 @@
   <delete id="deleteItem">
     DELETE FROM schedule_items
     WHERE space_id = #{spaceId} AND event_id = #{eventId} AND id = #{itemId}
+  </delete>
+
+  <!-- Slots whose item the operator removed (DEC-090 §4). -->
+  <select id="findDismissedSlots" resultType="java.lang.String">
+    SELECT slot_id FROM schedule_slot_dismissals
+    WHERE space_id = #{spaceId} AND event_id = #{eventId}
+  </select>
+
+  <insert id="insertDismissal">
+    INSERT INTO schedule_slot_dismissals (space_id, event_id, slot_id, dismissed_by, dismissed_at)
+    VALUES (#{spaceId}, #{eventId}, #{slotId}, #{actorUserId}, #{at})
+    ON CONFLICT (space_id, event_id, slot_id) DO NOTHING
+  </insert>
+
+  <!-- One slot when slotId is set, every slot of the event otherwise. -->
+  <delete id="deleteDismissals">
+    DELETE FROM schedule_slot_dismissals
+    WHERE space_id = #{spaceId} AND event_id = #{eventId}
+    <if test="slotId != null">AND slot_id = #{slotId}</if>
   </delete>
 
   <select id="findLatestPublication" resultType="app.scene.event.schedule.SchedulePublicationRow">

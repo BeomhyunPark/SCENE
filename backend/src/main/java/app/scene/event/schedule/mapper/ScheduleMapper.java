@@ -27,6 +27,12 @@ public interface ScheduleMapper {
 
   int deleteItem(ScheduleParam param);
 
+  List<String> findDismissedSlots(ScheduleParam param);
+
+  int insertDismissal(ScheduleParam param);
+
+  int deleteDismissals(ScheduleParam param);
+
   SchedulePublicationRow findLatestPublication(ScheduleParam param);
 
   int insertPublication(ScheduleParam param);

@@ -18,7 +18,11 @@ public final class ScheduleResponses {
   static final String ADDED = "ADDED";
   static final String CHANGED = "CHANGED";
 
-  /** One working-copy item for operators. */
+  /**
+   * One working-copy item for operators. {@code autoFilled}: the server put it in for a form slot
+   * (DEC-090 §1). {@code slotRemoved}: it holds a slot id the form setup no longer has (DEC-090
+   * §5).
+   */
   public record OperatorItem(
       UUID itemId,
       int day,
@@ -40,7 +44,9 @@ public final class ScheduleResponses {
       Instant updatedAt,
       String updatedByDisplayName,
       String publishState,
-      boolean outOfPeriod) {}
+      boolean outOfPeriod,
+      boolean autoFilled,
+      boolean slotRemoved) {}
 
   /** {@code GET …/schedule}. */
   public record Board(
@@ -74,6 +80,12 @@ public final class ScheduleResponses {
       String label,
       int sortOrder,
       UUID linkedItemId) {}
+
+  /**
+   * {@code POST …/schedule/slot-items} ("식사·집회 다시 넣기", DEC-090 §4): items put in, and the board
+   * version after.
+   */
+  public record SlotsRefilled(int added, long boardVersion) {}
 
   /** {@code POST …/schedule/publish}, and {@code publication} of a "save and publish". */
   public record PublishResult(

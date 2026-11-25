@@ -4,8 +4,10 @@ import app.scene.event.audience.Audience;
 import app.scene.event.schedule.mapper.ScheduleMapper;
 import app.scene.event.schedule.param.ScheduleParam;
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.json.JsonMapper;
@@ -58,6 +60,29 @@ class ScheduleRepository {
 
   void insert(UUID spaceId, UUID eventId, UUID itemId, ItemContent c, UUID actorId, Instant at) {
     requireOne(schedule.insertItem(param(spaceId, eventId, itemId, c).actor(actorId, at)));
+  }
+
+  /** As {@link #insert}, marked {@code auto_filled} (DEC-090 §1). */
+  void insertAutoFilled(
+      UUID spaceId, UUID eventId, UUID itemId, ItemContent c, UUID actorId, Instant at) {
+    requireOne(
+        schedule.insertItem(
+            param(spaceId, eventId, itemId, c).actor(actorId, at).autoFilled(true)));
+  }
+
+  /** Slot ids the operator took off the schedule (DEC-090 §4). */
+  Set<String> dismissedSlots(UUID spaceId, UUID eventId) {
+    return new HashSet<>(schedule.findDismissedSlots(ScheduleParam.of(spaceId, eventId)));
+  }
+
+  /** Remembers that the operator took {@code slotId} off the schedule. Repeating it is a no-op. */
+  void dismissSlot(UUID spaceId, UUID eventId, String slotId, UUID actorId, Instant at) {
+    schedule.insertDismissal(ScheduleParam.of(spaceId, eventId).slot(slotId).actor(actorId, at));
+  }
+
+  /** Forgets the dismissal of {@code slotId}, or of every slot when it is null. */
+  void forgetDismissals(UUID spaceId, UUID eventId, String slotId) {
+    schedule.deleteDismissals(ScheduleParam.of(spaceId, eventId).slot(slotId));
   }
 
   void update(UUID spaceId, UUID eventId, UUID itemId, ItemContent c, UUID actorId, Instant at) {
