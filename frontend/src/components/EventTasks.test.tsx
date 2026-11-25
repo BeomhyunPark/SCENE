@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -8,7 +8,6 @@ import { localEvent, localUsers } from "../mocks/fixtures/seed";
 import { operatorRequests } from "../mocks/operatorStore";
 import { setSchedulePeriod } from "../mocks/scheduleStore";
 import { createTask as createTaskInStore } from "../mocks/taskStore";
-import { chooseOption, optionLabels } from "../test/select";
 import { EventTasks } from "./EventTasks";
 
 function renderTasks() {
@@ -63,8 +62,8 @@ describe("event tasks", () => {
     const drawer = screen.getByRole("dialog", { name: "새 업무 만들기" });
     fireEvent.change(within(drawer).getByRole("textbox", { name: "업무명" }), { target: { value: "현수막 주문" } });
     const assignee = within(drawer).getByRole("combobox", { name: "담당자" });
-    await waitFor(() => expect(optionLabels(assignee).length).toBeGreaterThan(1));
-    chooseOption(assignee, localUsers[1].userId);
+    fireEvent.click(assignee);
+    fireEvent.click(await screen.findByRole("option", { name: "Local manager" }));
     fireEvent.click(within(drawer).getByRole("button", { name: "업무 만들기" }));
     expect(await screen.findByRole("button", { name: /현수막 주문/ })).toBeInTheDocument();
     const created = operatorRequests.filter((request) => request.method === "POST" && request.url.endsWith("/tasks")).at(-1);

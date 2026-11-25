@@ -58,12 +58,14 @@
   - 서랍: 열면 업무명 칸에 포커스, 담당자(공용 Select #492)를 열고 Esc 하면 목록만 닫히고 서랍은 남음, Local manager를 골라 만들면 행에 담당자가 보임, 만들면 목록에 생기고 서랍이 닫히며 포커스가 "+ 업무 추가"로 돌아옴, Esc로 닫힘
   - 월 달력: 18~20일을 끌면 서랍이 2027-01-18~01-20으로 열리고, 만들면 그 기간 막대가 생김. 휴대폰 "+ 업무"도 그 날짜로 열림
   - 상세: 제목을 고치고 Enter → 목록에 바뀐 제목, 마감일을 고치고 칸을 떠나면 "기간을 저장했어요.", 체크 항목을 다 체크하면 업무 완료가 켜지고 완료하면 "다시 진행"만 남음, 업무 삭제 → 확인 다이얼로그
-- `pnpm typecheck && pnpm lint && pnpm test` (결과는 아래)
+- `pnpm typecheck && pnpm lint && pnpm test`: 두 번째 main merge 뒤 모두 통과(104 파일, 795 테스트)
 - 캡처 `shots/`: `before-*` → `after-*` (list, month, month-picked, detail), 서랍 열린 상태 `after-create-drawer-*`·담당자 목록 열린 `after-create-assignee-*`, 상세 `after-detail-ready-*`·`after-detail-done-*`·`after-detail-delete-*`
 
 ## main과 합치기
 
-최종 보고 전 `origin/main`(#491 눌림 반응, #492 공용 Select 포함)을 merge했다. 충돌은 이 브랜치의 구조를 기준으로 풀고 main 쪽 변경을 다시 얹었다: 뒤로 가기 링크 `scene-press scene-press--text`, 담당자 칸(상세·서랍) 공용 `Select`. 업무 행의 `scene-press--card`·꺾쇠는 이미 이 브랜치에 있었다.
+`origin/main`을 두 번 merge했다(1차: #491 눌림 반응·#492 공용 Select, 2차: #499~#503, 충돌 없음). 충돌은 이 브랜치의 구조를 기준으로 풀고 main 쪽 변경을 다시 얹었다: 뒤로 가기 링크 `scene-press scene-press--text`, 담당자 칸(상세·서랍) 공용 `Select`. 업무 행의 `scene-press--card`·꺾쇠는 이미 이 브랜치에 있었다.
+
+만들기는 다른 화면의 추가·초대(#501, 가운데 `ConfirmDialog`)와 달리 오른쪽 서랍이다. Figma P07-D02가 서랍으로 그려져 있고, 참가 현황의 "현재 운영 정보 수정"(`OperationDrawer`)과 같은 틀(덮개·520px·휴대폰 전체 화면·아래 버튼 줄)을 그대로 쓴다. 가운데 다이얼로그로 맞출지는 사용자 판단으로 남긴다.
 
 ## 테스트 변경(같은 뜻으로)
 
