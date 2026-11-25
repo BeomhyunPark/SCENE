@@ -44,9 +44,8 @@ async function boot(page) {
 async function measure(page, size, screen) {
   const m = await page.evaluate(() => {
     const main = document.querySelector(".operator-shell__main");
-    if (!main) return { error: "no shell" };
     const title = document.querySelector(".operator-shell__heading")?.getBoundingClientRect();
-    const root = [...main.children].find((c) => !c.matches(".operator-shell__header, dialog"));
+    const root = main ? [...main.children].find((c) => !c.matches(".operator-shell__header, dialog")) : document.querySelector("main") ?? document.body;
     const rr = root.getBoundingClientRect();
     const cs = getComputedStyle(root);
     const L = rr.left + parseFloat(cs.paddingLeft), R = rr.right - parseFloat(cs.paddingRight);
@@ -70,7 +69,7 @@ async function measure(page, size, screen) {
     }).filter((b) => b.vcut || b.hcut || b.onLine);
     return {
       title: Math.round(title?.left ?? -1), content: leftOf(), boxL: Math.round(L), boxR: Math.round(R), boxW: Math.round(R - L),
-      center: Math.round((L + R) / 2 - (main.getBoundingClientRect().left + main.getBoundingClientRect().right) / 2),
+      center: main ? Math.round((L + R) / 2 - (main.getBoundingClientRect().left + main.getBoundingClientRect().right) / 2) : null,
       overflow: document.documentElement.scrollWidth > innerWidth + 1, outside: out.map((o) => o.d).slice(0, 8), blocks,
     };
   });
@@ -172,7 +171,7 @@ async function schedule(size) {
   const page = await ctx.newPage();
   await page.clock.setFixedTime(new Date("2027-01-22T07:20:00Z"));
   await boot(page);
-  await page.evaluate(({ EVENT }) => {
+  await page.evaluate(({ EVENT, OWNER }) => {
     const { schedule, operator } = window.sceneMock;
     operator.setLifecycle(EVENT, "ACTIVE", 2);
     schedule.setSchedulePeriod(EVENT, "2027-01-22", "2027-01-24");
@@ -192,7 +191,14 @@ async function schedule(size) {
     add({ day: 3, startTime: "11:00", endTime: "12:00", title: "정리 · 귀가", category: "MOVE" });
     schedule.publishAsOtherOperator(EVENT);
     add({ day: 1, startTime: "17:30", endTime: "17:50", title: "단체 사진", place: "본관 앞", category: "PROGRAM" });
-  }, { EVENT });
+    // 참가자 한 명(목업은 마지막 신청자로 로그인한다)
+    const { forms, participants } = window.sceneMock;
+    const form = forms.createForm(EVENT, OWNER, {});
+    forms.setAccepting(EVENT, form.formId, OWNER, { acceptingApplications: true });
+    const answers = form.fields.flatMap((field) =>
+      field.systemKey === "NAME" ? [{ fieldId: field.fieldId, text: "김가람" }] : field.systemKey === "PHONE" ? [{ fieldId: field.fieldId, text: "010-2222-3300" }] : []);
+    participants.submitPublicApplication(EVENT, form.formId, { answers, pin: "730914" });
+  }, { EVENT, OWNER });
   await login(page);
   await go(page, `/events/${EVENT}/schedule`);
   await page.getByRole("heading", { name: "일정표" }).waitFor({ timeout: 8000 });
@@ -213,6 +219,12 @@ async function schedule(size) {
   await page.waitForTimeout(500);
   await page.screenshot({ path: `${outDir}/${prefix}-schedule-item-${size}.png` });
   await measure(page, size, "schedule-item");
+  // 참가자 일정 탭
+  await go(page, `/participate/${EVENT}/schedule`);
+  await page.getByRole("heading", { name: "일정" }).waitFor({ timeout: 8000 });
+  await page.waitForTimeout(800);
+  await page.screenshot({ path: `${outDir}/${prefix}-participant-schedule-${size}-viewport.png` });
+  await shot(page, "participant-schedule", size); await measure(page, size, "participant-schedule");
   await ctx.close();
 }
 
