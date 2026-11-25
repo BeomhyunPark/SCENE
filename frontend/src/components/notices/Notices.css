@@ -91,7 +91,6 @@
 }
 
 .notices__rows,
-.staff-notices__rows,
 .notice-form__pinned {
   box-sizing: border-box;
   width: 100%;
@@ -103,8 +102,7 @@
   list-style: none;
 }
 
-.notice-row,
-.staff-notices__row {
+.notice-row {
   box-sizing: border-box;
   width: 100%;
   min-width: 0;
@@ -350,64 +348,6 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-}
-
-/* 운영진 공지 on the operator event home: the same Venture panel and rows as 지금 할 일 (#467). */
-.staff-notices {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding: 20px;
-  border: 1px solid var(--color-border-default);
-  border-radius: 8px;
-  background: var(--color-bg-surface);
-}
-
-.staff-notices__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.staff-notices__head h2 {
-  margin: 0;
-  font: var(--scene-heading-m);
-}
-
-.staff-notices__more {
-  flex: none;
-  color: var(--color-text-brand);
-  font: var(--scene-label-m);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
-.staff-notices > .notices__support {
-  font: var(--scene-body-s);
-}
-
-.staff-notices__rows {
-  gap: 12px;
-}
-
-.staff-notices .staff-notices__row {
-  gap: 2px;
-  padding: 12px;
-  border-radius: 4px;
-}
-
-.staff-notices .staff-notices__row:hover {
-  border-color: var(--color-border-hover-row);
-  background: var(--color-bg-hover-row);
-}
-
-.staff-notices .notice-row__title {
-  font: var(--scene-body-m);
-}
-
-.staff-notices .notice-row__meta {
-  font: var(--scene-caption-m);
 }
 
 @media (max-width: 600px) {

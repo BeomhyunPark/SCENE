@@ -23,7 +23,8 @@ describe("event home shortcut to 현장 운영", () => {
 
   it("links an ACTIVE event home to 현장 운영", async () => {
     await openHome("ACTIVE");
-    const link = await screen.findByRole("link", { name: /^현장 운영.*QR 스캔이나 이름으로/ }, WAIT);
+    // The 현장 운영 cell of the summary strip carries the arrival count (#485).
+    const link = await screen.findByRole("link", { name: /^현장 운영.*미도착/ }, WAIT);
     expect(link).toHaveAttribute("href", `/events/${EVENT}/field`);
     fireEvent.click(link);
     expect(await screen.findByRole("button", { name: "QR 스캔" }, WAIT)).toBeInTheDocument();
@@ -32,11 +33,12 @@ describe("event home shortcut to 현장 운영", () => {
   it.each(["DRAFT", "ENDED"] as const)("has no shortcut on a %s event", async (status) => {
     await openHome(status);
     await screen.findByRole("button", { name: "행사 설정" }, WAIT);
-    expect(screen.queryByRole("link", { name: /^현장 운영.*QR 스캔이나 이름으로/ })).not.toBeInTheDocument();
+    const stats = screen.getByRole("region", { name: "운영 요약" });
+    expect(within(stats).queryByRole("link", { name: /^현장 운영/ })).not.toBeInTheDocument();
   });
 });
 
-/** Figma 「02 행사 홈 · v2.0 Candidate」 (#467): summary cards, panels and shortcuts on real data. */
+/** Figma 「02 행사 홈 · v2.0 Candidate」 (#467): one summary strip that is also the shortcuts (#485), and sections. */
 describe("event home dashboard", () => {
   async function openHome(status: "DRAFT" | "ACTIVE" | "ENDED") {
     setLifecycle(EVENT, status, 2);
@@ -51,10 +53,11 @@ describe("event home dashboard", () => {
 
   it("keeps every way in from the home of a new event, with nothing awkward at zero", async () => {
     const stats = await openHome("DRAFT");
-    expect(await within(stats).findByRole("link", { name: /신청 집계.*참가자.*0명/ }, WAIT)).toHaveAttribute(
+    expect(await within(stats).findByRole("link", { name: /^참가자.*0명/ }, WAIT)).toHaveAttribute(
       "href",
-      `/events/${EVENT}/participants/summary`,
+      `/events/${EVENT}/participants`,
     );
+    expect(within(stats).getByRole("link", { name: "신청 집계" })).toHaveAttribute("href", `/events/${EVENT}/participants/summary`);
     expect(within(stats).getByRole("link", { name: /^준비 업무/ })).toHaveAttribute("href", `/events/${EVENT}/tasks`);
     expect(within(stats).getByRole("link", { name: /^일정/ })).toHaveAttribute("href", `/events/${EVENT}/schedule`);
     expect(within(stats).getByRole("link", { name: /^변경 요청/ })).toHaveAttribute("href", `/events/${EVENT}/notifications`);
@@ -68,10 +71,9 @@ describe("event home dashboard", () => {
     expect(screen.queryByText("필요한 업무부터 시작해 보세요.")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "다른 기능 시작" })).not.toBeInTheDocument();
 
-    const shortcuts = screen.getByRole("navigation", { name: "바로가기" });
-    expect(within(shortcuts).getByRole("link", { name: /^참가 현황/ })).toHaveAttribute("href", `/events/${EVENT}/participants`);
-    expect(within(shortcuts).getByRole("link", { name: /^준비 업무/ })).toHaveAttribute("href", `/events/${EVENT}/tasks`);
-    expect(within(shortcuts).getByRole("link", { name: /^일정/ })).toHaveAttribute("href", `/events/${EVENT}/schedule`);
+    // No second set of shortcut cards: each area is reached once, from the strip (#485).
+    expect(screen.queryByRole("navigation", { name: "바로가기" })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: /^준비 업무/ })).toHaveLength(1);
     expect(screen.getByRole("link", { name: "모두 보기" })).toHaveAttribute("href", `/events/${EVENT}/notices`);
   });
 
