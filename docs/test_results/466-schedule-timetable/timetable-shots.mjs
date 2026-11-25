@@ -2,7 +2,7 @@
 // the page, so the event, items and a participant are seeded through `window.sceneMock` and the app is
 // moved with in-app navigation. The clock is pinned with page.clock to 16:20 on day 1 in Seoul
 // (2027-01-22T07:20:00Z), inside the event, so the current-time line and 지금·다음 show.
-// Usage: [SIZES=phone,desktop,wide] node timetable-shots.mjs <appUrl> <outDir> <prefix> [timezoneId]
+// Usage: [SIZES=phone,desktop,wide] [MAX_BOARD=1128] node timetable-shots.mjs <appUrl> <outDir> <prefix> [timezoneId]
 import { createRequire } from "node:module";
 import { mkdirSync } from "node:fs";
 const { chromium } = createRequire(import.meta.url)("playwright");
@@ -19,6 +19,8 @@ const sizes = {
   wide: { viewport: { width: 2000, height: 1100 }, deviceScaleFactor: 1 },
 };
 const only = (process.env.SIZES ?? "phone,desktop").split(",");
+// MAX_BOARD=1128 caps the board like the integration branch's framed body (3-day view: ~345px a day).
+const maxBoard = process.env.MAX_BOARD;
 
 async function open(size) {
   const ctx = await browser.newContext({ ...sizes[size], locale: "ko-KR", timezoneId });
@@ -83,6 +85,7 @@ for (const size of only) {
   if (await enter.count()) await enter.click();
   await page.getByRole("heading", { name: "일정표" }).waitFor({ timeout: 8000 });
   await page.getByText("저녁 집회").first().waitFor();
+  if (maxBoard) await page.addStyleTag({ content: `.event-schedule--board { max-width: ${maxBoard}px !important; margin-inline: auto; }` });
   await page.waitForTimeout(600);
   // What the operator sees on opening (scrolled to the current time), then the whole page.
   await page.screenshot({ path: `${outDir}/${prefix}-operator-${size}-viewport.png` });
