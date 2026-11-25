@@ -43,7 +43,10 @@ public record ParticipantGroup(
   public record LeaderView(
       long activeCount, long checkedInCount, List<BoardSlot> slots, List<LeaderMember> members) {}
 
-  /** One member in the leader view. {@code room} is null until rooms (G1). */
+  /**
+   * One member in the leader view. {@code room} is the member's room in the latest room
+   * publication, or null.
+   */
   public record LeaderMember(
       UUID participantId,
       String name,
@@ -71,6 +74,6 @@ public record ParticipantGroup(
       List<String> slotIds,
       List<Integer> lodgingNights) {}
 
-  /** A room after G1. */
+  /** A published room: name and location note only (DEC-085 §10). */
   public record Room(String name, String locationNote) {}
 }

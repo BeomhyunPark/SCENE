@@ -14,6 +14,7 @@ import app.scene.event.lifecycle.EventRow;
 import app.scene.event.participant.ParticipantPins;
 import app.scene.event.participant.ParticipantRepository;
 import app.scene.event.participant.ParticipantSessionRepository;
+import app.scene.event.room.RoomService;
 import app.scene.space.EventUserPermissionRepository;
 import java.security.SecureRandom;
 import java.time.Clock;
@@ -35,12 +36,13 @@ import tools.jackson.databind.JsonNode;
  * EVENT_ENDED}, {@code EVENT_ARCHIVED}) → 409 application state.
  *
  * <p>A withdraw flips the participant's current {@code SUBMITTED} row to {@code WITHDRAWN} and, in
- * the same transaction, removes the working-copy group assignment with a {@code WITHDRAWN} history
- * row (DEC-072 §5), ends every session of the participant, optionally makes the six-digit number
- * unusable ({@code blockReapply}), stores the history row with the optional reason, and writes
- * {@code APPLICATION_WITHDRAWN} without the reason. Every reader that keeps to {@code SUBMITTED}
- * drops the person at once. A restore flips the same row back; the group does not come back and the
- * previous group is returned as a reference (DEC-044).
+ * the same transaction, removes the working-copy group assignment and room assignment with a {@code
+ * WITHDRAWN} history row each (DEC-072 §5, api.md "숙소"), ends every session of the participant,
+ * optionally makes the six-digit number unusable ({@code blockReapply}), stores the history row
+ * with the optional reason, and writes {@code APPLICATION_WITHDRAWN} without the reason. Every
+ * reader that keeps to {@code SUBMITTED} drops the person at once. A restore flips the same row
+ * back; the group and the room do not come back and the previous group is returned as a reference
+ * (DEC-044).
  *
  * <p>The path's application id is the expected value: a row already in the target state answers
  * {@code ALREADY_…} with no new rows, and a row the participant has since replaced ({@code
@@ -61,6 +63,7 @@ public class ApplicationWithdrawalService {
   private final ApplicationRevisions revisions;
   private final ApplicationStatusChanges statuses;
   private final GroupService groups;
+  private final RoomService rooms;
   private final ParticipantRepository participants;
   private final ParticipantSessionRepository sessions;
   private final ParticipantPins pins;
@@ -76,6 +79,7 @@ public class ApplicationWithdrawalService {
       ApplicationRevisions revisions,
       ApplicationStatusChanges statuses,
       GroupService groups,
+      RoomService rooms,
       ParticipantRepository participants,
       ParticipantSessionRepository sessions,
       ParticipantPins pins,
@@ -88,6 +92,7 @@ public class ApplicationWithdrawalService {
     this.revisions = revisions;
     this.statuses = statuses;
     this.groups = groups;
+    this.rooms = rooms;
     this.participants = participants;
     this.sessions = sessions;
     this.pins = pins;
@@ -153,6 +158,7 @@ public class ApplicationWithdrawalService {
     }
     Optional<GroupService.RemovedAssignment> removed =
         groups.removeWithdrawn(spaceId, eventId, participantId, actorId, now);
+    rooms.removeWithdrawn(spaceId, eventId, participantId, actorId, now);
     sessions.deleteByParticipant(spaceId, eventId, participantId, null);
     if (blockReapply) {
       participants.updatePin(

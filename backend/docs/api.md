@@ -1295,7 +1295,7 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
 같은 transaction에서:
 
 1. 참가자의 지금 `SUBMITTED` 행을 `WITHDRAWN`으로 바꾼다. 새 revision은 없다. 답·이전 revision·운영 메모·체크인 기록은 그대로다.
-2. 작업본 조 배정 행을 지우고 `group_assignment_logs`에 cause `WITHDRAWN`을 남긴다. `boardVersion`이 오르고, 조장이었으면 그 조의 `version`도 오른다. 공개본은 그대로이고 읽을 때 빠진다. 그 사람이 가장 최근 공개본에 있었으면 참가자 갱신 값 `updates.group`(DEC-080 §4)이 오른다(다른 조원의 조장 이름·명단이 바뀌므로).
+2. 작업본 조 배정 행을 지우고 `group_assignment_logs`에 cause `WITHDRAWN`을 남긴다. `boardVersion`이 오르고, 조장이었으면 그 조의 `version`도 오른다. 공개본은 그대로이고 읽을 때 빠진다. 그 사람이 가장 최근 공개본에 있었으면 참가자 갱신 값 `updates.group`(DEC-080 §4)이 오른다(다른 조원의 조장 이름·명단이 바뀌므로). 숙소도 같다: 작업본 방 배정 행을 지우고 `room_assignment_logs`에 `WITHDRAWN`을 남기며 숙소 `boardVersion`이 오르고, 가장 최근 숙소 공개본에 있었으면 `updates.rooms`가 오른다([숙소](#숙소), #457). 되돌려도 방은 돌아오지 않는다.
 3. 그 참가자의 세션을 모두 지운다.
 4. `blockReapply: true`면 6자리를 아무도 모르는 값으로 바꾼다(같은 전화의 재신청이 6자리로 돌아오지 못한다).
 5. `application_status_logs`에 `WITHDRAWN`(사유, 처리자, 시각, `block_reapply`)을 남긴다.
@@ -1761,7 +1761,8 @@ CSRF가 필요하다.
 | `group` | 행사 | 조 편성 공개가 `PUBLISHED`일 때만(`ALREADY_PUBLISHED`·작업본 저장은 아님) |
 | `schedule` | 행사 | 일정표 공개가 `PUBLISHED`일 때만(저장하고 바로 공개 포함. `ALREADY_PUBLISHED`·작업본 저장은 아님, [일정표](#일정표)) |
 | `notices` | 행사 | 참가자에게 보이는 공지의 발행·수정·고정·보관·보관 해제([공지](#공지)의 갱신 값 표). `DRAFT` 저장과 대상이 `STAFF`뿐인 공지는 오르지 않는다 |
-| `rooms`·`mealOrder` | 행사 | 아직 오르는 경로가 없다(숙소가 만든다). `mealOrder`는 1월에는 쓰지 않는다(식사 순서 보류). 키는 남고 늘 0이다 |
+| `rooms` | 행사 | [숙소](#갱신-값) 공개 `PUBLISHED`, 공개본이 있을 때의 `roomRosterScope` 변경, 공개본에 있던 사람의 신청 취소 |
+| `mealOrder` | 행사 | 아직 오르는 경로가 없다. 1월에는 쓰지 않는다(식사 순서 보류). 키는 남고 늘 0이다 |
 | `checkIn` | 참가자 | 내 `checkin_logs`의 최대 `seq`(체크인·취소). 없으면 0 |
 | `application` | 참가자 | 내 신청의 최대 `revision`. 없으면 0 |
 | `notifications.latestSeq` | 참가자 | 내 알림의 최대 `seq`. 없으면 0 |
@@ -2569,7 +2570,7 @@ CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고
           "slotIds": ["opt_d1_dinner", "opt_d1_worship", "opt_d2_breakfast", "opt_d2_lunch"],
           "lodgingNights": [1]
         },
-        "room": null,
+        "room": { "name": "301호", "locationNote": "본관 3층" },
         "applicationRevisedAt": "2026-12-28T10:00:00Z"
       }
     ]
@@ -2598,7 +2599,7 @@ CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고
   - `members[]`: 공개본의 운영자 순서. `checkIn`은 [체크인](#get-apiv1participantcheck-in)의 `checkedIn`·`checkedInAt`과 같은 뜻이다(취소된 체크인은 `false`·`null`).
   - `attendance.type`은 편성판 `attendance`와 같다(`FULL`·`PARTIAL`·`WORSHIP_ONLY`, 질문이 없으면 `FULL`). `arrivalSlotId`·`departureSlotId`는 `RANGE`(DEC-074)의 `PARTIAL`일 때만 답의 칸 id이고(답이 없으면 그쪽만 `null`) 그 밖에는 `null`이다. `slotIds`는 편성판 `slotIds`와 같은 규칙이다(`null`은 모름).
   - `attendance.lodgingNights`는 그 사람이 자는 밤 번호(1부터, 밤 `n`은 `n`일째 저녁)다. 신청 집계의 숙박 행과 같은 함수(`MealSlots.lodgingNights`, DEC-085 §6)로 계산한다: 전체 참석은 모든 밤, 집회만은 없음, `NO_LODGING`을 고른 사람은 없음, `RANGE`의 부분 참석은 도착·출발 칸 사이의 밤, 그 밖의 부분 참석은 `LODGING` 답(답이 없으면 없음). 신청서에 기간이 없거나, 부분 참석인데 `LODGING` 질문이 꺼졌거나 도착·출발 답이 모자라면 `null`(모름)이다. 숙박하지 않으면 `[]`다.
-  - `room`은 숙소(G1·G2) 전에는 늘 `null`이다. 그 뒤에는 `{ "name", "locationNote" }`.
+  - `room`은 **가장 최근 숙소 공개본**에서 그 조원의 방 `{ "name", "locationNote" }`이다(DEC-085 §10, #457). 숙소 공개 전이거나 공개본에 방이 없으면 `null`이다. `roomRosterScope`와 상관없이 보이고, 작업본·방 id·같은 방 사람·정원은 없다. 숙소 공개는 `updates.group`이 아니라 `updates.rooms`를 올리므로 조장 화면은 `updates.rooms`가 바뀌어도 이 응답을 다시 읽는다.
   - `applicationRevisedAt`은 지금 신청 revision이 저장된 시각이고, 처음 제출 그대로(revision 1)면 `null`이다.
   - 운영자가 고친 값(A12)은 아직 서버에 없어서 저장된 답으로만 계산한다.
 - 이 응답은 **전화번호를 담지 않는다.** 그래서 열람 기록을 남기지 않는다. 전화는 조원 상세에서만 나온다.
@@ -2667,23 +2668,24 @@ CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고
 `200`
 
 ```json
-{ "groupRosterVisibleToMembers": true, "version": 0, "updatedAt": null, "updatedByDisplayName": null }
+{ "groupRosterVisibleToMembers": true, "roomRosterScope": "ALL", "version": 0, "updatedAt": null, "updatedByDisplayName": null }
 ```
 
 - `groupRosterVisibleToMembers`: 일반 조원이 같은 조 명단(이름·또래·성별·조장 표시)을 보는지다. 기본 켬. 끄면 일반 조원은 조 이름·조장 이름만 본다. 조장은 상관없이 본다.
 - 저장한 적이 없으면 기본값과 `version: 0`, 갱신 필드는 `null`이다.
-- 숙소 방 배정표 공개 스위치(G1)가 같은 응답에 더해진다.
+- `roomRosterScope`: 참가자가 숙소에서 보는 범위다(DEC-085 §8.1, #457). `ALL`(기본: 내 방·같은 방 사람·전체 방 배정표), `ROOMMATES`(내 방과 같은 방 사람까지), `MY_ROOM`(내 방 이름·위치 메모만). [`GET /participant/rooms`](#get-apiv1participantrooms)가 따른다. 조장 보기의 방은 범위와 상관없다.
 
 ### `PUT /api/v1/operator/events/{eventId}/participant-settings`
 
 CSRF가 필요하다. 권한은 유효한 `EVENT_UPDATE`(행사 OWNER 기본)다. `Idempotency-Key`는 읽지 않는다.
 
 ```json
-{ "groupRosterVisibleToMembers": false, "expectedVersion": 0 }
+{ "groupRosterVisibleToMembers": false, "roomRosterScope": "ROOMMATES", "expectedVersion": 0 }
 ```
 
-- 판정 순서는 `404`·`403 NOT_A_MEMBER` → `403 FORBIDDEN` → 본문 `400 VALIDATION_FAILED`(`groupRosterVisibleToMembers`가 불리언이 아님, `expectedVersion`이 0 이상 정수가 아님) → `ARCHIVED`면 `409 EVENT_ARCHIVED`(그 밖의 상태는 쓴다) → `expectedVersion`이 다르면 `409 CONCURRENT_MODIFICATION`(`version`) → `200`이다.
-- 값이 바뀌면 `version`이 1 오르고, 같은 트랜잭션에서 `participant_feed_versions.groups`를 올리고(화면이 내 조를 다시 읽는다) audit `EVENT_PARTICIPANT_SETTINGS_UPDATED`(`fields`, `version`)를 남긴다.
+- 본문은 바꿀 키와 `expectedVersion`이다. `groupRosterVisibleToMembers`·`roomRosterScope` 중 하나 이상이 있어야 하고 넣지 않은 키는 그대로다.
+- 판정 순서는 `404`·`403 NOT_A_MEMBER` → `403 FORBIDDEN` → 본문 `400 VALIDATION_FAILED`(두 키가 모두 없음은 필드 `groupRosterVisibleToMembers`, `groupRosterVisibleToMembers`가 불리언이 아님, `roomRosterScope`가 세 값이 아님, `expectedVersion`이 0 이상 정수가 아님) → `ARCHIVED`면 `409 EVENT_ARCHIVED`(그 밖의 상태는 쓴다) → `expectedVersion`이 다르면 `409 CONCURRENT_MODIFICATION`(`version`) → `200`이다.
+- 값이 바뀌면 `version`이 1 오르고 audit `EVENT_PARTICIPANT_SETTINGS_UPDATED`(`fields`: 바뀐 키, `version`)를 남긴다. 같은 트랜잭션에서 조원 명단 스위치가 바뀌었으면 `participant_feed_versions.groups`를, 숙소 범위가 바뀌었고 숙소 공개본이 있으면 `participant_feed_versions.rooms`를 올린다(화면이 그 카드를 다시 읽는다).
 - 지금 값과 같으면 아무것도 저장하지 않고 지금 설정을 돌려준다(버전·갱신 값·audit 모두 그대로).
 - 응답은 `GET`과 같은 모양이다.
 
@@ -2692,6 +2694,345 @@ CSRF가 필요하다. 권한은 유효한 `EVENT_UPDATE`(행사 OWNER 기본)다
 `group_assignment_logs`: 참가자, 이전 조, 새 조, 조장 전후, 처리자 `users.id`, 시각, 원인(`MOVE`·`LEADER`·`GROUP_DELETED`). 1차에 읽는 URL은 없다.
 
 audit `GROUPS_PUBLISHED`: detail은 `publicationId`, `boardVersion`, `assignedCount`, `unassignedCount`, `changedParticipantCount`다. `ALREADY_PUBLISHED`는 남기지 않는다. 조·배정 편집은 audit 대신 위 이력에 남긴다.
+
+## 숙소
+
+> [#457](https://github.com/BeomhyunPark/SCENE/issues/457)(로드맵 G2)에서 서버에 열었다. 컨트롤러 `event/room/RoomController`·`ParticipantRoomController`, 스키마 `V26__rooms.sql`. 정책은 [DEC-085](../../docs/product/PRODUCT_DECISIONS.md)와 그 Follow-up(2026-11-20, 2026-11-24 #457)이다. 운영자 화면(G3 [#458](https://github.com/BeomhyunPark/SCENE/issues/458))·참가자 화면(G4 [#459](https://github.com/BeomhyunPark/SCENE/issues/459))·참가 현황 표·CSV·현장 명단의 방(G5 [#460](https://github.com/BeomhyunPark/SCENE/issues/460))·"다시 볼 것"(A11 [#461](https://github.com/BeomhyunPark/SCENE/issues/461))은 아직 없다.
+
+조 편성과 같은 모양이다. 운영자가 방을 만들고 사람을 넣는 **작업본**과, 공개할 때 한 번에 찍는 **공개본**(`room_publications` 스냅샷)이 따로 있다. 작업본 저장은 참가자·조장에게 보이지 않는다. 테이블·버전·공개는 조 편성과 따로다(`participants`에 `room_id`가 없다). 1월에는 **행사 전체에 참가자당 방 하나**다(배정 행 `night = 0`). 밤마다 다른 배정(G6)은 같은 행의 `night`로 더한다. 자동 편성은 없고 서버는 경고만 계산한다.
+
+대상("활성 참가자")은 조 편성과 같다: 그 행사에 `SUBMITTED` 신청이 있는 참가자. 신청을 취소한 사람은 배정판의 활성 명단·인원·경고·미배정 수, 공개본 조회, 참가자 응답, 알림에서 읽을 때마다 빠진다.
+
+| 동작 | 권한 |
+|---|---|
+| 배정판(작업본) 조회 | 유효한 `ROOM_WRITE`, 또는 활성 공간 `OWNER`·`ADMIN` |
+| 방 만들기·고치기·지우기·순서, 배정, 공개 | 유효한 `ROOM_WRITE` |
+| 공개본 조회(운영자) | 유효한 `EVENT_READ`, 또는 활성 공간 `OWNER`·`ADMIN` |
+| 방 배정표 공개 범위 `roomRosterScope` | [참가자 설정](#put-apiv1operatoreventseventidparticipant-settings)과 같다(읽기 `EVENT_READ`, 쓰기 `EVENT_UPDATE`) |
+
+기본 역할 중 `ROOM_WRITE`는 `OWNER`와 `MANAGER`가 갖는다(DEC-079 Follow-up 2026-11-20). STAFF 숙소 담당에게는 [권한 개별 설정](#put-apiv1operatoreventseventidoperatorsuseridpermissions)으로 GRANT한다. 공간 역할만으로는 쓰지 못한다. 배정판에는 이름·또래·성별·숙박·참석 칸이 있지만 같은 사람이 신청 원본에서 이미 보는 값이라 새로 열리는 것은 없다.
+
+판정 순서·행사 상태·`Idempotency-Key`는 [조 편성](#조-편성)과 같다: 행사 없음·멤버 아님(`404`·`403 NOT_A_MEMBER`) → 권한(`403 FORBIDDEN`) → 본문(`400`) → 행사 상태(`ENDED` `409 EVENT_ENDED`, `ARCHIVED` `409 EVENT_ARCHIVED`) → 대상 찾기(`404`) → 버전·충돌(`409`) → 참가 자격·규칙(`409`) → 결과. 읽기는 행사 상태로 막지 않고, 참가자는 `ENDED`·`ARCHIVED`에서도 마지막 공개본을 본다. 쓰기는 행사 행을 잠근다. 배정은 "이미 목적지면 성공", 공개는 "같으면 `ALREADY_PUBLISHED`"라 다시 보내도 두 번 반영되지 않는다(DEC-047).
+
+### 버전
+
+- `boardVersion`: 행사당 하나(`room_boards`). 작업본이 실제로 바뀔 때마다(방 추가·고치기·지우기·순서, 배정, 신청 취소로 빠짐) 1 오른다. 공개는 올리지 않는다. 처음은 0이다.
+- 방 `version`: 방마다. 이름·위치 메모·정원·성별 구분이 바뀔 때 1 오른다. 배정·순서는 올리지 않는다.
+
+### 숙박 상태 `lodging`
+
+활성 참가자마다 서버가 정한다. 자는 밤은 신청 집계의 숙박 행·조장 보기 `lodgingNights`와 **같은 함수**(`MealSlots.lodgingNights`, DEC-085 §6)다.
+
+| `lodging` | 경우 | 미배정 수에 드나 | 방에 넣을 수 있나 |
+|---|---|---|---|
+| `LODGING` | 자는 밤이 하나 이상 | 든다 | 된다 |
+| `NOT_LODGING` | 자는 밤이 없다(집회만, `NO_LODGING` 체크, `RANGE`에서 같은 날 도착·출발, `LODGING`에서 아무 밤도 안 고름) | 들지 않는다 | **안 된다**(사용자 결정 2026-11-20) |
+| `UNKNOWN` | 판단할 수 없다(신청서에 기간이 없음, 부분 참석인데 `LODGING` 질문이 꺼졌거나 도착·출발 답이 모자람) | 든다 | 된다 |
+
+숙박 질문이 없는 행사는 모두 `UNKNOWN`이라 모두 배정할 수 있다. 운영자가 고친 숙박 값(A12)은 아직 서버에 없어 저장된 답으로만 계산한다.
+
+### 경고
+
+정원·성별은 **막지 않고** 경고만 계산한다. 배정판의 방마다, 배정 응답에서는 사람이 드나든 방마다 돌려준다. 활성 참가자만 센다.
+
+| `code` | 뜻 | 함께 주는 값 |
+|---|---|---|
+| `OVER_CAPACITY` | 활성 배정 인원 > `capacity` | `count`, `capacity` |
+| `GENDER_MISMATCH` | 성별 구분이 있는 방에 다른 성별 보기를 고른 사람 | `participantIds` |
+| `GENDER_UNKNOWN` | 성별 구분이 있는 방에 성별 답이 없는 사람(질문 꺼짐, 답 없음, 고른 보기가 숨겨짐) | `participantIds` |
+| `NOT_LODGING` | 방에 남은 숙박하지 않는 사람. 새로 넣을 수 없으므로 배정한 뒤 신청을 고쳐 숙박을 뺀 사람뿐이다 | `participantIds` |
+
+성별은 `GENDER` 답의 보기 id로 비교한다. 없는 키는 응답에서 빠진다(`OVER_CAPACITY`에 `participantIds` 없음). `participantIds`는 이름, 그다음 id 순이다.
+
+### `GET /api/v1/operator/events/{eventId}/room-board`
+
+`200`
+
+```json
+{
+  "eventStatus": "ACTIVE",
+  "boardVersion": 18,
+  "rooms": [
+    {
+      "roomId": "…", "name": "301호", "locationNote": "본관 3층", "capacity": 6,
+      "gender": { "optionId": "opt_male", "label": "남성" }, "sortOrder": 0, "version": 2,
+      "memberCount": 7,
+      "warnings": [
+        { "code": "OVER_CAPACITY", "count": 7, "capacity": 6 },
+        { "code": "GENDER_UNKNOWN", "participantIds": ["…"] }
+      ]
+    }
+  ],
+  "participants": [
+    {
+      "participantId": "…", "name": "김", "cohort": "94",
+      "gender": { "optionId": "opt_female", "label": "여성" },
+      "attendance": "PARTIAL",
+      "slotIds": ["opt_d1_dinner", "opt_d1_worship", "opt_d2_breakfast"],
+      "lodging": "LODGING",
+      "lodgingNights": [1],
+      "group": { "groupId": "…", "name": "3조" },
+      "draftGroupId": "…",
+      "roomId": "…",
+      "publishedRoomId": "…",
+      "review": null
+    }
+  ],
+  "withdrawn": [{ "participantId": "…", "name": "이", "roomId": "…" }],
+  "publication": {
+    "lastPublishedAt": "2027-01-10T09:00:00Z",
+    "lastPublishedByDisplayName": "김OO",
+    "lastPublishedBoardVersion": 16,
+    "activeCount": 190,
+    "eligibleCount": 182,
+    "assignedCount": 178,
+    "unassignedCount": 4,
+    "notLodgingAssignedCount": 0,
+    "changedParticipantCount": 3,
+    "roomChanges": 1,
+    "hasUnpublishedChanges": true
+  },
+  "groups": [{ "groupId": "…", "name": "3조", "sortOrder": 2 }],
+  "slots": [{ "slotId": "opt_d1_dinner", "day": 1, "date": "2027-01-22", "dayLabel": "1월 22일 (금)", "meal": "DINNER", "label": "저녁", "sortOrder": 0 }]
+}
+```
+
+- `rooms`는 방 순서(`sortOrder`, 그다음 id)다. `gender`는 방의 성별 구분이고 `null`은 구분 없음이다. `label`은 지금 `GENDER` 질문의 보기 문구이고 보기를 찾을 수 없으면 `null`이다. `memberCount`는 활성 배정 인원이다.
+- `participants`는 **활성 참가자 전원**을 이름, 그다음 id 순으로 담는다. 페이지는 없다. 전화·접근 키·숫자 6자리·신청 답 원본·운영 메모는 없다.
+- `cohort`·`gender`·`attendance`·`slotIds`·`slots`는 [편성판](#get-apiv1operatoreventseventidgroup-board)과 같은 값·같은 규칙이다(`gender`는 숨긴 보기도 그대로 보인다. 경고에서는 성별 없음으로 본다).
+- `lodging`·`lodgingNights`는 위 표다. `lodgingNights`는 1부터의 밤 번호이고 `null`은 모름이다.
+- `group`은 **가장 최근 조 편성 공개본**의 조이고(공개 전이거나 공개본에 없으면 `null`), `groups`는 그 공개본의 조 목록이다. `draftGroupId`는 요청한 운영자에게 유효한 `GROUP_WRITE`가 있을 때만 조 편성 작업본의 조이고, 없으면 늘 `null`이다. 화면의 "조로 거르기"와 "조 단위 일괄 배정"이 쓴다. 서버에는 조를 받는 배정 경로가 없다(화면이 조원으로 `changes`를 만든다).
+- `roomId`가 `null`이면 미배정이다. `publishedRoomId`는 가장 최근 숙소 공개본의 방이다.
+- `review`는 "다시 볼 것"(A11, #461) 자리이고 지금은 늘 `null`이다. 배정 행은 판단 근거(`basis`)를 이미 저장한다([이력](#이력과-감사-로그-1)).
+- `withdrawn`은 배정 행이 남았지만 활성 참가자가 아닌 사람이다. 신청 취소 경로가 배정을 지우므로 보통 비어 있다.
+- `publication`: `eligibleCount`는 활성 참가자 중 `LODGING`·`UNKNOWN`인 수, `unassignedCount`는 그중 미배정인 수, `assignedCount`는 배정된 활성 참가자 수, `notLodgingAssignedCount`는 배정됐는데 지금 `NOT_LODGING`인 수다. `changedParticipantCount`는 작업본과 최근 공개본의 방이 다른 활성 참가자 수, `roomChanges`는 추가·삭제됐거나 이름·위치 메모·정원·성별·순서가 다른 방 수다(처음 공개 전에는 배정된 수와 방 수). 비교는 내용으로 한다(옮겼다 되돌리면 변경 없음). `hasUnpublishedChanges`는 둘 중 하나라도 0이 아니면 `true`다.
+
+### `POST /api/v1/operator/events/{eventId}/rooms`
+
+```json
+{ "name": "301호", "locationNote": "본관 3층", "capacity": 6, "genderOptionId": "opt_male" }
+```
+
+| 필드 | 규칙 |
+|---|---|
+| `name` | 필수. 앞뒤 공백 자름, 1–50자. 같은 행사 안에서 겹치면 `409 CONFLICT` |
+| `locationNote` | 선택. 앞뒤 공백 자름, 0–100자. 빈 글은 `null`로 저장한다. **참가자에게 보인다**(운영 메모 칸이 아니다) |
+| `capacity` | 선택. 1–50 정수. `null`은 정원 없음이고 정원 경고를 내지 않는다 |
+| `genderOptionId` | 선택. 문자열 또는 `null`(구분 없음). 그 행사 신청서 `GENDER` 질문(꺼졌어도)의 보기 id여야 한다. 질문이나 보기가 없으면 `400`(필드 `genderOptionId`) |
+
+형식이 틀리면 `400 VALIDATION_FAILED`(그 필드). 행사당 200개를 넘으면 `409 CONFLICT`, `reason: ROOM_LIMIT`. 새 방은 맨 뒤, `version` 0이다. `201` 본문은 `{ "room": { 배정판의 방 객체 }, "boardVersion" }`다.
+
+### `PATCH /api/v1/operator/events/{eventId}/rooms/{roomId}`
+
+본문은 바꿀 필드와 `expectedVersion`이다(`{ "capacity": 8, "expectedVersion": 2 }`). 넣지 않은 필드는 그대로이고 `null`을 보내면 지운다(`name`은 지울 수 없다). `expectedVersion`이 없으면 `400`(필드 `expectedVersion`), 그 행사의 방이 아니면 `404`, 버전이 다르면 `409 CONCURRENT_MODIFICATION`(확장 필드 `version`). 값이 그대로면 아무것도 바꾸지 않는다. `200` 본문은 `{ "room", "boardVersion" }`이고 `room.warnings`는 바뀐 정원·성별로 다시 계산한 값이다.
+
+### `DELETE /api/v1/operator/events/{eventId}/rooms/{roomId}?expectedVersion=2`
+
+방에 배정된 사람(취소자 포함)은 미배정이 되고 사람마다 `room_assignment_logs`에 `ROOM_DELETED`가 남는다. 막지 않는다. 지난 공개본은 그대로라 다시 공개하기 전까지 참가자는 그 방을 계속 본다. `expectedVersion`이 없거나 숫자가 아니면 `400`. `200` 본문은 `{ "unassignedCount", "boardVersion" }`(이 삭제로 미배정이 된 행 수).
+
+### `PUT /api/v1/operator/events/{eventId}/rooms/order`
+
+`{ "roomIds": ["…", "…"] }`. 그 행사의 방 전체를 정확히 한 번씩 담는다. 빠지거나 더하거나 겹치면 `409 CONFLICT`(화면은 배정판을 다시 읽는다). 그대로면 `boardVersion`을 올리지 않는다. `200` 본문은 `{ "boardVersion" }`.
+
+### `POST /api/v1/operator/events/{eventId}/room-assignments`
+
+여러 사람을 한 번에 넣고 옮기고 뺀다(걸러서 보내기, 끌어 놓기, 조 단위 일괄 배정이 모두 이 요청이다). **한 트랜잭션이다**: 한 요청의 모든 사람이 함께 저장되거나 아무도 저장되지 않는다.
+
+```json
+{
+  "changes": [
+    { "participantId": "…", "fromRoomId": null, "toRoomId": "…" },
+    { "participantId": "…", "fromRoomId": "…", "toRoomId": null }
+  ]
+}
+```
+
+- `changes`는 1–200개. 같은 `participantId`가 두 번 나오거나, `fromRoomId`·`toRoomId` 키가 없거나(`null`은 미배정), `night` 키가 있으면(1월에는 받지 않는다) `400 VALIDATION_FAILED`(필드 `changes`).
+- 그 행사의 참가자나 `toRoomId`의 방이 아니면 `404 RESOURCE_NOT_FOUND`. `fromRoomId`는 지금 방과 비교만 한다.
+- 사람마다: 지금 = `toRoomId`면 이미 반영(바꾸지 않음), 지금 = `fromRoomId`면 옮김, 그 밖은 충돌이다. 충돌이 하나라도 있으면 **아무것도 저장하지 않고** `409 CONCURRENT_MODIFICATION`, 확장 필드 `conflicts: [{ "participantId", "currentRoomId" }]`·`boardVersion`. 서로 다른 사람을 옮기는 두 운영자는 충돌하지 않는다(DEC-046).
+- 방에 넣는(이미 반영이 아닌) 사람이 활성 참가자가 아니면 `409 INVALID_STATE_TRANSITION`, `reason: APPLICATION_NOT_SUBMITTED`, `participantIds`. 취소자를 빼는 것(`toRoomId: null`)은 된다.
+- **숙박하지 않는 사람은 방에 넣지 못한다.** 방에 넣는 사람 중 `lodging`이 `NOT_LODGING`인 사람이 하나라도 있으면 **아무것도 저장하지 않고** `409 INVALID_STATE_TRANSITION`, `reason: NOT_LODGING`, `participantIds`(그 사람들). 빼는 것은 된다. 이미 그 방에 있는 사람은 이미 반영으로 보고 거절하지 않는다. `UNKNOWN`은 막지 않는다. 배정한 뒤 숙박을 뺀 사람도 다른 방으로는 옮기지 못한다.
+- 판정 순서: 형식(`400`) → 행사 상태(`409`) → 없는 방·참가자(`404`) → 충돌 → 활성 아님 → 숙박 안 함.
+- **정원 초과·성별 불일치·성별 답 없음은 막지 않는다.** 저장하고 경고를 돌려준다.
+- 옮긴 사람마다 `room_assignment_logs`에 `MOVE` 한 줄, 배정 행에 판단 근거(`basis`)를 지금 값으로 찍는다.
+
+`200`
+
+```json
+{
+  "changed": 6,
+  "alreadyApplied": 0,
+  "boardVersion": 19,
+  "rooms": [
+    { "roomId": "…", "memberCount": 7, "warnings": [{ "code": "OVER_CAPACITY", "count": 7, "capacity": 6 }] }
+  ]
+}
+```
+
+`rooms`는 이번 요청으로 사람이 들어오거나 나간 방(미배정 제외)의 지금 인원과 경고를 방 순서로 담는다. 바뀐 사람이 없으면 `boardVersion`이 그대로이고 `rooms`는 `[]`다.
+
+### `POST /api/v1/operator/events/{eventId}/rooms/publish`
+
+```json
+{ "expectedBoardVersion": 19, "confirmUnassigned": true, "confirmNotLodging": false, "notify": true }
+```
+
+`expectedBoardVersion`은 필수(0 이상 정수). `confirmUnassigned`·`confirmNotLodging`·`notify`는 생략하면 `false`·`false`·`true`이고 불리언이 아니면 `400`(그 필드). 행사 상태 다음 판정은 이 순서다.
+
+1. `boardVersion`이 다르면 `409 CONCURRENT_MODIFICATION`, 확장 필드 `boardVersion`.
+2. 공개한 적이 있고 작업본이 최근 공개본과 같으면 `200`, `result: ALREADY_PUBLISHED`. 아무것도 남기지 않는다(공개본·`updates.rooms`·알림·audit 없음). 공개한 적이 없으면 건너뛴다(방이 없어도 첫 공개가 된다).
+3. `unassignedCount` > 0인데 `confirmUnassigned`가 `false`이거나, `notLodgingAssignedCount` > 0(배정한 뒤 숙박을 뺀 사람이 방에 남음)인데 `confirmNotLodging`이 `false`면 `409 CONFIRMATION_REQUIRED`, 확장 필드 `unassignedCount`·`notLodgingAssignedCount`(둘 다 늘 담는다). 정원·성별 경고로는 막지 않는다.
+4. 공개한다. 같은 트랜잭션에서 `room_publications`에 한 행, `participant_feed_versions.rooms` +1, audit `ROOMS_PUBLISHED`, `notify`면 `ROOM_PUBLISHED` 알림.
+
+`200`
+
+```json
+{
+  "result": "PUBLISHED",
+  "publicationId": "…",
+  "publishedAt": "2027-01-10T09:00:00Z",
+  "boardVersion": 19,
+  "assignedCount": 178,
+  "unassignedCount": 4,
+  "notLodgingAssignedCount": 0,
+  "changedParticipantCount": 3,
+  "roomsWithWarnings": 2,
+  "notifiedCount": 3
+}
+```
+
+`ALREADY_PUBLISHED`면 `publicationId`·`publishedAt`이 최근 공개 값이고 `changedParticipantCount`·`notifiedCount`는 0이다.
+
+**스냅샷**: `{ "rooms": [ { "roomId", "name", "locationNote", "capacity", "genderOptionId", "sortOrder", "memberIds": ["…"] } ] }`. 방 이름·위치는 그대로 담고 사람은 **활성 참가자 id만**(이름 순) 담는다. 이름·또래·성별은 읽을 때 지금 값이다. 배정한 뒤 숙박을 뺐고 운영자가 확인(`confirmNotLodging`)한 사람도 다른 사람과 똑같이 담겨 방 명단에 보인다. 미배정은 담지 않는다. 공개 뒤 신청을 취소한 사람은 읽을 때 빠진다(되돌려도 옛 방이 돌아오지 않는다).
+
+**알림 `ROOM_PUBLISHED`**(`target.type: ROOM`, `target.id`: 받는 사람의 방, 빠졌으면 `null`). 다른 참가자 이름은 넣지 않는다.
+
+| 공개 | 받는 사람 | 제목 / 본문 |
+|---|---|---|
+| 첫 공개 | 공개본에 방이 있는 활성 참가자 | "숙소가 정해졌어요" / "301호 · 본관 3층"(위치 메모가 없으면 방 이름만) |
+| 두 번째 이후 — 방이 생김·바뀜 | 직전 공개본과 방이 다른 사람(새로 배정 포함) | "숙소가 바뀌었어요" / "302호 · 본관 3층" |
+| 두 번째 이후 — 빠짐 | 직전 공개본에 방이 있었는데 이번에 없는 사람 | "숙소 배정이 바뀌었어요" / "숙소 화면에서 확인해 주세요" |
+| 두 번째 이후 — 방 정보 | 같은 방인데 그 방의 이름·위치 메모가 바뀐 사람 | "숙소 정보가 바뀌었어요" / "301호 · 본관 3층" |
+
+같은 방 사람이 들고 난 것, 정원·성별·순서만 바뀐 것은 알림을 만들지 않는다. 읽지 않은 같은 알림(같은 방)은 합친다(DEC-080 §7.3). 운영자 알림은 없다.
+
+### `GET /api/v1/operator/events/{eventId}/rooms/published`
+
+가장 최근 공개본이다(접수대·인쇄용).
+
+```json
+{
+  "publishedAt": "2027-01-10T09:00:00Z",
+  "rooms": [
+    {
+      "roomId": "…", "name": "301호", "locationNote": "본관 3층", "capacity": 6,
+      "gender": { "optionId": "opt_male", "label": "남성" },
+      "members": [{ "participantId": "…", "name": "김", "cohort": "94" }]
+    }
+  ],
+  "unassigned": [{ "participantId": "…", "name": "최", "cohort": "01", "lodging": "LODGING" }]
+}
+```
+
+공개한 적이 없으면 `{ "publishedAt": null, "rooms": [], "unassigned": [] }`다(`404` 아님). 취소자는 빠진다. 공개 뒤 새로 신청했거나 공개본에 방이 없는 활성 참가자 중 `NOT_LODGING`이 아닌 사람이 `unassigned`에 든다.
+
+### `GET /api/v1/participant/rooms`
+
+참가자 세션 쿠키가 필요하다. CSRF는 필요 없다. 쿠키가 없거나 저장된 세션이 아니면 `401 AUTHENTICATION_REQUIRED`다(운영자 세션 쿠키로는 열리지 않는다). 응답 헤더 `Cache-Control: no-store`. 대상은 세션의 행사·참가자뿐이고 **가장 최근 숙소 공개본만** 읽는다. 행사 상태와 상관없이 같다. 조회는 audit을 남기지 않는다.
+
+`200` — 배정됨, 범위 `ALL`
+
+```json
+{
+  "status": "ASSIGNED",
+  "publishedAt": "2027-01-10T09:00:00Z",
+  "rosterScope": "ALL",
+  "notLodging": false,
+  "myRoom": {
+    "roomId": "…",
+    "name": "301호",
+    "locationNote": "본관 3층 계단 옆",
+    "genderLabel": "남성",
+    "members": [
+      { "name": "김", "cohort": "94", "gender": "남성", "me": true },
+      { "name": "박", "cohort": "95", "gender": "남성", "me": false }
+    ]
+  },
+  "rooms": [
+    {
+      "roomId": "…", "name": "301호", "locationNote": "본관 3층 계단 옆", "genderLabel": "남성",
+      "members": [{ "name": "김", "cohort": "94" }, { "name": "박", "cohort": "95" }]
+    }
+  ]
+}
+```
+
+| `status` | 경우 | `myRoom` | `rooms` |
+|---|---|---|---|
+| `NOT_ELIGIBLE` | `SUBMITTED` 신청이 없다(먼저 본다) | `null` | `null` |
+| `NOT_PUBLISHED` | 숙소를 공개한 적이 없다 | `null` | `null` |
+| `UNASSIGNED` | 공개됐지만 공개본에 내 방이 없다 | `null` | 범위 `ALL`이면 값 |
+| `ASSIGNED` | 공개본에 내 방이 있다 | 값 | 범위 `ALL`이면 값 |
+
+- 신청을 취소하면 세션도 끝나므로(DEC-084 §4) 취소한 본인은 `NOT_ELIGIBLE` 전에 `401`을 받는다(조 편성과 같다).
+- `rosterScope`는 행사 설정 [`roomRosterScope`](#get-apiv1operatoreventseventidparticipant-settings)다.
+
+| `rosterScope` | `myRoom.members` | `rooms` |
+|---|---|---|
+| `ALL`(기본) | 같은 방 활성 참가자(나 포함) | 공개본의 모든 방(빈 방 포함) |
+| `ROOMMATES` | 같은 방 활성 참가자 | `null` |
+| `MY_ROOM` | `null`(방 이름·위치 메모만) | `null` |
+
+- `myRoom.members[]` 키는 **`name`·`cohort`·`gender`·`me`만**이고 이름, 그다음 id 순이다. `gender`는 `GENDER` 답의 지금 보기 문구이고 질문이 꺼졌거나 답이 없거나 고른 보기가 숨겨졌으면 `null`이다.
+- `rooms[]`는 방 순서이고 `members[]` 키는 **`name`·`cohort`만**이다.
+- `genderLabel`은 방의 성별 구분 보기 문구(구분 없음이면 `null`)다. `roomId`는 방의 id라 개인정보가 아니고 화면이 전체 표에서 내 방을 강조하는 데 쓴다.
+- `notLodging`은 **나의** `lodging`이 `NOT_LODGING`인지다(`UNASSIGNED`일 때 "숙박하지 않는 것으로 신청했어요"). 배정한 뒤 숙박을 뺐는데 공개본에 방이 남은 사람은 `ASSIGNED`이고 `notLodging: true`다.
+- **없는 것:** 다른 참가자의 참가자 id, 전화, 신청 답, 숙박 밤·참석 칸, 정원, 다시 볼 것, 운영 메모, 미배정 명단.
+- 이름·또래·성별은 읽을 때 지금 값이고, 신청을 취소한 사람은 다음 요청부터 빠진다.
+- 화면은 `updates.rooms`가 바뀔 때만 다시 읽는다. 조장 보기의 방도 숙소 공개로 바뀌므로 조장 화면은 `updates.rooms`가 바뀌면 [`group`](#get-apiv1participantgroup)도 다시 읽는다(`updates.group`은 숙소 공개로 오르지 않는다).
+
+### 갱신 값
+
+`participant_feed_versions.rooms`(`updates.rooms`)는 다음에만 오른다.
+
+- 숙소 공개 `PUBLISHED`(`ALREADY_PUBLISHED`는 아님).
+- `roomRosterScope` 변경, **공개본이 있을 때만**(공개 전에는 범위와 상관없이 `NOT_PUBLISHED`라 다시 읽을 것이 없고, `features.rooms`가 "공개본이 있다"는 뜻을 지킨다).
+- 가장 최근 공개본에 있던 사람의 신청 취소(같은 방 사람의 명단이 바뀐다).
+
+작업본 저장·방 지우기에는 오르지 않는다. `features.rooms`는 유형 기본값(`RETREAT`·`CAMP`) 또는 이 값이 0보다 크면 켠다.
+
+### 다음 작업이 더하는 것
+
+- **G5(#460)**: 참가 현황 표 `rows[].room: { "roomId", "name" }`와 `roomPublishedAt`, CSV 마지막 `방` 열, 현장 명단 항목 `room: { "name", "locationNote" }`. 모두 **가장 최근 공개본** 기준이고, 서버는 `event/room/PublishedRooms.placements`(참가자 → 공개본의 방, 한 번의 공개본 읽기)를 쓴다. 조별 보기(`groups/published`)에는 넣지 않는다.
+- **A11(#461)**: 배정판 `review: { "reasons": ["NOT_LODGING" | "LODGING_CHANGED" | "ATTENDANCE_CHANGED" | "GENDER_CHANGED"], "assignedAt" }`와 확인 경로(`POST …/room-assignments/review`). 배정 행의 `basis`와 지금 값을 비교한다(DEC-085 Follow-up 2026-11-24).
+- **확장 지점**: 밤마다 다른 배정(G6)은 `room_assignments.night`(1월부터 기본 키에 있다)와 요청 `changes[].night`, 스냅샷 `nights[]`로 더한다. 차량 배정은 같은 계약 모양으로 테이블을 따로 둔다. 공지·일정 대상 `ROOM`, 방 안 순서(`position`), 방장 표시, 방 묶음(층·동)은 열을 더하는 방식이다.
+
+### 시험 조건
+
+숙소 계약 초안 §15의 14가지다. `event/room/RoomHttpIT`가 갖는다(테스트 이름 위 주석에 번호). G5·A11이 맡는 부분은 그 작업이 더한다.
+
+1. 작업본 저장(방 만들기·배정·지우기)은 `GET /participant/rooms`·`updates.rooms`·조장 `leaderView.members[].room`을 바꾸지 않는다. 공개하면 모두 바뀌고 `updates.rooms`가 정확히 1 오른다(참가 현황 표·현장 명단은 G5).
+2. 같은 공개를 다시 보내면 `ALREADY_PUBLISHED`이고 `room_publications`·`updates.rooms`·알림·audit이 늘지 않는다.
+3. 두 운영자가 같은 사람을 다른 방으로 옮기면 늦은 쪽이 `409 CONCURRENT_MODIFICATION`이고 그 요청의 누구도 저장되지 않는다. 다른 사람이면 둘 다 저장된다.
+4. 정원 초과·성별 불일치·성별 답 없음은 `200`과 경고. 숙박하지 않는 사람이 하나라도 든 요청은 `409 INVALID_STATE_TRANSITION`(`reason: NOT_LODGING`)이고 누구도 저장되지 않으며 `boardVersion`이 그대로다. 빼는 요청은 `200`. `UNKNOWN`은 모두 배정된다.
+5. 집회만·`NO_LODGING`·같은 날 도착 출발은 `NOT_LODGING`이고 `unassignedCount`에 들지 않으며 방에 넣을 수 없다. 신청 집계의 밤별 인원과 배정판 `lodgingNights`로 센 인원이 같다.
+6. 배정 뒤 숙박을 빼면 방은 그대로이고 그 방에 `NOT_LODGING` 경고, `notLodgingAssignedCount` 1. `confirmNotLodging` 없이 공개하면 `409 CONFIRMATION_REQUIRED`, 켜면 공개되고 공개본 방 명단에 있다. 다른 방으로 옮기면 거절된다(`review.reasons`와 확인은 A11).
+7. 신청을 취소하면 취소 경로가 배정 행을 지우고 `WITHDRAWN` 이력을 남기며, 그 사람은 다음 요청부터 참가자 응답·공개본 조회·경고·인원에서 빠진다. 취소한 본인은 세션이 끝나 `401`이다. 되돌려도 방은 돌아오지 않는다.
+8. `myRoom.members[]` 키는 정확히 `name`·`cohort`·`gender`·`me`, `rooms[].members[]`는 `name`·`cohort`이고 다른 참가자의 id·전화·답·숙박 밤·참석 칸·운영 메모가 없다. 조장 `room`은 `name`·`locationNote`뿐이다. `ROOM_PUBLISHED` 문구에 다른 참가자 이름이 없다.
+9. 범위 `ROOMMATES`면 `rooms`가 `null`, `MY_ROOM`이면 `myRoom.members`도 `null`. 공개본이 있을 때 범위를 바꾸면 `updates.rooms`가 오른다. 조장 보기는 범위와 상관없이 방을 담는다.
+10. `ROOM_WRITE`가 없는 운영자는 배정판 `403`. 공간 `OWNER`·`ADMIN`은 읽지만 쓰지 못한다. `GROUP_WRITE`가 없으면 `draftGroupId`가 모두 `null`이다.
+11. `ENDED`에서 쓰기 `409 EVENT_ENDED`, `ARCHIVED`에서 `409 EVENT_ARCHIVED`이고 참가자는 마지막 공개본을 본다.
+12. 방을 지우면 그 방 사람이 미배정이 되고 사람마다 `ROOM_DELETED` 이력이 남으며, 다시 공개하기 전까지 참가자 응답은 그대로다.
+13. 첫 공개의 `ROOM_PUBLISHED`는 배정된 활성 참가자 수만큼, 두 번째는 방이 바뀐 사람과 방 이름·위치가 바뀐 방 사람에게만. `notify: false`면 만들지 않는다.
+14. 운영자 세션 쿠키로 `GET /participant/rooms`가 열리지 않는다(`401`).
+
+### 이력과 감사 로그
+
+`room_assignment_logs`: 참가자, 밤(1월은 0), 이전 방, 새 방, 원인(`MOVE`·`ROOM_DELETED`·`WITHDRAWN`), 처리자 `users.id`(참가자 본인 취소만 `null`), 시각. 방이 지워져도 이력이 남도록 방 id에 FK가 없다. 1차에 읽는 URL은 없다(I7).
+
+`room_assignments.basis`: 배정할 때의 판단 근거 `{ "genderOptionId", "lodgingNights", "slotIds" }`(보이는 성별 보기 id, 자는 밤, 참석 칸. 모르면 `null`). 이름·답 원문은 없다. A11이 읽는다.
+
+audit `ROOMS_PUBLISHED`: detail은 `publicationId`, `boardVersion`, `assignedCount`, `unassignedCount`, `changedParticipantCount`, `roomsWithWarnings`, `notify`, `notifiedCount`다. `ALREADY_PUBLISHED`는 남기지 않는다. 방·배정 편집은 audit 대신 위 이력에 남긴다. 이름·전화·답은 audit·이력·로그에 넣지 않는다.
 
 ## 일정표
 

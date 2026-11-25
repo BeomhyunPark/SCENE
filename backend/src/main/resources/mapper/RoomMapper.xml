@@ -1,0 +1,291 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="app.scene.event.room.mapper.RoomMapper">
+
+  <!--
+    Rooms (DEC-085, api.md "숙소"). Active = a SUBMITTED application, the same rule as GroupMapper.
+    Names order by code point (COLLATE "C"), as in GroupMapper. January uses night 0 only.
+  -->
+
+  <!--
+    The visible question of application app found by preset_key = '${key}', with the answer of app
+    when there is one. No row when the question is missing or hidden, or there is no application.
+  -->
+  <sql id="presetAnswer">
+    SELECT f.config, ans.value
+    FROM fields f
+    LEFT JOIN answers ans
+      ON ans.space_id = f.space_id
+     AND ans.event_id = f.event_id
+     AND ans.field_id = f.id
+     AND ans.application_id = app.id
+    WHERE f.space_id = p.space_id AND f.event_id = p.event_id AND f.form_id = app.form_id
+      AND f.${column} = '${key}' AND NOT f.hidden
+    LIMIT 1
+  </sql>
+
+  <sql id="submittedApplication">
+    SELECT a.id, a.form_id
+    FROM applications a
+    WHERE a.space_id = p.space_id AND a.event_id = p.event_id AND a.participant_id = p.id
+      AND a.status = 'SUBMITTED'
+    ORDER BY a.submitted_at DESC, a.id
+    LIMIT 1
+  </sql>
+
+  <select id="findBoardVersion" resultType="java.lang.Long">
+    SELECT version FROM room_boards WHERE space_id = #{spaceId} AND event_id = #{eventId}
+  </select>
+
+  <!-- The caller holds the event row lock, so the read-modify-write is serialized per event. -->
+  <select id="bumpBoardVersion" resultType="long" flushCache="true" useCache="false">
+    INSERT INTO room_boards (space_id, event_id, version, updated_at)
+    VALUES (#{spaceId}, #{eventId}, 1, #{at})
+    ON CONFLICT (space_id, event_id)
+    DO UPDATE SET version = room_boards.version + 1, updated_at = excluded.updated_at
+    RETURNING version
+  </select>
+
+  <select id="findRooms" resultType="app.scene.event.room.RoomRow">
+    SELECT id AS room_id, name, location_note, capacity::integer AS capacity, gender_option_id,
+           sort_order, version
+    FROM rooms
+    WHERE space_id = #{spaceId} AND event_id = #{eventId}
+    <if test="roomId != null">AND id = #{roomId}</if>
+    ORDER BY sort_order, id
+  </select>
+
+  <select id="existsName" resultType="boolean">
+    SELECT EXISTS (
+      SELECT 1 FROM rooms
+      WHERE space_id = #{spaceId} AND event_id = #{eventId} AND name = #{name}
+      <if test="roomId != null">AND id &lt;&gt; #{roomId}</if>)
+  </select>
+
+  <insert id="insertRoom">
+    INSERT INTO rooms (
+      id, space_id, event_id, name, location_note, capacity, gender_option_id, sort_order, version,
+      created_by, created_at, updated_at)
+    VALUES (
+      #{roomId}, #{spaceId}, #{eventId}, #{name}, #{locationNote}, #{capacity}, #{genderOptionId},
+      (SELECT coalesce(max(sort_order) + 1, 0) FROM rooms
+       WHERE space_id = #{spaceId} AND event_id = #{eventId}),
+      0, #{actorUserId}, #{at}, #{at})
+  </insert>
+
+  <update id="updateRoom">
+    UPDATE rooms
+    SET name = #{name}, location_note = #{locationNote}, capacity = #{capacity},
+        gender_option_id = #{genderOptionId}, version = version + 1, updated_at = #{at}
+    WHERE space_id = #{spaceId} AND event_id = #{eventId} AND id = #{roomId}
+  </update>
+
+  <update id="updateSortOrder">
+    UPDATE rooms SET sort_order = #{sortOrder}, updated_at = #{at}
+    WHERE space_id = #{spaceId} AND event_id = #{eventId} AND id = #{roomId}
+  </update>
+
+  <delete id="deleteRoomAssignments">
+    DELETE FROM room_assignments
+    WHERE space_id = #{spaceId} AND event_id = #{eventId} AND room_id = #{roomId}
+  </delete>
+
+  <delete id="deleteRoom">
+    DELETE FROM rooms WHERE space_id = #{spaceId} AND event_id = #{eventId} AND id = #{roomId}
+  </delete>
+
+  <!-- Every assignment row of one room, withdrawn participants included. -->
+  <select id="findRoomMemberIds" resultType="java.util.UUID">
+    SELECT participant_id
+    FROM room_assignments
+    WHERE space_id = #{spaceId} AND event_id = #{eventId} AND room_id = #{roomId} AND night = 0
+    ORDER BY participant_id
+  </select>
+
+  <!-- Current options of the form's GENDER question, turned off or not, as JSON text. -->
+  <select id="findGenderConfig" resultType="string">
+    SELECT f.config::text
+    FROM forms fo
+    JOIN fields f ON f.space_id = fo.space_id AND f.event_id = fo.event_id AND f.form_id = fo.id
+    WHERE fo.space_id = #{spaceId} AND fo.event_id = #{eventId} AND f.preset_key = 'GENDER'
+    LIMIT 1
+  </select>
+
+  <!--
+    Participants of the event (participantIds narrows them when set; it is never empty) with the
+    room assignment, its basis, and the answers of the latest SUBMITTED application that decide
+    gender, attended slots, and lodging nights. A participant without a SUBMITTED application has
+    submitted = false and null answers. genderShown is whether the chosen GENDER option is shown
+    (a hidden option reads as no answer, DEC-083 §7). No phone.
+  -->
+  <select id="findPeople" resultType="app.scene.event.room.PersonRow">
+    SELECT p.id AS participant_id, p.name,
+           (app.id IS NOT NULL) AS submitted,
+           nullif(btrim(coh.value ->> 'text'), '') AS cohort,
+           gen.value ->> 'optionId' AS gender_option_id,
+           (SELECT o ->> 'label'
+            FROM jsonb_array_elements(gen.config -> 'options') o
+            WHERE o ->> 'optionId' = gen.value ->> 'optionId'
+            LIMIT 1) AS gender_label,
+           coalesce((
+             SELECT NOT coalesce((o ->> 'hidden')::boolean, false)
+             FROM jsonb_array_elements(gen.config -> 'options') o
+             WHERE o ->> 'optionId' = gen.value ->> 'optionId'
+             LIMIT 1), false) AS gender_shown,
+           (att.config IS NOT NULL) AS attendance_asked,
+           att.value ->> 'optionId' AS attendance_option_id,
+           mea.value::text AS meals_answer,
+           arr.value::text AS arrival_answer,
+           dep.value::text AS departure_answer,
+           (lod.config IS NOT NULL) AS lodging_asked,
+           lod.value::text AS lodging_answer,
+           nol.value::text AS no_lodging_answer,
+           ra.room_id,
+           ra.basis::text AS basis,
+           ra.basis_at
+    FROM participants p
+    LEFT JOIN LATERAL (<include refid="submittedApplication"/>) app ON true
+    LEFT JOIN LATERAL (
+      <include refid="presetAnswer">
+        <property name="column" value="system_key"/>
+        <property name="key" value="COHORT"/>
+      </include>) coh ON true
+    LEFT JOIN LATERAL (
+      <include refid="presetAnswer">
+        <property name="column" value="preset_key"/>
+        <property name="key" value="GENDER"/>
+      </include>) gen ON true
+    LEFT JOIN LATERAL (
+      <include refid="presetAnswer">
+        <property name="column" value="preset_key"/>
+        <property name="key" value="ATTENDANCE"/>
+      </include>) att ON true
+    LEFT JOIN LATERAL (
+      <include refid="presetAnswer">
+        <property name="column" value="preset_key"/>
+        <property name="key" value="MEALS"/>
+      </include>) mea ON true
+    LEFT JOIN LATERAL (
+      <include refid="presetAnswer">
+        <property name="column" value="preset_key"/>
+        <property name="key" value="ARRIVAL_SLOT"/>
+      </include>) arr ON true
+    LEFT JOIN LATERAL (
+      <include refid="presetAnswer">
+        <property name="column" value="preset_key"/>
+        <property name="key" value="DEPARTURE_SLOT"/>
+      </include>) dep ON true
+    LEFT JOIN LATERAL (
+      <include refid="presetAnswer">
+        <property name="column" value="preset_key"/>
+        <property name="key" value="LODGING"/>
+      </include>) lod ON true
+    LEFT JOIN LATERAL (
+      <include refid="presetAnswer">
+        <property name="column" value="preset_key"/>
+        <property name="key" value="NO_LODGING"/>
+      </include>) nol ON true
+    LEFT JOIN room_assignments ra
+      ON ra.space_id = p.space_id AND ra.event_id = p.event_id AND ra.participant_id = p.id
+     AND ra.night = 0
+    WHERE p.space_id = #{spaceId} AND p.event_id = #{eventId}
+    <if test="participantIds != null">
+      AND p.id IN
+      <foreach collection="participantIds" item="id" open="(" separator="," close=")">
+        #{id}
+      </foreach>
+    </if>
+    ORDER BY p.name COLLATE "C", p.id
+  </select>
+
+  <!--
+    Active participants among participantIds with what roommates may see: name, 또래, and the GENDER
+    label only while that option is shown. By name, then id.
+  -->
+  <select id="findMates" resultType="app.scene.event.room.MateRow">
+    SELECT p.id AS participant_id, p.name,
+           nullif(btrim(coh.value ->> 'text'), '') AS cohort,
+           (SELECT o ->> 'label'
+            FROM jsonb_array_elements(gen.config -> 'options') o
+            WHERE o ->> 'optionId' = gen.value ->> 'optionId'
+              AND coalesce((o ->> 'hidden')::boolean, false) = false
+            LIMIT 1) AS gender_label
+    FROM participants p
+    JOIN LATERAL (<include refid="submittedApplication"/>) app ON true
+    LEFT JOIN LATERAL (
+      <include refid="presetAnswer">
+        <property name="column" value="system_key"/>
+        <property name="key" value="COHORT"/>
+      </include>) coh ON true
+    LEFT JOIN LATERAL (
+      <include refid="presetAnswer">
+        <property name="column" value="preset_key"/>
+        <property name="key" value="GENDER"/>
+      </include>) gen ON true
+    WHERE p.space_id = #{spaceId} AND p.event_id = #{eventId}
+      AND p.id IN
+      <foreach collection="participantIds" item="id" open="(" separator="," close=")">
+        #{id}
+      </foreach>
+    ORDER BY p.name COLLATE "C", p.id
+  </select>
+
+  <insert id="upsertAssignment">
+    INSERT INTO room_assignments (
+      space_id, event_id, participant_id, night, room_id, basis, basis_at, updated_by, updated_at)
+    VALUES (
+      #{spaceId}, #{eventId}, #{participantId}, 0, #{roomId}, CAST(#{basis} AS jsonb), #{at},
+      #{actorUserId}, #{at})
+    ON CONFLICT (space_id, event_id, participant_id, night)
+    DO UPDATE SET room_id = excluded.room_id, basis = excluded.basis, basis_at = excluded.basis_at,
+                  updated_by = excluded.updated_by, updated_at = excluded.updated_at
+  </insert>
+
+  <delete id="deleteAssignment">
+    DELETE FROM room_assignments
+    WHERE space_id = #{spaceId} AND event_id = #{eventId} AND participant_id = #{participantId}
+      AND night = 0
+  </delete>
+
+  <insert id="insertLog">
+    INSERT INTO room_assignment_logs (
+      id, space_id, event_id, participant_id, night, from_room_id, to_room_id, cause,
+      actor_user_id, created_at)
+    VALUES (
+      #{logId}, #{spaceId}, #{eventId}, #{participantId}, 0, #{fromRoomId}, #{toRoomId}, #{cause},
+      #{actorUserId}, #{at})
+  </insert>
+
+  <!-- Participants whose assignment a withdraw removed at or after #{at} (a publication time). -->
+  <select id="findWithdrawnSince" resultType="java.util.UUID">
+    SELECT DISTINCT participant_id
+    FROM room_assignment_logs
+    WHERE space_id = #{spaceId} AND event_id = #{eventId} AND cause = 'WITHDRAWN'
+      AND created_at &gt;= #{at}
+  </select>
+
+  <select id="findLatestPublication" resultType="app.scene.event.room.PublicationRow">
+    SELECT rp.id AS publication_id, rp.board_version, rp.snapshot::text AS snapshot,
+           rp.published_at, u.display_name AS published_by_display_name
+    FROM room_publications rp
+    JOIN users u ON u.id = rp.published_by
+    WHERE rp.space_id = #{spaceId} AND rp.event_id = #{eventId}
+    ORDER BY rp.seq DESC
+    LIMIT 1
+  </select>
+
+  <select id="existsPublication" resultType="boolean">
+    SELECT EXISTS (
+      SELECT 1 FROM room_publications WHERE space_id = #{spaceId} AND event_id = #{eventId})
+  </select>
+
+  <insert id="insertPublication">
+    INSERT INTO room_publications (
+      id, space_id, event_id, board_version, snapshot, published_by, published_at)
+    VALUES (
+      #{publicationId}, #{spaceId}, #{eventId}, #{boardVersion}, CAST(#{snapshot} AS jsonb),
+      #{actorUserId}, #{at})
+  </insert>
+
+</mapper>

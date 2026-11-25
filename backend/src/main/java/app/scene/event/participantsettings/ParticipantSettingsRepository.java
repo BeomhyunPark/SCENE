@@ -8,7 +8,8 @@ import org.springframework.stereotype.Component;
 
 /**
  * One row per event in {@code event_participant_settings}; no row means the defaults. Writes
- * compare the stored version. Participant reads use {@link #groupRosterVisibleToMembers}.
+ * compare the stored version. Participant reads use {@link #groupRosterVisibleToMembers} and {@link
+ * #roomRosterScope}.
  */
 @Component
 public class ParticipantSettingsRepository {
@@ -30,6 +31,13 @@ public class ParticipantSettingsRepository {
         .orElse(ParticipantSettings.ROSTER_VISIBLE_DEFAULT);
   }
 
+  /** What participants see of the room list (DEC-085 §8.1). Default {@code ALL}. */
+  public String roomRosterScope(UUID spaceId, UUID eventId) {
+    return find(spaceId, eventId)
+        .map(ParticipantSettingsRow::roomRosterScope)
+        .orElse(ParticipantSettings.ROOM_SCOPE_ALL);
+  }
+
   /**
    * Stores the settings when the stored version equals {@code expectedVersion}; version 0 means
    * nothing is stored yet. Returns false when another write came first.
@@ -38,14 +46,17 @@ public class ParticipantSettingsRepository {
       UUID spaceId,
       UUID eventId,
       boolean rosterVisible,
+      String roomRosterScope,
       int expectedVersion,
       UUID updatedBy,
       Instant updatedAt) {
     if (expectedVersion == 0) {
-      return settings.insertFirst(spaceId, eventId, rosterVisible, updatedBy, updatedAt) == 1;
+      return settings.insertFirst(
+              spaceId, eventId, rosterVisible, roomRosterScope, updatedBy, updatedAt)
+          == 1;
     }
     return settings.updateVersion(
-            spaceId, eventId, rosterVisible, expectedVersion, updatedBy, updatedAt)
+            spaceId, eventId, rosterVisible, roomRosterScope, expectedVersion, updatedBy, updatedAt)
         == 1;
   }
 }

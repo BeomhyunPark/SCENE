@@ -155,12 +155,12 @@ public class GroupService {
    * Slot days of the event's form setup, labelled with the current MEALS option labels even when
    * the question is turned off (as in the summary). Empty when there is no form or no setup.
    */
-  JsonNode setup(UUID spaceId, UUID eventId) {
+  public JsonNode setup(UUID spaceId, UUID eventId) {
     FormRow form = forms.findByEvent(spaceId, eventId).orElse(null);
     return form == null || form.setup() == null ? null : json.readTree(form.setup());
   }
 
-  List<MealSlots.Day> slotDays(UUID spaceId, UUID eventId, JsonNode setup) {
+  public List<MealSlots.Day> slotDays(UUID spaceId, UUID eventId, JsonNode setup) {
     FormRow form = forms.findByEvent(spaceId, eventId).orElse(null);
     if (form == null || setup == null) {
       return List.of();
@@ -174,7 +174,7 @@ public class GroupService {
     return MealSlots.days(setup, MealSlots.labels(meals));
   }
 
-  static List<BoardSlot> slots(List<MealSlots.Day> days) {
+  public static List<BoardSlot> slots(List<MealSlots.Day> days) {
     if (days.isEmpty()) {
       return null;
     }
@@ -817,7 +817,7 @@ public class GroupService {
    * FULL, PARTIAL or WORSHIP_ONLY from the ATTENDANCE answer; FULL when the question is not asked
    * or not answered (DEC-070 §3).
    */
-  static String attendance(boolean asked, String optionId) {
+  public static String attendance(boolean asked, String optionId) {
     if (asked && optionId != null) {
       return ATTENDANCE.getOrDefault(optionId, FULL);
     }
