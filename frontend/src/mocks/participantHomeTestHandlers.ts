@@ -58,8 +58,14 @@ export function participantHomeHandlers(overrides: Parameters<typeof homeBody>[0
     // The 지금·다음 card reads the schedule on every home screen.
     http.get("/api/v1/participant/schedule", () => HttpResponse.json(SCHEDULE_NOT_PUBLISHED)),
     EMPTY_NOTICES,
+    ROOMS_NOT_PUBLISHED,
   ];
 }
+
+/** 숙소 not published yet: the home 숙소 card reads this (G4 #459). */
+export const ROOMS_NOT_PUBLISHED = http.get("/api/v1/participant/rooms", () =>
+  HttpResponse.json({ status: "NOT_PUBLISHED", publishedAt: null, rosterScope: "ALL", notLodging: false, myRoom: null, rooms: null }),
+);
 
 /** No notices: the 최신 공지 card and 공지 tab read this (D4). */
 export const EMPTY_NOTICES = http.get("/api/v1/participant/notices", () => HttpResponse.json({ items: [], nextBefore: null }));
