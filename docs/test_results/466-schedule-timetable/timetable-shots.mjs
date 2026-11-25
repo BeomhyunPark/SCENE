@@ -2,7 +2,7 @@
 // the page, so the event, items and a participant are seeded through `window.sceneMock` and the app is
 // moved with in-app navigation. The clock is pinned with page.clock to 16:20 on day 1 in Seoul
 // (2027-01-22T07:20:00Z), inside the event, so the current-time line and 지금·다음 show.
-// Usage: node timetable-shots.mjs <appUrl> <outDir> <prefix> [timezoneId]
+// Usage: [SIZES=phone,desktop,wide] node timetable-shots.mjs <appUrl> <outDir> <prefix> [timezoneId]
 import { createRequire } from "node:module";
 import { mkdirSync } from "node:fs";
 const { chromium } = createRequire(import.meta.url)("playwright");
@@ -16,7 +16,9 @@ const browser = await chromium.launch();
 const sizes = {
   phone: { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true },
   desktop: { viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 2 },
+  wide: { viewport: { width: 2000, height: 1100 }, deviceScaleFactor: 1 },
 };
+const only = (process.env.SIZES ?? "phone,desktop").split(",");
 
 async function open(size) {
   const ctx = await browser.newContext({ ...sizes[size], locale: "ko-KR", timezoneId });
@@ -72,7 +74,7 @@ async function go(page, path) {
   }, path);
 }
 
-for (const size of ["phone", "desktop"]) {
+for (const size of only) {
   const { ctx, page } = await open(size);
   await go(page, `/events/${EVENT}/schedule`);
   // The dev login panel (DevLoginPanel) signs in the seeded owner and returns to the schedule.
