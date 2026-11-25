@@ -96,7 +96,7 @@
 | 구분 | 무엇 | 결과 |
 |---|---|---|
 | 문서 작성 | 충돌 해결: 이 README(통합 1 기록 + fixes의 조원 상세 기록 모두 유지), 로드맵 5.1(A12·B5·통합 뒤 수정 줄, "3주차 통합 2" 줄, 남은 줄은 F5 사용자 확인)과 "상태" 줄, `source-guide.md`(A12 쪽 같은 뜻의 문장은 fixes 문장 하나로) | 작성 |
-| 마이그레이션 | 새로 생긴 것은 `V27__operator_added_application.sql` 하나, `ApplicationContextIT` 기대값 `27`. 로컬 DB(V26)에서 서버를 띄우자 V27만 더 적용됐다 | 확인 |
+| 마이그레이션 | 새로 생긴 것은 A12의 `V27__operator_added_application.sql` 하나(뒤에 main `V25__task_dates` 때문에 V28로 밀림, 아래 추가 확인) | 확인 |
 | 서버 검증 | `./gradlew check` | 통과 600개, 실패 0, 건너뜀 0 |
 | 화면 검증 | lint·typecheck·build 통과. `pnpm test` 단독 2번 | 2번 모두 102파일 756개 통과 |
 | 화면 테스트 시간 초과 재현 | 서버 검사(`./gradlew check`)가 도는 동안 `pnpm test` 2번 | 1번 실패: `EventRooms.test.tsx` "makes numbered rooms in one go and fills them with 200 people"가 "방 40개를 만들었어요." 기다림(10초)에서 시간 초과. 단독 실행 시 그 테스트 전체가 10.7초 |
@@ -123,3 +123,19 @@
 
 - **화면 테스트 시간 초과(고치지 않음):** 위 200명 숙소 테스트는 화면이 방 만들기를 한 개씩 40번 이어 부르고(DEC-085 Follow-up G3 §7, 서버 묶음 경로 없음), 부를 때마다 200명 배정판을 다시 그린다. 단독으로도 10.7초라 단계별 대기 10초에 여유가 거의 없고, 서버 검사와 CPU를 나누면 넘친다. 병합으로 생긴 것이 아니며, 기다림 시간을 늘리는 대신 테스트 인원을 줄이거나 화면의 연속 만들기를 묶을지 판단이 필요하다.
 - 실제 휴대폰·운영 서버, 알림 갱신 주기(25초)를 기다리는 확인은 하지 않았다(알림함은 홈에서 다시 열어 읽음).
+
+## 추가: main 번호 겹침 정리와 DEC-088 사용자 결정 (2026-11-25 13:00~13:20 KST)
+
+- PR #474 브랜치(`claude/week3-integration`)가 main(#466 f9766e7, #475 92ea4f8)을 받아 058cefc가 됐다: main `V25__task_dates`를 그대로 두고 3주차 마이그레이션을 V26(참가자 설정·개인정보 기록)·V27(숙소)로, 식수 현황 결정을 DEC-089로 옮겼다. 그 head를 이 브랜치에 merge 커밋 e72b82e로 합치고 A12 마이그레이션을 **V28**로 밀었다(`ApplicationContextIT` 28).
+- 사용자 결정(커밋 cbb1229): DEC-088 결정 대기 7건 확정, "신청 고치기" 화면 안내 한 줄, 신청 수정 알림 문구 "신청 내역을 수정했어요".
+
+| 구분 | 무엇 | 결과 |
+|---|---|---|
+| 마이그레이션 | 빈 로컬 DB에서 서버 기동: V24 → V25 task dates → V26 participant settings and privacy logs → V27 rooms → V28 operator added application | 확인 |
+| 서버 검증 | `./gradlew check` | 통과 604개, 실패 0, 건너뜀 0 |
+| 화면 검증 | lint·typecheck·build 통과, `pnpm test` 단독 | 103파일 769개 통과 |
+| 알림 문구 | [round2/notice-titles.cjs](round2/notice-titles.cjs), 시드 행사(OWNER·MANAGER) | 참가자가 고침 → 운영자 "김가람님이 신청 내역을 수정했어요" · 또래 / OWNER가 고침 → 참가자 "운영자가 신청 내역을 수정했어요" · 또래, MANAGER "Local owner님이 김가람님의 신청 내역을 수정했어요" ×2(앞선 참가자 수정과 한 줄로 합침, 결정 대기 6의 영향대로), 고친 OWNER는 받지 않음 |
+| 화면 | `round2/12-edit-screen-hint`(신청 고치기 안내 "참가자가 직접 고칠 수 있으면 참가자에게 맡겨 주세요."), `13-manager-notifications`(운영자 알림 화면) | 확인 |
+| 한 흐름 다시 | [round2/flow2.cjs](round2/flow2.cjs) 빈 DB에서 다시 | 위 표의 1~10 모두 통과, 알림함 줄은 "운영자가 신청 내역을 수정했어요" → `/me` |
+
+참고: 예전 번호(V25 참가자 설정, V26 숙소, V27 운영자 추가)로 이미 띄운 DB는 Flyway가 이름·체크섬 불일치로 기동하지 않는다. 로컬·리허설 DB는 지우고 다시 만든다. main만 적용된 DB(V25 task_dates)에서 V26·V27로 이어지는 것은 PR #474 브랜치에서 확인했다.
