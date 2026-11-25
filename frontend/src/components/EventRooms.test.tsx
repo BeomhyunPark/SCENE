@@ -79,6 +79,10 @@ describe("room board (G3 #458)", () => {
     expect(within(nav).getByRole("link", { name: "숙소" })).toHaveAttribute("aria-current", "page");
     expect(chip()).toBe("배정 0 · 미배정 9 · 숙박 안 함 1");
     expect(screen.getByText(/숙박하지 않는 1명\(집회만·통근·당일\)은 방에 넣지 않아요/)).toBeInTheDocument();
+    // No rooms yet: the title says so once and one line says what to do, without an empty dashed box (#483).
+    expect(screen.getByRole("heading", { name: "아직 방이 없어요" })).toBeInTheDocument();
+    expect(screen.getByText("위의 + 방 추가로 방을 만들어 주세요.")).toBeInTheDocument();
+    expect(screen.queryByText(/아직 방이 없어요\. 위의/)).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "+ 방 추가" }));
     const form = screen.getByRole("form", { name: "방 만들기" });
