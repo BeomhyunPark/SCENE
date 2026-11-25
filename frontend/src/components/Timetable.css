@@ -1,0 +1,175 @@
+/* 시간표 (#466), after the SCENE 시간표 frame ("01 시간표 · 행사 3일" 172:3, SCENE Design System) and its
+   Event Item (79:33): a subtle 시간 · day header row, hour lines across the day columns with labels on the
+   left, neutral blocks (colour = state only), and the Venture calendars' red current-time line with a dot.
+   Positions come in axis minutes; --timetable-scale turns a minute into pixels. */
+.timetable {
+  --timetable-scale: 1.4px;
+  --timetable-gutter: 48px;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.timetable__headers,
+.timetable__body {
+  display: grid;
+  grid-template-columns: var(--timetable-gutter) repeat(var(--timetable-columns), minmax(0, 1fr));
+  column-gap: 8px;
+}
+
+/* The 시간 · day row stays on top while the day scrolls. */
+.timetable__headers {
+  position: sticky;
+  top: var(--timetable-sticky-top, 0px);
+  z-index: 4;
+  align-items: center;
+  min-height: 40px;
+  background: var(--color-bg-subtle);
+}
+
+.timetable__corner,
+.timetable__header {
+  color: var(--color-text-primary);
+  font: var(--scene-label-m);
+}
+
+.timetable__corner {
+  padding-left: 4px;
+  color: var(--color-text-secondary);
+}
+
+.timetable__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 8px;
+  min-width: 0;
+  padding: 8px 0;
+}
+
+.timetable__header--today {
+  color: var(--color-text-brand);
+}
+
+.timetable__body {
+  position: relative;
+  /* Room below the header for the first hour label. */
+  padding-top: 2px;
+}
+
+.timetable__gutter,
+.timetable__column {
+  position: relative;
+  height: calc(var(--timetable-scale) * var(--timetable-height) + 16px);
+}
+
+.timetable__tick {
+  position: absolute;
+  left: 0;
+  padding-left: 4px;
+  color: var(--color-text-tertiary);
+  font: var(--scene-caption-m);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  transform: translateY(-1px);
+}
+
+.timetable__grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.timetable__hour {
+  position: absolute;
+  right: 0;
+  left: 0;
+  border-top: 1px solid var(--color-border-default);
+}
+
+/* A long empty stretch (the night between days) folded to a short hatched band. */
+.timetable__fold {
+  position: absolute;
+  right: 0;
+  left: 0;
+  height: calc(var(--timetable-scale) * 24);
+  background: repeating-linear-gradient(135deg, var(--color-bg-subtle) 0 6px, transparent 6px 12px);
+}
+
+.timetable__list {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Calendar / Event Item, Compact (79:2): subtle surface, default border, radius 8. */
+.timetable__block {
+  position: absolute;
+  z-index: 1;
+  box-sizing: border-box;
+  display: flex;
+  height: var(--block-height);
+  min-height: 0;
+  margin-top: 2px;
+  overflow: hidden;
+  border: 1px solid var(--color-border-default);
+  border-radius: 8px;
+  /* Parent-surface rule: an element on the canvas uses bg/surface. */
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+}
+
+/* Lines inside a block keep their height; what does not fit is cut at the bottom. */
+.timetable__block > * > *,
+.timetable__block > * > * > * {
+  flex-shrink: 0;
+}
+
+.timetable__block:hover,
+.timetable__block:focus-within {
+  z-index: 2;
+}
+
+/* A block whose text does not fit opens to its full height while tapped or focused, then closes again. */
+.timetable__block--expandable:focus-within,
+.timetable__block--expandable:hover {
+  z-index: 4;
+  height: auto;
+  min-height: var(--block-height);
+  box-shadow: 0 4px 12px var(--color-shadow-popover);
+}
+
+/* No end time: the block stops at the next start (or an hour) and its lower edge is dashed. */
+.timetable__block--open {
+  border-bottom-style: dashed;
+}
+
+.timetable__now {
+  position: absolute;
+  right: 0;
+  left: 0;
+  z-index: 3;
+  height: 0;
+  border-top: 2px solid var(--color-danger-fg);
+  pointer-events: none;
+}
+
+.timetable__now::before {
+  content: "";
+  position: absolute;
+  top: -6px;
+  left: -5px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-danger-fg);
+}
+
+@media (min-width: 1024px) {
+  .timetable {
+    --timetable-scale: 1.2px;
+    --timetable-gutter: 56px;
+  }
+}
