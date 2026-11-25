@@ -72,7 +72,7 @@ export function PublicForgotPassword() {
             >
               재설정 코드 보내기
             </Button>
-            <Link className="public-forgot__back" to="/login">
+            <Link className="public-forgot__back scene-press scene-press--text" to="/login">
               로그인으로 돌아가기
             </Link>
           </form>

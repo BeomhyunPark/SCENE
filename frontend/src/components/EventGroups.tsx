@@ -132,7 +132,7 @@ function GroupsBody({ event, spaceName }: { event: EventDetail; spaceName?: stri
       tasksHref={`${eventHref}/tasks`}
       framed
       leading={
-        <Link className="event-home__back" to={eventHref} aria-label="행사 홈으로">
+        <Link className="event-home__back scene-press scene-press--text" to={eventHref} aria-label="행사 홈으로">
           <img src={arrowLeft} alt="" />
         </Link>
       }
@@ -1467,7 +1467,7 @@ function GroupCard({
                   {editable ? (
                     <button
                       type="button"
-                      className="event-groups__heart"
+                      className="event-groups__heart scene-press scene-press--quiet"
                       aria-pressed={person.leader}
                       disabled={busy}
                       title={person.leader ? "조장 해제" : "조장으로 지정"}

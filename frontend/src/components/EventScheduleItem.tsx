@@ -71,7 +71,7 @@ function ItemLoader({ event, itemId }: { event: EventDetail; itemId: string }) {
     return (
       <div className="event-schedule__empty">
         <p>이 일정을 찾을 수 없어요. 다른 운영자가 지웠을 수 있어요.</p>
-        <Link className="event-schedule__link" to={backHref}>
+        <Link className="event-schedule__link scene-press scene-press--text" to={backHref}>
           일정표로 돌아가기
         </Link>
       </div>
@@ -402,7 +402,7 @@ function ItemForm({
           </span>
           <div className="event-schedule__segments" role="radiogroup" aria-labelledby="schedule-day-label">
             {board.days.map((entry) => (
-              <label key={entry.day} className={`event-schedule__segment${draft.day === entry.day ? " event-schedule__segment--on" : ""}`}>
+              <label key={entry.day} className={`event-schedule__segment scene-press scene-press--chip${draft.day === entry.day ? " event-schedule__segment--on" : ""}`}>
                 <input type="radio" name="day" checked={draft.day === entry.day} onChange={() => update({ day: entry.day })} />
                 <span>{entry.day}일차</span>
                 <span className="event-schedule__segment-sub">{entry.dayLabel}</span>
@@ -487,7 +487,7 @@ function ItemForm({
           </span>
           <div className="event-schedule__segments" role="radiogroup" aria-labelledby="schedule-audience-label">
             {(["ALL", "LEADERS", "STAFF"] as const).map((audience) => (
-              <label key={audience} className={`event-schedule__segment${draft.audience === audience ? " event-schedule__segment--on" : ""}`}>
+              <label key={audience} className={`event-schedule__segment scene-press scene-press--chip${draft.audience === audience ? " event-schedule__segment--on" : ""}`}>
                 <input type="radio" name="audience" checked={draft.audience === audience} onChange={() => update({ audience })} />
                 <span>{AUDIENCE_LABEL[audience]}</span>
               </label>

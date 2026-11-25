@@ -17,7 +17,7 @@ export function ParticipantTabBar({ eventId, features }: { eventId: string; feat
           return (
             <li key={tab.key}>
               <Link
-                className={`participant-tabs__item${active ? " participant-tabs__item--current" : ""}`}
+                className={`participant-tabs__item scene-press scene-press--quiet scene-press--inset${active ? " participant-tabs__item--current" : ""}`}
                 to={participantPath(eventId, tab.key)}
                 aria-current={active ? "page" : undefined}
               >

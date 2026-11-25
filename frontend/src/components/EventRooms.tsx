@@ -119,7 +119,7 @@ function RoomsBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
       tasksHref={`${eventHref}/tasks`}
       framed
       leading={
-        <Link className="event-home__back" to={eventHref} aria-label="행사 홈으로">
+        <Link className="event-home__back scene-press scene-press--text" to={eventHref} aria-label="행사 홈으로">
           <img src={arrowLeft} alt="" />
         </Link>
       }
@@ -644,7 +644,7 @@ function Board({
         {notLodging.some((person) => person.roomId === null) && filters.lodging !== "NOT_LODGING" ? (
           <p className="event-rooms__not-lodging-note">
             숙박하지 않는 {notLodging.filter((person) => person.roomId === null).length}명(집회만·통근·당일)은 방에 넣지 않아요. 미배정 수에도 들지 않아요.{" "}
-            <button type="button" className="event-rooms__link" onClick={() => setFilters({ ...filters, lodging: "NOT_LODGING", assignment: "all" })}>
+            <button type="button" className="event-rooms__link scene-press scene-press--text" onClick={() => setFilters({ ...filters, lodging: "NOT_LODGING", assignment: "all" })}>
               명단 보기
             </button>
           </p>

@@ -105,7 +105,7 @@ export function EventCreate() {
       title="새 행사 만들기"
       spaceName={space.name}
       leading={
-        <Link className="event-create__back" to="/events" aria-label="행사 목록">
+        <Link className="event-create__back scene-press scene-press--text" to="/events" aria-label="행사 목록">
           <img src={arrowLeft} alt="" />
         </Link>
       }
@@ -298,7 +298,7 @@ function DateField({
             onChange(next);
           }}
         />
-        <button className="event-create__calendar" type="button" aria-label={`${label} 선택`} onClick={open}>
+        <button className="event-create__calendar scene-press scene-press--quiet" type="button" aria-label={`${label} 선택`} onClick={open}>
           <img src={calendar} alt="" />
         </button>
       </span>

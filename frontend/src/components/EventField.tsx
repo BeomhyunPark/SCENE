@@ -285,7 +285,7 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
       tasksHref={`${eventHref}/tasks`}
       framed
       leading={
-        <Link className="event-home__back" to={eventHref} aria-label="행사 홈">
+        <Link className="event-home__back scene-press scene-press--text" to={eventHref} aria-label="행사 홈">
           <img src={arrowLeft} alt="" />
         </Link>
       }
@@ -331,7 +331,7 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
               <button
                 key={value}
                 type="button"
-                className="event-field__view"
+                className="event-field__view scene-press scene-press--quiet"
                 aria-pressed={view === value}
                 onClick={() => setView(value)}
               >
@@ -410,7 +410,7 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
               )}
             </section>
             {/* 식수 현황 바로 가기 (#454, DEC-089 §11). */}
-            <Link className="event-field__meals-link" to={`${eventHref}/meals`}>
+            <Link className="event-field__meals-link scene-press scene-press--text" to={`${eventHref}/meals`}>
               식수 현황 보기
             </Link>
             </div>
@@ -433,7 +433,7 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
                     <button
                       key={value}
                       type="button"
-                      className="event-field__filter"
+                      className="event-field__filter scene-press scene-press--chip"
                       aria-pressed={filter === value}
                       onClick={() => setFilter(value)}
                     >
@@ -659,7 +659,7 @@ function ArrivalSummary({ arrival, onOverdue }: { arrival: SummaryArrival; onOve
     <section className="event-field__arrivals" aria-label="미완료 도착 예정">
       <p className="event-field__arrivals-basis">{arrivalBasis(arrival)}</p>
       <p className="event-field__arrivals-line">
-        <button type="button" className="event-field__arrivals-overdue" onClick={onOverdue}>
+        <button type="button" className="event-field__arrivals-overdue scene-press scene-press--text" onClick={onOverdue}>
           왔어야 함 <strong>{n(arrival.overdue)}</strong>
         </button>
         <span>올 예정 {n(arrival.coming)}</span>

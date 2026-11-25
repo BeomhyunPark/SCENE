@@ -131,7 +131,7 @@ function TaskList({
       tasksHref={`/events/${eventId}/tasks`}
       framed
       leading={
-        <Link className="event-home__back" to={`/events/${eventId}`} aria-label="행사로">
+        <Link className="event-home__back scene-press scene-press--text" to={`/events/${eventId}`} aria-label="행사로">
           <img src={arrowLeft} alt="" />
         </Link>
       }
@@ -211,7 +211,11 @@ function TaskList({
           <ul className="event-tasks__rows">
             {tasks.data.items.map((task) => (
               <li key={task.taskId}>
-                <button type="button" onClick={() => navigate(`/events/${eventId}/tasks/${task.taskId}`)}>
+                <button
+                  type="button"
+                  className="scene-press scene-press--card"
+                  onClick={() => navigate(`/events/${eventId}/tasks/${task.taskId}`)}
+                >
                   <span>{task.title}</span>
                   <span className="event-tasks__badge">{taskStatusLabel(task.status)}</span>
                   <span>{task.assigneeDisplayName ?? "담당 없음"}</span>
@@ -221,6 +225,7 @@ function TaskList({
                       {task.checklist.done}/{task.checklist.total}
                     </span>
                   ) : null}
+                  <span className="scene-chevron scene-chevron--end" aria-hidden="true" />
                 </button>
               </li>
             ))}
@@ -243,10 +248,11 @@ function TaskRows({ tasks, onOpen }: { tasks: readonly TaskListItem[]; onOpen: (
     <ul className="event-tasks__rows">
       {tasks.map((task) => (
         <li key={task.taskId}>
-          <button type="button" onClick={() => onOpen(task.taskId)}>
+          <button type="button" className="scene-press scene-press--card" onClick={() => onOpen(task.taskId)}>
             <span>{task.title}</span>
             <span className="event-tasks__badge">{taskStatusLabel(task.status)}</span>
             <span>{task.assigneeDisplayName ?? "담당 없음"}</span>
+            <span className="scene-chevron scene-chevron--end" aria-hidden="true" />
           </button>
         </li>
       ))}

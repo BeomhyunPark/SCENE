@@ -203,7 +203,7 @@ function Detail({ event, spaceName, taskId }: { event: EventDetail; spaceName?: 
       tasksHref={`/events/${eventId}/tasks`}
       framed
       leading={
-        <Link className="event-home__back" to={`/events/${eventId}/tasks`} aria-label="업무 목록">
+        <Link className="event-home__back scene-press scene-press--text" to={`/events/${eventId}/tasks`} aria-label="업무 목록">
           <img src={arrowLeft} alt="" />
         </Link>
       }

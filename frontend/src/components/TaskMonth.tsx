@@ -287,7 +287,7 @@ function MonthList({
               {onPick ? (
                 <button
                   type="button"
-                  className="task-month__add"
+                  className="task-month__add scene-press scene-press--quiet"
                   onClick={() => onPick({ startDate: date, dueDate: date })}
                 >
                   + 업무
