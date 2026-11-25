@@ -280,6 +280,7 @@
 | G5 | 작업 브랜치 `claude/g5-room-checkin` → 통합 브랜치 `claude/week3-integration`(main 아님) (#460, DEC-085 §10, 마이그레이션 없음). 표·CSV·현장 명단·체크인 결과의 공개본 방, 로컬 실제 클릭. 운영 서버 확인 전 |
 | E3 | 작업 브랜치 `claude/e3-meal-counts` → 통합 브랜치 `claude/week3-integration`(main 아님) (#454, DEC-087). 식수 현황 화면 `/events/{eventId}/meals`. 운영 서버 확인 전 |
 | E4 | 작업 브랜치 `claude/e4-arrival-roster` → 통합 브랜치 `claude/week3-integration`(main 아님) (#456, DEC-087 Follow-up). 현장 운영 명단에 도착 예정 칸과 "왔어야 함" 거르기. 운영 서버 확인 전 |
+| B5 | 작업 브랜치 `claude/b5-participant-inbox-463`(통합 브랜치 위, main 아님) (#463, DEC-080 Follow-up). 머리글 종·알림함·누르면 그 화면, 조 공개 알림(`GROUP_PUBLISHED`) 서버. 로컬 실제 서버 클릭. 운영 서버 확인 전 |
 | 3주차 통합 | 위 여덟 브랜치를 `claude/week3-integration`에 merge 커밋으로 합치고 전체 검사·로컬 한 흐름 클릭을 했다([기록](../test_results/week3-integration/README.md)). PR·main 병합 전 |
 | 3주차 나머지(A12, B5, F5) | 시작 전 |
 | H2~H4 | 범위 밖 (2026-11-20, 결정 14) |

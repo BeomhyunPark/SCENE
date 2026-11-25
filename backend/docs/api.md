@@ -1805,7 +1805,7 @@ CSRF가 필요하다.
 
 - `seq` 내림차순이다. `before`(양의 정수)가 있으면 그보다 작은 `seq`만 준다. `limit`은 1–50, 기본 30. 벗어나거나 숫자가 아니면 `400 VALIDATION_FAILED`(필드 `before`·`limit`).
 - `nextBefore`는 더 있으면 다음 요청의 `before`, 없으면 `null`이다. `unreadCount`는 100에서 멈춘다. 조회만으로 읽음 처리하지 않는다.
-- `kind`·`target.type`의 값은 [계약 초안 §7.2](../../docs/architecture/participant-home-contract.md)다. 지금 서버에서 참가자 알림을 만드는 경로는 공지(`NOTICE_PUBLISHED`·`NOTICE_UPDATED`, [공지](#공지))와 일정표 공개(`SCHEDULE_PUBLISHED`·`SCHEDULE_CHANGED`, [일정표](#일정표))다(조 공개 알림은 B5가 만든다). 화면은 모르는 `kind`를 받으면 `title`·`body`만 보이고 누를 수 없게 한다.
+- `kind`·`target.type`의 값은 [계약 초안 §7.2](../../docs/architecture/participant-home-contract.md)다. 지금 서버에서 참가자 알림을 만드는 경로는 공지(`NOTICE_PUBLISHED`·`NOTICE_UPDATED`, [공지](#공지)), 일정표 공개(`SCHEDULE_PUBLISHED`·`SCHEDULE_CHANGED`, [일정표](#일정표)), 조 편성 공개(`GROUP_PUBLISHED`, B5 #463), 숙소 공개(`ROOM_PUBLISHED`, [숙소](#숙소))다. 운영자의 신청 수정(`APPLICATION_UPDATED_BY_OPERATOR`)은 A12(#462)가 더한다. 참가자 화면(알림함, B5)은 이 목록을 그대로 보이고, 조장·운영진 대상 공지는 만들 때 받는 사람에서 빠지므로 일반 참가자의 목록에 없다(`ParticipantInboxHttpIT`). 화면은 모르는 `kind`를 받으면 `title`·`body`만 보이고 누를 수 없게 한다.
 - `count`는 합쳐진 수다. 같은 받는 사람에게 같은 `kind`·같은 `target`의 읽지 않은 알림이 있으면 그 행을 지우고 새 행(`seq` 새로, `count` = 이전 + 1)을 넣는다. 읽은 알림은 합치지 않는다.
 
 ### `POST /api/v1/participant/notifications/read`
@@ -2534,7 +2534,7 @@ CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고
 }
 ```
 
-`ALREADY_PUBLISHED`면 `publicationId`·`publishedAt`이 가장 최근 공개 값이고 `changedParticipantCount`는 0이다. `assignedCount`·`unassignedCount`는 지금 활성 참가자 기준이다. `PUBLISHED`의 `changedParticipantCount`는 직전 공개본과 비교한 값이다. `confirmUnassigned`가 불리언이 아니면 `400`(필드 `confirmUnassigned`), `expectedBoardVersion`이 0 이상 정수가 아니면 `400`(필드 `expectedBoardVersion`)이다. 공개는 `group_publications`에 한 행을 더한다. 내용은 조 id·이름·순서와 조마다 조원·조장의 참가자 id다(활성 참가자만). 조원은 작업본의 조 안 순서대로 담는다(#343). 이름·전화는 넣지 않는다. 같은 transaction에 audit `GROUPS_PUBLISHED`를 남긴다. 알림은 보내지 않는다(DEC-072 범위 밖). 조가 하나도 없어도 공개할 수 있고, 그러면 모두 미배정으로 보인다.
+`ALREADY_PUBLISHED`면 `publicationId`·`publishedAt`이 가장 최근 공개 값이고 `changedParticipantCount`는 0이다. `assignedCount`·`unassignedCount`는 지금 활성 참가자 기준이다. `PUBLISHED`의 `changedParticipantCount`는 직전 공개본과 비교한 값이다. `confirmUnassigned`가 불리언이 아니면 `400`(필드 `confirmUnassigned`), `expectedBoardVersion`이 0 이상 정수가 아니면 `400`(필드 `expectedBoardVersion`)이다. 공개는 `group_publications`에 한 행을 더한다. 내용은 조 id·이름·순서와 조마다 조원·조장의 참가자 id다(활성 참가자만). 조원은 작업본의 조 안 순서대로 담는다(#343). 이름·전화는 넣지 않는다. 같은 transaction에 audit `GROUPS_PUBLISHED`를 남기고, 직전 공개본과 비교해 조·조장 표시가 바뀐 활성 참가자(첫 공개는 배정된 전원)에게 참가자 알림 `GROUP_PUBLISHED`를 만든다(B5 #463, DEC-080 §7.2). `target`은 `GROUP`과 그 사람의 조 id(조에서 빠졌으면 `null`), 제목은 "내 조가 정해졌어요"·"내 조가 바뀌었어요"(조장이면 " · 조장"을 붙임)·"조장으로 정해졌어요"·"조장 표시가 바뀌었어요"·"조 배정이 바뀌었어요" 중 하나, 본문은 내 조 이름(빠졌으면 "내 조 화면에서 확인해 주세요")이다. 다른 참가자의 이름은 넣지 않는다. 운영자 알림은 만들지 않는다. 조가 하나도 없어도 공개할 수 있고, 그러면 모두 미배정으로 보인다.
 
 ### `GET /api/v1/operator/events/{eventId}/groups/published`
 
