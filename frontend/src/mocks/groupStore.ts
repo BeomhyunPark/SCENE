@@ -1,7 +1,9 @@
 import { localEvent, localUsers } from "./fixtures/seed";
 import { eventById, spacesFor } from "./operatorStore";
 import { requireEventRead } from "./formStore";
+import { checkedInAtOf } from "./checkInStore";
 import { checkInCandidates } from "./participantStore";
+import { groupRosterVisible } from "./participantSettingsStore";
 import { permissionsFor } from "./taskStore";
 
 /** The 새가족 option label (DEC-070 Follow-up 2026-11-17). The board shows it as the middle group. */
@@ -28,6 +30,10 @@ type Person = {
   submitted: boolean;
   /** Chosen MEALS slots for PARTIAL·WORSHIP_ONLY; null is no answer ("모름"). FULL reads as every slot. */
   chosenSlots: string[] | null;
+  /** 신청 전화 for the leader's member detail (DEC-083 §3); null when none. */
+  phone?: string | null;
+  /** When the current revision was saved; null while it is the first submission. */
+  revisedAt?: string | null;
 };
 
 type Slot = { slotId: string; day: number; date: string; dayLabel: string; meal: string; label: string; sortOrder: number };
@@ -186,6 +192,52 @@ export function groupPeople(eventId: string): readonly { participantId: string; 
   return peopleOf(eventId);
 }
 
+/**
+ * What the room board mock (G3 #458) reads of each participant: answers, 참석 칸, the group of the latest group
+ * publication and the working-copy group. Same people as the group board, active or not.
+ */
+export function roomBoardPeople(eventId: string): {
+  participantId: string;
+  name: string;
+  cohort: string | null;
+  gender: { optionId: string; label: string } | null;
+  attendance: Attendance;
+  submitted: boolean;
+  slotIds: string[] | null;
+  group: { groupId: string; name: string } | null;
+  draftGroupId: string | null;
+}[] {
+  const board = boardOf(eventId);
+  const latest = board.publications.at(-1) ?? null;
+  const places = publishedPlaces(latest);
+  return peopleOf(eventId).map((person) => {
+    const place = places.get(person.participantId);
+    const group = place ? latest!.groups.find((item) => item.groupId === place.groupId) : undefined;
+    return {
+      participantId: person.participantId,
+      name: person.name,
+      cohort: person.cohort,
+      gender: person.gender,
+      attendance: person.attendance,
+      submitted: person.submitted,
+      slotIds: slotIdsOf(board, person),
+      group: group ? { groupId: group.groupId, name: group.name } : null,
+      draftGroupId: assignmentOf(board, person.participantId).groupId,
+    };
+  });
+}
+
+/** The groups of the latest group publication, for the room board mock's `groups`. */
+export function publishedGroupList(eventId: string): { groupId: string; name: string; sortOrder: number }[] {
+  const latest = boardOf(eventId).publications.at(-1);
+  return (latest?.groups ?? []).map((group) => ({ groupId: group.groupId, name: group.name, sortOrder: group.sortOrder }));
+}
+
+/** Test seam: the room mock's 200-person run seeds the group board too, so both read the same people. */
+export function seedRoomRoster(eventId: string, count: number): void {
+  boards.set(eventId, newBoard(largePeople(count), retreatSlots()));
+}
+
 export function groupAssignmentLogs(eventId: string): readonly Log[] {
   return boardOf(eventId).logs;
 }
@@ -323,39 +375,140 @@ export function publicationCount(eventId: string): number {
   return boardOf(eventId).publications.length;
 }
 
+type RosterMember = { name: string; cohort: string | null; gender: string | null; leader: boolean; me: boolean };
+
+type LeaderMember = {
+  participantId: string;
+  name: string;
+  cohort: string | null;
+  gender: string | null;
+  leader: boolean;
+  checkIn: { checkedIn: boolean; checkedInAt: string | null };
+  attendance: {
+    type: Attendance;
+    arrivalSlotId: string | null;
+    departureSlotId: string | null;
+    slotIds: string[] | null;
+    lodgingNights: number[] | null;
+  };
+  room: null;
+  applicationRevisedAt: string | null;
+};
+
 export type ParticipantGroupBody = {
   status: "NOT_ELIGIBLE" | "NOT_PUBLISHED" | "UNASSIGNED" | "ASSIGNED";
   publishedAt: string | null;
   group: { name: string; leaders: { name: string }[] } | null;
   leader: boolean;
-  members: { name: string; cohort: string | null; leader: boolean }[] | null;
+  rosterVisible: boolean;
+  members: RosterMember[] | null;
+  leaderView: { activeCount: number; checkedInCount: number; slots: Slot[] | null; members: LeaderMember[] } | null;
 };
 
 /**
- * GET /api/v1/participant/group (#300, DEC-072 §6) from the latest publication. Names and 또래 are read
- * now; withdrawn people drop out of the roster and the leader names.
+ * GET /api/v1/participant/group (#300, DEC-072 §6, DEC-083 · #452) from the latest publication. Names, 또래
+ * and 성별 are read now; withdrawn people drop out of the roster and the leader names. Members get the
+ * roster while the event switch is on; the leader always gets it and `leaderView`. `room` stays null
+ * before rooms (G2).
  */
 export function readParticipantGroup(eventId: string, participantId: string): ParticipantGroupBody {
   const active = new Map(activePeople(eventId).map((person) => [person.participantId, person]));
-  const none = { group: null, leader: false, members: null };
+  const none = { group: null, leader: false, rosterVisible: false, members: null, leaderView: null };
   if (!active.has(participantId)) return { status: "NOT_ELIGIBLE", publishedAt: null, ...none };
   const publication = boardOf(eventId).publications.at(-1);
   if (!publication) return { status: "NOT_PUBLISHED", publishedAt: null, ...none };
   const group = publication.groups.find((item) => item.members.some((member) => member.participantId === participantId));
   if (!group) return { status: "UNASSIGNED", publishedAt: publication.publishedAt, ...none };
-  const members = group.members.flatMap((member) => {
+  const people = group.members.flatMap((member) => {
     const person = active.get(member.participantId);
-    return person ? [{ name: person.name, cohort: person.cohort, leader: member.leader }] : [];
+    return person ? [{ person, leader: member.leader }] : [];
   });
-  const ordered = members;
-  const leader = group.members.some((member) => member.participantId === participantId && member.leader);
+  const leader = people.some(({ person, leader: isLeader }) => person.participantId === participantId && isLeader);
+  const rosterVisible = leader || groupRosterVisible(eventId);
+  const board = boardOf(eventId);
+  const leaderMembers = leader ? people.map(({ person, leader: isLeader }) => leaderMember(eventId, board, person, isLeader)) : [];
   return {
     status: "ASSIGNED",
     publishedAt: publication.publishedAt,
-    group: { name: group.name, leaders: ordered.filter((member) => member.leader).map((member) => ({ name: member.name })) },
+    group: { name: group.name, leaders: people.filter((item) => item.leader).map(({ person }) => ({ name: person.name })) },
     leader,
-    members: leader ? ordered : null,
+    rosterVisible,
+    members: rosterVisible
+      ? people.map(({ person, leader: isLeader }) => ({
+          name: person.name,
+          cohort: person.cohort,
+          gender: person.gender?.label ?? null,
+          leader: isLeader,
+          me: person.participantId === participantId,
+        }))
+      : null,
+    leaderView: leader
+      ? {
+          activeCount: leaderMembers.length,
+          checkedInCount: leaderMembers.filter((member) => member.checkIn.checkedIn).length,
+          slots: board.slots ? board.slots.map((slot) => ({ ...slot })) : null,
+          members: leaderMembers,
+        }
+      : null,
   };
+}
+
+/**
+ * GET /api/v1/participant/group/members/{participantId} (DEC-083 §3): only the leader of the latest
+ * publication, for an active member of the same group (themself included). Everything else is the same
+ * 404. Answers are a short made-up set with the operator table's reading text; the server logs each read.
+ */
+export function readGroupMember(eventId: string, viewerId: string, participantId: string) {
+  const view = readParticipantGroup(eventId, viewerId);
+  const member = view.leaderView?.members.find((item) => item.participantId === participantId);
+  const person = activePeople(eventId).find((item) => item.participantId === participantId);
+  if (!view.leader || !member || !person) return null;
+  const answers = [
+    ["COHORT", "또래", person.cohort],
+    ["GENDER", "성별", person.gender?.label ?? null],
+    ["MIDDLE_GROUP", "중그룹", person.middleGroup],
+    ["CELL", "셀", person.cell],
+    ["ATTENDANCE", "참석 방식", ATTENDANCE_TEXT[person.attendance]],
+  ].flatMap(([presetKey, label, display]) =>
+    display ? [{ fieldId: `field_${presetKey!.toLowerCase()}`, presetKey, label, type: "DROPDOWN", display, value: { text: display }, operatorEdited: false }] : [],
+  );
+  return {
+    ...member,
+    phone: person.phone ?? null,
+    application: {
+      submittedAt: "2026-12-16T03:00:00Z",
+      revisedAt: person.revisedAt ?? null,
+      revisedByOperator: false,
+      answers,
+    },
+  };
+}
+
+const ATTENDANCE_TEXT: Record<Attendance, string> = { FULL: "전체 참석", PARTIAL: "부분 참석", WORSHIP_ONLY: "집회만 참석" };
+
+function leaderMember(eventId: string, board: Board, person: Person, leader: boolean): LeaderMember {
+  const checkedInAt = checkedInAtOf(eventId, person.participantId);
+  const slotIds = slotIdsOf(board, person);
+  return {
+    participantId: person.participantId,
+    name: person.name,
+    cohort: person.cohort,
+    gender: person.gender?.label ?? null,
+    leader,
+    checkIn: { checkedIn: checkedInAt !== null, checkedInAt },
+    attendance: { type: person.attendance, arrivalSlotId: null, departureSlotId: null, slotIds, lodgingNights: lodgingNightsOf(board, person, slotIds) },
+    room: null,
+    applicationRevisedAt: person.revisedAt ?? null,
+  };
+}
+
+/** Rough stand-in for MealSlots.lodgingNights: a night n is slept when a slot on day n+1 follows one on day n. */
+function lodgingNightsOf(board: Board, person: Person, slotIds: string[] | null): number[] | null {
+  if (!board.slots) return null;
+  if (person.attendance === "WORSHIP_ONLY") return [];
+  if (!slotIds) return null;
+  const days = [...new Set(board.slots.filter((slot) => slotIds.includes(slot.slotId)).map((slot) => slot.day))].sort();
+  return days.filter((day) => days.includes(day + 1));
 }
 
 /**
@@ -864,6 +1017,8 @@ function seedPeople(): Person[] {
     cell: newcomers[index] === true ? null : cell,
     newcomer: index in newcomers ? newcomers[index] : false,
     submitted: true,
+    phone: index === 5 ? null : `010-2${String(index).padStart(3, "0")}-${String(4000 + index * 7)}`,
+    revisedAt: index === 2 ? "2026-12-28T10:00:00Z" : null,
     // 박서준: 토요일 저녁부터 끝까지. 이수아(97): 집회만. 한지우: 부분 참석인데 칸 답 없음(모름).
     chosenSlots:
       index === 2
@@ -891,6 +1046,7 @@ function largePeople(count: number): Person[] {
       cell: index % 8 === 7 || index % 7 === 3 ? null : cells[index % cells.length],
       newcomer: index % 10 === 9 ? null : index % 7 === 3,
       submitted: true,
+      phone: `010-3${String(index).padStart(3, "0")}-${String(5000 + index).slice(-4)}`,
       chosenSlots: largeChosenSlots(index),
     });
   }

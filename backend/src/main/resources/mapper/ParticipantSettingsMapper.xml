@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="app.scene.event.participantsettings.mapper.ParticipantSettingsMapper">
+
+  <select id="find" resultType="app.scene.event.participantsettings.ParticipantSettingsRow">
+    SELECT s.group_roster_visible_to_members, s.room_roster_scope, s.version, s.updated_at,
+           u.display_name AS updated_by_display_name
+    FROM event_participant_settings s
+    JOIN users u ON u.id = s.updated_by
+    WHERE s.space_id = #{spaceId} AND s.event_id = #{eventId}
+  </select>
+
+  <insert id="insertFirst">
+    INSERT INTO event_participant_settings (
+      space_id, event_id, group_roster_visible_to_members, room_roster_scope, version, updated_by,
+      updated_at)
+    VALUES (#{spaceId}, #{eventId}, #{rosterVisible}, #{roomRosterScope}, 1, #{updatedBy}, #{updatedAt})
+    ON CONFLICT (space_id, event_id) DO NOTHING
+  </insert>
+
+  <update id="updateVersion">
+    UPDATE event_participant_settings
+    SET group_roster_visible_to_members = #{rosterVisible}, room_roster_scope = #{roomRosterScope},
+        version = version + 1,
+        updated_by = #{updatedBy}, updated_at = #{updatedAt}
+    WHERE space_id = #{spaceId} AND event_id = #{eventId} AND version = #{expectedVersion}
+  </update>
+
+</mapper>

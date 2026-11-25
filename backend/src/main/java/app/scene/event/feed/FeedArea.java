@@ -7,9 +7,9 @@ package app.scene.event.feed;
  * <ul>
  *   <li>{@code HOME}: event name, lifecycle transition, completion notice ({@code
  *       OperatorEventCommandService}, {@code EventLifecycleService}, {@code OperatorFormService})
- *   <li>{@code GROUPS}: group publication {@code PUBLISHED} ({@code GroupService.publish}), and a
+ *   <li>{@code GROUPS}: group publication {@code PUBLISHED} ({@code GroupService.publish}), a
  *       withdraw of someone in the latest publication ({@code GroupService.removeWithdrawn},
- *       DEC-084)
+ *       DEC-084), and a change of the roster switch ({@code ParticipantSettingsService}, DEC-083)
  *   <li>{@code SCHEDULE}: schedule publication {@code PUBLISHED} only (schedule, C)
  *   <li>{@code NOTICES}: a notice whose audience before or after includes participants is
  *       published, edited, archived, unarchived or (un)pinned (notices, D)

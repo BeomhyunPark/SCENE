@@ -8,10 +8,13 @@ import app.scene.common.permission.Permission;
 import app.scene.common.permission.PermissionEvaluator;
 import app.scene.common.web.ItemPage;
 import app.scene.common.web.PageRequest;
+import app.scene.event.application.ArrivalRoster;
+import app.scene.event.application.ArrivalStatus;
 import app.scene.event.lifecycle.EventAccessGate;
 import app.scene.event.lifecycle.EventLocation;
 import app.scene.event.lifecycle.EventRepository;
 import app.scene.event.lifecycle.EventRow;
+import app.scene.event.room.RoomDesk;
 import app.scene.space.EventUserPermissionRepository;
 import java.time.Clock;
 import java.time.Instant;
@@ -19,6 +22,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Pattern;
@@ -34,6 +38,10 @@ import tools.jackson.databind.json.JsonMapper;
  * eligibility → result. Writes lock the event row, so two operators on the same participant
  * serialize and the later one sees {@code ALREADY_CHECKED_IN}. Each write adds a history row and an
  * audit row in the same transaction. Names, phones, and the QR value never go to audit or logs.
+ *
+ * <p>The summary and every roster item carry the arrival standing (E4 #456, DEC-089 Follow-up) from
+ * {@link ArrivalRoster}: the meal counts' inputs and cursor, so {@code OVERDUE} is the next meal's
+ * "아직 안 옴". The roster's {@code arrival} filter reads every matching row, then pages in memory.
  */
 @Service
 public class CheckInService {
@@ -52,8 +60,10 @@ public class CheckInService {
   private final EventRepository events;
   private final CheckInRepository checkIns;
   private final CheckInCodes codes;
+  private final RoomDesk roomDesk;
   private final EventUserPermissionRepository permissions;
   private final AuditLogRepository auditLogs;
+  private final ArrivalRoster arrivals;
   private final JsonMapper json;
   private final Clock clock;
 
@@ -62,16 +72,20 @@ public class CheckInService {
       EventRepository events,
       CheckInRepository checkIns,
       CheckInCodes codes,
+      RoomDesk roomDesk,
       EventUserPermissionRepository permissions,
       AuditLogRepository auditLogs,
+      ArrivalRoster arrivals,
       JsonMapper json,
       Clock clock) {
     this.gate = gate;
     this.events = events;
     this.checkIns = checkIns;
     this.codes = codes;
+    this.roomDesk = roomDesk;
     this.permissions = permissions;
     this.auditLogs = auditLogs;
+    this.arrivals = arrivals;
     this.json = json;
     this.clock = clock;
   }
@@ -88,16 +102,34 @@ public class CheckInService {
             .find(spaceId, eventId)
             .orElseThrow(() -> new SceneException(ErrorCode.RESOURCE_NOT_FOUND));
     CheckInCounts counts = checkIns.counts(spaceId, eventId);
+    ArrivalRoster.Snapshot snapshot = arrivals.read(spaceId, eventId, readTime());
+    CheckInSummary.Arrival arrival =
+        snapshot.slotted()
+            ? new CheckInSummary.Arrival(
+                snapshot.asOf(),
+                snapshot.nextMeal(),
+                snapshot.counts().get(ArrivalStatus.OVERDUE),
+                snapshot.counts().get(ArrivalStatus.COMING),
+                snapshot.counts().get(ArrivalStatus.PASSED),
+                snapshot.counts().get(ArrivalStatus.UNKNOWN))
+            : null;
     return new CheckInSummary(
         event.lifecycleStatus(),
         counts.total(),
         counts.checkedIn(),
-        counts.total() - counts.checkedIn());
+        counts.total() - counts.checkedIn(),
+        arrival);
   }
 
   @Transactional(readOnly = true)
   public ItemPage<RosterItem> roster(
-      UUID actorId, UUID eventId, String q, String checkedIn, Integer page, Integer size) {
+      UUID actorId,
+      UUID eventId,
+      String q,
+      String checkedIn,
+      String arrival,
+      Integer page,
+      Integer size) {
     EventAccessGate.Opened opened = gate.open(actorId, eventId);
     if (!mayRead(opened, actorId)) {
       throw new SceneException(ErrorCode.FORBIDDEN);
@@ -105,12 +137,31 @@ public class CheckInService {
     PageRequest request = PageRequest.of(page, size);
     String text = searchText(q);
     Boolean filter = checkedInFilter(checkedIn);
+    ArrivalStatus wanted = arrivalFilter(arrival);
     boolean phoneVisible = allows(opened, actorId, Permission.CHECKIN_WRITE);
     boolean byPhone = phoneVisible && text != null && PHONE_LAST4.matcher(text).matches();
+    RoomDesk.Stays stays = roomDesk.all(opened.location().spaceId(), eventId);
     UUID spaceId = opened.location().spaceId();
-    long total = checkIns.countRoster(spaceId, eventId, text, byPhone, filter);
+    ArrivalRoster.Snapshot snapshot = arrivals.read(spaceId, eventId, readTime());
+    long total;
+    List<RosterRow> rows;
+    if (wanted == null) {
+      total = checkIns.countRoster(spaceId, eventId, text, byPhone, filter);
+      rows = checkIns.roster(spaceId, eventId, text, byPhone, filter, request);
+    } else {
+      List<RosterRow> matching = new ArrayList<>();
+      for (RosterRow row : checkIns.rosterAll(spaceId, eventId, text, byPhone, filter)) {
+        ArrivalRoster.Arrival standing = snapshot.of(row.participantId());
+        if (standing != null && standing.status() == wanted) {
+          matching.add(row);
+        }
+      }
+      total = matching.size();
+      int from = (int) Math.min(request.offset(), matching.size());
+      rows = matching.subList(from, Math.min(from + request.size(), matching.size()));
+    }
     List<RosterItem> items = new ArrayList<>();
-    for (RosterRow row : checkIns.roster(spaceId, eventId, text, byPhone, filter, request)) {
+    for (RosterRow row : rows) {
       RosterItem.Brief brief =
           row.checkInId() == null
               ? null
@@ -120,13 +171,17 @@ public class CheckInService {
                   row.method(),
                   row.checkedInAt(),
                   row.checkedInByDisplayName());
+      RoomDesk.Stay stay = stays.of(row.participantId());
       items.add(
           new RosterItem(
               row.participantId(),
               row.name(),
               row.cohort(),
               phoneVisible ? row.phoneLast4() : null,
-              brief));
+              brief,
+              CheckInRoom.of(stay),
+              stay.lodging(),
+              snapshot.of(row.participantId())));
     }
     return ItemPage.of(items, request, total);
   }
@@ -166,8 +221,12 @@ public class CheckInService {
           || !keyed.participantId().equals(target.participantId())) {
         throw new SceneException(ErrorCode.CONFLICT);
       }
-      return new CheckInResult(
-          CheckIn.CHECKED_IN, participant(target), current(spaceId, eventId, keyed.checkInId()));
+      return result(
+          spaceId,
+          eventId,
+          CheckIn.CHECKED_IN,
+          target,
+          current(spaceId, eventId, keyed.checkInId()));
     }
     if (!target.submitted()) {
       throw new SceneException(
@@ -177,7 +236,7 @@ public class CheckInService {
     CheckIn existing =
         checkIns.findByParticipant(spaceId, eventId, target.participantId()).orElse(null);
     if (existing != null && existing.checkedIn()) {
-      return new CheckInResult("ALREADY_CHECKED_IN", participant(target), existing);
+      return result(spaceId, eventId, "ALREADY_CHECKED_IN", target, existing);
     }
     Instant now = now();
     UUID checkInId;
@@ -212,8 +271,8 @@ public class CheckInService {
         request.method(),
         null,
         now);
-    return new CheckInResult(
-        CheckIn.CHECKED_IN, participant(target), current(spaceId, eventId, checkInId));
+    return result(
+        spaceId, eventId, CheckIn.CHECKED_IN, target, current(spaceId, eventId, checkInId));
   }
 
   @Transactional
@@ -296,6 +355,15 @@ public class CheckInService {
         .orElseThrow(() -> new IllegalStateException("check-in row is missing"));
   }
 
+  /** A check-in result with the published room (G5 #460) for the desk to say right away. */
+  private CheckInResult result(
+      UUID spaceId, UUID eventId, String result, CheckInTarget target, CheckIn checkIn) {
+    RoomDesk.Stay stay =
+        roomDesk.of(spaceId, eventId, List.of(target.participantId())).of(target.participantId());
+    return new CheckInResult(
+        result, participant(target), checkIn, CheckInRoom.of(stay), stay.lodging());
+  }
+
   private static CheckInParticipant participant(CheckInTarget target) {
     return new CheckInParticipant(target.participantId(), target.name(), target.cohort());
   }
@@ -327,6 +395,11 @@ public class CheckInService {
           throw new SceneException(
               ErrorCode.INVALID_STATE_TRANSITION, Map.of("eventStatus", event.lifecycleStatus()));
     }
+  }
+
+  /** Read time for the arrival standing, to the second like the meal counts. */
+  private Instant readTime() {
+    return clock.instant().truncatedTo(ChronoUnit.SECONDS);
   }
 
   private Instant now() {
@@ -426,6 +499,20 @@ public class CheckInService {
       return Boolean.FALSE;
     }
     throw invalid("checkedIn");
+  }
+
+  private static ArrivalStatus arrivalFilter(String value) {
+    if (value == null) {
+      return null;
+    }
+    if (!value.equals(value.toUpperCase(Locale.ROOT))) {
+      throw invalid("arrival");
+    }
+    try {
+      return ArrivalStatus.valueOf(value);
+    } catch (IllegalArgumentException unknown) {
+      throw invalid("arrival");
+    }
   }
 
   private static UUID requiredUuid(String value, String fieldName) {

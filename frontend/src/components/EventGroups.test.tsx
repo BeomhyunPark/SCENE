@@ -18,6 +18,7 @@ import {
   withdrawGroupParticipant,
 } from "../mocks/groupStore";
 import { setLifecycle } from "../mocks/operatorStore";
+import { participantSettingsVersion, readParticipantSettings, setGroupRosterVisible } from "../mocks/participantSettingsStore";
 
 const EVENT = localEvent.eventId;
 const WAIT = { timeout: 4000 };
@@ -418,7 +419,7 @@ describe("group publish (#302)", () => {
     expect(within(dialog()).getByText("처음 공개")).toBeInTheDocument();
     const items = within(within(dialog()).getByRole("list", { name: "공개되는 내용" })).getAllByRole("listitem");
     expect(items.map((item) => item.textContent)).toEqual(["조가 바뀌는 사람 2명", "바뀐 조 1개", "미배정 8명"]);
-    expect(within(dialog()).getByText(/조 이름과 조장 이름을 봐요. 조장은 자기 조원의 이름과 또래를 더 봐요/)).toBeInTheDocument();
+    expect(within(dialog()).getByText(/조 이름과 조장 이름을 봐요. .조원 명단 공개.가 켜져 있으면/)).toBeInTheDocument();
 
     fireEvent.click(within(dialog()).getByRole("button", { name: "공개" }));
     expect(await screen.findByText("미배정 8명을 두고 공개할까요?", {}, WAIT)).toBeInTheDocument();
@@ -608,5 +609,48 @@ describe("attendance bars (#318)", () => {
     } finally {
       document.elementFromPoint = original;
     }
+  });
+});
+
+describe("조원 명단 공개 switch (F3 #453, DEC-083 §2)", () => {
+  function roster() {
+    return screen.getByRole("region", { name: "조원 명단 공개" });
+  }
+
+  it("turns the members' roster off and on from the 조 편성 screen and raises updates.group", async () => {
+    const before = readParticipantSettings(EVENT, localUsers[0].userId);
+    await openAs(0);
+    expect(await within(roster()).findByText("보여 줌", {}, WAIT)).toBeInTheDocument();
+    fireEvent.click(within(roster()).getByRole("button", { name: "명단 숨기기" }));
+    expect(await within(roster()).findByText("보여 주지 않음", {}, WAIT)).toBeInTheDocument();
+    expect(within(roster()).getByText(/조원은 조 이름과 조장 이름만 봐요/)).toBeInTheDocument();
+    expect(readParticipantSettings(EVENT, localUsers[0].userId)).toMatchObject({ groupRosterVisibleToMembers: false, version: 1 });
+    expect(participantSettingsVersion(EVENT)).toBeGreaterThan("version" in before ? before.version : -1);
+    fireEvent.click(within(roster()).getByRole("button", { name: "명단 보여 주기" }));
+    expect(await within(roster()).findByText("보여 줌", {}, WAIT)).toBeInTheDocument();
+  });
+
+  it("reads the setting again on 409 without saving", async () => {
+    await openAs(0);
+    await within(roster()).findByText("보여 줌", {}, WAIT);
+    // Another operator turns it off after this screen read version 0.
+    setGroupRosterVisible(EVENT, false);
+    fireEvent.click(within(roster()).getByRole("button", { name: "명단 숨기기" }));
+    expect(await within(roster()).findByText(/그사이 다른 운영자가 바꿔서 저장하지 않았어요/, {}, WAIT)).toBeInTheDocument();
+    expect(await within(roster()).findByText("보여 주지 않음", {}, WAIT)).toBeInTheDocument();
+    expect(readParticipantSettings(EVENT, localUsers[0].userId)).toMatchObject({ groupRosterVisibleToMembers: false, version: 1 });
+  });
+
+  it("shows the state without the button to someone without EVENT_UPDATE", async () => {
+    revokePermissions(EVENT, localUsers[1].userId, ["EVENT_UPDATE"]);
+    await openAs(1);
+    expect(await within(roster()).findByText("보여 줌", {}, WAIT)).toBeInTheDocument();
+    expect(within(roster()).queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  it("is read-only on an archived event", async () => {
+    await openAs(0, "ARCHIVED");
+    expect(await within(roster()).findByText("보관된 행사라 바꿀 수 없어요.", {}, WAIT)).toBeInTheDocument();
+    expect(within(roster()).queryByRole("button")).not.toBeInTheDocument();
   });
 });

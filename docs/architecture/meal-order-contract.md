@@ -5,7 +5,7 @@
 > **아직 서버에 없다. 계약 초안이다.** 지금 서버가 받는 계약은 [backend/docs/api.md](../../backend/docs/api.md)다. 이 문서의 경로는 [#384](https://github.com/BeomhyunPark/SCENE/issues/384) H2(서버)·H3(운영자 화면)·H4(참가자 화면)에서 만든다. 만든 경로는 api.md로 옮기고 이 문서에서 지운다.
 
 - 정책: [DEC-086](../product/PRODUCT_DECISIONS.md) (H1, [#426](https://github.com/BeomhyunPark/SCENE/issues/426))
-- 기대는 계약: [참가자 홈·갱신 확인·알림](participant-home-contract.md)(DEC-080)의 `features.mealOrder`·`updates.mealOrder`·`MEAL_ORDER_PUBLISHED`·"다음 식사" 카드, [일정표](schedule-contract.md)(DEC-081)의 `slotId`, [내 조](participant-group-contract.md)(DEC-083)의 `leaderView`, api.md "조 편성"의 조·공개본
+- 기대는 계약: [참가자 홈·갱신 확인·알림](participant-home-contract.md)(DEC-080)의 `features.mealOrder`·`updates.mealOrder`·`MEAL_ORDER_PUBLISHED`·"다음 식사" 카드, [일정표](schedule-contract.md)(DEC-081)의 `slotId`, [내 조](../../backend/docs/api.md#get-apiv1participantgroup)(DEC-083)의 `leaderView`, api.md "조 편성"의 조·공개본
 - 본보기: [일정표 계약](schedule-contract.md)(작업본·공개본, "저장하고 바로 공개", `confirmOtherChanges`, `notify`)
 - 작성: 2026-11-20. 확인 방법: 로드맵, #384·#382·#230, DEC-043·046·047·070·072·073·074·079~083, api.md "조 편성"·"신청 집계", 계약 초안 네 개, `event/group/`·`MealSlots`·`Permission`·`ErrorCode`, 마이그레이션 V13·V14·V16을 읽었다. **서버 검증과 실제 클릭은 하지 않았다.**
 
@@ -335,7 +335,7 @@ DEC-080 §6과 같은 방식으로 **화면이** `schedule`·`meal-order` 응답
 
 ## 10. DEC-080·DEC-083 계약에 더하는 것
 
-[participant-home-contract](participant-home-contract.md)와 [participant-group-contract](participant-group-contract.md)는 다른 세션이 고치고 있어 이 문서에 적는다. H2·H4 PR이 그 문서(또는 그때의 api.md)에 옮긴다.
+[participant-home-contract](participant-home-contract.md)와 내 조 계약(지금은 [api.md "조 편성"](../../backend/docs/api.md#get-apiv1participantgroup))은 다른 세션이 고치고 있어 이 문서에 적는다. H2·H4 PR이 그 문서(또는 그때의 api.md)에 옮긴다.
 
 ### 10.1 DEC-080(참가자 홈)에 더하는 것
 

@@ -13,6 +13,7 @@ import {
   setLeaders,
   type GroupFailure,
 } from "../groupStore";
+import { readParticipantSettings, saveParticipantSettings } from "../participantSettingsStore";
 import { problem } from "../problem";
 import { currentOperator } from "./session";
 
@@ -20,6 +21,18 @@ import { currentOperator } from "./session";
 const base = "/api/v1/operator/events/:eventId";
 
 export const groupHandlers = [
+  // DEC-083 §2 (#452): the roster switch sits on the 조 편성 screen, so its mock lives here.
+  http.get(`${base}/participant-settings`, ({ params }) => {
+    const operator = currentOperator();
+    if (!operator) return problem(401, "AUTHENTICATION_REQUIRED");
+    return reply(readParticipantSettings(String(params.eventId), operator.userId));
+  }),
+  http.put(`${base}/participant-settings`, async ({ params, request, cookies }) => {
+    if (!csrfMatches(request, cookies)) return problem(403, "FORBIDDEN");
+    const operator = currentOperator();
+    if (!operator) return problem(401, "AUTHENTICATION_REQUIRED");
+    return reply(saveParticipantSettings(String(params.eventId), operator.userId, await readJson(request)));
+  }),
   http.get(`${base}/group-board`, ({ params }) => {
     const operator = currentOperator();
     if (!operator) return problem(401, "AUTHENTICATION_REQUIRED");

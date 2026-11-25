@@ -6,6 +6,8 @@ import app.scene.common.error.ErrorCode;
 import app.scene.common.error.SceneException;
 import app.scene.common.permission.Permission;
 import app.scene.common.permission.PermissionEvaluator;
+import app.scene.event.application.mapper.ApplicationTableMapper;
+import app.scene.event.application.param.EventApplicationKey;
 import app.scene.event.form.FormFieldRow;
 import app.scene.event.form.FormRepository;
 import app.scene.event.form.FormRow;
@@ -14,6 +16,8 @@ import app.scene.event.lifecycle.EventAccessGate;
 import app.scene.event.lifecycle.EventLocation;
 import app.scene.event.lifecycle.EventProfile;
 import app.scene.event.lifecycle.EventRepository;
+import app.scene.event.room.Lodging;
+import app.scene.event.room.RoomDesk;
 import app.scene.space.EventUserPermissionRepository;
 import java.time.Clock;
 import java.time.Instant;
@@ -51,6 +55,15 @@ public class ApplicationExportService {
   /** Last column in RANGE mode: the attended slots (DEC-074). */
   static final String SLOTS = "참석 일정";
 
+  /**
+   * Last column (G5 #460, DEC-085 §10): the room of the latest room publication, or {@link
+   * #NOT_LODGING} for someone without a published room who sleeps no night, else blank (before the
+   * first publication too).
+   */
+  static final String ROOM = "방";
+
+  static final String NOT_LODGING = "숙박 안 함";
+
   private static final DateTimeFormatter SUBMITTED_FORMAT =
       DateTimeFormatter.ofPattern("yyyy. M. d. HH:mm").withZone(EVENT_ZONE);
   private static final DateTimeFormatter FILE_DATE =
@@ -61,6 +74,8 @@ public class ApplicationExportService {
   private final EventRepository events;
   private final FormRepository forms;
   private final ApplicationRepository applications;
+  private final ApplicationTableMapper tables;
+  private final RoomDesk roomDesk;
   private final EventUserPermissionRepository permissions;
   private final AuditLogRepository auditLogs;
   private final JsonMapper json;
@@ -71,6 +86,8 @@ public class ApplicationExportService {
       EventRepository events,
       FormRepository forms,
       ApplicationRepository applications,
+      ApplicationTableMapper tables,
+      RoomDesk roomDesk,
       EventUserPermissionRepository permissions,
       AuditLogRepository auditLogs,
       JsonMapper json,
@@ -79,6 +96,8 @@ public class ApplicationExportService {
     this.events = events;
     this.forms = forms;
     this.applications = applications;
+    this.tables = tables;
+    this.roomDesk = roomDesk;
     this.permissions = permissions;
     this.auditLogs = auditLogs;
     this.json = json;
@@ -125,6 +144,13 @@ public class ApplicationExportService {
     if (slotColumn) {
       header.add(SLOTS);
     }
+    header.add(ROOM);
+    RoomDesk.Stays stays = roomDesk.all(spaceId, eventId);
+    Map<UUID, UUID> participants = new HashMap<>();
+    for (ApplicationTableState state :
+        tables.findStates(EventApplicationKey.of(spaceId, eventId))) {
+      participants.put(state.applicationId(), state.participantId());
+    }
     List<List<String>> table = new ArrayList<>();
     table.add(header);
     for (ApplicationRow row : rows) {
@@ -145,6 +171,7 @@ public class ApplicationExportService {
         List<String> ids = attended.of(trees);
         line.add(ids == null ? "" : String.join(", ", ids.stream().map(slotLabels::get).toList()));
       }
+      line.add(roomCell(stays.of(participants.get(row.applicationId()))));
       table.add(line);
     }
 
@@ -158,6 +185,13 @@ public class ApplicationExportService {
         now);
     String eventName = events.findProfile(eventId).map(EventProfile::name).orElse("");
     return new ExportFile(fileName(eventName, now), ApplicationCsv.write(table), rows.size());
+  }
+
+  static String roomCell(RoomDesk.Stay stay) {
+    if (stay.room() != null) {
+      return stay.room().name();
+    }
+    return stay.lodging() == Lodging.NOT_LODGING ? NOT_LODGING : "";
   }
 
   /** {@code 행사이름_신청자_20261117-1430.csv}. Path and control characters are dropped. */

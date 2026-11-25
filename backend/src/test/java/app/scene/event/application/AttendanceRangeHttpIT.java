@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import app.scene.common.web.RequestIdFilter;
+import app.scene.support.ParticipantSessions;
 import app.scene.support.PostgresTestcontainer;
 import jakarta.servlet.http.Cookie;
 import java.nio.charset.StandardCharsets;
@@ -255,16 +256,18 @@ class AttendanceRangeHttpIT {
             .getResponse()
             .getContentAsString(StandardCharsets.UTF_8);
     String[] lines = csv.split("\r?\n");
-    assertThat(lines[0]).endsWith(",참석 일정");
+    // G5 (#460): the room column comes last and is blank before rooms are published.
+    assertThat(lines[0]).endsWith(",참석 일정,방");
     for (String line : lines) {
       if (line.contains("나래")) {
-        assertThat(line).endsWith(",\"1월 22일 (금) 집회, 1월 23일 (토) 아침, 1월 23일 (토) 점심\"");
+        assertThat(line).endsWith(",\"1월 22일 (금) 집회, 1월 23일 (토) 아침, 1월 23일 (토) 점심\",");
       }
       if (line.contains("마루")) {
-        assertThat(line).endsWith(",1월 23일 (토) 저녁");
+        // One dinner and no night: no room, told apart as "숙박 안 함".
+        assertThat(line).endsWith(",1월 23일 (토) 저녁,숙박 안 함");
       }
       if (line.contains("바다")) {
-        assertThat(line).endsWith(",");
+        assertThat(line).endsWith(",,");
       }
     }
   }
@@ -570,6 +573,136 @@ class AttendanceRangeHttpIT {
                 Integer.class,
                 UUID.fromString(participantId)))
         .isEqualTo(3);
+  }
+
+  /**
+   * The group leader view (DEC-083, #452) reads slots and nights with the same rules as the board
+   * and the summary: per-night counts of {@code lodgingNights} equal the summary's lodging rows.
+   */
+  @Test
+  void leaderViewSlotsAndNightsMatchTheBoardAndTheSummary() throws Exception {
+    Held event = openEvent("Leader owner");
+    Form form = setupForm(event, setup("RANGE", true));
+    Map<String, String> ids = new LinkedHashMap<>();
+    ids.put("가람", form.submit("가람", 1, values("ATTENDANCE", opt("opt_full"))));
+    ids.put(
+        "나래",
+        form.submit(
+            "나래", 2, values("ATTENDANCE", opt("opt_full"), "NO_LODGING", opts("opt_no_lodging"))));
+    ids.put(
+        "보라",
+        form.submit(
+            "보라",
+            3,
+            values(
+                "ATTENDANCE",
+                opt("opt_partial"),
+                "ARRIVAL_SLOT",
+                opt("opt_d1_worship"),
+                "DEPARTURE_SLOT",
+                opt("opt_d2_lunch"))));
+    ids.put(
+        "다솜",
+        form.submit(
+            "다솜", 4, values("ATTENDANCE", opt("opt_worship"), "MEALS", opts("opt_d1_worship"))));
+    ids.put(
+        "바다",
+        form.submit(
+            "바다",
+            5,
+            values(
+                "ATTENDANCE",
+                opt("opt_partial"),
+                "ARRIVAL_SLOT",
+                opt("opt_d1_dinner"),
+                "DEPARTURE_SLOT",
+                opt("opt_d1_dinner"))));
+    form.dropAnswer("바다", "DEPARTURE_SLOT");
+
+    String groups = "/api/v1/operator/events/" + event.eventId + "/groups";
+    String groupId =
+        json.readTree(created(write(post(groups), event.owner, "{\"name\":\"1조\"}")))
+            .get("group")
+            .get("groupId")
+            .asString();
+    List<String> changes = new ArrayList<>();
+    for (String id : ids.values()) {
+      changes.add(
+          "{\"participantId\":\""
+              + id
+              + "\",\"fromGroupId\":null,\"toGroupId\":\""
+              + groupId
+              + "\"}");
+    }
+    ok(
+        write(
+            post("/api/v1/operator/events/" + event.eventId + "/group-assignments"),
+            event.owner,
+            "{\"changes\":[" + String.join(",", changes) + "]}"));
+    ok(
+        write(
+            put(groups + "/" + groupId + "/leaders"),
+            event.owner,
+            "{\"participantIds\":[\"" + ids.get("가람") + "\"],\"expectedVersion\":0}"));
+    long version = board(event).get("boardVersion").asLong();
+    ok(
+        write(
+            post(groups + "/publish"),
+            event.owner,
+            "{\"expectedBoardVersion\":" + version + ",\"confirmUnassigned\":true}"));
+
+    Cookie leader =
+        ParticipantSessions.open(
+            jdbc, event.spaceId(), event.eventId(), UUID.fromString(ids.get("가람")));
+    JsonNode view =
+        json.readTree(ok(get("/api/v1/participant/group").cookie(leader))).get("leaderView");
+    JsonNode board = board(event);
+    assertThat(view.get("slots")).isEqualTo(board.get("slots"));
+    Map<String, JsonNode> attendance = new LinkedHashMap<>();
+    for (JsonNode member : view.get("members")) {
+      attendance.put(member.get("name").asString(), member.get("attendance"));
+      assertThat(member.get("attendance").get("slotIds"))
+          .as(member.get("name").asString())
+          .isEqualTo(person(board, member.get("name").asString()).get("slotIds"));
+    }
+    assertThat(attendance.keySet()).containsExactlyInAnyOrder("가람", "나래", "보라", "다솜", "바다");
+    assertThat(attendance.get("가람").get("type").asString()).isEqualTo("FULL");
+    assertThat(nights(attendance.get("가람"))).containsExactly(1, 2);
+    assertThat(nights(attendance.get("나래"))).isEmpty();
+    assertThat(attendance.get("보라").get("type").asString()).isEqualTo("PARTIAL");
+    assertThat(attendance.get("보라").get("arrivalSlotId").asString()).isEqualTo("opt_d1_worship");
+    assertThat(attendance.get("보라").get("departureSlotId").asString()).isEqualTo("opt_d2_lunch");
+    assertThat(nights(attendance.get("보라"))).containsExactly(1);
+    assertThat(attendance.get("다솜").get("type").asString()).isEqualTo("WORSHIP_ONLY");
+    assertThat(attendance.get("다솜").get("arrivalSlotId").isNull()).isTrue();
+    assertThat(nights(attendance.get("다솜"))).isEmpty();
+    assertThat(attendance.get("바다").get("departureSlotId").isNull()).isTrue();
+    assertThat(attendance.get("바다").get("slotIds").isNull()).isTrue();
+    assertThat(attendance.get("바다").get("lodgingNights").isNull()).isTrue();
+
+    // Summing the leader view per night gives the summary's lodging rows.
+    Map<Integer, Long> perNight = new LinkedHashMap<>();
+    long unknown = 0;
+    for (JsonNode member : attendance.values()) {
+      JsonNode list = member.get("lodgingNights");
+      if (list.isNull()) {
+        unknown++;
+        continue;
+      }
+      list.forEach(night -> perNight.merge(night.asInt(), 1L, Long::sum));
+    }
+    JsonNode lodging = summary(event).get("lodging");
+    for (JsonNode night : lodging.get("nights")) {
+      assertThat(perNight.getOrDefault(night.get("night").asInt(), 0L))
+          .isEqualTo(night.get("count").asLong());
+    }
+    assertThat(lodging.get("unanswered").asLong()).isEqualTo(unknown);
+  }
+
+  private static List<Integer> nights(JsonNode attendance) {
+    List<Integer> out = new ArrayList<>();
+    attendance.get("lodgingNights").forEach(night -> out.add(night.asInt()));
+    return out;
   }
 
   private static MockHttpServletRequestBuilder participantEdit(Cookie session, String body) {

@@ -13,10 +13,11 @@ export function problem(
     currentStatus?: string;
     version?: number;
     warnings?: { openTasks: number };
-    conflicts?: { participantId: string; currentGroupId: string | null }[];
+    conflicts?: ({ participantId: string; currentGroupId: string | null } | { participantId: string; currentRoomId: string | null })[];
     boardVersion?: number;
     participantIds?: string[];
     unassignedCount?: number;
+    notLodgingAssignedCount?: number;
     applicationStatus?: string;
     retryAfterSeconds?: number;
     revision?: number;

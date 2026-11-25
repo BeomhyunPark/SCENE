@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { isCheckInQr, type CheckInResult } from "../api/checkIns";
+import { deskRoomText } from "../api/deskRoom";
 import { isApiError } from "../api/errors";
 import { Button } from "./Button";
 import { formatSubmittedAt } from "./eventFormat";
@@ -199,6 +200,7 @@ function ScanOutcome({
               <span className="event-field__scan-group-label">조</span> {group ?? "조 없음"}
             </p>
           ) : null}
+          <ScanRoom room={person.room} lodging={person.lodging} />
         </>
       ) : null}
       {copy.detail ? <p className="event-field__scan-detail">{copy.detail}</p> : null}
@@ -206,6 +208,17 @@ function ScanOutcome({
         다음 스캔
       </Button>
     </div>
+  );
+}
+
+/** 방 (G5 #460): the published room under the name, or 숙박 안 함; nothing before the publication. */
+function ScanRoom({ room, lodging }: { room: CheckInResult["room"]; lodging: CheckInResult["lodging"] }) {
+  const text = deskRoomText(room, lodging);
+  if (!text) return null;
+  return (
+    <p className="event-field__scan-group">
+      {room ? <span className="event-field__scan-group-label">방</span> : null} {text}
+    </p>
   );
 }
 

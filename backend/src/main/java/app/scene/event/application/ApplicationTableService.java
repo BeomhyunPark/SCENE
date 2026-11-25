@@ -14,6 +14,7 @@ import app.scene.event.form.FormRow;
 import app.scene.event.form.MealSlots;
 import app.scene.event.lifecycle.EventAccessGate;
 import app.scene.event.lifecycle.EventLocation;
+import app.scene.event.room.RoomDesk;
 import app.scene.space.EventUserPermissionRepository;
 import java.time.Clock;
 import java.util.ArrayList;
@@ -44,6 +45,8 @@ import tools.jackson.databind.json.JsonMapper;
  *       ADMIN. Others get no group.
  *   <li>Check-in is the arrival time, readable with the same access as the roster (DEC-071).
  *   <li>The operator memo (#335, DEC-075) is readable by every table reader.
+ *   <li>Room is the latest room publication's (G5 #460, DEC-085 §10) from {@link RoomDesk},
+ *       readable by every table reader like the published group the participants see.
  * </ul>
  *
  * Rows are the submitted applications in list order, the same rows as the CSV. Withdrawn applicants
@@ -58,6 +61,7 @@ public class ApplicationTableService {
   private final ApplicationTableMapper tables;
   private final ApplicationOperationRepository operations;
   private final ApplicationStatusChanges statuses;
+  private final RoomDesk roomDesk;
   private final EventUserPermissionRepository permissions;
   private final AuditLogRepository auditLogs;
   private final JsonMapper json;
@@ -70,6 +74,7 @@ public class ApplicationTableService {
       ApplicationTableMapper tables,
       ApplicationOperationRepository operations,
       ApplicationStatusChanges statuses,
+      RoomDesk roomDesk,
       EventUserPermissionRepository permissions,
       AuditLogRepository auditLogs,
       JsonMapper json,
@@ -80,6 +85,7 @@ public class ApplicationTableService {
     this.tables = tables;
     this.operations = operations;
     this.statuses = statuses;
+    this.roomDesk = roomDesk;
     this.permissions = permissions;
     this.auditLogs = auditLogs;
     this.json = json;
@@ -147,9 +153,11 @@ public class ApplicationTableService {
     }
 
     Map<UUID, ApplicationOperation> stored = operations.byApplication(spaceId, eventId);
+    RoomDesk.Stays stays = roomDesk.all(spaceId, eventId);
     List<ApplicationTable.Row> rows = new ArrayList<>();
     for (ApplicationRow row : applications.listSubmitted(spaceId, eventId)) {
       ApplicationTableState state = states.get(row.applicationId());
+      RoomDesk.Stay stay = stays.of(state == null ? null : state.participantId());
       ApplicationTable.Group group =
           groupVisible && state != null && state.groupId() != null
               ? new ApplicationTable.Group(state.groupId(), state.groupName(), state.leader())
@@ -165,7 +173,11 @@ public class ApplicationTableService {
               attended.of(all.getOrDefault(row.applicationId(), Map.of())),
               stored.getOrDefault(row.applicationId(), ApplicationOperation.empty()),
               state == null ? 1 : state.revision(),
-              state == null ? null : state.revisedBy()));
+              state == null ? null : state.revisedBy(),
+              stay.room() == null
+                  ? null
+                  : new ApplicationTable.Room(stay.room().roomId(), stay.room().name()),
+              stay.lodging()));
     }
 
     if (anyContact && !rows.isEmpty()) {
@@ -190,7 +202,14 @@ public class ApplicationTableService {
               row.checkedInAt()));
     }
     return new ApplicationTable(
-        formId, anyContact, groupVisible, columns, rows, slots(attended.days()), withdrawn);
+        formId,
+        anyContact,
+        groupVisible,
+        columns,
+        rows,
+        slots(attended.days()),
+        withdrawn,
+        stays.publishedAt());
   }
 
   private static List<ApplicationTable.Slot> slots(List<MealSlots.Day> days) {

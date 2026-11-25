@@ -1,0 +1,124 @@
+/* 숙소: home card list and the 숙소 screen (G4 #459, DEC-085). */
+.participant-room__mates {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--color-text-primary);
+  font: var(--scene-body-m);
+  letter-spacing: 0;
+}
+
+.participant-room__subtitle {
+  margin: 8px 0 0;
+  color: var(--color-text-primary);
+  font: var(--scene-body-l-strong);
+  letter-spacing: 0;
+}
+
+.participant-room__people,
+.participant-room__rooms {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--color-border-default);
+  border-radius: 8px;
+}
+
+.participant-room__person {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  color: var(--color-text-primary);
+  font: var(--scene-body-l);
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+.participant-room__person + .participant-room__person,
+.participant-room__room + .participant-room__room {
+  border-top: 1px solid var(--color-border-default);
+}
+
+.participant-room__badge {
+  flex: none;
+  padding: 2px 8px;
+  color: var(--color-text-brand);
+  background: var(--color-bg-brand-subtle);
+  border-radius: 999px;
+  font: var(--scene-label-s);
+  letter-spacing: 0;
+}
+
+.participant-room__roster {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  scroll-margin-top: 16px;
+}
+
+.participant-room__roster-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 8px 0 0;
+  color: var(--color-text-primary);
+  font: var(--scene-heading-s, var(--scene-heading-m));
+  letter-spacing: 0;
+}
+
+.participant-room__rooms {
+  background: var(--color-bg-surface);
+}
+
+.participant-room__room {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+}
+
+.participant-room__room--mine {
+  background: var(--color-bg-brand-subtle);
+}
+
+.participant-room__room-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.participant-room__room-name {
+  color: var(--color-text-primary);
+  font: var(--scene-body-l-strong);
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+.participant-room__count {
+  margin-left: auto;
+  color: var(--color-text-secondary);
+  font: var(--scene-label-s);
+  letter-spacing: 0;
+}
+
+.participant-room__room-meta,
+.participant-room__updated {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font: var(--scene-body-m);
+  letter-spacing: 0;
+}
+
+.participant-room__names {
+  margin: 0;
+  color: var(--color-text-primary);
+  font: var(--scene-body-m);
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}

@@ -6,7 +6,7 @@ import { participantPath } from "../participantTabs";
 
 /**
  * 내 조 summary (§1): group name and leader names; the whole card opens the 내 조 tab. A leader gets
- * the "조원 현황" shortcut (F3 fills that screen). Same query as the tab, so no second request.
+ * the "조원 현황" shortcut with the 미도착 count (F3). Same query as the tab, so no second request.
  */
 export function GroupCard() {
   const { eventId } = useParticipantFeed();
@@ -32,7 +32,7 @@ export function GroupCard() {
         </p>
         {data.leader ? (
           <Link className="participant-card__link" to={to}>
-            조원 현황
+            조원 현황{data.leaderView ? ` · 미도착 ${data.leaderView.activeCount - data.leaderView.checkedInCount}명` : ""}
           </Link>
         ) : null}
       </>

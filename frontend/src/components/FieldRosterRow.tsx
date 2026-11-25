@@ -1,6 +1,8 @@
 import { useId } from "react";
 import type { RosterItem } from "../api/checkIns";
 import { Button } from "./Button";
+import { FieldRoomLine } from "./FieldRoomLine";
+import { arrivalLine } from "./fieldArrival";
 import { checkInRecord } from "./fieldCheckInRecord";
 import { participantLabel } from "./participantLabel";
 import type { PendingRequest } from "./useCheckInQueue";
@@ -45,12 +47,19 @@ export function FieldRosterRow({
   const meta = [note, item.phoneLast4 ? `끝자리 ${item.phoneLast4}` : ""].filter(Boolean).join(" · ");
   const record = checkInRecord(item);
   const labelId = useId();
+  // 도착 예정 칸 (E4 #456): a partial attendee due later reads as 올 예정, not as late.
+  const arrival = arrivalLine(item.arrival);
+  // Spans only: on desktop this sits inside a <button>. Room (G5 #460) under the name, arrival (E4) under meta.
   const identity = (
     <>
       <span className="event-field__name" id={labelId}>
         {label}
       </span>
+      <FieldRoomLine room={item.room} lodging={item.lodging} />
       {meta ? <span className="event-field__meta">{meta}</span> : null}
+      {arrival ? (
+        <span className={`event-field__arrival event-field__arrival--${arrival.tone}`}>{arrival.text}</span>
+      ) : null}
       {record ? <span className="event-field__meta event-field__record">{record}</span> : null}
     </>
   );

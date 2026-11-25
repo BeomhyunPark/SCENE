@@ -103,6 +103,13 @@ export function scheduleBoardVersion(eventId: string): number {
   return boardOf(eventId).version;
 }
 
+/** `HH:mm` start time by slot id of the working-copy items tied to a slot (the server's ScheduleSlotTimes). */
+export function scheduleSlotStartTimes(eventId: string): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const item of boardOf(eventId).items) if (item.slotId) out.set(item.slotId, item.startTime);
+  return out;
+}
+
 export function scheduleItemIds(eventId: string): string[] {
   return boardOf(eventId).items.map((item) => item.itemId);
 }

@@ -21,12 +21,19 @@ export const queryKeys = {
     ["events", eventId, "operators", userId, "permissions"] as const,
   checkInSummary: (eventId: string) => ["events", eventId, "check-ins", "summary"] as const,
   checkIns: (eventId: string) => ["events", eventId, "check-ins"] as const,
-  checkInRoster: (eventId: string, query: { q: string; checkedIn: boolean | null }) =>
+  checkInRoster: (
+    eventId: string,
+    query: { q: string; checkedIn: boolean | null; arrival: "OVERDUE" | "UNKNOWN" | null },
+  ) =>
     ["events", eventId, "check-ins", "roster", query] as const,
   /** Every roster page at once for the 조별 view (#288); under checkIns so a check-in reloads it. */
   checkInRosterAll: (eventId: string) => ["events", eventId, "check-ins", "roster-all"] as const,
   publishedGroups: (eventId: string) => ["events", eventId, "groups", "published"] as const,
   groupBoard: (eventId: string) => ["events", eventId, "group-board"] as const,
+  /** 숙소 배정판 (G3 #458). */
+  roomBoard: (eventId: string) => ["events", eventId, "room-board"] as const,
+  /** 행사 참가자 설정 (DEC-083 §2): 조원 명단 스위치와 숙소 공개 범위. */
+  participantSettings: (eventId: string) => ["events", eventId, "participant-settings"] as const,
   /** Schedule working copy (C4). The editor reads the same entry for days, slots and the item. */
   scheduleBoard: (eventId: string) => ["events", eventId, "schedule"] as const,
   forms: (eventId: string, page: number) => ["events", eventId, "forms", page] as const,
@@ -34,6 +41,8 @@ export const queryKeys = {
   applications: (eventId: string, page: number) => ["events", eventId, "applications", page] as const,
   applicationSummary: (eventId: string) => ["events", eventId, "applications", "summary"] as const,
   applicationTable: (eventId: string) => ["events", eventId, "applications", "table"] as const,
+  /** 식수 현황 (#454): read again every 10 seconds while visible. */
+  mealCounts: (eventId: string) => ["events", eventId, "meal-counts"] as const,
   application: (eventId: string, applicationId: string) =>
     ["events", eventId, "applications", "detail", applicationId] as const,
   /** Every notice list and detail of an event: one invalidation after any notice write (D3). */
@@ -52,6 +61,12 @@ export const queryKeys = {
   participantMe: (eventId: string) => ["participant", "me", eventId] as const,
   participantCheckIn: (eventId: string) => ["participant", "check-in", eventId] as const,
   participantGroup: (eventId: string) => ["participant", "group", eventId] as const,
+  /**
+   * One member opened by the leader (DEC-083 §3). Deliberately not under `participantGroup`: an
+   * `updates.group` change must not read it again, since each read with a phone is logged.
+   */
+  participantGroupMember: (eventId: string, participantId: string) =>
+    ["participant", "group-member", eventId, participantId] as const,
   /**
    * Participant home cards (DEC-080). A card reading more than one request keeps this key as the
    * prefix, e.g. `[...queryKeys.participantNotices(eventId), "detail", noticeId]`, so the one

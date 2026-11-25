@@ -133,3 +133,220 @@
   font: var(--scene-body-s);
   letter-spacing: 0;
 }
+
+/* F3 (#453, DEC-083): 조원 명단, 조장 조원 현황, 조원 상세. Phone first: rows stay one line at 360 px. */
+.participant-group__summary--compact .participant-group__name {
+  font: var(--scene-heading-m);
+}
+
+.participant-group__member-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.participant-group__member-gender {
+  flex: 0 0 2em;
+  color: var(--color-text-tertiary);
+  font: var(--scene-body-m);
+}
+
+.participant-group__member-note {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-text-tertiary);
+  font: var(--scene-body-s);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.participant-group__marks {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 4px;
+}
+
+.participant-group__badge--me {
+  color: var(--color-text-secondary);
+  background: var(--color-bg-subtle);
+}
+
+.participant-group__badge--revised {
+  color: var(--color-warning-fg);
+  background: var(--color-warning-bg);
+}
+
+.participant-group__member--link {
+  padding: 0;
+}
+
+.participant-group__member-link {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 16px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.participant-group__member-link::after {
+  flex: 0 0 auto;
+  color: var(--color-text-tertiary);
+  content: "›";
+}
+
+.participant-group__member-link:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: -2px;
+  border-radius: 8px;
+}
+
+.participant-group__status,
+.participant-group__block,
+.participant-group__movement {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.participant-group__status {
+  gap: 20px;
+}
+
+.participant-group__status-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.participant-group__arrival {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font: var(--scene-body-l);
+}
+
+.participant-group__arrival strong {
+  color: var(--color-text-primary);
+  font: var(--scene-heading-s);
+}
+
+.participant-group__block-title,
+.participant-group__movement-title {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font: var(--scene-label-m);
+  letter-spacing: 0;
+}
+
+.participant-group__movement-list {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--color-text-primary);
+  font: var(--scene-body-m);
+}
+
+.participant-group__arrived {
+  flex: 0 0 auto;
+  color: var(--color-success-fg);
+  font: var(--scene-label-s);
+}
+
+.participant-group__arrived--absent {
+  color: var(--color-danger-fg);
+}
+
+.participant-group__muted {
+  margin: 0;
+  color: var(--color-text-tertiary);
+  font: var(--scene-body-s);
+  letter-spacing: 0;
+}
+
+.participant-group__slots,
+.participant-member__facts {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  border: 1px solid var(--color-border-default);
+  border-radius: 8px;
+}
+
+.participant-group__slot-day,
+.participant-member__facts > div {
+  display: grid;
+  grid-template-columns: minmax(88px, 34%) 1fr;
+  gap: 8px;
+  padding: 10px 16px;
+}
+
+.participant-group__slot-day + .participant-group__slot-day,
+.participant-member__facts > div + div {
+  border-top: 1px solid var(--color-border-default);
+}
+
+.participant-group__slots dt,
+.participant-member__facts dt {
+  color: var(--color-text-tertiary);
+  font: var(--scene-body-s);
+  overflow-wrap: anywhere;
+}
+
+.participant-group__slots dd,
+.participant-member__facts dd {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin: 0;
+  color: var(--color-text-primary);
+  font: var(--scene-body-m);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.participant-member__back {
+  align-self: flex-start;
+}
+
+.participant-member__head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.participant-member__name {
+  margin: 0;
+  color: var(--color-text-primary);
+  font: var(--scene-heading-s);
+}
+
+.participant-member__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 0;
+  color: var(--color-text-tertiary);
+  font: var(--scene-body-m);
+}
+
+.participant-member__call {
+  box-sizing: border-box;
+  width: 100%;
+  text-decoration: none;
+}
+
+.participant-member__answers {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}

@@ -5,8 +5,10 @@ import { formHandlers } from "./forms";
 import { groupHandlers } from "./groups";
 import { invitationHandlers } from "./invitations";
 import { lifecycleHandlers } from "./lifecycle";
+import { mealCountHandlers } from "./mealCounts";
 import { notificationHandlers } from "./notifications";
 import { retrospectiveHandlers } from "./retrospective";
+import { roomBoardHandlers } from "./roomBoard";
 import { scheduleHandlers } from "./schedule";
 import { noticeHandlers } from "./notices";
 import { operatorHandlers } from "./operators";
@@ -14,6 +16,7 @@ import { participantHandlers } from "./participant";
 import { participantCheckInHandlers } from "./participantCheckIn";
 import { participantGroupHandlers } from "./participantGroup";
 import { participantHomeHandlers } from "./participantHome";
+import { participantRoomHandlers } from "./participantRooms";
 import { sessionHandlers } from "./session";
 import { spaceHandlers } from "./spaces";
 import { spaceInvitationHandlers } from "./spaceInvitations";
@@ -32,12 +35,15 @@ export const handlers = [
   ...participantCheckInHandlers,
   ...participantGroupHandlers,
   ...participantHomeHandlers,
+  ...participantRoomHandlers,
   ...applicationHandlers,
+  ...mealCountHandlers,
   ...lifecycleHandlers,
   ...retrospectiveHandlers,
   ...noticeHandlers,
   ...checkInHandlers,
   ...groupHandlers,
+  ...roomBoardHandlers,
   ...scheduleHandlers,
   ...notificationHandlers,
 ];

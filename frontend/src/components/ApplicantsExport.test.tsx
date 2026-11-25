@@ -92,8 +92,9 @@ describe("applicant CSV download", () => {
     expect([...bytes.slice(0, 3)]).toEqual([0xef, 0xbb, 0xbf]);
     const text = new TextDecoder().decode(bytes.slice(3));
     const lines = text.split("\r\n");
-    expect(lines[0]).toBe("제출 시각,이름,전화,또래,메모");
-    expect(lines[1]).toMatch(/^\d{4}\. \d{1,2}\. \d{1,2}\. \d{2}:\d{2},김하나,010-1111-2222,94,'=1\+2$/);
+    // G5 (#460): 방 is always the last column, blank before rooms are published.
+    expect(lines[0]).toBe("제출 시각,이름,전화,또래,메모,방");
+    expect(lines[1]).toMatch(/^\d{4}\. \d{1,2}\. \d{1,2}\. \d{2}:\d{2},김하나,010-1111-2222,94,'=1\+2,$/);
     expect(text).toContain('박둘,010-3333-4444,95,"쉼표, ""따옴표""\n줄바꿈"');
   });
 

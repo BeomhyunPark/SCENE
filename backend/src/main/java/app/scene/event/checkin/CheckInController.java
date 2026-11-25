@@ -38,9 +38,10 @@ public class CheckInController {
       @PathVariable UUID eventId,
       @RequestParam(required = false) String q,
       @RequestParam(required = false) String checkedIn,
+      @RequestParam(required = false) String arrival,
       @RequestParam(required = false) Integer page,
       @RequestParam(required = false) Integer size) {
-    return checkIns.roster(actor(), eventId, q, checkedIn, page, size);
+    return checkIns.roster(actor(), eventId, q, checkedIn, arrival, page, size);
   }
 
   @GetMapping(BASE + "/check-in-logs")

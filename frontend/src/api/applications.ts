@@ -2,6 +2,7 @@ import { apiDownload, apiRequest } from "./client";
 import { ApiError } from "./errors";
 import type { AnswerType, FieldConfig, FormField } from "./forms";
 import type { ItemPage } from "./types";
+import { parseLodging, parseTableRoom, type Lodging, type TableRoom } from "./deskRoom";
 
 export type PublicForm = {
   formId: string;
@@ -224,6 +225,10 @@ export type TableRow = {
   revision: number;
   /** Who stored the current revision; null for revision 1 or from an older server. */
   revisedBy: "PARTICIPANT" | "OPERATOR" | null;
+  /** Room of the latest room publication (G5 #460, DEC-085 §10). Null before it or when unassigned. */
+  room: TableRoom | null;
+  /** Lodging state now, so a blank room can read as 숙박 안 함; null from an older server. */
+  lodging: Lodging | null;
 };
 
 /** One meal or service slot, the same shape as the group board's `slots`. */
@@ -263,6 +268,8 @@ export type ApplicationTable = {
   slots: TableSlot[] | null;
   /** Newest withdraw first. Empty from an older server. */
   withdrawn: WithdrawnApplicant[];
+  /** Latest room publication time; null before the first one (every `room` is then null). */
+  roomPublishedAt: string | null;
 };
 
 /**
@@ -587,6 +594,8 @@ function parseTable(value: unknown): ApplicationTable {
       operation: parseOperation(row.operation) ?? EMPTY_OPERATION,
       revision: typeof row.revision === "number" ? row.revision : 1,
       revisedBy: row.revisedBy === "PARTICIPANT" || row.revisedBy === "OPERATOR" ? row.revisedBy : null,
+      room: parseTableRoom(row.room),
+      lodging: parseLodging(row.lodging),
     });
   }
   return {
@@ -597,6 +606,7 @@ function parseTable(value: unknown): ApplicationTable {
     rows,
     slots: parseSlots(value.slots),
     withdrawn: parseWithdrawn(value.withdrawn),
+    roomPublishedAt: typeof value.roomPublishedAt === "string" ? value.roomPublishedAt : null,
   };
 }
 

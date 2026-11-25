@@ -60,6 +60,7 @@ import {
   type GroupFilters,
 } from "./groupBoardView";
 import { applyPlan, draggedPeople, planDrop, planGroupOrder, stepPlan, type DropPlan, type DropTarget } from "./groupDrop";
+import { GroupRosterSwitch } from "./GroupRosterSwitch";
 import { OperatorShell } from "./OperatorShell";
 import { useBoardDrag, type DragItem, type DragOver } from "./useBoardDrag";
 import { participantLabel } from "./participantLabel";
@@ -116,6 +117,7 @@ function GroupsBody({ event, spaceName }: { event: EventDetail; spaceName?: stri
     retry: false,
   });
   const mayWrite = permissions.data?.effective.includes("GROUP_WRITE") ?? false;
+  const mayUpdateEvent = permissions.data?.effective.includes("EVENT_UPDATE") ?? false;
   const context = [eventContext(event), spaceName ?? ""].filter((part) => part.length > 0).join(" · ");
 
   return (
@@ -143,6 +145,7 @@ function GroupsBody({ event, spaceName }: { event: EventDetail; spaceName?: stri
             board={board.data}
             fetching={board.isFetching}
             mayWrite={mayWrite}
+            mayUpdateEvent={mayUpdateEvent}
             permissionsPending={permissions.isPending && Boolean(me.data?.userId)}
           />
         ) : (
@@ -229,6 +232,7 @@ function Board({
   board,
   fetching,
   mayWrite,
+  mayUpdateEvent,
   permissionsPending,
 }: {
   eventId: string;
@@ -237,6 +241,7 @@ function Board({
   board: GroupBoard;
   fetching: boolean;
   mayWrite: boolean;
+  mayUpdateEvent: boolean;
   permissionsPending: boolean;
 }) {
   const queryClient = useQueryClient();
@@ -663,6 +668,8 @@ function Board({
         ) : null}
         {fetching ? <span className="event-groups__fetching"> 최신 상태를 확인하는 중…</span> : null}
       </p>
+
+      <GroupRosterSwitch eventId={eventId} canWrite={mayUpdateEvent} status={board.eventStatus} />
 
       {blocked ? (
         <p className="event-groups__blocked" id="groups-blocked" role="note">
@@ -1553,7 +1560,8 @@ function PublishDialog({
         </p>
       ) : (
         <p>
-          참가자는 자기 링크에서 조 이름과 조장 이름을 봐요. 조장은 자기 조원의 이름과 또래를 더 봐요. 연락처는 보이지 않아요.
+          참가자는 자기 링크에서 조 이름과 조장 이름을 봐요. &ldquo;조원 명단 공개&rdquo;가 켜져 있으면 같은 조 사람의 이름·또래·성별도
+          봐요. 조장은 자기 조원의 도착 여부와 신청 답·연락처를 봐요(열 때마다 기록이 남아요).
         </p>
       )}
       <div className="event-groups__publish-box">

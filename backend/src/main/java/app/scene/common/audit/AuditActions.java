@@ -17,6 +17,13 @@ public final class AuditActions {
   public static final String EVENT_RETROSPECTIVE_UPDATED = "EVENT_RETROSPECTIVE_UPDATED";
 
   /**
+   * Event participant settings changed (#452, DEC-083 §2). Details are {@code fields}, the changed
+   * setting names, and the new {@code version}. Not written when nothing changed.
+   */
+  public static final String EVENT_PARTICIPANT_SETTINGS_UPDATED =
+      "EVENT_PARTICIPANT_SETTINGS_UPDATED";
+
+  /**
    * Operator values of one application were saved (#335, DEC-075). Details are {@code
    * applicationId}, the new {@code version} and the changed {@code fields}. The memo text is never
    * audited.
@@ -49,6 +56,15 @@ public final class AuditActions {
    * written for {@code ALREADY_PUBLISHED}. No name or phone.
    */
   public static final String GROUPS_PUBLISHED = "GROUPS_PUBLISHED";
+
+  /**
+   * Room publication (#457, DEC-085). Details are {@code publicationId}, {@code boardVersion},
+   * {@code assignedCount}, {@code unassignedCount}, {@code changedParticipantCount}, {@code
+   * roomsWithWarnings}, {@code notify}, and {@code notifiedCount}. Not written for {@code
+   * ALREADY_PUBLISHED}. Room edits and assignment changes are not audited (they go to {@code
+   * room_assignment_logs}). No name or phone.
+   */
+  public static final String ROOMS_PUBLISHED = "ROOMS_PUBLISHED";
 
   /**
    * Schedule publication (#435, DEC-081). Details are {@code publicationId}, {@code boardVersion},

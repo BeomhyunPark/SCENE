@@ -1,5 +1,6 @@
 package app.scene.event.application;
 
+import app.scene.event.room.Lodging;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -15,6 +16,9 @@ import tools.jackson.databind.JsonNode;
  * PARTICIPANT_CONTACT_READ} those columns and their answers are left out. {@code groupVisible} is
  * true when each row carries its working-copy {@code group}; otherwise every {@code group} is null.
  *
+ * <p>{@code roomPublishedAt} is the latest room publication's time (G5 #460, DEC-085 §10), or null
+ * before the first one; each row's {@code room} is from that publication, never the working copy.
+ *
  * <p>{@code withdrawn} lists the withdrawn applicants apart from {@code rows} (DEC-084 §9), so no
  * count of the screen includes them; the screen hides them until asked.
  */
@@ -25,7 +29,8 @@ public record ApplicationTable(
     List<Column> columns,
     List<Row> rows,
     List<Slot> slots,
-    List<Withdrawn> withdrawn) {
+    List<Withdrawn> withdrawn,
+    Instant roomPublishedAt) {
 
   /**
    * A participant whose latest revision is withdrawn, newest withdraw first. {@code previousGroup}
@@ -69,7 +74,10 @@ public record ApplicationTable(
    * (#335, DEC-075), such as the operator memo; version 0 when none is stored. {@code revision}
    * counts edits from 1 (DEC-078 §4); above 1 the screen marks the row "수정됨", {@code submittedAt}
    * is then the time of that last edit, and {@code revisedBy} says who stored it ({@code
-   * PARTICIPANT} or {@code OPERATOR}; null for revision 1).
+   * PARTICIPANT} or {@code OPERATOR}; null for revision 1). {@code room} is the published room,
+   * null before publication or when unassigned; {@code lodging} is the lodging state now ({@code
+   * LODGING}, {@code NOT_LODGING}, {@code UNKNOWN}, the room board's rule), so a blank room can be
+   * told apart from "숙박 안 함".
    */
   public record Row(
       UUID applicationId,
@@ -81,7 +89,12 @@ public record ApplicationTable(
       List<String> slotIds,
       ApplicationOperation operation,
       int revision,
-      String revisedBy) {}
+      String revisedBy,
+      Room room,
+      Lodging lodging) {}
+
+  /** A room of the latest room publication (DEC-085 §10). */
+  public record Room(UUID roomId, String name) {}
 
   /**
    * One meal or worship slot of the form setup, the same as the group board's {@code slots[]} item

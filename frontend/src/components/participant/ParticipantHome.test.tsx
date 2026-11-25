@@ -9,7 +9,7 @@ import { assign, createGroup, publish, readBoard } from "../../mocks/groupStore"
 import { setLifecycle } from "../../mocks/operatorStore";
 import { submitPublicApplication } from "../../mocks/participantStore";
 import { server } from "../../mocks/server";
-import { EMPTY_NOTICES, homeBody, SCHEDULE_NOT_PUBLISHED, UPDATES } from "../../mocks/participantHomeTestHandlers";
+import { EMPTY_NOTICES, homeBody, ROOMS_NOT_PUBLISHED, SCHEDULE_NOT_PUBLISHED, UPDATES } from "../../mocks/participantHomeTestHandlers";
 
 const EVENT = localEvent.eventId;
 
@@ -30,6 +30,7 @@ function cards() {
     http.get("/api/v1/participant/updates", () => HttpResponse.json(UPDATES)),
     http.get("/api/v1/participant/schedule", () => HttpResponse.json(SCHEDULE_NOT_PUBLISHED)),
     EMPTY_NOTICES,
+    ROOMS_NOT_PUBLISHED,
   ];
 }
 
