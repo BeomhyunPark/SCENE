@@ -71,11 +71,39 @@
   border-radius: 7px;
 }
 
+/* One line: time and title (with its marks), cut with an ellipsis; a tap opens the rest. */
 .timetable__block--short .participant-schedule__block {
-  flex-flow: row wrap;
-  align-content: flex-start;
+  flex-flow: row nowrap;
+  align-items: center;
   gap: 0 6px;
   padding-block: 2px;
+}
+
+.timetable__block--short .participant-schedule__time {
+  flex: 0 0 auto;
+}
+
+.timetable__block--short .participant-schedule__title {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+/* Closed blocks keep the title row to one line; marks that do not fit drop out whole. */
+.timetable__block:not(:hover, :focus-within) .participant-schedule__title {
+  flex-wrap: wrap;
+  max-height: 21px;
+  overflow: hidden;
+}
+
+.timetable__block:not(:hover, :focus-within) .participant-schedule__place {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timetable__block--expandable:is(:hover, :focus-within) .participant-schedule__block {
+  flex-flow: column nowrap;
+  align-items: stretch;
 }
 
 .participant-schedule__block:focus-visible {
@@ -86,7 +114,7 @@
 /* 지금: P06-PMOB01's current row. */
 .participant-schedule__item--now {
   border: 1.5px solid var(--color-border-selected);
-  background: var(--color-bg-brand-subtle);
+  --block-bg: var(--color-bg-brand-subtle);
 }
 
 .participant-schedule__item--now .participant-schedule__time {
@@ -97,7 +125,7 @@
 .participant-schedule__item--past,
 .participant-schedule__item--removed {
   border-style: dashed;
-  background: transparent;
+  --block-bg: var(--color-bg-canvas);
 }
 
 .participant-schedule__item--past .participant-schedule__time,

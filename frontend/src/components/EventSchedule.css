@@ -454,38 +454,46 @@ a.event-schedule__row:hover {
   white-space: nowrap;
 }
 
-/* Time and title take a line each; place and tags share the third. */
+/* Time and title take a line each; place and tags share the third, and only in blocks long enough for it
+   (timetable__extra). A tag that does not fit the line drops out whole rather than being cut. */
 .event-schedule__block .event-schedule__when,
 .event-schedule__block .event-schedule__title {
   flex: 1 0 100%;
 }
 
+.event-schedule__block .event-schedule__when {
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
 .event-schedule__block .event-schedule__place {
-  max-width: 100%;
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .event-schedule__block .event-schedule__tags {
-  flex-wrap: nowrap;
+  flex: 1 1 0;
+  flex-wrap: wrap;
+  min-width: 0;
+  max-height: 21px;
+  overflow: hidden;
 }
 
-.timetable__block--short.event-schedule__block .event-schedule__when,
-.timetable__block--short.event-schedule__block .event-schedule__title {
-  flex: 0 1 auto;
-}
-
+/* One line: time, state and title, the title cut with an ellipsis. */
 .timetable__block--short.event-schedule__block .event-schedule__row {
+  flex-wrap: nowrap;
+  align-items: center;
   gap: 0 6px;
   padding-block: 2px;
 }
 
-/* A short block has no room for tags: they stay for screen readers, and the block's border shows the state. */
-.timetable__block--short.event-schedule__block .event-schedule__tags {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
+.timetable__block--short.event-schedule__block .event-schedule__when {
+  flex: 0 0 auto;
+}
+
+.timetable__block--short.event-schedule__block .event-schedule__title {
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .event-schedule__block a.event-schedule__row:hover {
@@ -495,7 +503,7 @@ a.event-schedule__row:hover {
 /* 지금: P06-PMOB01's current row (brand surface, selected border). */
 .event-schedule__block--now {
   border: 1.5px solid var(--color-border-selected);
-  background: var(--color-bg-brand-subtle);
+  --block-bg: var(--color-bg-brand-subtle);
 }
 
 .event-schedule__block--now .event-schedule__time {
@@ -505,7 +513,7 @@ a.event-schedule__row:hover {
 /* Finished: quiet, like P06-PMOB01's 완료 rows. */
 .event-schedule__block--past {
   border-style: dashed;
-  background: transparent;
+  --block-bg: var(--color-bg-canvas);
 }
 
 .event-schedule__block--past .event-schedule__time,

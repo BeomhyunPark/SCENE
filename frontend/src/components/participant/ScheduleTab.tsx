@@ -214,15 +214,15 @@ function ItemRow({ item, days, now, next }: { item: ParticipantScheduleItem; day
           ) : null}
           {item.leadersOnly ? <span className="participant-schedule__badge">조장</span> : null}
         </p>
-        {item.place ? <p className="participant-schedule__place">{item.place}</p> : null}
+        {item.place ? <p className="participant-schedule__place timetable__extra">{item.place}</p> : null}
         {lines.length > 0 ? (
-          <ul className="participant-schedule__previous" aria-label="바뀐 내용">
+          <ul className="participant-schedule__previous timetable__detail" aria-label="바뀐 내용">
             {lines.map((line) => (
               <li key={line}>{line}</li>
             ))}
           </ul>
         ) : null}
-        {item.description ? <p className="participant-schedule__description">{item.description}</p> : null}
+        {item.description ? <p className="participant-schedule__description timetable__detail">{item.description}</p> : null}
       </div>
     </div>
   );
