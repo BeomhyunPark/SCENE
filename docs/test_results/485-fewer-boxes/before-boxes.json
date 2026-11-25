@@ -1,0 +1,215 @@
+[
+  {
+    "screen": "home",
+    "state": "sparse",
+    "width": "1440",
+    "containers": 11,
+    "controls": 0,
+    "names": [
+      "event-home__stat",
+      "event-home__stat",
+      "event-home__stat",
+      "event-home__stat",
+      "event-home__panel event-home__now",
+      "event-home__panel event-home__upcoming",
+      "staff-notices",
+      "event-home__module",
+      "event-home__module",
+      "event-home__module",
+      "event-home__module"
+    ]
+  },
+  {
+    "screen": "field",
+    "state": "sparse",
+    "width": "1440",
+    "containers": 3,
+    "controls": 6,
+    "names": [
+      "event-field__row event-field__row--selected",
+      "event-field__detail",
+      "DD"
+    ]
+  },
+  {
+    "screen": "meals",
+    "state": "sparse",
+    "width": "1440",
+    "containers": 7,
+    "controls": 2,
+    "names": [
+      "meals__next",
+      "meals__row meals__row--passed",
+      "meals__row meals__row--passed",
+      "meals__row meals__row--next",
+      "meals__row",
+      "meals__row",
+      "meals__row"
+    ]
+  },
+  {
+    "screen": "home",
+    "state": "sparse",
+    "width": "390",
+    "containers": 11,
+    "controls": 0,
+    "names": [
+      "event-home__stat",
+      "event-home__stat",
+      "event-home__stat",
+      "event-home__stat",
+      "event-home__panel event-home__now",
+      "event-home__panel event-home__upcoming",
+      "staff-notices",
+      "event-home__module",
+      "event-home__module",
+      "event-home__module",
+      "event-home__module"
+    ]
+  },
+  {
+    "screen": "field",
+    "state": "sparse",
+    "width": "390",
+    "containers": 1,
+    "controls": 6,
+    "names": [
+      "event-field__row"
+    ]
+  },
+  {
+    "screen": "meals",
+    "state": "sparse",
+    "width": "390",
+    "containers": 7,
+    "controls": 2,
+    "names": [
+      "meals__next",
+      "meals__row meals__row--passed",
+      "meals__row meals__row--passed",
+      "meals__row meals__row--next",
+      "meals__row",
+      "meals__row",
+      "meals__row"
+    ]
+  },
+  {
+    "screen": "home",
+    "state": "rich",
+    "width": "1440",
+    "containers": 16,
+    "controls": 0,
+    "names": [
+      "event-home__stat",
+      "event-home__stat",
+      "event-home__stat",
+      "event-home__stat",
+      "event-home__panel event-home__now",
+      "event-home__task",
+      "event-home__task",
+      "event-home__task",
+      "event-home__panel event-home__upcoming",
+      "staff-notices",
+      "staff-notices__row",
+      "staff-notices__row notice-row--important",
+      "event-home__module",
+      "event-home__module",
+      "event-home__module",
+      "event-home__module"
+    ]
+  },
+  {
+    "screen": "field",
+    "state": "rich",
+    "width": "1440",
+    "containers": 11,
+    "controls": 10,
+    "names": [
+      "event-field__row event-field__row--selected",
+      "event-field__row",
+      "event-field__row",
+      "event-field__row",
+      "event-field__row",
+      "event-field__row",
+      "event-field__row",
+      "event-field__row",
+      "event-field__detail",
+      "DD",
+      "DD"
+    ]
+  },
+  {
+    "screen": "meals",
+    "state": "rich",
+    "width": "1440",
+    "containers": 7,
+    "controls": 2,
+    "names": [
+      "meals__next",
+      "meals__row meals__row--passed",
+      "meals__row meals__row--passed",
+      "meals__row meals__row--next",
+      "meals__row",
+      "meals__row",
+      "meals__row"
+    ]
+  },
+  {
+    "screen": "home",
+    "state": "rich",
+    "width": "390",
+    "containers": 16,
+    "controls": 0,
+    "names": [
+      "event-home__stat",
+      "event-home__stat",
+      "event-home__stat",
+      "event-home__stat",
+      "event-home__panel event-home__now",
+      "event-home__task",
+      "event-home__task",
+      "event-home__task",
+      "event-home__panel event-home__upcoming",
+      "staff-notices",
+      "staff-notices__row",
+      "staff-notices__row notice-row--important",
+      "event-home__module",
+      "event-home__module",
+      "event-home__module",
+      "event-home__module"
+    ]
+  },
+  {
+    "screen": "field",
+    "state": "rich",
+    "width": "390",
+    "containers": 8,
+    "controls": 9,
+    "names": [
+      "event-field__row",
+      "event-field__row",
+      "event-field__row",
+      "event-field__row",
+      "event-field__row",
+      "event-field__row",
+      "event-field__row",
+      "event-field__row"
+    ]
+  },
+  {
+    "screen": "meals",
+    "state": "rich",
+    "width": "390",
+    "containers": 7,
+    "controls": 2,
+    "names": [
+      "meals__next",
+      "meals__row meals__row--passed",
+      "meals__row meals__row--passed",
+      "meals__row meals__row--next",
+      "meals__row",
+      "meals__row",
+      "meals__row"
+    ]
+  }
+]

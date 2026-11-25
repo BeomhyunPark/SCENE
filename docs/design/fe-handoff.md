@@ -309,3 +309,20 @@ These were never wired in the prototype (checked against the pre-cleanup baselin
 - D04 legacy 816:44637 '민서윤 배정': [1조 선택]/[2조 선택] open the save dialog, and the chosen group should carry into the save message (Figma sets D04/target, not P10/pickedGroup). D04 v2 is the build target.
 - Copy note for the save dialog 816:44654 (from UX 검수): the title is '추가 배정을 저장할까요?', so in code the primary button should read **[배정 저장]** (not '편성 저장') to match the title.
 - OTP resend ('인증번호 다시 받기', 565:3914): while the countdown runs, the link is disabled (`text/disabled` at 100%) and the countdown uses `text/secondary`. When active it is `text/brand` at 100%. Don't fake disabled with opacity anywhere.
+
+## 박스(테두리 컨테이너)를 쓰는 때와 쓰지 않는 때 (#485)
+
+2026-11-25, 행사 홈·현장 운영·식수 현황에서 정한 원칙이다. 다른 화면에도 같은 기준을 쓴다. 기준 화면은 Venture Dashboard(`2yztLB533ohOebuAKuwZr0` 873:109446)·Contact List, SCENE DS `50:17` DATA WORKBENCH, `65:10` DETAIL & FORM(05 참가자 상세 172:7)이다.
+
+| 쓴다 | 쓰지 않는다 → 대신 |
+|---|---|
+| 하나의 덩어리로 눌리는 것(버튼, 입력 칸, 한 줄로 묶인 요약 칸) | 나란한 정보 여러 개 → 표, 목록 행 사이 구분선, 여백, 제목 위계 |
+| 주변과 분명히 구분돼야 하는 것(다음 끼니처럼 화면에서 하나만 강조하는 블록, 선택한 참가자 패널, QR 스캐너, 오프라인·확인 안 된 요청) | 목록의 항목마다 박스 → 한 면 안의 행, 행 사이 `border/default` 1px |
+| 목록이나 표 전체를 감싸는 면 하나 | 박스 안의 박스 → 안쪽은 구분선이나 `bg/subtle` 면 |
+| 입력할 수 있는 값 | 읽기 전용 값 → 라벨-값 행(라벨 `text/tertiary`, 값 `text/primary`, 행 사이 구분선). 입력 칸 모양으로 보이지 않는다 |
+
+- **같은 숫자, 같은 진입로는 한 번만 보인다.** 요약 칸이 곧 그 영역으로 가는 링크다. 바로가기 카드를 따로 두지 않는다. 휴대폰에서 사이드바가 숨으므로 요약 줄에서 모든 영역으로 갈 수 있어야 한다.
+- **빈 상태는 한 줄.** 제목 아래 `body/S` `text/secondary` 문장 하나로 쓰고 빈 박스를 남기지 않는다.
+- **주된 버튼은 한곳에.** 같은 사람의 같은 동작이 목록 행과 옆 패널에 함께 있으면, 행은 Tertiary(글자 버튼, 32)로 두고 패널만 Primary로 둔다. 자주 쓰지 않는 되돌리기(체크인 취소 등)는 Tertiary로 둔다.
+- **칩은 필터나 상태에만 쓴다.** 수(“8명”)나 이미 필터 칩이 있는 바로가기는 칩으로 만들지 않고 글자로 쓴다.
+- 박스 수는 `docs/test_results/485-fewer-boxes/shots.mjs`로 센다. 본문 안에서 네 변에 모두 테두리가 있는 요소를 세고, 컨트롤(버튼·입력)은 따로 센다.

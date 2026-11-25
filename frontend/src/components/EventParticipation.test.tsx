@@ -140,4 +140,18 @@ describe("event participation applicants", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent("신청을 찾을 수 없어요.");
   });
+
+  it("opens 행사 설정 from the header and keeps one card per way in (#483)", async () => {
+    await login({ userId: OWNER });
+    openApp(`/events/${EVENT}/participants`);
+
+    expect(await screen.findByRole("heading", { name: "참가자를 받는 방법" })).toBeInTheDocument();
+    // The dead QR card and the second road to 참가자 추가 are gone; 신청 링크 만들기 still opens 신청 설정.
+    expect(screen.queryByRole("button", { name: "QR로 공유하기" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "참가자 직접 추가" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "신청 링크 만들기" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "행사 설정" }));
+    expect(await screen.findByRole("heading", { level: 2, name: "행사 설정" })).toBeInTheDocument();
+  });
 });

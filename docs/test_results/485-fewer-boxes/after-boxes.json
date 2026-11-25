@@ -1,0 +1,124 @@
+[
+  {
+    "screen": "home",
+    "state": "sparse",
+    "width": "1440",
+    "containers": 1,
+    "controls": 0,
+    "names": [
+      "event-home__stats"
+    ]
+  },
+  {
+    "screen": "field",
+    "state": "sparse",
+    "width": "1440",
+    "containers": 2,
+    "controls": 6,
+    "names": [
+      "event-field__list",
+      "event-field__detail"
+    ]
+  },
+  {
+    "screen": "meals",
+    "state": "sparse",
+    "width": "1440",
+    "containers": 1,
+    "controls": 2,
+    "names": [
+      "meals__next"
+    ]
+  },
+  {
+    "screen": "home",
+    "state": "sparse",
+    "width": "390",
+    "containers": 1,
+    "controls": 0,
+    "names": [
+      "event-home__stats"
+    ]
+  },
+  {
+    "screen": "field",
+    "state": "sparse",
+    "width": "390",
+    "containers": 1,
+    "controls": 6,
+    "names": [
+      "event-field__list"
+    ]
+  },
+  {
+    "screen": "meals",
+    "state": "sparse",
+    "width": "390",
+    "containers": 1,
+    "controls": 2,
+    "names": [
+      "meals__next"
+    ]
+  },
+  {
+    "screen": "home",
+    "state": "rich",
+    "width": "1440",
+    "containers": 1,
+    "controls": 0,
+    "names": [
+      "event-home__stats"
+    ]
+  },
+  {
+    "screen": "field",
+    "state": "rich",
+    "width": "1440",
+    "containers": 2,
+    "controls": 6,
+    "names": [
+      "event-field__list",
+      "event-field__detail"
+    ]
+  },
+  {
+    "screen": "meals",
+    "state": "rich",
+    "width": "1440",
+    "containers": 1,
+    "controls": 2,
+    "names": [
+      "meals__next"
+    ]
+  },
+  {
+    "screen": "home",
+    "state": "rich",
+    "width": "390",
+    "containers": 1,
+    "controls": 0,
+    "names": [
+      "event-home__stats"
+    ]
+  },
+  {
+    "screen": "field",
+    "state": "rich",
+    "width": "390",
+    "containers": 1,
+    "controls": 6,
+    "names": [
+      "event-field__list"
+    ]
+  },
+  {
+    "screen": "meals",
+    "state": "rich",
+    "width": "390",
+    "containers": 1,
+    "controls": 2,
+    "names": [
+      "meals__next"
+    ]
+  }
+]
