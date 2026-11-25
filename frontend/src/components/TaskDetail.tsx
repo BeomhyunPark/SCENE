@@ -24,6 +24,7 @@ import { EventScreen } from "./EventScreen";
 import { markEventArea, readEventAreas } from "./eventLocalState";
 import { OperatorShell } from "./OperatorShell";
 import { OperatorStatus } from "./RequireOperator";
+import { Select } from "./Select";
 import { blockedCopy, taskFieldCopy, taskStatusLabel } from "./taskCopy";
 import { periodText } from "./taskMonth";
 import "./TaskDetail.css";
@@ -222,7 +223,7 @@ function Detail({ event, spaceName, taskId }: { event: EventDetail; spaceName?: 
       tasksHref={`/events/${eventId}/tasks`}
       framed
       leading={
-        <Link className="event-home__back" to={`/events/${eventId}/tasks`} aria-label="업무 목록">
+        <Link className="event-home__back scene-press scene-press--text" to={`/events/${eventId}/tasks`} aria-label="업무 목록">
           <img src={arrowLeft} alt="" />
         </Link>
       }
@@ -309,22 +310,18 @@ function Detail({ event, spaceName, taskId }: { event: EventDetail; spaceName?: 
               담당자
             </label>
             {canWrite ? (
-              <select
+              <Select
                 id="task-detail-assignee"
                 className="task-detail__control"
                 value={body.assigneeUserId ?? ""}
-                onChange={(change) => {
-                  const value = change.target.value;
+                options={[
+                  { value: "", label: "담당 없음" },
+                  ...(operators.data?.items.map((operator) => ({ value: operator.userId, label: operator.displayName })) ?? []),
+                ]}
+                onChange={(value) => {
                   void run(() => patchTask(eventId, taskId, { assigneeUserId: value === "" ? null : value }));
                 }}
-              >
-                <option value="">담당 없음</option>
-                {operators.data?.items.map((operator) => (
-                  <option key={operator.userId} value={operator.userId}>
-                    {operator.displayName}
-                  </option>
-                ))}
-              </select>
+              />
             ) : (
               <span className="task-detail__value">{body.assigneeDisplayName ?? "담당 없음"}</span>
             )}

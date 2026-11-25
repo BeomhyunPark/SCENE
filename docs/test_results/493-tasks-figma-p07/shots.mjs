@@ -58,11 +58,20 @@ for (const size of [1440, 390]) {
     await drawer.waitFor();
     log(size, "drawer focus on:", await page.evaluate(() => document.activeElement?.getAttribute("aria-label") ?? document.activeElement?.id));
     await page.screenshot({ path: `${outDir}/after-create-drawer-${size}.png` });
+    // 담당자(공용 Select): 열고 Esc → 목록만 닫히고 서랍은 남는다. 그다음 Local manager를 고른다.
+    const assignee = drawer.getByRole("combobox", { name: "담당자" });
+    await assignee.click();
+    await page.waitForTimeout(250);
+    await page.screenshot({ path: `${outDir}/after-create-assignee-${size}.png` });
+    await page.keyboard.press("Escape");
+    log(size, "esc on open select keeps drawer:", await drawer.isVisible());
+    await assignee.click();
+    await page.getByRole("option", { name: "Local manager" }).click();
     await drawer.getByLabel("업무명").fill("간식 구매");
     await drawer.getByLabel("마감일").fill("2027-01-21");
     await drawer.getByRole("button", { name: "업무 만들기" }).click();
     await drawer.waitFor({ state: "detached" });
-    log(size, "created row visible:", await page.getByRole("button", { name: /간식 구매/ }).isVisible());
+    log(size, "created row with assignee:", await page.getByRole("button", { name: /간식 구매.*Local manager/ }).isVisible());
     log(size, "focus back on opener:", await page.evaluate(() => document.activeElement?.textContent?.trim()));
     // Esc 로 닫기
     await opener.click();

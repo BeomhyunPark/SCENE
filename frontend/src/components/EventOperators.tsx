@@ -34,6 +34,7 @@ import { OperatorPermissionDialog, PermissionSummary } from "./OperatorPermissio
 import { ROLE_SUMMARY } from "./operatorPermissions";
 import { OperatorShell } from "./OperatorShell";
 import { useEventOwner } from "./useEventOwner";
+import { Select } from "./Select";
 import "./EventHome.css";
 
 /**
@@ -75,7 +76,7 @@ function OperatorsBody({ event, spaceName }: { event: EventDetail; spaceName?: s
       tasksHref={`/events/${eventId}/tasks`}
       framed
       leading={
-        <Link className="event-home__back" to={`/events/${eventId}`} aria-label="행사로">
+        <Link className="event-home__back scene-press scene-press--text" to={`/events/${eventId}`} aria-label="행사로">
           <img src={arrowLeft} alt="" />
         </Link>
       }
@@ -452,29 +453,28 @@ function MemberAdd({
       {!archived && candidates.length > 0 ? (
         <form className="event-home__invite" onSubmit={submit} noValidate>
           <label htmlFor="member-add-user">조직 멤버</label>
-          <select
+          <Select
             id="member-add-user"
             className="event-home__select"
             value={selected}
-            onChange={(change) => setUserId(change.target.value)}
-          >
-            {candidates.map((item) => (
-              <option key={item.userId} value={item.userId}>
-                {item.email ? `${item.displayName} (${item.email})` : item.displayName}
-              </option>
-            ))}
-          </select>
+            options={candidates.map((item) => ({
+              value: item.userId,
+              label: item.email ? `${item.displayName} (${item.email})` : item.displayName,
+            }))}
+            onChange={setUserId}
+          />
           <label htmlFor="member-add-role">추가할 역할</label>
-          <select
+          <Select
             id="member-add-role"
             className="event-home__select"
             value={role}
             aria-describedby="member-add-role-summary"
-            onChange={(change) => setRole(change.target.value === "MANAGER" ? "MANAGER" : "STAFF")}
-          >
-            <option value="STAFF">{operatorRoleLabel("STAFF")}</option>
-            <option value="MANAGER">{operatorRoleLabel("MANAGER")}</option>
-          </select>
+            options={[
+              { value: "STAFF", label: operatorRoleLabel("STAFF") },
+              { value: "MANAGER", label: operatorRoleLabel("MANAGER") },
+            ]}
+            onChange={(value) => setRole(value === "MANAGER" ? "MANAGER" : "STAFF")}
+          />
           <RoleSummary id="member-add-role-summary" />
           <Button type="submit" variant="primary" size={40} loading={add.isPending} disabled={add.isPending}>
             운영자로 추가
@@ -609,16 +609,17 @@ function Invitations({ eventId, archived }: { eventId: string; archived: boolean
             </p>
           ) : null}
           <label htmlFor="invite-role">역할</label>
-          <select
+          <Select
             id="invite-role"
             className="event-home__select"
             value={role}
             aria-describedby="invite-role-summary"
-            onChange={(change) => setRole(change.target.value === "MANAGER" ? "MANAGER" : "STAFF")}
-          >
-            <option value="STAFF">{operatorRoleLabel("STAFF")}</option>
-            <option value="MANAGER">{operatorRoleLabel("MANAGER")}</option>
-          </select>
+            options={[
+              { value: "STAFF", label: operatorRoleLabel("STAFF") },
+              { value: "MANAGER", label: operatorRoleLabel("MANAGER") },
+            ]}
+            onChange={(value) => setRole(value === "MANAGER" ? "MANAGER" : "STAFF")}
+          />
           <RoleSummary id="invite-role-summary" />
           <Button type="submit" variant="primary" size={40} loading={create.isPending} disabled={pending}>
             초대 메일 보내기

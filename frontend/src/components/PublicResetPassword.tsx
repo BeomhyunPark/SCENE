@@ -120,7 +120,7 @@ export function PublicResetPassword() {
                   onChange={(event) => setPassword(event.target.value)}
                 />
                 <button
-                  className="public-reset__eye"
+                  className="public-reset__eye scene-press scene-press--quiet"
                   type="button"
                   tabIndex={-1}
                   aria-pressed={passwordVisible}
@@ -152,7 +152,7 @@ export function PublicResetPassword() {
                   onChange={(event) => setPasswordConfirm(event.target.value)}
                 />
                 <button
-                  className="public-reset__eye"
+                  className="public-reset__eye scene-press scene-press--quiet"
                   type="button"
                   tabIndex={-1}
                   aria-pressed={confirmVisible}

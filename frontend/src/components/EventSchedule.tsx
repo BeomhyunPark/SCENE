@@ -70,7 +70,7 @@ export function ScheduleShell({
       tasksHref={`${eventHref}/tasks`}
       framed
       leading={
-        <Link className="event-home__back" to={back} aria-label={back === eventHref ? "행사 홈으로" : "일정표로"}>
+        <Link className="event-home__back scene-press scene-press--text" to={back} aria-label={back === eventHref ? "행사 홈으로" : "일정표로"}>
           <img src={arrowLeft} alt="" />
         </Link>
       }
@@ -249,7 +249,7 @@ function Board({ eventId, context, board, fetching }: { eventId: string; context
       {noPeriod ? (
         <div className="event-groups__blocked" role="note">
           <p className="event-schedule__plain">행사 기간이 없어 일정을 만들 수 없어요. 행사 설정에서 시작일과 끝나는 날을 정해 주세요.</p>
-          <Link className="event-schedule__link" to={`${eventHref}/settings`}>
+          <Link className="event-schedule__link scene-press scene-press--text" to={`${eventHref}/settings`}>
             행사 설정으로 가기
           </Link>
         </div>
@@ -290,7 +290,7 @@ function Board({ eventId, context, board, fetching }: { eventId: string; context
                 type="button"
                 role="tab"
                 aria-selected={entry.day === day}
-                className={`event-schedule__day${entry.day === day ? " event-schedule__day--current" : ""}`}
+                className={`event-schedule__day scene-press scene-press--quiet${entry.day === day ? " event-schedule__day--current" : ""}`}
                 onClick={() => setParams({ day: String(entry.day) }, { replace: true })}
               >
                 <span>
@@ -346,7 +346,7 @@ function ItemList({ items, board, eventHref, editable, label }: { items: Schedul
         return (
           <li key={item.itemId} className={`event-schedule__item${item.publishState === "UNCHANGED" ? "" : " event-schedule__item--pending"}`}>
             {editable ? (
-              <Link className="event-schedule__row" to={`${eventHref}/schedule/${item.itemId}`} aria-label={`${item.startTime} ${item.title} 고치기`}>
+              <Link className="event-schedule__row scene-press scene-press--row" to={`${eventHref}/schedule/${item.itemId}`} aria-label={`${item.startTime} ${item.title} 고치기`}>
                 {body}
               </Link>
             ) : (

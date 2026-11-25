@@ -99,7 +99,7 @@ function TaskList({
       tasksHref={`/events/${eventId}/tasks`}
       framed
       leading={
-        <Link className="event-home__back" to={`/events/${eventId}`} aria-label="행사로">
+        <Link className="event-home__back scene-press scene-press--text" to={`/events/${eventId}`} aria-label="행사로">
           <img src={arrowLeft} alt="" />
         </Link>
       }

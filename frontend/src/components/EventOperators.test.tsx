@@ -8,6 +8,7 @@ import { localEvent, localUsers } from "../mocks/fixtures/seed";
 import { createInvitation } from "../mocks/invitationStore";
 import { mailedLinks, setMockMailDelivery } from "../mocks/mailOutbox";
 import { setLifecycle } from "../mocks/operatorStore";
+import { chooseOption } from "../test/select";
 
 const EVENT = localEvent.eventId;
 const OWNER = localUsers[0].userId;
@@ -22,7 +23,7 @@ function openApp(path: string) {
 
 async function invite(email: string, role: "MANAGER" | "STAFF") {
   fireEvent.change(await screen.findByLabelText("이메일"), { target: { value: email } });
-  fireEvent.change(screen.getByLabelText("역할"), { target: { value: role } });
+  chooseOption(screen.getByLabelText("역할"), role);
   fireEvent.click(screen.getByRole("button", { name: "초대 메일 보내기" }));
 }
 

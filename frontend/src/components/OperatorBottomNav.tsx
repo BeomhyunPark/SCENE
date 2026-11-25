@@ -24,7 +24,7 @@ export function OperatorBottomNav({
         {items.map((item) => (
           <li key={item.key}>
             <Link
-              className={`operator-bottom-nav__item${item.current ? " operator-bottom-nav__item--current" : ""}`}
+              className={`operator-bottom-nav__item scene-press scene-press--quiet scene-press--inset${item.current ? " operator-bottom-nav__item--current" : ""}`}
               to={item.to!}
               aria-current={item.current ? "page" : undefined}
             >
@@ -40,7 +40,7 @@ export function OperatorBottomNav({
         ))}
         <li>
           <button
-            className="operator-bottom-nav__item"
+            className="operator-bottom-nav__item scene-press scene-press--quiet scene-press--inset"
             type="button"
             aria-haspopup="dialog"
             aria-expanded={menuOpen}

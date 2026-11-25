@@ -84,7 +84,7 @@ function Missing({ eventId }: { eventId: string }) {
   return (
     <div className="notices__retry">
       <p className="notices__support">공지를 찾을 수 없어요. 지워졌을 수 있어요.</p>
-      <Link className="notices__link" to={noticesHref(eventId)}>
+      <Link className="notices__link scene-press scene-press--text" to={noticesHref(eventId)}>
         공지 목록으로
       </Link>
     </div>
@@ -270,7 +270,7 @@ function NoticeForm({ event, notice }: { event: EventDetail; notice: OperatorNot
         <legend>누가 볼까요</legend>
         <div className="notices__filters">
           {AUDIENCES.map((audience) => (
-            <label key={audience} className="notice-form__choice">
+            <label key={audience} className="notice-form__choice scene-press scene-press--chip">
               <input
                 type="radio"
                 name="notice-audience"
@@ -326,7 +326,7 @@ function NoticeForm({ event, notice }: { event: EventDetail; notice: OperatorNot
             <ul className="notice-form__pinned">
               {pinnedTitles.map((item) => (
                 <li key={item.noticeId}>
-                  <Link className="notices__link" to={noticesHref(eventId, item.noticeId)}>
+                  <Link className="notices__link scene-press scene-press--text" to={noticesHref(eventId, item.noticeId)}>
                     {item.title}
                   </Link>
                 </li>

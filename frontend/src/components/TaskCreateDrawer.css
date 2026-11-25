@@ -60,7 +60,7 @@
 }
 
 .task-create__field input,
-.task-create__field select {
+.task-create__field .task-create__control {
   box-sizing: border-box;
   width: 100%;
   height: 42px;
@@ -76,8 +76,7 @@
   color: var(--color-text-tertiary);
 }
 
-.task-create__field input:focus-visible,
-.task-create__field select:focus-visible {
+.task-create__field input:focus-visible {
   outline: 2px solid var(--color-focus-ring);
   outline-offset: 1px;
 }

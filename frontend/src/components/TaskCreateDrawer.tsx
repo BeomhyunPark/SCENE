@@ -5,6 +5,7 @@ import { listOperators } from "../api/operators";
 import { queryKeys } from "../api/queryKeys";
 import { createTask } from "../api/tasks";
 import { Button } from "./Button";
+import { Select } from "./Select";
 import { taskFieldCopy } from "./taskCopy";
 import "./OperationDrawer.css";
 import "./TaskCreateDrawer.css";
@@ -144,14 +145,16 @@ export function TaskCreateDrawer({
             </div>
             <div className="task-create__field">
               <label htmlFor={assigneeId}>담당자</label>
-              <select id={assigneeId} value={assignee} onChange={(change) => setAssignee(change.target.value)}>
-                <option value="">담당 없음</option>
-                {operators.data?.items.map((operator) => (
-                  <option key={operator.userId} value={operator.userId}>
-                    {operator.displayName}
-                  </option>
-                ))}
-              </select>
+              <Select
+                id={assigneeId}
+                className="task-create__control"
+                value={assignee}
+                options={[
+                  { value: "", label: "담당 없음" },
+                  ...(operators.data?.items.map((operator) => ({ value: operator.userId, label: operator.displayName })) ?? []),
+                ]}
+                onChange={setAssignee}
+              />
             </div>
             <div className="task-create__pair">
               <div className="task-create__field">
