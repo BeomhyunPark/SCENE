@@ -41,13 +41,16 @@ final class MealTally {
 
   record Result(String nextSlotId, MealCounts.Unknown unknown, List<MealCounts.Day> days) {}
 
+  /**
+   * Start time and passed state of every slot, and the cursor: the order ({@link MealSlots#order})
+   * of the first slot that has not passed, worship included, or {@link Integer#MAX_VALUE} when all
+   * have passed.
+   */
+  record Times(Map<String, LocalTime> starts, Map<String, Boolean> passed, int cursor) {}
+
   /** {@code scheduled} is the {@code HH:mm} start time by slot id from the schedule. */
-  static Result count(
-      List<MealSlots.Day> days,
-      Map<String, String> scheduled,
-      List<Person> people,
-      Instant now,
-      ZoneId zone) {
+  static Times times(
+      List<MealSlots.Day> days, Map<String, String> scheduled, Instant now, ZoneId zone) {
     Map<String, LocalTime> starts = new HashMap<>();
     Map<String, Boolean> passed = new HashMap<>();
     int cursor = Integer.MAX_VALUE;
@@ -64,6 +67,72 @@ final class MealTally {
         }
       }
     }
+    return new Times(starts, passed, cursor);
+  }
+
+  /** The next meal: the first meal slot at the cursor or after, or null when none is left. */
+  static String nextMeal(List<MealSlots.Day> days, int cursor) {
+    for (MealSlots.Day day : days) {
+      for (MealSlots.Slot slot : day.slots()) {
+        if (!WORSHIP.equals(slot.meal()) && MealSlots.order(slot.optionId()) >= cursor) {
+          return slot.optionId();
+        }
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Where one person stands for the arrival roster (E4, DEC-087 Follow-up). {@code slotId} is the
+   * due slot the status is about, null when unknown or when nothing is attended.
+   */
+  record Standing(ArrivalStatus status, String slotId) {}
+
+  /**
+   * The roster rule, so it names the same people as the meal counts. Checked in is {@code ARRIVED}
+   * (slot: arrival slot). Unknown slots are {@code UNKNOWN}. Not checked in: {@code OVERDUE} when
+   * the person attends the next meal and its due slot has passed, which is exactly the next meal's
+   * {@code missing}; else {@code COMING} at the due slot of the first attended slot from the cursor
+   * on whose due slot has not passed; else {@code PASSED} (no attended slot left to come for, or
+   * only the rest of a run that already started without the next meal).
+   */
+  static Standing standing(
+      List<MealSlots.Day> days, List<String> attended, boolean arrived, int cursor) {
+    if (arrived) {
+      return new Standing(ArrivalStatus.ARRIVED, ArrivalSlots.arrival(attended));
+    }
+    if (attended == null) {
+      return new Standing(ArrivalStatus.UNKNOWN, null);
+    }
+    String next = nextMeal(days, cursor);
+    if (next != null && attended.contains(next)) {
+      String due = ArrivalSlots.dueSlot(days, attended, next);
+      if (MealSlots.order(due) < cursor) {
+        return new Standing(ArrivalStatus.OVERDUE, due);
+      }
+    }
+    String last = null;
+    for (String id : attended) {
+      String due = ArrivalSlots.dueSlot(days, attended, id);
+      if (MealSlots.order(id) >= cursor && MealSlots.order(due) >= cursor) {
+        return new Standing(ArrivalStatus.COMING, due);
+      }
+      last = due;
+    }
+    return new Standing(ArrivalStatus.PASSED, last);
+  }
+
+  /** {@code scheduled} is the {@code HH:mm} start time by slot id from the schedule. */
+  static Result count(
+      List<MealSlots.Day> days,
+      Map<String, String> scheduled,
+      List<Person> people,
+      Instant now,
+      ZoneId zone) {
+    Times times = times(days, scheduled, now, zone);
+    Map<String, LocalTime> starts = times.starts();
+    Map<String, Boolean> passed = times.passed();
+    int cursor = times.cursor();
 
     // arrived, coming, missing
     Map<String, long[]> counts = new HashMap<>();

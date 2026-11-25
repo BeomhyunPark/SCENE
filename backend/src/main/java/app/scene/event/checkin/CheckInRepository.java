@@ -110,6 +110,15 @@ public class CheckInRepository {
         CheckInParam.of(spaceId, eventId).search(q, phone, checkedIn).page(page(request)));
   }
 
+  /** Every matching roster row in roster order, for a filter the database cannot apply. */
+  public List<RosterRow> rosterAll(
+      UUID spaceId, UUID eventId, String q, boolean phone, Boolean checkedIn) {
+    return checkIns.findRoster(
+        CheckInParam.of(spaceId, eventId)
+            .search(q, phone, checkedIn)
+            .page(PageParam.of(0, Integer.MAX_VALUE, ROSTER_ORDER)));
+  }
+
   public long countLogs(UUID spaceId, UUID eventId, UUID participantId) {
     return checkIns.countLogs(CheckInParam.of(spaceId, eventId).participant(participantId));
   }

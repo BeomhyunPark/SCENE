@@ -3,6 +3,7 @@ import type { RosterItem } from "../api/checkIns";
 import { Button } from "./Button";
 import { FieldRoomLine } from "./FieldRoomLine";
 import { formatSubmittedAt } from "./eventFormat";
+import { arrivalLine } from "./fieldArrival";
 import { participantLabel } from "./participantLabel";
 import type { PendingRequest } from "./useCheckInQueue";
 
@@ -34,6 +35,8 @@ export function FieldRosterRow({
   const label = participantLabel(item);
   const meta = [note, item.phoneLast4 ? `끝자리 ${item.phoneLast4}` : ""].filter(Boolean).join(" · ");
   const labelId = useId();
+  // 도착 예정 칸 (E4 #456): a partial attendee due later reads as 올 예정, not as late.
+  const arrival = arrivalLine(item.arrival);
   return (
     <li className="event-field__row" aria-labelledby={labelId}>
       <div className="event-field__row-main">
@@ -42,6 +45,9 @@ export function FieldRosterRow({
         </p>
         <FieldRoomLine room={item.room} lodging={item.lodging} />
         {meta ? <p className="event-field__meta">{meta}</p> : null}
+        {arrival ? (
+          <p className={`event-field__arrival event-field__arrival--${arrival.tone}`}>{arrival.text}</p>
+        ) : null}
         {done && item.checkIn ? (
           <p className="event-field__meta">
             {formatSubmittedAt(item.checkIn.checkedInAt)}

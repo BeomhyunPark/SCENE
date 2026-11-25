@@ -11,6 +11,7 @@ import app.scene.common.web.RequestIdFilter;
 import app.scene.support.PostgresTestcontainer;
 import jakarta.servlet.http.Cookie;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -224,8 +225,169 @@ class MealCountHttpIT {
         .andExpect(status().isNotFound());
   }
 
+  /**
+   * E4 (#456): mid-event, the check-in summary and roster name the same late people as the meal
+   * counts' "아직 안 옴" for the next meal. The event runs yesterday to tomorrow in Seoul; day 1 has
+   * passed, and today's breakfast is held at 23:30 by a schedule item, so it is the next meal at
+   * any hour the test runs.
+   */
+  @Test
+  void midEventTheRosterAndTheMealCountsNameTheSameLatePeople() throws Exception {
+    LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
+    Held event = openEvent("Roster owner", today.minusDays(1));
+    Form form = setupForm(event);
+    String garam = form.submit("가람", 1, values("ATTENDANCE", opt("opt_full")));
+    String narae =
+        form.submit(
+            "나래",
+            2,
+            values(
+                "ATTENDANCE",
+                opt("opt_partial"),
+                "ARRIVAL_SLOT",
+                opt("opt_d2_dinner"),
+                "DEPARTURE_SLOT",
+                opt("opt_d3_breakfast")));
+    String dasom =
+        form.submit(
+            "다솜",
+            3,
+            values(
+                "ATTENDANCE",
+                opt("opt_partial"),
+                "ARRIVAL_SLOT",
+                opt("opt_d1_dinner"),
+                "DEPARTURE_SLOT",
+                opt("opt_d1_worship")));
+    String bada = form.submit("바다", 4, values("ATTENDANCE", opt("opt_full")));
+    String mir =
+        form.submit(
+            "미르",
+            5,
+            values(
+                "ATTENDANCE",
+                opt("opt_partial"),
+                "ARRIVAL_SLOT",
+                opt("opt_d1_dinner"),
+                "DEPARTURE_SLOT",
+                opt("opt_d1_dinner")));
+    form.dropAnswer("미르", "DEPARTURE_SLOT");
+    String nuri = form.submit("누리", 6, values("ATTENDANCE", opt("opt_full")));
+    created(
+        write(
+            post(base(event) + "/schedule/items"),
+            event.owner,
+            "{\"day\":2,\"startTime\":\"23:30\",\"title\":\"늦은 아침\","
+                + "\"category\":\"MEAL\",\"audience\":[{\"type\":\"ALL\"}],"
+                + "\"slotId\":\"opt_d2_breakfast\"}"));
+    checkIn(event, bada);
+
+    JsonNode counts = counts(event);
+    assertThat(counts.get("nextSlotId").asString()).isEqualTo("opt_d2_breakfast");
+    JsonNode next = slot(counts, "opt_d2_breakfast");
+    // planned 3 (가람, 바다, 누리), arrived 1 (바다), coming 0, missing 2 (가람, 누리).
+    assertThat(numbers(next)).containsExactly(3L, 1L, 0L, 2L, 1L);
+
+    JsonNode summary = checkInSummary(event);
+    JsonNode arrival = summary.get("arrival");
+    assertThat(arrival.get("nextMeal").get("slotId").asString()).isEqualTo("opt_d2_breakfast");
+    assertThat(arrival.get("nextMeal").get("day").asInt()).isEqualTo(2);
+    assertThat(arrival.get("nextMeal").get("label").asString()).isEqualTo("아침");
+    assertThat(arrival.get("overdue").asLong()).isEqualTo(next.get("missing").asLong());
+    assertThat(arrival.get("coming").asLong()).isEqualTo(1); // 나래
+    assertThat(arrival.get("passed").asLong()).isEqualTo(1); // 다솜
+    assertThat(arrival.get("unknown").asLong()).isEqualTo(1); // 미르
+    assertThat(
+            arrival.get("overdue").asLong()
+                + arrival.get("coming").asLong()
+                + arrival.get("passed").asLong()
+                + arrival.get("unknown").asLong())
+        .isEqualTo(summary.get("notCheckedIn").asLong());
+
+    JsonNode overdue = roster(event, "?arrival=OVERDUE");
+    assertThat(participants(overdue)).containsExactlyInAnyOrder(garam, nuri);
+    assertThat(overdue.get("page").get("totalItems").asLong())
+        .isEqualTo(next.get("missing").asLong());
+    JsonNode late = item(overdue, garam).get("arrival");
+    assertThat(late.get("status").asString()).isEqualTo("OVERDUE");
+    assertThat(late.get("slot").get("slotId").asString()).isEqualTo("opt_d1_dinner");
+    assertThat(late.get("slot").get("day").asInt()).isEqualTo(1);
+    assertThat(late.get("slot").get("label").asString()).isEqualTo("저녁");
+
+    JsonNode all = roster(event, "");
+    assertThat(item(all, narae).get("arrival").get("status").asString()).isEqualTo("COMING");
+    assertThat(item(all, narae).get("arrival").get("slot").get("slotId").asString())
+        .isEqualTo("opt_d2_dinner");
+    assertThat(item(all, dasom).get("arrival").get("status").asString()).isEqualTo("PASSED");
+    assertThat(item(all, mir).get("arrival").get("status").asString()).isEqualTo("UNKNOWN");
+    assertThat(item(all, mir).get("arrival").get("slot").isNull()).isTrue();
+    assertThat(item(all, bada).get("arrival").get("status").asString()).isEqualTo("ARRIVED");
+    assertThat(participants(roster(event, "?arrival=UNKNOWN"))).containsExactly(mir);
+    assertThat(participants(roster(event, "?arrival=COMING&checkedIn=false")))
+        .containsExactly(narae);
+    // Paging applies after the arrival filter.
+    JsonNode first = roster(event, "?arrival=OVERDUE&size=1");
+    assertThat(first.get("items")).hasSize(1);
+    assertThat(first.get("page").get("totalItems").asLong()).isEqualTo(2);
+    assertThat(first.get("page").get("totalPages").asLong()).isEqualTo(2);
+
+    // A late arrival leaves both lists at once.
+    checkIn(event, garam);
+    assertThat(numbers(slot(counts(event), "opt_d2_breakfast")))
+        .containsExactly(3L, 2L, 0L, 1L, 2L);
+    assertThat(checkInSummary(event).get("arrival").get("overdue").asLong()).isEqualTo(1);
+    assertThat(participants(roster(event, "?arrival=OVERDUE"))).containsExactly(nuri);
+
+    mvc.perform(get(base(event) + "/check-in-roster?arrival=overdue").cookie(event.owner))
+        .andExpect(status().isBadRequest());
+    mvc.perform(get(base(event) + "/check-in-roster?arrival=LATE").cookie(event.owner))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void withoutSlotsTheRosterAndTheSummaryCarryNoArrival() throws Exception {
+    Held event = openEvent("No slot owner", 2030);
+    JsonNode summary = checkInSummary(event);
+    assertThat(summary.get("arrival").isNull()).isTrue();
+    assertThat(roster(event, "?arrival=OVERDUE").get("items")).isEmpty();
+  }
+
   private JsonNode counts(Held event) throws Exception {
     return json.readTree(ok(get(base(event) + "/meal-counts").cookie(event.owner)));
+  }
+
+  private JsonNode checkInSummary(Held event) throws Exception {
+    return json.readTree(ok(get(base(event) + "/check-ins/summary").cookie(event.owner)));
+  }
+
+  private JsonNode roster(Held event, String query) throws Exception {
+    return json.readTree(ok(get(base(event) + "/check-in-roster" + query).cookie(event.owner)));
+  }
+
+  private static List<String> participants(JsonNode page) {
+    List<String> out = new ArrayList<>();
+    for (JsonNode item : page.get("items")) {
+      out.add(item.get("participantId").asString());
+    }
+    return out;
+  }
+
+  private static JsonNode item(JsonNode page, String participantId) {
+    for (JsonNode item : page.get("items")) {
+      if (item.get("participantId").asString().equals(participantId)) {
+        return item;
+      }
+    }
+    throw new AssertionError("no roster item " + participantId);
+  }
+
+  private void checkIn(Held event, String participantId) throws Exception {
+    ok(
+        write(
+                post(base(event) + "/check-ins"),
+                event.owner,
+                "{\"mode\":\"MANUAL\",\"participantId\":\"" + participantId + "\"}")
+            .header("Idempotency-Key", "e4-" + participantId));
   }
 
   private Map<String, Long> summaryMeals(Held event) throws Exception {
@@ -417,10 +579,14 @@ class MealCountHttpIT {
   // ---- fixtures ----
 
   private void period(Held event, int year) {
+    period(event, LocalDate.of(year, 1, 22));
+  }
+
+  private void period(Held event, LocalDate start) {
     jdbc.update(
         "UPDATE events SET start_date = ?, end_date = ? WHERE id = ?",
-        LocalDate.of(year, 1, 22),
-        LocalDate.of(year, 1, 24),
+        start,
+        start.plusDays(2),
         event.eventId);
   }
 
@@ -474,6 +640,10 @@ class MealCountHttpIT {
   }
 
   private Held openEvent(String memberName, int year) throws Exception {
+    return openEvent(memberName, LocalDate.of(year, 1, 22));
+  }
+
+  private Held openEvent(String memberName, LocalDate start) throws Exception {
     UUID spaceId = UUID.randomUUID();
     jdbc.update("INSERT INTO spaces (id, name) VALUES (?, ?)", spaceId, "Home " + memberName);
     UUID memberId = UUID.randomUUID();
@@ -489,7 +659,7 @@ class MealCountHttpIT {
                 "{\"name\":\"겨울 수련회\"}"));
     Held held =
         new Held(spaceId, UUID.fromString(json.readTree(created).get("eventId").asString()), owner);
-    period(held, year);
+    period(held, start);
     return held;
   }
 

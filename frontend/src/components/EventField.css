@@ -93,6 +93,7 @@
 
 .event-field__filters {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
@@ -647,4 +648,61 @@
   align-self: flex-start;
   color: var(--color-text-brand);
   font: var(--scene-label-m);
+}
+
+/* 도착 예정 (E4 #456): the summary split of 미완료 and the line under each name. */
+.event-field__arrivals {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.event-field__arrivals-basis {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font: var(--scene-body-s);
+}
+
+.event-field__arrivals-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  margin: 0;
+  color: var(--color-text-primary);
+  font: var(--scene-body-s);
+}
+
+.event-field__arrivals-overdue {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--color-warning-bg);
+  color: var(--color-warning-fg);
+  font: var(--scene-label-m);
+  cursor: pointer;
+}
+
+.event-field__arrivals-overdue:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.event-field__arrival {
+  margin: 0;
+  font: var(--scene-body-s);
+}
+
+.event-field__arrival--overdue {
+  color: var(--color-warning-fg);
+  font-weight: 600;
+}
+
+.event-field__arrival--coming {
+  color: var(--color-text-primary);
+}
+
+.event-field__arrival--muted {
+  color: var(--color-text-secondary);
 }

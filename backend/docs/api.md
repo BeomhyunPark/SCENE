@@ -2213,11 +2213,28 @@ CSRF가 필요하다.
 
 `total`은 `SUBMITTED` 신청이 있는 참가자 수다. `checkedIn`은 그중 `CHECKED_IN`인 수다. 취소는 미완료다.
 
+**도착 예정 (E4 [#456](https://github.com/BeomhyunPark/SCENE/issues/456), DEC-087 Follow-up, 더하기만).** 응답에 `arrival`이 더해진다.
+
+```json
+{
+  "eventStatus": "ACTIVE", "total": 120, "checkedIn": 87, "notCheckedIn": 33,
+  "arrival": {
+    "asOf": "2027-01-23T05:10:00Z",
+    "nextMeal": { "slotId": "opt_d2_lunch", "day": 2, "dayLabel": "1월 23일 (토)", "label": "점심" },
+    "overdue": 6, "coming": 21, "passed": 2, "unknown": 4
+  }
+}
+```
+
+- 신청서 설정이 없거나 칸이 없으면 `arrival`은 `null`이다.
+- 미완료(`notCheckedIn`)를 아래 [도착 상태](#도착-상태)로 나눈 수다. `overdue + coming + passed + unknown = notCheckedIn`이다.
+- `nextMeal`은 [식수 현황](#식수-현황)의 `nextSlotId`와 같은 칸이고, 모든 끼니가 지났으면 `null`이다. **`overdue`는 식수 현황에서 그 칸의 `missing`(아직 안 옴)과 같은 수다.** 같은 신청 답·체크인·일정표 작업본 시각·기준 시각 규칙으로 센다.
+
 ### `GET /api/v1/operator/events/{eventId}/check-in-roster`
 
-쿼리: `q`(선택), `checkedIn`(`true`·`false`, 선택), `page`, `size`([목록](#목록)과 같음). 대상은 `SUBMITTED` 신청이 있는 참가자다. 순서는 이름, 그다음 참가자 id다.
+쿼리: `q`(선택), `checkedIn`(`true`·`false`, 선택), `arrival`(아래 도착 상태 하나, 선택, E4), `page`, `size`([목록](#목록)과 같음). 대상은 `SUBMITTED` 신청이 있는 참가자다. 순서는 이름, 그다음 참가자 id다.
 
-`q`는 앞뒤 공백을 자르고 1–50자다. 공백뿐이거나 길면 `400 VALIDATION_FAILED`이고 필드는 `q`다. `checkedIn`이 `true`·`false`가 아니면 필드는 `checkedIn`이다. `%`·`_`는 일반 글자로 찾는다. 숫자 정확히 4개면 전화 끝 4자리가 같거나 이름에 그 글자가 든 참가자, 그 밖에는 이름에 든 참가자다(대소문자 무시). 끝 4자리 검색은 `CHECKIN_WRITE`가 없으면 이름만 본다.
+`q`는 앞뒤 공백을 자르고 1–50자다. 공백뿐이거나 길면 `400 VALIDATION_FAILED`이고 필드는 `q`다. `checkedIn`이 `true`·`false`가 아니면 필드는 `checkedIn`이다. `arrival`이 아래 다섯 값(대문자)이 아니면 필드는 `arrival`이다. `%`·`_`는 일반 글자로 찾는다. 숫자 정확히 4개면 전화 끝 4자리가 같거나 이름에 그 글자가 든 참가자, 그 밖에는 이름에 든 참가자다(대소문자 무시). 끝 4자리 검색은 `CHECKIN_WRITE`가 없으면 이름만 본다.
 
 항목:
 
@@ -2234,6 +2251,22 @@ CSRF가 필요하다.
 - `cohort`는 `SUBMITTED` 신청의 SYSTEM `COHORT` 답 `value.text`다. 없거나 꺼져 있으면 `null`이다.
 - `phoneLast4`는 `CHECKIN_WRITE`가 있을 때만 값이 있고, 없으면 `null`이다. `CONTACT_VIEW`는 남기지 않는다. 전체 전화는 이 응답에 없다.
 - `checkIn`은 한 번도 체크인하지 않았으면 `null`이다.
+- `arrival`(E4, 더하기만)은 `{ "status": "OVERDUE", "slot": { "slotId": "opt_d1_dinner", "day": 1, "dayLabel": "1월 22일 (금)", "label": "저녁" } }`이다. 신청서에 칸이 없으면 `null`이다. `slot`은 그 상태의 도착 예정 칸이고, 모르거나 참석 칸이 없으면 `null`이다.
+- `arrival` 쿼리가 있으면 그 상태인 사람만 주고, `page`·`totalItems`는 거른 뒤의 수다. `q`·`checkedIn`과 함께 쓸 수 있다.
+
+#### 도착 상태
+
+요청 때마다 식수 현황(DEC-087)과 같은 입력으로 정한다. 지금 칸은 지나지 않은 첫 칸(집회 포함, 시작 1시간 뒤에 지남, 시각은 일정표 작업본 또는 기본 시각), 다음 끼니는 지금 칸이거나 그 뒤인 첫 식사 칸이다. 도착 예정 칸은 `ArrivalSlots.dueSlot`(연속 참석 칸 묶음의 첫 칸)이다.
+
+| `status` | 뜻 | `slot` |
+| --- | --- | --- |
+| `ARRIVED` | 현재 `CHECKED_IN` | 첫 참석 칸(모르면 `null`) |
+| `OVERDUE` | 체크인 없음, 다음 끼니에 참석하고 그 끼니의 도착 예정 칸이 지났다. 식수 현황의 그 끼니 `missing`과 같은 사람들 | 그 도착 예정 칸 |
+| `COMING` | 체크인 없음, 지금 칸 이후 참석 칸 가운데 도착 예정 칸이 아직 안 지난 것이 있다 | 그 첫 도착 예정 칸 |
+| `PASSED` | 체크인 없음, 위 둘이 아니다(참석 칸이 다 지났거나 이미 떠났을 사람, 다음 끼니 없이 지난 묶음의 남은 집회만 있는 사람, 참석 칸 없음) | 마지막 참석 칸의 도착 예정 칸(없으면 `null`) |
+| `UNKNOWN` | 체크인 없음, 참석 칸을 모른다(식수 현황의 `unknown`에서 도착한 사람을 뺀 수) | `null` |
+
+`arrival` 거르기는 서버가 맞는 사람을 모두 읽은 뒤 메모리에서 쪽을 나눈다(행사 한 개 수백 명 기준).
 
 ### `POST /api/v1/operator/events/{eventId}/check-ins`
 
