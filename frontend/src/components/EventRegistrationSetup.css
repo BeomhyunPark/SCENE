@@ -173,6 +173,7 @@
 }
 
 .setup-card__group {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -183,9 +184,47 @@
   border: 0;
 }
 
-.setup-card__group legend {
+/* Groups are divided by a line, not boxed (#498). */
+.setup-card__group + .setup-card__group {
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border-default);
+}
+
+/* 설명: a text button at the group's top right; the note opens under the legend (#498). */
+.setup-card__help-toggle {
+  position: absolute;
+  top: -6px;
+  right: 0;
+}
+
+.setup-card__group + .setup-card__group .setup-card__help-toggle {
+  top: 10px;
+}
+
+.setup-card__help > .registration-setup__note[hidden] {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .setup-card__help-toggle.scene-button {
+    min-height: 40px;
+  }
+
+  .setup-card__help-toggle {
+    top: -10px;
+  }
+
+  .setup-card__group + .setup-card__group .setup-card__help-toggle {
+    top: 6px;
+  }
+}
+
+/* A floated legend is laid out like any heading, so the divider above the group is not cut by it. */
+.setup-card__group > legend {
+  float: left;
+  width: 100%;
   padding: 0;
-  margin-bottom: 8px;
+  margin-bottom: 0;
   font: var(--scene-label-m);
   letter-spacing: 0;
 }
@@ -210,6 +249,7 @@
 
 .setup-card__check small {
   display: block;
+  max-width: 28rem;
   color: var(--color-text-secondary);
   font: var(--scene-label-s);
   letter-spacing: 0;
@@ -238,20 +278,23 @@
   font: var(--scene-label-s);
 }
 
-/* Partial attendance mode (DEC-074). Not in the design: same rows and chips as the card and form. */
+/*
+ * Partial attendance mode (DEC-074) and vehicle timing (#324). Not in the design. Indented under the
+ * choice they belong to instead of boxed, so the card holds at most one inner surface: the sample (#498).
+ */
 .setup-card__mode {
   display: flex;
   flex-direction: column;
   gap: 8px;
   min-width: 0;
   margin: 4px 0 0;
-  padding: 12px 16px;
-  border: 1px solid var(--color-border-default);
-  border-radius: 8px;
+  padding: 0 0 0 24px;
+  border: 0;
 }
 
 .setup-card__mode legend {
-  padding: 0 4px;
+  padding: 0;
+  margin-bottom: 8px;
   font: var(--scene-label-m);
   letter-spacing: 0;
 }
@@ -379,7 +422,21 @@
   }
 }
 
-/* 신청 수정 받기 (#427): beside the 신청 열기/닫기 state, its own small row. */
+/* The application state block (#498): the design's welcome surface, holding 신청 열기·닫기 and 신청 수정 받기. */
+.registration-setup__status {
+  border: 1px solid var(--color-border-default);
+  border-radius: 8px;
+  background: var(--color-bg-subtle);
+  overflow: hidden;
+}
+
+.registration-setup__status > .event-home__welcome {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+/* 신청 수정 받기 (#427): a row under the 신청 열기·닫기 state in the same block, divided by a line. */
 .registration-setup__edits {
   display: flex;
   flex-wrap: wrap;
@@ -387,9 +444,14 @@
   justify-content: space-between;
   gap: 12px;
   padding: 16px 20px;
-  background: var(--color-bg-surface);
-  border: 1px solid var(--color-border-default);
-  border-radius: 12px;
+  border-top: 1px solid var(--color-border-default);
+}
+
+@media (min-width: 768px) {
+  /* Line the row's copy up with the state copy beside the calendar mark. */
+  .registration-setup__edits {
+    padding-left: 82px;
+  }
 }
 
 .registration-setup__edits-copy {
