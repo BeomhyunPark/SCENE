@@ -151,9 +151,8 @@ export function NoticeBadges({ notice }: { notice: Pick<OperatorNotice, "pinned"
     <span className="notice-badges">
       {notice.pinned && notice.status === "PUBLISHED" ? <span className="notice-badge notice-badge--pin">고정</span> : null}
       {notice.important ? <span className="notice-badge notice-badge--important">중요</span> : null}
-      <span className={`notice-badge${notice.audience === "ALL" ? "" : " notice-badge--audience"}`}>
-        {AUDIENCE_LABEL[notice.audience]}
-      </span>
+      {/* 기본 대상(전체)은 붙이지 않는다: 제목 앞 "전체"가 "전체 첫째 날 …"처럼 읽혔다(#483). */}
+      {notice.audience !== "ALL" ? <span className="notice-badge notice-badge--audience">{AUDIENCE_LABEL[notice.audience]}</span> : null}
       {notice.status === "DRAFT" ? <span className="notice-badge">초안</span> : null}
       {notice.status === "ARCHIVED" ? <span className="notice-badge">보관</span> : null}
     </span>

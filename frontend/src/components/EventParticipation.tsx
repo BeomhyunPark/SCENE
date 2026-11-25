@@ -26,11 +26,8 @@ import { eventContext, lifecycleLabel } from "./eventFormat";
 import { markEventArea } from "./eventLocalState";
 import "./EventHome.css";
 
-const ways = [
-  { title: "신청 링크 만들기", detail: "공유할 주소를 만들어요", badge: "시작", action: "준비" },
-  { title: "QR로 공유하기", detail: "현장 · 인쇄물에 사용", badge: "선택", action: "준비" },
-  { title: "참가자 직접 추가", detail: "운영자가 명단에 입력", badge: "선택", action: "추가" },
-];
+// "QR로 공유하기"(누를 곳 없음)와 "참가자 직접 추가"(위 "참가자 추가"와 같은 곳)는 #483에서 뺐다.
+const ways = [{ title: "신청 링크 만들기", detail: "공유할 주소를 만들어요", badge: "시작", action: "준비" }];
 
 export function EventParticipation() {
   const { eventId = "" } = useParams();
@@ -227,7 +224,7 @@ function ParticipationBody({ event, spaceName }: { event: EventDetail; spaceName
         </Link>
       }
       action={
-        <Button type="button" variant="secondary" size={40}>
+        <Button type="button" variant="secondary" size={40} onClick={() => navigate(`/events/${eventId}/settings`)}>
           행사 설정
         </Button>
       }
@@ -275,13 +272,7 @@ function ParticipationBody({ event, spaceName }: { event: EventDetail; spaceName
               }
               type="button"
               aria-label={item.title}
-              onClick={
-                item.title === "신청 링크 만들기" && setupPath
-                  ? () => navigate(setupPath)
-                  : item.title === "참가자 직접 추가"
-                    ? () => navigate(`/events/${eventId}/participants/new`)
-                    : undefined
-              }
+              onClick={() => navigate(setupPath)}
             >
               <span className="event-home__chip">{item.badge}</span>
               <span className="event-home__card-title">{item.title}</span>

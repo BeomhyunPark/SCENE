@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 import arrowLeft from "../assets/event-create/arrow-left.svg";
 import calendarCheck from "../assets/event-home/calendar-check.svg";
 import type { EventDetail } from "../api/events";
@@ -62,6 +62,7 @@ export function EventRegistrationSetup() {
 function SetupBody({ event, spaceName }: { event: EventDetail; spaceName?: string }) {
   const queryClient = useQueryClient();
   const eventId = event.eventId;
+  const navigate = useNavigate();
   const me = useQuery({ queryKey: queryKeys.me, queryFn: getMe });
   const permissions = useQuery({
     queryKey: queryKeys.permissions(eventId, me.data?.userId ?? ""),
@@ -330,7 +331,7 @@ function SetupBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
         </Link>
       }
       action={
-        <Button type="button" variant="secondary" size={40}>
+        <Button type="button" variant="secondary" size={40} onClick={() => navigate(`/events/${eventId}/settings`)}>
           행사 설정
         </Button>
       }

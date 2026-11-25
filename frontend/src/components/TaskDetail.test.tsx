@@ -53,6 +53,8 @@ function problem(status: number, code: string, extra: Record<string, unknown> = 
 async function enableComplete() {
   fireEvent.click(await screen.findByRole("checkbox", { name: "출력" }));
   expect(await screen.findByRole("button", { name: "완료" })).toBeEnabled();
+  // Only the action that can be used now is shown (#483): 다시 진행 waits until the task is done.
+  expect(screen.queryByRole("button", { name: "다시 진행" })).not.toBeInTheDocument();
 }
 
 describe("task detail", () => {
@@ -125,7 +127,9 @@ describe("task detail", () => {
     await enableComplete();
     fireEvent.click(screen.getByRole("button", { name: "완료" }));
     expect(await screen.findByText("완료")).toBeInTheDocument();
-    fireEvent.click(await screen.findByRole("button", { name: "다시 진행" }));
+    const reopen = await screen.findByRole("button", { name: "다시 진행" });
+    expect(screen.queryByRole("button", { name: "완료" })).not.toBeInTheDocument();
+    fireEvent.click(reopen);
     expect(await screen.findByRole("alert")).toHaveTextContent("완료된 업무예요. 다시 진행한 뒤 바꿀 수 있어요.");
   });
 
