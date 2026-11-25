@@ -10,9 +10,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import app.scene.common.audit.AuditActions;
+import app.scene.common.invitation.CapturingInvitationMailer;
+import app.scene.common.invitation.InvitationMail;
 import app.scene.common.web.RequestIdFilter;
-import app.scene.event.invitation.CapturingInvitationMailer;
-import app.scene.event.invitation.InvitationMail;
 import app.scene.support.PostgresTestcontainer;
 import jakarta.servlet.http.Cookie;
 import java.util.UUID;

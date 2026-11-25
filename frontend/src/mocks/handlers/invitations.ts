@@ -10,14 +10,15 @@ import {
   type InvitationFailure,
 } from "../invitationStore";
 import { operatorRequests } from "../operatorStore";
+import { deliver } from "../mailOutbox";
 import { problem } from "../problem";
 
 const DEFAULT_SIZE = 50;
 const MAX_SIZE = 100;
 
 /**
- * Invitation list, commands, preview, and accept, shaped like EventInvitationController. The link
- * is only in the create and resend bodies (DEC-060 Follow-up 2026-11-16).
+ * Invitation list, commands, preview, and accept, shaped like EventInvitationController. Create and
+ * resend "mail" the link (mailOutbox); with mail off the link is only in those bodies.
  */
 export const invitationHandlers = [
   http.get("/api/v1/operator/events/:eventId/invitations", ({ request, params }) => {
@@ -44,7 +45,7 @@ export const invitationHandlers = [
     operatorRequests.push({ method: "POST", url: new URL(request.url).pathname, body });
     const issued = createInvitation(String(params.eventId), operator.userId, body);
     if ("code" in issued) return fail(issued);
-    return HttpResponse.json(issued);
+    return HttpResponse.json(deliver(issued));
   }),
 
   http.post("/api/v1/operator/events/:eventId/invitations/:invitationId/resend", ({ request, params, cookies }) => {
@@ -54,7 +55,7 @@ export const invitationHandlers = [
     operatorRequests.push({ method: "POST", url: new URL(request.url).pathname });
     const issued = resendInvitation(String(params.eventId), operator.userId, String(params.invitationId));
     if ("code" in issued) return fail(issued);
-    return HttpResponse.json(issued);
+    return HttpResponse.json(deliver(issued));
   }),
 
   http.delete("/api/v1/operator/events/:eventId/invitations/:invitationId", ({ request, params, cookies }) => {

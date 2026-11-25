@@ -38,7 +38,8 @@ import "./EventHome.css";
 
 /**
  * Event operators and, for the event owner, a direct add of organization members (DEC-076) and
- * invitations for outside collaborators. The invitation link comes back once from
+ * invitations for outside collaborators. The server mails the invitation link to the invited
+ * address; only when mail is off on that server does the link come back once from
  * create or resend (DEC-060 Follow-up 2026-11-16). It lives only in this component's state and is
  * not written to localStorage, sessionStorage, the path, or the query.
  */
@@ -530,7 +531,8 @@ function Invitations({ eventId, archived }: { eventId: string; archived: boolean
     else if (isApiError(caught, "RESOURCE_NOT_FOUND")) {
       setAlert("초대를 찾을 수 없어요.");
       refresh();
-    } else setAlert("처리하지 못했어요. 다시 시도해 주세요.");
+    } else if (isApiError(caught, "MAIL_SEND_FAILED")) setAlert("초대 메일을 보내지 못했어요. 잠시 뒤 다시 시도해 주세요.");
+    else setAlert("처리하지 못했어요. 다시 시도해 주세요.");
   }
 
   const create = useMutation({
@@ -580,12 +582,12 @@ function Invitations({ eventId, archived }: { eventId: string; archived: boolean
     create.mutate({ email: email.trim(), role });
   }
 
-  const address = issued ? `${window.location.origin}${issued.link}` : "";
+  const address = issued?.link ? `${window.location.origin}${issued.link}` : "";
 
   return (
     <section className="event-home__apply" aria-labelledby="invite-title">
       <h2 id="invite-title">외부 협력자 초대</h2>
-      <p>조직 멤버가 아닌 분은 초대 링크를 만들어 직접 보내 주세요. 링크는 지금 한 번만 보여요.</p>
+      <p>조직 멤버가 아닌 분은 이메일로 초대해 주세요. 받은 메일의 링크를 열고 같은 이메일로 로그인하면 운영 멤버가 돼요.</p>
       {archived ? (
         <p>보관된 행사에는 초대할 수 없어요.</p>
       ) : (
@@ -619,7 +621,7 @@ function Invitations({ eventId, archived }: { eventId: string; archived: boolean
           </select>
           <RoleSummary id="invite-role-summary" />
           <Button type="submit" variant="primary" size={40} loading={create.isPending} disabled={pending}>
-            초대 링크 만들기
+            초대 메일 보내기
           </Button>
         </form>
       )}
@@ -628,9 +630,19 @@ function Invitations({ eventId, archived }: { eventId: string; archived: boolean
           {alert}
         </p>
       ) : null}
-      {issued ? (
+      {issued?.delivery === "EMAIL" ? (
         <div className="event-home__issued" role="status">
-          <p>{issued.email}에게 보낼 링크예요. 이 화면을 떠나면 다시 볼 수 없어요.</p>
+          <p>
+            {issued.email}에게 초대 메일을 보냈어요. 링크는 {formatSubmittedAt(issued.expiresAt)}까지 쓸 수 있어요.
+          </p>
+        </div>
+      ) : null}
+      {issued?.delivery === "LINK" ? (
+        <div className="event-home__issued" role="status">
+          <p>
+            메일 발송이 꺼져 있어 링크를 직접 전달해 주세요. {issued.email}에게 보낼 링크예요. 이 화면을 떠나면 다시 볼
+            수 없어요.
+          </p>
           <input className="event-home__address" readOnly aria-label="초대 링크" value={address} />
           {copied ? <p>복사했어요.</p> : null}
           <Button

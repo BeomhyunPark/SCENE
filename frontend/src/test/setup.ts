@@ -6,6 +6,7 @@ import { server } from "../mocks/server";
 import { resetOperatorSession } from "../mocks/handlers/session";
 import { resetFormStore } from "../mocks/formStore";
 import { resetInvitationStore } from "../mocks/invitationStore";
+import { resetMailOutbox } from "../mocks/mailOutbox";
 import { resetSpaceInvitationStore } from "../mocks/spaceInvitationStore";
 import { resetOperatorStore } from "../mocks/operatorStore";
 import { resetParticipantStore } from "../mocks/participantStore";
@@ -46,6 +47,7 @@ afterEach(() => {
   resetParticipantCheckInStore();
   resetFormStore();
   resetInvitationStore();
+  resetMailOutbox();
   resetSpaceInvitationStore();
   deliveryTiming.retryDelaysMs = TEST_RETRY_DELAYS_MS;
   window.history.replaceState(null, "", window.location.pathname);

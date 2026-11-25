@@ -2,6 +2,7 @@ import { http, HttpResponse } from "msw";
 import { currentOperator, currentSessionEmail } from "./session";
 import { csrfMatches } from "../csrf";
 import { operatorRequests } from "../operatorStore";
+import { deliver } from "../mailOutbox";
 import { problem } from "../problem";
 import {
   createSpaceInvitation,
@@ -50,7 +51,7 @@ export const spaceInvitationHandlers = [
     operatorRequests.push({ method: "POST", url: new URL(request.url).pathname, body });
     const issued = createSpaceInvitation(String(params.spaceId), operator.userId, body);
     if ("code" in issued) return fail(issued);
-    return HttpResponse.json(issued);
+    return HttpResponse.json(deliver(issued));
   }),
 
   http.post("/api/v1/operator/spaces/:spaceId/invitations/:invitationId/resend", ({ request, params, cookies }) => {
@@ -60,7 +61,7 @@ export const spaceInvitationHandlers = [
     operatorRequests.push({ method: "POST", url: new URL(request.url).pathname });
     const issued = resendSpaceInvitation(String(params.spaceId), operator.userId, String(params.invitationId));
     if ("code" in issued) return fail(issued);
-    return HttpResponse.json(issued);
+    return HttpResponse.json(deliver(issued));
   }),
 
   http.delete("/api/v1/operator/spaces/:spaceId/invitations/:invitationId", ({ request, params, cookies }) => {

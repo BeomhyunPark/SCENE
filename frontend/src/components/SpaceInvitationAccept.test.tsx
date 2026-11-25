@@ -9,6 +9,7 @@ import { login, logout } from "../api/session";
 import { INVITATION_STORAGE_KEY, resetInvitationCaptureState, storedInvitationToken } from "../invitationToken";
 import { localEvent, localSpace, localUsers } from "../mocks/fixtures/seed";
 import { createInvitation } from "../mocks/invitationStore";
+import { mailedLinks } from "../mocks/mailOutbox";
 import { operatorRequests } from "../mocks/operatorStore";
 import { problem } from "../mocks/problem";
 import { server } from "../mocks/server";
@@ -204,7 +205,7 @@ describe("space invitation from the members page to events", () => {
     vi.restoreAllMocks();
   });
 
-  it("owner invites, the guest accepts, and the guest sees no create entry as a MEMBER", async () => {
+  it("owner mails an invitation, the guest accepts from the mail, and the guest sees no create entry as a MEMBER", async () => {
     await login({ userId: OWNER });
     const owner = render(
       <MemoryRouter initialEntries={["/members"]}>
@@ -212,9 +213,10 @@ describe("space invitation from the members page to events", () => {
       </MemoryRouter>,
     );
     fireEvent.change(await screen.findByLabelText("이메일"), { target: { value: GUEST_EMAIL } });
-    fireEvent.click(screen.getByRole("button", { name: "초대 링크 만들기" }));
-    const link = (await screen.findByLabelText("초대 링크")) as HTMLInputElement;
-    const token = link.value.split("#")[1];
+    fireEvent.click(screen.getByRole("button", { name: "초대 메일 보내기" }));
+    expect(await screen.findByRole("status")).toHaveTextContent(`${GUEST_EMAIL}에게 초대 메일을 보냈어요.`);
+    // The guest opens the link from the mail.
+    const token = mailedLinks()[0].split("#")[1];
     owner.unmount();
 
     await logout();

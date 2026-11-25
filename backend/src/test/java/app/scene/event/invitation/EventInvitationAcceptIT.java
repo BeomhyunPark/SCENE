@@ -9,6 +9,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import app.scene.common.invitation.CapturingInvitationMailer;
+import app.scene.common.invitation.InvitationMail;
 import app.scene.common.web.RequestIdFilter;
 import app.scene.event.lifecycle.EventLifecycleService;
 import app.scene.event.lifecycle.LifecycleRequest;

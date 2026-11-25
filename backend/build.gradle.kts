@@ -28,6 +28,7 @@ dependencies {
   implementation(libs.spring.boot.starter.security.oauth2.client)
   implementation(libs.spring.boot.starter.session.jdbc)
   implementation(libs.spring.boot.starter.flyway)
+  implementation(libs.spring.boot.starter.mail)
   implementation(libs.mybatis.spring.boot.starter)
   runtimeOnly(libs.flyway.database.postgresql)
   runtimeOnly(libs.postgresql)

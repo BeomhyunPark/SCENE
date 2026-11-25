@@ -6,6 +6,7 @@ import { login, logout } from "../api/session";
 import { acceptInvitation } from "../api/invitations";
 import { localEvent, localUsers } from "../mocks/fixtures/seed";
 import { createInvitation } from "../mocks/invitationStore";
+import { mailedLinks, setMockMailDelivery } from "../mocks/mailOutbox";
 import { setLifecycle } from "../mocks/operatorStore";
 
 const EVENT = localEvent.eventId;
@@ -22,7 +23,7 @@ function openApp(path: string) {
 async function invite(email: string, role: "MANAGER" | "STAFF") {
   fireEvent.change(await screen.findByLabelText("이메일"), { target: { value: email } });
   fireEvent.change(screen.getByLabelText("역할"), { target: { value: role } });
-  fireEvent.click(screen.getByRole("button", { name: "초대 링크 만들기" }));
+  fireEvent.click(screen.getByRole("button", { name: "초대 메일 보내기" }));
 }
 
 describe("event operators and invitations", () => {
@@ -40,7 +41,7 @@ describe("event operators and invitations", () => {
     vi.restoreAllMocks();
   });
 
-  it("lists operators and lets the owner create an invitation link shown once", async () => {
+  it("lists operators and lets the owner mail an invitation without seeing the link", async () => {
     await login({ userId: OWNER });
     openApp(`/events/${EVENT}/operators`);
 
@@ -51,12 +52,14 @@ describe("event operators and invitations", () => {
 
     await invite("New@Example.com", "MANAGER");
 
-    const link = (await screen.findByLabelText("초대 링크")) as HTMLInputElement;
-    expect(link.value).toMatch(new RegExp(`^${window.location.origin}/operator/invitations#[A-Za-z0-9_-]{20,}$`));
-    expect(screen.getByRole("status")).toHaveTextContent("new@example.com에게 보낼 링크예요.");
-    const token = link.value.split("#")[1];
-    fireEvent.click(screen.getByRole("button", { name: "복사" }));
-    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(link.value);
+    expect(await screen.findByRole("status")).toHaveTextContent("new@example.com에게 초대 메일을 보냈어요.");
+    expect(screen.queryByLabelText("초대 링크")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "복사" })).not.toBeInTheDocument();
+    const mailed = mailedLinks();
+    expect(mailed).toHaveLength(1);
+    expect(mailed[0]).toMatch(/^\/operator\/invitations#[A-Za-z0-9_-]{20,}$/);
+    const token = mailed[0].split("#")[1];
+    expect(document.body.textContent ?? "").not.toContain(token);
 
     const pending = await screen.findByRole("list", { name: "대기 중인 초대" });
     expect(within(pending).getByText("new@example.com")).toBeInTheDocument();
@@ -66,20 +69,41 @@ describe("event operators and invitations", () => {
     expect(stored).not.toContain(token);
   });
 
-  it("resends with a new link and revokes a pending invitation", async () => {
+  it("shows the link once when mail is off on the server", async () => {
+    setMockMailDelivery("LINK");
+    await login({ userId: OWNER });
+    openApp(`/events/${EVENT}/operators`);
+    expect(await screen.findByText("대기 중인 초대가 없어요.")).toBeInTheDocument();
+
+    await invite("New@Example.com", "STAFF");
+
+    const link = (await screen.findByLabelText("초대 링크")) as HTMLInputElement;
+    expect(link.value).toMatch(new RegExp(`^${window.location.origin}/operator/invitations#[A-Za-z0-9_-]{20,}$`));
+    expect(screen.getByRole("status")).toHaveTextContent("메일 발송이 꺼져 있어 링크를 직접 전달해 주세요.");
+    expect(screen.getByRole("status")).toHaveTextContent("new@example.com에게 보낼 링크예요.");
+    const token = link.value.split("#")[1];
+    fireEvent.click(screen.getByRole("button", { name: "복사" }));
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(link.value);
+    const stored = setItem.mock.calls.map((call: unknown[]) => String(call[1])).join(" ");
+    expect(stored).not.toContain(token);
+  });
+
+  it("resends a new mail and revokes a pending invitation", async () => {
     await login({ userId: OWNER });
     const first = createInvitation(EVENT, OWNER, { email: "a@example.com", role: "STAFF" });
     if ("code" in first) throw new Error(first.code);
     openApp(`/events/${EVENT}/operators`);
 
     fireEvent.click(await screen.findByRole("button", { name: "a@example.com 다시 보내기" }));
-    const link = (await screen.findByLabelText("초대 링크")) as HTMLInputElement;
-    expect(link.value.endsWith(first.link)).toBe(false);
-    expect(link.value).toContain("/operator/invitations#");
+    expect(await screen.findByRole("status")).toHaveTextContent("a@example.com에게 초대 메일을 보냈어요.");
+    const mailed = mailedLinks();
+    expect(mailed).toHaveLength(1);
+    expect(mailed[0]).not.toBe(first.link);
+    expect(mailed[0]).toContain("/operator/invitations#");
 
     fireEvent.click(await screen.findByRole("button", { name: "a@example.com 초대 취소" }));
     expect(await screen.findByText("대기 중인 초대가 없어요.")).toBeInTheDocument();
-    expect(screen.queryByLabelText("초대 링크")).not.toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
   it("asks for a valid email", async () => {
@@ -107,7 +131,7 @@ describe("event operators and invitations", () => {
     openApp(`/events/${EVENT}/operators`);
 
     expect(await screen.findAllByText("보관된 행사에는 초대할 수 없어요.")).not.toHaveLength(0);
-    expect(screen.queryByRole("button", { name: "초대 링크 만들기" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "초대 메일 보내기" })).not.toBeInTheDocument();
   });
 
   it("adds the invited person as an operator after they accept", async () => {

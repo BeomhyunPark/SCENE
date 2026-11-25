@@ -12,6 +12,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import app.scene.common.error.ErrorCode;
 import app.scene.common.error.SceneException;
+import app.scene.common.invitation.CapturingInvitationMailer;
+import app.scene.common.invitation.InvitationMail;
 import app.scene.common.web.RequestIdFilter;
 import app.scene.event.lifecycle.EventLifecycleService;
 import app.scene.event.lifecycle.LifecycleRequest;
@@ -100,13 +102,14 @@ class EventInvitationIT {
     String body = created(owner, fx.eventId, "Ada@Example.COM", "STAFF");
     JsonNode tree = json.readTree(body);
     assertThat(tree.propertyNames())
-        .containsExactlyInAnyOrder("id", "role", "status", "expiresAt", "link");
+        .containsExactlyInAnyOrder("id", "role", "status", "expiresAt", "link", "delivery");
+    assertThat(tree.get("delivery").asString()).isEqualTo("LINK");
     UUID id = UUID.fromString(tree.get("id").asString());
     assertThat(mailer.sent()).hasSize(1);
     InvitationMail mail = mailer.sent().get(0);
     assertThat(mail.recipient()).isEqualTo("ada@example.com");
     assertThat(mail.role()).isEqualTo("STAFF");
-    assertThat(mail.eventName()).isEqualTo("event");
+    assertThat(mail.targetName()).isEqualTo("event");
     String token = tokenOf(mail);
     assertThat(tree.get("link").asString()).isEqualTo(mail.fragmentLink());
     assertThat(body.replace(mail.fragmentLink(), "")).doesNotContain(token);

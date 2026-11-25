@@ -39,6 +39,7 @@ public enum ErrorCode {
   INVITATION_ALREADY_ACCEPTED(409, "Invitation already accepted", "다른 사용자가 이미 이 초대를 수락했습니다."),
   INVITATION_NOT_FOUND(404, "Invitation not found", "초대를 찾을 수 없습니다."),
   RATE_LIMITED(429, "Rate limited", "요청이 너무 많습니다."),
+  MAIL_SEND_FAILED(502, "Mail send failed", "초대 메일을 보내지 못했습니다. 잠시 뒤 다시 시도해 주세요."),
   TRANSFER_NOT_PENDING(409, "Transfer not pending", "수락할 수 있는 이전이 아닙니다."),
   TRANSFER_COMPLETED(409, "Transfer completed", "끝난 이전은 바꿀 수 없습니다."),
   HANDOVER_NOT_ACCEPTED(409, "Handover not accepted", "수락되지 않은 인수인계가 있습니다."),

@@ -36,6 +36,7 @@ class ErrorCodeTest {
     assertThat(ErrorCode.INVITATION_SUPERSEDED.httpStatus()).isEqualTo(410);
     assertThat(ErrorCode.INVITATION_ALREADY_ACCEPTED.httpStatus()).isEqualTo(409);
     assertThat(ErrorCode.INVITATION_NOT_FOUND.httpStatus()).isEqualTo(404);
+    assertThat(ErrorCode.MAIL_SEND_FAILED.httpStatus()).isEqualTo(502);
     assertThat(ErrorCode.PERMISSION_OWNER_NOT_OVERRIDABLE.httpStatus()).isEqualTo(422);
     assertThat(ErrorCode.PERMISSION_OWNER_ONLY.httpStatus()).isEqualTo(422);
     assertThat(ErrorCode.PERMISSION_NOT_OVERRIDABLE.httpStatus()).isEqualTo(422);

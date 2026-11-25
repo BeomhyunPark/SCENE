@@ -114,7 +114,8 @@ class SpaceInvitationIT {
         ok(write(post(invitations(fx.spaceId)), owner, "{\"email\":\" New@Example.COM \"}"));
     JsonNode created = json.readTree(body);
     assertThat(created.propertyNames())
-        .containsExactlyInAnyOrder("id", "role", "status", "expiresAt", "link");
+        .containsExactlyInAnyOrder("id", "role", "status", "expiresAt", "link", "delivery");
+    assertThat(created.get("delivery").asString()).isEqualTo("LINK");
     assertThat(created.get("role").asString()).isEqualTo("MEMBER");
     assertThat(created.get("status").asString()).isEqualTo("PENDING");
     assertThat(body).doesNotContain("new@example.com");
