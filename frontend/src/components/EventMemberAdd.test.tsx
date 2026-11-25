@@ -9,6 +9,7 @@ import { operatorRequests, setLifecycle } from "../mocks/operatorStore";
 import { problem } from "../mocks/problem";
 import { server } from "../mocks/server";
 import { addOperator as seedOperator } from "../mocks/taskStore";
+import { optionLabels, selectValue } from "../test/select";
 
 const EVENT = localEvent.eventId;
 const OWNER = localUsers[0].userId;
@@ -38,10 +39,10 @@ describe("event owner adds organization members (#363)", () => {
     openApp();
 
     const section = await addSection();
-    const member = (await within(section).findByLabelText("조직 멤버")) as HTMLSelectElement;
-    const names = Array.from(member.options).map((option) => option.textContent);
-    expect(names).toEqual(["Local member"]);
-    expect(within(section).getByLabelText("추가할 역할")).toHaveValue("STAFF");
+    const member = await within(section).findByLabelText("조직 멤버");
+    expect(optionLabels(member)).toEqual(["Local member"]);
+    expect(selectValue(within(section).getByLabelText("추가할 역할"))).toBe("STAFF");
+    expect(within(section).getByLabelText("추가할 역할")).toHaveTextContent("Staff");
 
     fireEvent.click(within(section).getByRole("button", { name: "운영자로 추가" }));
 

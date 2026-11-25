@@ -20,7 +20,7 @@ describe("fieldArrival", () => {
 
   it("names the next meal the summary counts against", () => {
     const counts = { asOf: "2027-01-23T05:00:00Z", overdue: 1, coming: 2, passed: 0, unknown: 0 };
-    expect(arrivalBasis({ ...counts, nextMeal: dinner2 })).toBe("다음 끼니 2일차 저녁 기준");
-    expect(arrivalBasis({ ...counts, nextMeal: null })).toBe("모든 끼니가 지났어요");
+    expect(arrivalBasis({ ...counts, nextMeal: dinner2 })).toBe("다음 식사 2일차 저녁 기준");
+    expect(arrivalBasis({ ...counts, nextMeal: null })).toBe("모든 식사가 지났어요");
   });
 });

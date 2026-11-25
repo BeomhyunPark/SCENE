@@ -7,6 +7,7 @@ import { seedDemoRoster } from "../../mocks/fixtures/demoRoster";
 import { localEvent, localUsers } from "../../mocks/fixtures/seed";
 import { tableApplications } from "../../mocks/participantStore";
 import { workingGroupOf } from "../../mocks/groupStore";
+import { chooseOption } from "../../test/select";
 
 const EVENT = localEvent.eventId;
 const OWNER = localUsers[0].userId;
@@ -73,14 +74,14 @@ describe("참가 현황 table at retreat size", () => {
     await screen.findByRole("grid", { name: "신청자 명단" });
 
     fireEvent.click(screen.getByRole("button", { name: "필터" }));
-    fireEvent.change(screen.getByRole("combobox", { name: "조건 더하기" }), { target: { value: field.fieldId } });
+    chooseOption(screen.getByRole("combobox", { name: "조건 더하기" }), field.fieldId);
     const gender = screen.getByRole("group", { name: /성별/ });
     fireEvent.click(within(gender).getByRole("checkbox", { name: new RegExp(`^${options[0].label}`) }));
     const male = countGender(options[0].optionId);
     expect(summary()).toBe(`${male}명`);
 
     const shirt = fields.find((item) => item.label === "티셔츠 크기")!;
-    fireEvent.change(screen.getByRole("combobox", { name: "조건 더하기" }), { target: { value: shirt.fieldId } });
+    chooseOption(screen.getByRole("combobox", { name: "조건 더하기" }), shirt.fieldId);
     const shirtBox = screen.getByRole("group", { name: /티셔츠 크기/ });
     fireEvent.click(within(shirtBox).getByRole("checkbox", { name: /^응답 없음/ }));
     const expected = tableApplications(EVENT).filter(
@@ -145,12 +146,12 @@ describe("참가 현황 table at retreat size", () => {
     await login({ userId: OWNER });
     openApp(`${PATH}?view=count`);
 
-    fireEvent.change(await screen.findByRole("combobox", { name: "세는 항목" }), { target: { value: field.fieldId } });
+    chooseOption(await screen.findByRole("combobox", { name: "세는 항목" }), field.fieldId);
     const pivot = screen.getByRole("table", { name: "성별 보기별 인원" });
     const male = countGender(options[0].optionId);
     expect(within(pivot).getByRole("button", { name: `${options[0].label} ${male}명 명단 보기` })).toHaveTextContent(String(male));
 
-    fireEvent.change(screen.getByRole("combobox", { name: "세는 항목" }), { target: { value: serve.fieldId } });
+    chooseOption(screen.getByRole("combobox", { name: "세는 항목" }), serve.fieldId);
     const multi = screen.getByRole("table", { name: "섬기고 싶은 곳 보기별 인원" });
     const perOption = serve.config.options!.map(
       (option) => tableApplications(EVENT).filter((row) => (row.answers[serve.fieldId]?.optionIds as string[] | undefined)?.includes(option.optionId)).length,
@@ -159,9 +160,9 @@ describe("참가 현황 table at retreat size", () => {
     expect(perOption.reduce((sum, value) => sum + value, 0)).toBeGreaterThan(200);
     expect(screen.getByText(/고른 보기마다 한 번씩 세요/)).toBeInTheDocument();
 
-    fireEvent.change(screen.getByRole("combobox", { name: "세는 항목" }), { target: { value: field.fieldId } });
+    chooseOption(screen.getByRole("combobox", { name: "세는 항목" }), field.fieldId);
     const cohort = fields.find((item) => item.systemKey === "COHORT")!;
-    fireEvent.change(screen.getByRole("combobox", { name: /나눠 보기/ }), { target: { value: cohort.fieldId } });
+    chooseOption(screen.getByRole("combobox", { name: /나눠 보기/ }), cohort.fieldId);
     const cross = screen.getByRole("table", { name: "성별 × 또래" });
     const cellCount = tableApplications(EVENT).filter(
       (row) => row.answers[field.fieldId]?.optionId === options[0].optionId && row.answers[cohort.fieldId]?.text === "94",
@@ -248,7 +249,7 @@ describe("참가 현황 table at retreat size", () => {
     openApp();
     const grid = await screen.findByRole("grid", { name: "신청자 명단" });
 
-    fireEvent.change(screen.getByRole("combobox", { name: "묶어 보기" }), { target: { value: "group" } });
+    chooseOption(screen.getByRole("combobox", { name: "묶어 보기" }), "group");
     const unassigned = tableApplications(EVENT).filter((row) => !workingGroupOf(EVENT, row.participantId)).length;
     const toggle = within(grid).getByRole("button", { name: new RegExp(`조 배정: 미배정\\s*${unassigned}명`) });
     expect(toggle).toHaveAttribute("aria-expanded", "true");

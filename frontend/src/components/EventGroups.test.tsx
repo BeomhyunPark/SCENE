@@ -19,6 +19,7 @@ import {
 } from "../mocks/groupStore";
 import { setLifecycle } from "../mocks/operatorStore";
 import { participantSettingsVersion, readParticipantSettings, setGroupRosterVisible } from "../mocks/participantSettingsStore";
+import { chooseOption, chooseOptionByLabel, optionLabels } from "../test/select";
 
 const EVENT = localEvent.eventId;
 const WAIT = { timeout: 4000 };
@@ -112,42 +113,42 @@ describe("group board (#301)", () => {
     await openAs(0);
     await screen.findByRole("heading", { name: "미배정 참가자 10명" }, WAIT);
 
-    fireEvent.change(screen.getByLabelText("성별"), { target: { value: "__none__" } });
+    chooseOption(screen.getByLabelText("성별"), "__none__");
     expect(screen.getByRole("heading", { name: "미배정 참가자 1명" })).toBeInTheDocument();
     expect(within(pool()).getByText("95 한지우")).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText("성별"), { target: { value: "opt_female" } });
+    chooseOption(screen.getByLabelText("성별"), "opt_female");
     expect(screen.getByRole("heading", { name: "미배정 참가자 5명" })).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText("또래"), { target: { value: "94" } });
+    chooseOption(screen.getByLabelText("또래"), "94");
     expect(screen.getByRole("heading", { name: "미배정 참가자 2명" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "초기화" }));
-    fireEvent.change(screen.getByLabelText("참석 방식"), { target: { value: "WORSHIP_ONLY" } });
+    chooseOption(screen.getByLabelText("참석 방식"), "WORSHIP_ONLY");
     expect(screen.getByRole("heading", { name: "미배정 참가자 1명" })).toBeInTheDocument();
     expect(within(pool()).getByText("97 이수아")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "초기화" }));
-    fireEvent.change(screen.getByLabelText("중그룹"), { target: { value: "__none__" } });
+    chooseOption(screen.getByLabelText("중그룹"), "__none__");
     expect(screen.getByRole("heading", { name: "미배정 참가자 1명" })).toBeInTheDocument();
     expect(within(pool()).getByText("정민호")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "초기화" }));
     // 새가족 (등반X) people have no cell (DEC-070 Follow-up 2026-11-17).
-    fireEvent.change(screen.getByLabelText("셀"), { target: { value: "__none__" } });
+    chooseOption(screen.getByLabelText("셀"), "__none__");
     expect(screen.getByRole("heading", { name: "미배정 참가자 4명" })).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText("셀"), { target: { value: "다윗셀" } });
+    chooseOption(screen.getByLabelText("셀"), "다윗셀");
     expect(screen.getByRole("heading", { name: "미배정 참가자 2명" })).toBeInTheDocument();
 
-    expect(screen.getAllByRole("option", { name: "응답 없음 (4)" }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("combobox").some((filter) => optionLabels(filter).includes("응답 없음 (4)"))).toBe(true);
     fireEvent.click(screen.getByRole("button", { name: "초기화" }));
-    fireEvent.change(screen.getByLabelText("중그룹"), { target: { value: "새가족 (등반X)" } });
+    chooseOption(screen.getByLabelText("중그룹"), "새가족 (등반X)");
     expect(screen.getByRole("heading", { name: "미배정 참가자 2명" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "초기화" }));
-    fireEvent.change(screen.getByLabelText("새가족"), { target: { value: "yes" } });
+    chooseOption(screen.getByLabelText("새가족"), "yes");
     expect(screen.getByRole("heading", { name: "미배정 참가자 2명" })).toBeInTheDocument();
     expect(within(pool()).getAllByText("새가족")).toHaveLength(2);
-    fireEvent.change(screen.getByLabelText("새가족"), { target: { value: "__none__" } });
+    chooseOption(screen.getByLabelText("새가족"), "__none__");
     expect(screen.getByRole("heading", { name: "미배정 참가자 1명" })).toBeInTheDocument();
     expect(within(pool()).getByText("정민호")).toBeInTheDocument();
   });
@@ -209,7 +210,7 @@ describe("group board (#301)", () => {
     fireEvent.click(within(pool()).getByText("정민호"));
     const bar = screen.getByRole("region", { name: "고른 사람 옮기기" });
     expect(within(bar).getByText("3명 골랐어요")).toBeInTheDocument();
-    fireEvent.change(within(bar).getByLabelText("보낼 조"), { target: { value: screen.getAllByRole("option", { name: "2조" })[0].getAttribute("value") } });
+    chooseOptionByLabel(within(bar).getByLabelText("보낼 조"), "2조");
     fireEvent.click(within(bar).getByRole("button", { name: "보내기" }));
 
     expect(await screen.findByText("3명을 2조로 보냈어요.", {}, WAIT)).toBeInTheDocument();
@@ -375,7 +376,7 @@ describe("group board (#301)", () => {
     for (let index = 0; index < 2; index += 1) fireEvent.click(screen.getByRole("button", { name: "이전 조" }));
     expect(summary()).toContain("배정 0 · 미배정 150");
 
-    fireEvent.change(screen.getByLabelText("또래"), { target: { value: "94" } });
+    chooseOption(screen.getByLabelText("또래"), "94");
     const heading = screen.getByRole("heading", { name: /^미배정 참가자 \d+명$/ });
     const count = Number(heading.textContent!.match(/(\d+)명/)![1]);
     expect(count).toBeGreaterThan(5);

@@ -2,6 +2,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import type { ApplicationTable, TableRow } from "../../api/applications";
 import { Button } from "../Button";
+import { Select } from "../Select";
 import {
   EDITED,
   EDITED_KEY,
@@ -231,16 +232,14 @@ export function ApplicantTable({
           <div className="roster__layout" role="group" aria-label="표 모양">
             <label className="roster__field roster__field--inline">
               묶어 보기
-              <select value={groupBy?.id ?? ""} onChange={(event) => update({ groupBy: event.target.value || null })}>
-                <option value="">묶지 않음</option>
-                {columns
-                  .filter((column) => column.countable)
-                  .map((column) => (
-                    <option key={column.id} value={column.id}>
-                      {column.label}
-                    </option>
-                  ))}
-              </select>
+              <Select
+                value={groupBy?.id ?? ""}
+                options={[
+                  { value: "", label: "묶지 않음" },
+                  ...columns.filter((column) => column.countable).map((column) => ({ value: column.id, label: column.label })),
+                ]}
+                onChange={(value) => update({ groupBy: value || null })}
+              />
             </label>
             <div className="roster__segmented" role="radiogroup" aria-label="줄 간격">
               {(["comfortable", "compact"] as const).map((density) => (
@@ -388,16 +387,15 @@ function SortPanel({ columns, sorts, onChange }: { columns: ColumnDef[]; sorts: 
               <span>
                 {index + 1}. {column?.label ?? sort.id}
               </span>
-              <select
+              <Select
                 aria-label={`${column?.label ?? sort.id} 정렬 방향`}
                 value={sort.dir}
-                onChange={(event) =>
-                  onChange(sorts.map((item) => (item.id === sort.id ? { ...item, dir: event.target.value as Sort["dir"] } : item)))
-                }
-              >
-                <option value="asc">오름차순</option>
-                <option value="desc">내림차순</option>
-              </select>
+                options={[
+                  { value: "asc", label: "오름차순" },
+                  { value: "desc", label: "내림차순" },
+                ]}
+                onChange={(value) => onChange(sorts.map((item) => (item.id === sort.id ? { ...item, dir: value as Sort["dir"] } : item)))}
+              />
               <button type="button" className="roster__link scene-press scene-press--text" onClick={() => onChange(sorts.filter((item) => item.id !== sort.id))}>
                 빼기
               </button>
@@ -407,19 +405,13 @@ function SortPanel({ columns, sorts, onChange }: { columns: ColumnDef[]; sorts: 
       </ol>
       <label className="roster__field">
         정렬 기준 더하기
-        <select
+        <Select
           value=""
-          onChange={(event) => {
-            if (event.target.value) onChange([...sorts, { id: event.target.value, dir: "asc" }]);
+          options={[{ value: "", label: "열 고르기" }, ...unused.map((column) => ({ value: column.id, label: column.label }))]}
+          onChange={(value) => {
+            if (value) onChange([...sorts, { id: value, dir: "asc" }]);
           }}
-        >
-          <option value="">열 고르기</option>
-          {unused.map((column) => (
-            <option key={column.id} value={column.id}>
-              {column.label}
-            </option>
-          ))}
-        </select>
+        />
       </label>
     </div>
   );
@@ -465,20 +457,13 @@ function FilterPanel({
       <div className="roster__panel-foot">
         <label className="roster__field">
           조건 더하기
-          <select
+          <Select
             value=""
-            onChange={(event) => {
-              const id = event.target.value;
+            options={[{ value: "", label: "질문 고르기" }, ...available.map((column) => ({ value: column.id, label: column.label }))]}
+            onChange={(id) => {
               if (id) setAdding((before) => [...before, id]);
             }}
-          >
-            <option value="">질문 고르기</option>
-            {available.map((column) => (
-              <option key={column.id} value={column.id}>
-                {column.label}
-              </option>
-            ))}
-          </select>
+          />
         </label>
         {ids.length > 0 ? (
           <button
@@ -748,27 +733,23 @@ function CountView({
       <div className="roster__axes">
         <label className="roster__field">
           세는 항목
-          <select value={first?.id ?? ""} onChange={(event) => onAxes(event.target.value || null, second?.id ?? null)}>
-            <option value="">질문 고르기</option>
-            {countable.map((column) => (
-              <option key={column.id} value={column.id}>
-                {column.label}
-              </option>
-            ))}
-          </select>
+          <Select
+            value={first?.id ?? ""}
+            options={[{ value: "", label: "질문 고르기" }, ...countable.map((column) => ({ value: column.id, label: column.label }))]}
+            onChange={(value) => onAxes(value || null, second?.id ?? null)}
+          />
         </label>
         <label className="roster__field">
           나눠 보기 (선택)
-          <select value={second?.id ?? ""} disabled={!first} onChange={(event) => onAxes(first?.id ?? null, event.target.value || null)}>
-            <option value="">없음</option>
-            {countable
-              .filter((column) => column.id !== first?.id)
-              .map((column) => (
-                <option key={column.id} value={column.id}>
-                  {column.label}
-                </option>
-              ))}
-          </select>
+          <Select
+            value={second?.id ?? ""}
+            disabled={!first}
+            options={[
+              { value: "", label: "없음" },
+              ...countable.filter((column) => column.id !== first?.id).map((column) => ({ value: column.id, label: column.label })),
+            ]}
+            onChange={(value) => onAxes(first?.id ?? null, value || null)}
+          />
         </label>
       </div>
       {!first ? <p className="roster__hint">질문을 고르면 지금 걸러진 {rows.length}명을 보기별로 세요. 둘을 고르면 교차표가 나와요.</p> : null}

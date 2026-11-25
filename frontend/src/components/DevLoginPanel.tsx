@@ -7,6 +7,7 @@ import { getMe, login, logout } from "../api/session";
 import { localUsers } from "../mocks/fixtures/seed";
 import { devLoginEnabled } from "../devLogin";
 import { Button } from "./Button";
+import { Select } from "./Select";
 import "./DevLoginPanel.css";
 
 const CUSTOM = "custom";
@@ -86,14 +87,13 @@ export function DevLoginPanel() {
           <label className="dev-login__label" htmlFor="dev-user">
             시드 사용자
           </label>
-          <select id="dev-user" value={userId} onChange={(event) => setUserId(event.target.value)}>
-            {localUsers.map((user) => (
-              <option key={user.userId} value={user.userId}>
-                {user.displayName}
-              </option>
-            ))}
-            <option value={CUSTOM}>직접 입력</option>
-          </select>
+          <Select
+            id="dev-user"
+            className="dev-login__select"
+            value={userId}
+            options={[...localUsers.map((user) => ({ value: user.userId, label: user.displayName })), { value: CUSTOM, label: "직접 입력" }]}
+            onChange={setUserId}
+          />
           {userId === CUSTOM ? (
             <input
               aria-label="사용자 id"

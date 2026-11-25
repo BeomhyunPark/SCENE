@@ -13,11 +13,6 @@
   margin: 0;
 }
 
-.meals__intro {
-  color: var(--color-text-secondary);
-  font: var(--scene-body-s);
-}
-
 .meals__notice {
   display: flex;
   flex-direction: column;
@@ -57,8 +52,10 @@
   font: var(--scene-label-m);
 }
 
-.meals__time-source {
-  color: var(--color-text-tertiary);
+.meals__next-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 32px;
 }
 
 .meals__next-count {
@@ -70,52 +67,6 @@
 
 .meals__next-count strong {
   font: var(--scene-display);
-}
-
-.meals__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.meals__actions > * {
-  flex: 1 1 160px;
-}
-
-.meals__copied {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px 16px;
-  border-radius: 8px;
-  background: var(--color-bg-subtle);
-  font: var(--scene-body-s);
-}
-
-.meals__copied--error {
-  background: var(--color-danger-bg);
-  color: var(--color-danger-fg);
-}
-
-.meals__manual {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 8px;
-  border: 1px solid var(--color-border-control);
-  border-radius: 6px;
-  background: var(--color-bg-surface);
-  color: var(--color-text-primary);
-  font: var(--scene-body-s);
-  resize: vertical;
-}
-
-.meals__unknown {
-  padding: 12px 16px;
-  border-radius: 8px;
-  background: var(--color-warning-bg);
-  color: var(--color-warning-fg);
-  font: var(--scene-body-s-strong);
 }
 
 .meals__table {
@@ -171,14 +122,6 @@
   font: var(--scene-body-m);
 }
 
-.meals__reflected {
-  font-weight: 700;
-}
-
-.meals__day td.meals__missing {
-  color: var(--color-warning-fg);
-}
-
 .meals__row--next {
   background: var(--color-bg-brand-subtle);
 }
@@ -193,19 +136,10 @@
   font: var(--scene-body-s);
 }
 
-.meals__tag {
-  display: inline-block;
-  margin-left: 6px;
-  padding: 0 6px;
-  border-radius: 999px;
-  background: var(--color-bg-subtle);
-  color: var(--color-text-secondary);
+.meals__state {
+  display: block;
+  color: var(--color-text-tertiary);
   font: var(--scene-label-s);
-}
-
-.meals__tag--next {
-  background: var(--color-bg-surface);
-  color: var(--color-text-brand);
 }
 
 @media (max-width: 560px) {
@@ -223,29 +157,10 @@
     width: 24%;
   }
 
-  /* 시각 and the tag go under the meal's name. */
+  /* 시각 and 식사 완료 go under the meal's name. */
   .meals__row-time {
     display: block;
   }
-
-  .meals__tag {
-    margin-left: 0;
-  }
-}
-
-.meals__how {
-  color: var(--color-text-secondary);
-  font: var(--scene-body-s);
-}
-
-.meals__how summary {
-  cursor: pointer;
-  font: var(--scene-label-m);
-}
-
-.meals__how ul {
-  margin: 8px 0 0;
-  padding-left: 20px;
 }
 
 .meals__refresh {

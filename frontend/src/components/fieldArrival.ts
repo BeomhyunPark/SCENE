@@ -29,7 +29,7 @@ export function arrivalLine(arrival: RosterArrival | null): { text: string; tone
   }
 }
 
-/** The summary line, e.g. "다음 끼니 2일차 점심 기준". */
+/** The summary line, e.g. "다음 식사 2일차 점심 기준". */
 export function arrivalBasis(arrival: SummaryArrival): string {
-  return arrival.nextMeal ? `다음 끼니 ${slotText(arrival.nextMeal)} 기준` : "모든 끼니가 지났어요";
+  return arrival.nextMeal ? `다음 식사 ${slotText(arrival.nextMeal)} 기준` : "모든 식사가 지났어요";
 }
