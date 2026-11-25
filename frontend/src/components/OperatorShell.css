@@ -250,10 +250,12 @@ a.operator-shell__item {
 }
 
 /*
- * Framed screens on a desktop: the header and the page body share one column, at most 1128px wide and
- * centred in the main area, so the body starts under the title. It applies to every direct child of the
- * framed main, so a new screen gets it without being listed here (#469). The two classes outrank a
- * screen's own phone width (max-width: 760px and the like), which would otherwise pin it to the left.
+ * Framed screens on a desktop: the header and the page body fill the main area with 32px on each side, so
+ * the body starts under the title and widens with the window or a collapsed sidebar. Figma: SCENE 02 행사
+ * 홈 v2.0 (46:18286) and the Venture screens (2yztLB533ohOebuAKuwZr0 28:217, e.g. Dashboard 1366:73194 and
+ * Notes V1 Sidebar Collapsed 92:6342) put content at x 32 in a 1192 (1376 collapsed) main, 1128 (1312) wide.
+ * It applies to every direct child of the framed main, so a new screen gets it without being listed here
+ * (#469). The two classes outrank a screen's own phone width (max-width: 760px and the like).
  */
 @media (min-width: 1024px) {
   .operator-shell__main.operator-shell__main--framed > :not(dialog) {
@@ -262,8 +264,8 @@ a.operator-shell__item {
     max-width: none;
     margin-left: 0;
     margin-right: 0;
-    padding-left: max(32px, calc((100% - 1128px) / 2));
-    padding-right: max(32px, calc((100% - 1128px) / 2));
+    padding-left: 32px;
+    padding-right: 32px;
   }
 }
 
