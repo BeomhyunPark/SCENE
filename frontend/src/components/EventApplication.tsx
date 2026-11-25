@@ -66,7 +66,7 @@ function Detail({ event, spaceName, applicationId }: { event: EventDetail; space
       participantsHref={listPath}
       framed
       leading={
-        <Link className="event-home__back" to={listPath} aria-label="신청자 목록">
+        <Link className="event-home__back scene-press scene-press--text" to={listPath} aria-label="신청자 목록">
           <img src={arrowLeft} alt="" />
         </Link>
       }

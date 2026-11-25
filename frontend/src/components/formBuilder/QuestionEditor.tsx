@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import type { AnswerType, FormField } from "../../api/forms";
 import { Button } from "../Button";
 import { FieldPrivacyWarning } from "../FieldPrivacyWarning";
+import { Select } from "../Select";
 import { ConditionPicker } from "./ConditionPicker";
 import {
   TYPE_LABELS,
@@ -96,19 +97,14 @@ export function QuestionEditor({
       <div className="question-editor__inline">
         <div className="question-editor__row">
           <label htmlFor={`${idBase}-type`}>답변 유형</label>
-          <select
+          <Select
             id={`${idBase}-type`}
             value={draft.answerType}
             disabled={lockExisting}
             title={lockExisting ? LOCKED_TYPE : undefined}
-            onChange={(change) => changeType(change.target.value as AnswerType)}
-          >
-            {TYPE_ORDER.map((type) => (
-              <option key={type} value={type}>
-                {TYPE_LABELS[type]}
-              </option>
-            ))}
-          </select>
+            options={TYPE_ORDER.map((type) => ({ value: type, label: TYPE_LABELS[type] }))}
+            onChange={(value) => changeType(value as AnswerType)}
+          />
         </div>
         <label className="question-editor__check">
           <input type="checkbox" checked={draft.required} onChange={(change) => set("required", change.target.checked)} />
@@ -247,15 +243,16 @@ function TypeSettings({
         <div className="question-editor__inline">
           <div className="question-editor__row">
             <label htmlFor={`${idBase}-format`}>입력 형식</label>
-            <select
+            <Select
               id={`${idBase}-format`}
               value={draft.format}
-              onChange={(change) => set("format", change.target.value as QuestionDraft["format"])}
-            >
-              <option value="NONE">제한 없음</option>
-              <option value="PHONE">전화번호</option>
-              <option value="DIGITS">숫자만</option>
-            </select>
+              options={[
+                { value: "NONE", label: "제한 없음" },
+                { value: "PHONE", label: "전화번호" },
+                { value: "DIGITS", label: "숫자만" },
+              ]}
+              onChange={(value) => set("format", value as QuestionDraft["format"])}
+            />
           </div>
           {field("maxLength", "최대 글자 수 (1–200)", "numeric")}
           {field("placeholder", "입력 예시")}
@@ -273,14 +270,15 @@ function TypeSettings({
         <div className="question-editor__inline">
           <div className="question-editor__row">
             <label htmlFor={`${idBase}-display`}>보여 주는 방식</label>
-            <select
+            <Select
               id={`${idBase}-display`}
               value={draft.display}
-              onChange={(change) => set("display", change.target.value as QuestionDraft["display"])}
-            >
-              <option value="LIST">목록</option>
-              <option value="BUTTONS">버튼</option>
-            </select>
+              options={[
+                { value: "LIST", label: "목록" },
+                { value: "BUTTONS", label: "버튼" },
+              ]}
+              onChange={(value) => set("display", value as QuestionDraft["display"])}
+            />
           </div>
           <OtherToggle draft={draft} set={set} />
         </div>
@@ -319,14 +317,15 @@ function TypeSettings({
         <div className="question-editor__inline">
           <div className="question-editor__row">
             <label htmlFor={`${idBase}-style`}>모양</label>
-            <select
+            <Select
               id={`${idBase}-style`}
               value={draft.style}
-              onChange={(change) => set("style", change.target.value as QuestionDraft["style"])}
-            >
-              <option value="YES_NO">예/아니오</option>
-              <option value="CONSENT">동의 체크</option>
-            </select>
+              options={[
+                { value: "YES_NO", label: "예/아니오" },
+                { value: "CONSENT", label: "동의 체크" },
+              ]}
+              onChange={(value) => set("style", value as QuestionDraft["style"])}
+            />
           </div>
           {draft.style === "YES_NO" ? (
             <>

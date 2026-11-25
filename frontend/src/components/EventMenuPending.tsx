@@ -46,7 +46,7 @@ function Body({
         <section className="menu-pending__card">
           <h2 className="menu-pending__title">아직 준비 중이에요</h2>
           <p className="menu-pending__body">{message}</p>
-          <Link className="menu-pending__link" to={eventHref}>
+          <Link className="menu-pending__link scene-press scene-press--text" to={eventHref}>
             행사로 돌아가기
           </Link>
         </section>

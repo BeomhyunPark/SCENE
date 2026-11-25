@@ -91,7 +91,7 @@ function Edit({ event, spaceName, applicationId }: { event: EventDetail; spaceNa
       participantsHref={`/events/${eventId}/participants`}
       framed
       leading={
-        <Link className="event-home__back" to={detailPath} aria-label="신청 내용">
+        <Link className="event-home__back scene-press scene-press--text" to={detailPath} aria-label="신청 내용">
           <img src={arrowLeft} alt="" />
         </Link>
       }

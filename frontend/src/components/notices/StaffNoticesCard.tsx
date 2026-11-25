@@ -22,7 +22,7 @@ export function StaffNoticesCard({ eventId }: { eventId: string }) {
         <h2 id="staff-notices-title" className="event-home__section-title">
           운영진 공지
         </h2>
-        <Link className="event-home__more" to={noticesHref(eventId)}>
+        <Link className="event-home__more scene-press scene-press--text" to={noticesHref(eventId)}>
           모두 보기
         </Link>
       </div>
@@ -33,7 +33,7 @@ export function StaffNoticesCard({ eventId }: { eventId: string }) {
         <ul className="event-home__rows">
           {items.map((notice) => (
             <li key={notice.noticeId}>
-              <Link className="event-home__row" to={noticesHref(eventId, notice.noticeId)}>
+              <Link className="event-home__row scene-press scene-press--row scene-press--inset" to={noticesHref(eventId, notice.noticeId)}>
                 <span className="event-home__row-copy">
                   <span className="event-home__row-title">
                     {notice.important ? <span className="notice-badge notice-badge--important">중요</span> : null}

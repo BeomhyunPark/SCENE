@@ -122,7 +122,7 @@ export function PublicSignup() {
                     onChange={(event) => setPassword(event.target.value)}
                   />
                   <button
-                    className="public-signup__eye"
+                    className="public-signup__eye scene-press scene-press--quiet"
                     type="button"
                     tabIndex={-1}
                     aria-pressed={passwordVisible}
@@ -154,7 +154,7 @@ export function PublicSignup() {
                     onChange={(event) => setPasswordConfirm(event.target.value)}
                   />
                   <button
-                    className="public-signup__eye"
+                    className="public-signup__eye scene-press scene-press--quiet"
                     type="button"
                     tabIndex={-1}
                     aria-pressed={confirmVisible}
@@ -185,7 +185,7 @@ export function PublicSignup() {
                 />
                 이용약관 동의 (필수)
               </label>
-              <button className="public-signup__view" type="button" onClick={() => setTermsOpen(true)}>
+              <button className="public-signup__view scene-press scene-press--text" type="button" onClick={() => setTermsOpen(true)}>
                 보기
               </button>
             </div>
@@ -199,7 +199,7 @@ export function PublicSignup() {
                 />
                 개인정보 수집·이용 동의 (필수)
               </label>
-              <button className="public-signup__view" type="button" onClick={() => setTermsOpen(true)}>
+              <button className="public-signup__view scene-press scene-press--text" type="button" onClick={() => setTermsOpen(true)}>
                 보기
               </button>
             </div>

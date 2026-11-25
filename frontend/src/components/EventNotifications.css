@@ -53,15 +53,7 @@ button.event-notifications__item {
   cursor: pointer;
 }
 
-a.event-notifications__item:hover,
-button.event-notifications__item:hover {
-  background: var(--color-bg-subtle);
-}
-
-.event-notifications__item:focus-visible {
-  outline: 2px solid var(--color-text-brand);
-  outline-offset: -2px;
-}
+/* hover·눌림·포커스는 공용 scene-press--row (#484). */
 
 .event-notifications__dot {
   flex: none;

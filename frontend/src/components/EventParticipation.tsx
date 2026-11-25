@@ -173,7 +173,7 @@ function ParticipationBody({ event, spaceName }: { event: EventDetail; spaceName
       participantsHref={eventId ? `/events/${eventId}/participants` : undefined}
       framed
       leading={
-        <Link className="event-home__back" to="/events" aria-label="행사 목록">
+        <Link className="event-home__back scene-press scene-press--text" to="/events" aria-label="행사 목록">
           <img src={arrowLeft} alt="" />
         </Link>
       }
@@ -220,7 +220,7 @@ function ParticipationBody({ event, spaceName }: { event: EventDetail; spaceName
                 {ways.map((item) => (
                   <button
                     key={item.title}
-                    className="event-home__card"
+                    className="event-home__card scene-press scene-press--card"
                     type="button"
                     aria-label={item.title}
                     onClick={() => navigate(setupPath)}

@@ -62,7 +62,7 @@ export function FieldGroups({
             <li key={group.key} className="field-groups__group">
               <button
                 type="button"
-                className="field-groups__head"
+                className="field-groups__head scene-press scene-press--row scene-press--inset"
                 aria-expanded={expanded}
                 aria-controls={panelId}
                 onClick={() => toggle(group.key)}

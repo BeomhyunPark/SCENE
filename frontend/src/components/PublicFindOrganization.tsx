@@ -64,7 +64,7 @@ export function PublicFindOrganization() {
             </div>
             <p className="public-find__results">검색 결과</p>
             {visible ? (
-              <button className="public-find__result" type="button" onClick={() => setJoinOpen(true)}>
+              <button className="public-find__result scene-press scene-press--card" type="button" onClick={() => setJoinOpen(true)}>
                 <span className="public-find__org">
                   <span className="public-find__name">{sample.name}</span>
                   <span className="public-find__region">{sample.region}</span>
@@ -74,7 +74,7 @@ export function PublicFindOrganization() {
             ) : null}
             <p className="public-find__missing">
               찾는 교회·단체가 없나요?
-              <Link className="public-find__register" to="/register-organization">
+              <Link className="public-find__register scene-press scene-press--card" to="/register-organization">
                 새로 등록하기
               </Link>
             </p>

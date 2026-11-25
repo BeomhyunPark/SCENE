@@ -471,7 +471,7 @@ const SheetRow = memo(function SheetRow({
       ))}
       <td className="roster__actions" aria-colindex={columns.length + 1}>
         <Link
-          className="roster__detail"
+          className="roster__detail scene-press scene-press--text"
           tabIndex={-1}
           to={`/events/${eventId}/participants/${row.applicationId}`}
           aria-label={`${columns[0].text(row)} 상세`}
