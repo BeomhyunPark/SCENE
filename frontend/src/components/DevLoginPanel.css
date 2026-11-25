@@ -27,7 +27,7 @@
   gap: 8px;
 }
 
-.dev-login__form select,
+.dev-login__form .scene-select__trigger,
 .dev-login__form input {
   box-sizing: border-box;
   width: 100%;

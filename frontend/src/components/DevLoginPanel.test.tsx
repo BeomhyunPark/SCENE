@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createQueryClient } from "../api/queryClient";
 import { queryKeys } from "../api/queryKeys";
 import { DevLoginPanel } from "./DevLoginPanel";
+import { chooseOption } from "../test/select";
 
 function renderPanel() {
   return render(
@@ -50,7 +51,7 @@ describe("dev login panel", () => {
     expect(screen.getByRole("heading", { name: "개발용 로그인" })).toBeInTheDocument();
     expect(fetchSpy).not.toHaveBeenCalled();
 
-    fireEvent.change(screen.getByLabelText("시드 사용자"), { target: { value: "custom" } });
+    chooseOption(screen.getByLabelText("시드 사용자"), "custom");
     fireEvent.change(screen.getByRole("textbox", { name: "사용자 id" }), {
       target: { value: "00000000-0000-4000-8000-000000000099" },
     });

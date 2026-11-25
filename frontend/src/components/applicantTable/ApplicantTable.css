@@ -175,8 +175,8 @@
   font: var(--scene-label-s);
 }
 
-.roster__field select,
-.roster__panel select,
+.roster__field .scene-select__trigger,
+.roster__panel .scene-select__trigger,
 .roster__panel input:not([type="checkbox"]) {
   box-sizing: border-box;
   min-height: 36px;
@@ -631,7 +631,7 @@ th[aria-sort="descending"] .roster__arrow {
   font: var(--scene-label-m);
 }
 
-.roster__field--inline select {
+.roster__field--inline .scene-select__trigger {
   box-sizing: border-box;
   min-height: 36px;
   padding: 0 8px;
@@ -898,4 +898,13 @@ th[aria-sort="descending"] .roster__arrow {
 .roster__edit:focus-visible {
   outline: 2px solid var(--color-focus-ring);
   outline-offset: 2px;
+}
+
+@media (max-width: 639px) {
+  /* 휴대폰에서 공용 Select 터치 대상은 40px 이상 */
+  .roster__field .scene-select__trigger,
+  .roster__panel .scene-select__trigger,
+  .roster__field--inline .scene-select__trigger {
+    min-height: 40px;
+  }
 }

@@ -1,5 +1,6 @@
 import type { FormField, ShowWhen } from "../../api/forms";
 import { conditionSummary } from "./questionDraft";
+import { Select } from "../Select";
 
 /**
  * "Show this when …". Targets are earlier choice or yes/no questions (DEC-068). The server
@@ -46,14 +47,13 @@ export function ConditionPicker({
       <label htmlFor={`${id}-target`} className="question-editor__sub">
         조건 질문
       </label>
-      <select id={`${id}-target`} value={value?.fieldId ?? ""} onChange={(change) => pickTarget(change.target.value)}>
-        <option value="">항상 보이기</option>
-        {targets.map((field) => (
-          <option key={field.fieldId} value={field.fieldId}>
-            {field.label}
-          </option>
-        ))}
-      </select>
+      <Select
+        id={`${id}-target`}
+        value={value?.fieldId ?? ""}
+        disabled={disabled}
+        options={[{ value: "", label: "항상 보이기" }, ...targets.map((field) => ({ value: field.fieldId, label: field.label }))]}
+        onChange={pickTarget}
+      />
       {value && target && "equals" in value ? (
         <div className="question-editor__inline" role="radiogroup" aria-label="조건 답">
           {[true, false].map((answer) => (

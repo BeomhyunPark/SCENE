@@ -31,6 +31,7 @@ import {
 } from "../api/schedule";
 import { Button } from "./Button";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { Select } from "./Select";
 import { EventScreen } from "./EventScreen";
 import { ChangeGroup, ScheduleShell, type ScheduleNotice } from "./EventSchedule";
 import { commonFailure, publishedText, useScheduleBoard, useScheduleWrite, writeBlocked } from "./scheduleAccess";
@@ -448,31 +449,34 @@ function ItemForm({
         </label>
         <label className="event-schedule__field">
           <span className="event-schedule__label">분류</span>
-          <select className="event-schedule__input" value={draft.category} onChange={(event) => update({ category: event.target.value as ScheduleCategory })}>
-            {SCHEDULE_CATEGORIES.map((category) => (
-              <option key={category} value={category}>
-                {CATEGORY_LABEL[category]}
-              </option>
-            ))}
-          </select>
+          <Select
+            className="event-schedule__input"
+            value={draft.category}
+            options={SCHEDULE_CATEGORIES.map((category) => ({ value: category, label: CATEGORY_LABEL[category] }))}
+            onChange={(value) => update({ category: value as ScheduleCategory })}
+          />
           {fieldError("category")}
         </label>
         {meal && (board.slots || unknownSlot) ? (
           <label className="event-schedule__field">
             <span className="event-schedule__label">{meal === "WORSHIP" ? "집회 칸 연결 (선택)" : "식사 칸 연결 (선택)"}</span>
-            <select className="event-schedule__input" value={draft.slotId} onChange={(event) => update({ slotId: event.target.value })}>
-              <option value="">연결 안 함</option>
-              {slots.map((slot) => {
-                const taken = slot.linkedItemId !== null && slot.linkedItemId !== item?.itemId;
-                return (
-                  <option key={slot.slotId} value={slot.slotId} disabled={taken}>
-                    {slot.dayLabel} {slot.label}
-                    {taken ? " · 다른 일정에 연결됨" : ""}
-                  </option>
-                );
-              })}
-              {unknownSlot ? <option value={draft.slotId}>신청서에 없는 칸 ({draft.slotId})</option> : null}
-            </select>
+            <Select
+              className="event-schedule__input"
+              value={draft.slotId}
+              options={[
+                { value: "", label: "연결 안 함" },
+                ...slots.map((slot) => {
+                  const taken = slot.linkedItemId !== null && slot.linkedItemId !== item?.itemId;
+                  return {
+                    value: slot.slotId,
+                    label: `${slot.dayLabel} ${slot.label}${taken ? " · 다른 일정에 연결됨" : ""}`,
+                    disabled: taken,
+                  };
+                }),
+                ...(unknownSlot ? [{ value: draft.slotId, label: `신청서에 없는 칸 (${draft.slotId})` }] : []),
+              ]}
+              onChange={(value) => update({ slotId: value })}
+            />
             <span className="event-schedule__hint">신청서의 식사·집회 칸과 이어 둬요. 참가자 화면에는 보이지 않아요.</span>
             {fieldError("slotId")}
           </label>
