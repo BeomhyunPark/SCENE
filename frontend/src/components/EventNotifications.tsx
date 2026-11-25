@@ -77,9 +77,10 @@ function Body({ event, spaceName }: { event: EventDetail; spaceName?: string }) 
       }
     >
       <div className="event-notifications">
-        <p className="event-notifications__lead">
-          {event.name}에서 나에게 온 알림이에요.{unread > 0 ? ` 읽지 않은 알림 ${unread > 99 ? "99+" : unread}개` : ""}
-        </p>
+        {/* The title and the sidebar already name this event's 알림: only the unread count is new (#495). */}
+        {unread > 0 ? (
+          <p className="event-notifications__lead">읽지 않은 알림 {unread > 99 ? "99+" : unread}개</p>
+        ) : null}
         {list.isPending ? (
           <p role="status">불러오는 중이에요.</p>
         ) : list.isError ? (
