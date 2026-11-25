@@ -23,6 +23,9 @@ type Issued = {
   withdrawal?: MockWithdrawal | null;
   /** DEC-078 §4: who stored this revision and what changed (labels only); null for revision 1. */
   revisedBy?: "PARTICIPANT" | "OPERATOR" | null;
+  /** DEC-088: the operator who stored this revision (or added the participant). */
+  revisedByUserId?: string | null;
+  revisedByDisplayName?: string | null;
   changes?: RevisionChange[];
   /** Earlier revisions, oldest first; each is SUPERSEDED (#437). */
   history?: Snapshot[];
@@ -37,8 +40,13 @@ type Snapshot = {
   name: string;
   answers: StoredAnswer[];
   revisedBy: "PARTICIPANT" | "OPERATOR" | null;
+  revisedByUserId: string | null;
+  revisedByDisplayName: string | null;
   changes: RevisionChange[];
 };
+
+/** Who stores a revision: the participant, or an operator (DEC-088). */
+type Reviser = { userId: string; displayName: string | null } | null;
 
 const REVISED_TITLE = "님이 신청을 고쳤어요";
 const RESUBMITTED_TITLE = "님이 다시 신청해 내용을 바꿨어요";
@@ -49,7 +57,13 @@ const RESUBMITTED_TITLE = "님이 다시 신청해 내용을 바꿨어요";
  * notification about the person moves to the new id, then one merged line per operator. Nothing
  * changed: no revision and no notification.
  */
-function revise(row: Issued, answers: StoredAnswer[], name: string, kind: "APPLICATION_REVISED" | "APPLICATION_RESUBMITTED" | null): boolean {
+function revise(
+  row: Issued,
+  answers: StoredAnswer[],
+  name: string,
+  kind: "APPLICATION_REVISED" | "APPLICATION_RESUBMITTED" | null,
+  operator: Reviser = null,
+): boolean {
   const fields = formFields(row.eventId, row.formId);
   const before = new Map(row.answers.map((answer) => [answer.fieldId, JSON.stringify(answer.value)]));
   const after = new Map(answers.map((answer) => [answer.fieldId, JSON.stringify(answer.value)]));
@@ -66,6 +80,8 @@ function revise(row: Issued, answers: StoredAnswer[], name: string, kind: "APPLI
       name: row.name,
       answers: row.answers,
       revisedBy: row.revisedBy ?? null,
+      revisedByUserId: row.revisedByUserId ?? null,
+      revisedByDisplayName: row.revisedByDisplayName ?? null,
       changes: row.changes ?? [],
     },
   ];
@@ -74,7 +90,9 @@ function revise(row: Issued, answers: StoredAnswer[], name: string, kind: "APPLI
   row.answers = answers;
   row.name = name.trim();
   row.submittedAt = new Date().toISOString();
-  row.revisedBy = "PARTICIPANT";
+  row.revisedBy = operator ? "OPERATOR" : "PARTICIPANT";
+  row.revisedByUserId = operator?.userId ?? null;
+  row.revisedByDisplayName = operator?.displayName ?? null;
   row.changes = changes;
   retargetNotifications(
     row.eventId,
@@ -83,10 +101,13 @@ function revise(row: Issued, answers: StoredAnswer[], name: string, kind: "APPLI
     row.applicationId,
   );
   if (kind) {
-    notifyOperators(row.eventId, operatorsWith(row.eventId, "PARTICIPANT_READ"), {
+    // DEC-088 §6: an operator's edit reads as such, and the operator who edited is left out.
+    notifyOperators(row.eventId, operatorsWith(row.eventId, "PARTICIPANT_READ", operator?.userId ?? null), {
       kind,
       target: { type: "APPLICATION", id: row.applicationId },
-      title: `${row.name || "참가자"}${kind === "APPLICATION_REVISED" ? REVISED_TITLE : RESUBMITTED_TITLE}`,
+      title: operator
+        ? `${row.name || "참가자"}님의 신청을 운영자가 고쳤어요`
+        : `${row.name || "참가자"}${kind === "APPLICATION_REVISED" ? REVISED_TITLE : RESUBMITTED_TITLE}`,
       body: changes.map((change) => change.label).join(", "),
     });
   }
@@ -118,7 +139,8 @@ export function applicationRevisions(eventId: string, applicationId: string): {
   status: string;
   submittedAt: string;
   revisedBy: string | null;
-  revisedByUserId: null;
+  revisedByUserId: string | null;
+  revisedByDisplayName: string | null;
   changes: RevisionChange[];
 }[] | null {
   const row = issued.find(
@@ -131,7 +153,8 @@ export function applicationRevisions(eventId: string, applicationId: string): {
     status: row.withdrawal ? "WITHDRAWN" : "SUBMITTED",
     submittedAt: row.submittedAt,
     revisedBy: row.revisedBy ?? null,
-    revisedByUserId: null,
+    revisedByUserId: row.revisedByUserId ?? null,
+    revisedByDisplayName: row.revisedByDisplayName ?? null,
     changes: row.changes ?? [],
   };
   const older = [...(row.history ?? [])].reverse().map((old) => ({
@@ -140,7 +163,8 @@ export function applicationRevisions(eventId: string, applicationId: string): {
     status: "SUPERSEDED",
     submittedAt: old.submittedAt,
     revisedBy: old.revisedBy,
-    revisedByUserId: null,
+    revisedByUserId: old.revisedByUserId,
+    revisedByDisplayName: old.revisedByDisplayName,
     changes: old.changes,
   }));
   return [current, ...older];
@@ -348,6 +372,135 @@ export function changeParticipantPin(body: unknown): ParticipantFailure | null {
 }
 
 /** Operator reset (DEC-078 §2): a temporary number shown once; the participant's session ends. */
+/** The operator path's form check (DEC-088 §2): consent and hidden questions are not the operator's. */
+function operatorShown(fields: FormField[], answers: StoredAnswer[]): StoredAnswer[] | null {
+  const consent = new Set(fields.filter((field) => field.answerType === "YES_NO" && field.config.style === "CONSENT").map((field) => field.fieldId));
+  return keepShown(fields, answers.filter((answer) => !consent.has(answer.fieldId)));
+}
+
+function carriedOver(fields: FormField[], before: StoredAnswer[]): StoredAnswer[] {
+  const carried = new Set(
+    fields.filter((field) => field.hidden || (field.answerType === "YES_NO" && field.config.style === "CONSENT")).map((field) => field.fieldId),
+  );
+  return before.filter((answer) => carried.has(answer.fieldId));
+}
+
+export type OperatorRevised = { applicationId: string; participantId: string; revision: number; revised: boolean };
+
+/**
+ * 운영자 신청 고치기 (DEC-088 §2), like `OperatorApplicationEditService.revise`: no form or edit switch,
+ * only the name and phone required, consent and hidden answers carried over, the phone may change
+ * but not to another participant's.
+ */
+export function operatorReviseApplication(
+  eventId: string,
+  applicationId: string,
+  body: unknown,
+  operator: { userId: string; displayName: string | null },
+): OperatorRevised | (ParticipantFailure & { extensions?: Record<string, unknown> }) {
+  const event = eventById(eventId);
+  const row = issued.find(
+    (item) => item.eventId === eventId && (item.applicationId === applicationId || (item.history ?? []).some((old) => old.applicationId === applicationId)),
+  );
+  if (!event || !row) return { status: 404, code: "RESOURCE_NOT_FOUND" };
+  const expected = isRecord(body) ? body.expectedRevision : undefined;
+  if (typeof expected !== "number" || !Number.isInteger(expected) || expected < 1) return { status: 400, code: "VALIDATION_FAILED" };
+  if (event.lifecycleStatus === "ARCHIVED") return { status: 409, code: "EVENT_ARCHIVED" };
+  if (row.withdrawal) return { status: 409, code: "INVALID_STATE_TRANSITION", extensions: { applicationStatus: "WITHDRAWN" } };
+  if (row.applicationId !== applicationId || row.revision !== expected) {
+    return {
+      status: 409,
+      code: "CONCURRENT_MODIFICATION",
+      extensions: { applicationId: row.applicationId, status: "SUBMITTED", revision: row.revision },
+    };
+  }
+  const fields = formFields(eventId, row.formId);
+  const read = readAnswers(isRecord(body) ? { answers: body.answers } : null);
+  const shown = read && operatorShown(fields, read);
+  if (!shown) return { status: 400, code: "APPLICATION_VALIDATION_FAILED" };
+  const name = answerFor(fields, shown, "NAME");
+  const phone = answerFor(fields, shown, "PHONE");
+  if (!name || !phone || phone.replace(/\D/g, "").length < 4) return { status: 400, code: "APPLICATION_VALIDATION_FAILED" };
+  const detail = eventFormDetail(eventId);
+  if (detail && reversedRange(detail, new Map(shown.map((answer) => [answer.fieldId, answer.value])))) {
+    return { status: 400, code: "APPLICATION_VALIDATION_FAILED" };
+  }
+  const phoneKey = phone.replace(/\D/g, "");
+  if (issued.some((item) => item !== row && item.eventId === eventId && item.phoneKey === phoneKey)) {
+    return { status: 409, code: "APPLICATION_ALREADY_EXISTS" };
+  }
+  const revised = revise(row, [...shown, ...carriedOver(fields, row.answers)], name, "APPLICATION_REVISED", operator);
+  if (revised) row.phoneKey = phoneKey;
+  return { applicationId: row.applicationId, participantId: row.participantId, revision: row.revision, revised };
+}
+
+export type OperatorAdded = { applicationId: string; participantId: string; revision: 1; temporaryPin: string };
+
+/** 참가자 직접 추가 (DEC-088 §3), like `OperatorApplicationEditService.add`. */
+export function operatorAddParticipant(
+  eventId: string,
+  body: unknown,
+  operator: { userId: string; displayName: string | null },
+): OperatorAdded | (ParticipantFailure & { extensions?: Record<string, unknown> }) {
+  const event = eventById(eventId);
+  if (!event) return { status: 404, code: "RESOURCE_NOT_FOUND" };
+  const formId = isRecord(body) && typeof body.formId === "string" ? body.formId : null;
+  if (!formId) return { status: 400, code: "VALIDATION_FAILED" };
+  const fields = formFields(eventId, formId);
+  if (fields.length === 0) return { status: 404, code: "FORM_NOT_FOUND" };
+  if (event.lifecycleStatus === "ENDED") return { status: 409, code: "EVENT_ENDED" };
+  if (event.lifecycleStatus === "ARCHIVED") return { status: 409, code: "EVENT_ARCHIVED" };
+  const read = readAnswers(isRecord(body) ? { answers: body.answers } : null);
+  const answers = read && operatorShown(fields, read);
+  if (!answers) return { status: 400, code: "APPLICATION_VALIDATION_FAILED" };
+  const name = answerFor(fields, answers, "NAME");
+  const phone = answerFor(fields, answers, "PHONE");
+  if (!name || !phone || phone.replace(/\D/g, "").length < 4) return { status: 400, code: "APPLICATION_VALIDATION_FAILED" };
+  const detail = eventFormDetail(eventId);
+  if (detail && reversedRange(detail, new Map(answers.map((answer) => [answer.fieldId, answer.value])))) {
+    return { status: 400, code: "APPLICATION_VALIDATION_FAILED" };
+  }
+  const phoneKey = phone.replace(/\D/g, "");
+  const existing = issued.find((row) => row.eventId === eventId && row.phoneKey === phoneKey);
+  if (existing) {
+    return {
+      status: 409,
+      code: "APPLICATION_ALREADY_EXISTS",
+      extensions: { applicationId: existing.applicationId, status: existing.withdrawal ? "WITHDRAWN" : "SUBMITTED" },
+    };
+  }
+  let pin = String(Math.floor(Math.random() * 1_000_000)).padStart(6, "0");
+  while (!pinAccepted(pin, phoneKey)) {
+    pin = String(Math.floor(Math.random() * 1_000_000)).padStart(6, "0");
+  }
+  const row: Issued = {
+    applicationId: crypto.randomUUID(),
+    participantId: crypto.randomUUID(),
+    phoneKey,
+    pin,
+    pinTemporary: true,
+    revision: 1,
+    eventId,
+    spaceId: event.spaceId,
+    formId,
+    submittedAt: new Date().toISOString(),
+    name: name.trim(),
+    answers,
+    revisedBy: "OPERATOR",
+    revisedByUserId: operator.userId,
+    revisedByDisplayName: operator.displayName,
+    changes: [],
+  };
+  issued.push(row);
+  notifyOperators(eventId, operatorsWith(eventId, "PARTICIPANT_READ", operator.userId), {
+    kind: "APPLICATION_ADDED",
+    target: { type: "APPLICATION", id: row.applicationId },
+    title: `${row.name || "참가자"}님을 운영자가 직접 추가했어요`,
+    body: null,
+  });
+  return { applicationId: row.applicationId, participantId: row.participantId, revision: 1, temporaryPin: pin };
+}
+
 export function resetParticipantPin(eventId: string, participantId: string): string | null {
   const row = issued.find((item) => item.eventId === eventId && item.participantId === participantId);
   if (!row) return null;

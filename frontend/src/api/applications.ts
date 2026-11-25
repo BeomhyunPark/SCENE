@@ -116,6 +116,8 @@ export type ApplicationRevision = {
   status: string;
   submittedAt: string;
   revisedBy: "PARTICIPANT" | "OPERATOR" | null;
+  /** The operator who stored it (DEC-088 §6); null for the participant or an unknown operator. */
+  revisedByDisplayName: string | null;
   changes: RevisionChange[];
 };
 
@@ -155,6 +157,7 @@ function parseRevisions(value: unknown): ApplicationRevision[] {
       status: item.status,
       submittedAt: item.submittedAt,
       revisedBy: item.revisedBy === "PARTICIPANT" || item.revisedBy === "OPERATOR" ? item.revisedBy : null,
+      revisedByDisplayName: typeof item.revisedByDisplayName === "string" ? item.revisedByDisplayName : null,
       changes,
     });
   }
@@ -298,6 +301,54 @@ export function saveApplicationOperation(
     const operation = parseOperation(value);
     if (!operation) throw new ApiError({ status: 200, code: "UNEXPECTED" });
     return operation;
+  });
+}
+
+export type OperatorRevised = { applicationId: string; participantId: string; revision: number; revised: boolean };
+
+/**
+ * 운영자 신청 고치기 (DEC-088 §2). Needs effective PARTICIPANT_WRITE. Works after applications and
+ * edits close; only the name and phone are required; consent and hidden answers stay as they were.
+ * A stale revision is `409 CONCURRENT_MODIFICATION` with the current `applicationId`·`revision`.
+ */
+export function reviseApplicationAnswers(
+  eventId: string,
+  applicationId: string,
+  input: { expectedRevision: number; answers: AnswerItem[] },
+): Promise<OperatorRevised> {
+  return apiRequest<unknown>(`/api/v1/operator/events/${eventId}/applications/${applicationId}/answers`, {
+    method: "PUT",
+    body: input,
+  }).then((value) => {
+    if (
+      !isRecord(value) ||
+      typeof value.applicationId !== "string" ||
+      typeof value.participantId !== "string" ||
+      typeof value.revision !== "number"
+    ) {
+      throw new ApiError({ status: 200, code: "UNEXPECTED" });
+    }
+    return { applicationId: value.applicationId, participantId: value.participantId, revision: value.revision, revised: value.revised === true };
+  });
+}
+
+export type ParticipantAdded = { applicationId: string; participantId: string; temporaryPin: string };
+
+/**
+ * 참가자 직접 추가 (DEC-088 §3). The temporary number is in this answer only. A phone that already
+ * has a participant is `409 APPLICATION_ALREADY_EXISTS` with that person's `applicationId`·`status`.
+ */
+export function addParticipant(eventId: string, input: { formId: string; answers: AnswerItem[] }): Promise<ParticipantAdded> {
+  return apiRequest<unknown>(`/api/v1/operator/events/${eventId}/applications`, { method: "POST", body: input }).then((value) => {
+    if (
+      !isRecord(value) ||
+      typeof value.applicationId !== "string" ||
+      typeof value.participantId !== "string" ||
+      typeof value.temporaryPin !== "string"
+    ) {
+      throw new ApiError({ status: 200, code: "UNEXPECTED" });
+    }
+    return { applicationId: value.applicationId, participantId: value.participantId, temporaryPin: value.temporaryPin };
   });
 }
 

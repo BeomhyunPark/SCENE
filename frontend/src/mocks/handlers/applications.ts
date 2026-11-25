@@ -9,6 +9,8 @@ import { eventById, operatorRequests } from "../operatorStore";
 import { permissionsFor } from "../taskStore";
 import {
   applicationRevisions,
+  operatorAddParticipant,
+  operatorReviseApplication,
   resetParticipantPin,
   restoreParticipantApplication,
   submittedApplication,
@@ -267,6 +269,37 @@ export const applicationHandlers = [
     });
   }),
 
+  // 운영자 신청 고치기 (DEC-088 §2), shaped like OperatorApplicationEditController#revise.
+  http.put("/api/v1/operator/events/:eventId/applications/:applicationId/answers", async ({ request, params, cookies }) => {
+    if (!csrfMatches(request, cookies)) return problem(403, "FORBIDDEN");
+    const operator = currentOperator();
+    if (!operator) return problem(401, "AUTHENTICATION_REQUIRED");
+    operatorRequests.push({ method: "PUT", url: new URL(request.url).pathname });
+    const eventId = String(params.eventId);
+    const applicationId = String(params.applicationId);
+    if (!eventById(eventId) || !submittedApplication(eventId, applicationId)) return problem(404, "RESOURCE_NOT_FOUND", { detail: "hidden" });
+    const gate = writeGate(eventId, operator.userId);
+    if (gate) return gate;
+    const result = operatorReviseApplication(eventId, applicationId, await jsonBody(request), operatorOf(operator.userId));
+    if ("code" in result) return problem(result.status, result.code, { ...result.extensions, detail: "hidden" });
+    return HttpResponse.json(result);
+  }),
+
+  // 참가자 직접 추가 (DEC-088 §3). The temporary number is in this answer only.
+  http.post("/api/v1/operator/events/:eventId/applications", async ({ request, params, cookies }) => {
+    if (!csrfMatches(request, cookies)) return problem(403, "FORBIDDEN");
+    const operator = currentOperator();
+    if (!operator) return problem(401, "AUTHENTICATION_REQUIRED");
+    operatorRequests.push({ method: "POST", url: new URL(request.url).pathname });
+    const eventId = String(params.eventId);
+    if (!eventById(eventId)) return problem(404, "RESOURCE_NOT_FOUND", { detail: "hidden" });
+    const gate = writeGate(eventId, operator.userId);
+    if (gate) return gate;
+    const result = operatorAddParticipant(eventId, await jsonBody(request), operatorOf(operator.userId));
+    if ("code" in result) return problem(result.status, result.code, { ...result.extensions, detail: "hidden" });
+    return HttpResponse.json(result, { status: 201, headers: { "Cache-Control": "no-store" } });
+  }),
+
   // 운영 정보 저장 (#335, DEC-075), shaped like ApplicationOperationController. The memo body never
   // goes into an error response.
   http.put("/api/v1/operator/events/:eventId/applications/:applicationId/operation", async ({ request, params, cookies }) => {
@@ -374,6 +407,19 @@ function sizeParam(url: URL): number {
 }
 
 /** Effective PARTICIPANT_WRITE, like the server's withdraw and restore. */
+async function jsonBody(request: Request): Promise<unknown> {
+  const text = await request.text();
+  try {
+    return text.length === 0 ? {} : (JSON.parse(text) as unknown);
+  } catch {
+    return null;
+  }
+}
+
+function operatorOf(userId: string): { userId: string; displayName: string | null } {
+  return { userId, displayName: localUsers.find((user) => user.userId === userId)?.displayName ?? null };
+}
+
 function writeGate(eventId: string, userId: string) {
   const perms = permissionsFor(eventId, userId, userId);
   if ("status" in perms) return problem(perms.status, perms.code, { detail: "hidden" });

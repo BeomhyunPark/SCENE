@@ -56,7 +56,7 @@ function RevisionRow({
     <>
       <div className="revisions__head">
         <span className="revisions__number">{item.revision}번째</span>
-        <span className="revisions__who">{revisedByLabel(item.revisedBy)}</span>
+        <span className="revisions__who">{revisedByLabel(item.revisedBy, item.revision, item.revisedByDisplayName)}</span>
         <time className="revisions__time" dateTime={item.submittedAt}>
           {formatSubmittedAt(item.submittedAt)}
         </time>

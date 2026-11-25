@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link, useParams } from "react-router";
+import { Link, useLocation, useParams } from "react-router";
 import arrowLeft from "../assets/event-create/arrow-left.svg";
 import { getApplication, getApplicationTable, type ApplicationOperation } from "../api/applications";
 import { getMyPermissions } from "../api/operators";
@@ -18,6 +18,7 @@ import { answerLabel, formatAnswer } from "./answerDisplay";
 import { applicantName, formatSubmittedAt } from "./eventFormat";
 import { markEventArea } from "./eventLocalState";
 import { OperatorShell } from "./OperatorShell";
+import { editBlocked, useEffectivePermissions, type EditNotice } from "./operatorAnswers";
 import "./EventHome.css";
 import "./ApplicationWithdraw.css";
 
@@ -50,6 +51,10 @@ function Detail({ event, spaceName, applicationId }: { event: EventDetail; space
   const title = application.data ? applicantName(nameText) : "신청 내용";
   const superseded = application.data?.status === "SUPERSEDED";
   const currentId = useCurrentApplicationId(eventId, applicationId, superseded);
+  const { effective } = useEffectivePermissions(eventId);
+  const notice = (useLocation().state as EditNotice | null)?.edited ?? null;
+  // 신청 고치기 (DEC-088): shown only when this operator can save it now.
+  const mayEdit = application.data ? editBlocked(event, application.data, effective) === null : false;
 
   return (
     <OperatorShell
@@ -69,6 +74,15 @@ function Detail({ event, spaceName, applicationId }: { event: EventDetail; space
       <div className="event-home">
         {application.isPending ? <p>불러오는 중이에요.</p> : null}
         {application.isError ? <Failure error={application.error} onRetry={() => reloadQuery(application)} /> : null}
+        {notice ? (
+          <p className="withdrawn__notice" role="status">
+            {notice === "saved"
+              ? "고친 내용을 저장했어요. 참가자에게 알림이 갔어요."
+              : notice === "added"
+                ? "직접 추가한 참가자예요."
+                : "바뀐 답이 없어 그대로 두었어요."}
+          </p>
+        ) : null}
         {application.data?.status === "WITHDRAWN" ? (
           <section className="withdrawn" aria-labelledby="withdrawn-status-title">
             <h2 id="withdrawn-status-title" className="withdrawn__title">
@@ -87,7 +101,7 @@ function Detail({ event, spaceName, applicationId }: { event: EventDetail; space
         ) : null}
         {superseded ? (
           <p className="withdrawn__notice">
-            참가자가 고치기 전의 신청이에요.{" "}
+            고치기 전의 신청이에요.{" "}
             {currentId && currentId !== applicationId ? (
               <Link to={`/events/${eventId}/participants/${currentId}`}>지금 신청 열기</Link>
             ) : (
@@ -103,6 +117,14 @@ function Detail({ event, spaceName, applicationId }: { event: EventDetail; space
             <div className="event-home__applicants-head">
               <h2 id="answers-title">신청 내용</h2>
               <span className="event-home__applicant-time">{formatSubmittedAt(application.data.submittedAt)}</span>
+              {mayEdit ? (
+                <Link
+                  className="scene-button scene-button--secondary scene-button--size-32"
+                  to={`/events/${eventId}/participants/${applicationId}/edit`}
+                >
+                  신청 고치기
+                </Link>
+              ) : null}
             </div>
             {application.data.answers.length === 0 ? <p>받은 답변이 없어요.</p> : null}
             <dl>
