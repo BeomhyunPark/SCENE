@@ -69,7 +69,7 @@ export function FieldRosterRow({
       aria-labelledby={labelId}
     >
       {onSelect ? (
-        <button type="button" className="event-field__row-main" aria-pressed={selected} onClick={onSelect}>
+        <button type="button" className="event-field__row-main scene-press scene-press--row scene-press--inset" aria-pressed={selected} onClick={onSelect}>
           {identity}
         </button>
       ) : (

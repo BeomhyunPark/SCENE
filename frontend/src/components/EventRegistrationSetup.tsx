@@ -325,7 +325,7 @@ function SetupBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
       participantsHref={eventId ? `/events/${eventId}/participants` : undefined}
       framed
       leading={
-        <Link className="event-home__back" to={eventId ? `/events/${eventId}/participants` : "/events"} aria-label="참가 운영">
+        <Link className="event-home__back scene-press scene-press--text" to={eventId ? `/events/${eventId}/participants` : "/events"} aria-label="참가 운영">
           <img src={arrowLeft} alt="" />
         </Link>
       }

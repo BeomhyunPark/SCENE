@@ -220,7 +220,7 @@ export function ApplicantTable({
         </span>
         <ActiveFilters columns={columns} rows={table.rows} filters={filters} search={search} onRemove={(id) => setFilter(id, null)} />
         {activeCount > 0 || search ? (
-          <button type="button" className="roster__link" onClick={clearAll}>
+          <button type="button" className="roster__link scene-press scene-press--text" onClick={clearAll}>
             조건 모두 지우기
           </button>
         ) : null}
@@ -292,7 +292,7 @@ export function ApplicantTable({
 
 function TabButton({ selected, onClick, children }: { selected: boolean; onClick: () => void; children: ReactNode }) {
   return (
-    <button type="button" role="tab" aria-selected={selected} className="roster__tab" onClick={onClick}>
+    <button type="button" role="tab" aria-selected={selected} className="roster__tab scene-press scene-press--quiet" onClick={onClick}>
       {children}
     </button>
   );
@@ -398,7 +398,7 @@ function SortPanel({ columns, sorts, onChange }: { columns: ColumnDef[]; sorts: 
                 <option value="asc">오름차순</option>
                 <option value="desc">내림차순</option>
               </select>
-              <button type="button" className="roster__link" onClick={() => onChange(sorts.filter((item) => item.id !== sort.id))}>
+              <button type="button" className="roster__link scene-press scene-press--text" onClick={() => onChange(sorts.filter((item) => item.id !== sort.id))}>
                 빼기
               </button>
             </li>
@@ -483,7 +483,7 @@ function FilterPanel({
         {ids.length > 0 ? (
           <button
             type="button"
-            className="roster__link"
+            className="roster__link scene-press scene-press--text"
             onClick={() => {
               setAdding([]);
               onClear();
@@ -519,7 +519,7 @@ function FilterEditor({
     <fieldset className="roster__filter">
       <legend>
         {column.label}
-        <button type="button" className="roster__link" onClick={onRemove}>
+        <button type="button" className="roster__link scene-press scene-press--text" onClick={onRemove}>
           지우기
         </button>
       </legend>
@@ -674,7 +674,7 @@ function ColumnsPanel({
               </label>
             ))}
         </div>
-        <button type="button" className="roster__link" onClick={() => onChange(columns.filter((column) => column.defaultVisible).map((column) => column.id))}>
+        <button type="button" className="roster__link scene-press scene-press--text" onClick={() => onChange(columns.filter((column) => column.defaultVisible).map((column) => column.id))}>
           기본 열로
         </button>
       </div>
@@ -701,13 +701,13 @@ function ColumnsPanel({
           <ul className="roster__saved-list" aria-label="저장한 보기">
             {saved.map((view) => (
               <li key={view.name}>
-                <button type="button" className="roster__link" onClick={() => onApply(view.query)}>
+                <button type="button" className="roster__link scene-press scene-press--text" onClick={() => onApply(view.query)}>
                   {view.name}
                 </button>
                 <button
                   type="button"
                   aria-label={`${view.name} 보기 지우기`}
-                  className="roster__link roster__muted"
+                  className="roster__link roster__muted scene-press scene-press--text"
                   onClick={() => {
                     const next = saved.filter((item) => item.name !== view.name);
                     setSaved(next);

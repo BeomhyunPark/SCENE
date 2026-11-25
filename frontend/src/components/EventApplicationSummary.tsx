@@ -60,7 +60,7 @@ function SummaryBody({ event, spaceName }: { event: EventDetail; spaceName?: str
       participantsHref={`/events/${eventId}/participants`}
       framed
       leading={
-        <Link className="event-home__back" to={`/events/${eventId}`} aria-label="행사 홈">
+        <Link className="event-home__back scene-press scene-press--text" to={`/events/${eventId}`} aria-label="행사 홈">
           <img src={arrowLeft} alt="" />
         </Link>
       }
@@ -103,7 +103,7 @@ function SummaryBody({ event, spaceName }: { event: EventDetail; spaceName?: str
 
 function SummaryContent({ eventId, data }: { eventId: string; data: ApplicationSummary }) {
   const setupLink = (
-    <Link className="app-summary__link" to={`/events/${eventId}/participants/setup`}>
+    <Link className="app-summary__link scene-press scene-press--text" to={`/events/${eventId}/participants/setup`}>
       신청서 설정으로 가기
     </Link>
   );

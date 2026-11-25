@@ -63,7 +63,7 @@ function MealsBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
       tasksHref={`${eventHref}/tasks`}
       framed
       leading={
-        <Link className="event-home__back" to={`${eventHref}/field`} aria-label="현장 운영">
+        <Link className="event-home__back scene-press scene-press--text" to={`${eventHref}/field`} aria-label="현장 운영">
           <img src={arrowLeft} alt="" />
         </Link>
       }
@@ -137,7 +137,7 @@ function MealsContent({
       <section className="meals__notice">
         <h3>식사 칸이 없어요</h3>
         <p>신청서 설정에서 일차별 식사를 고르면 끼니마다 식수를 볼 수 있어요.</p>
-        <Link className="meals__link" to={`/events/${eventId}/participants/setup`}>
+        <Link className="meals__link scene-press scene-press--text" to={`/events/${eventId}/participants/setup`}>
           신청서 설정으로 가기
         </Link>
       </section>

@@ -44,7 +44,7 @@ export function SpacePage({ title, children }: { title: string; children: (space
             <p className="space-settings__body">
               {title} 화면은 조직 멤버만 써요. 운영자로 함께하는 행사는 행사 목록의 협력 중인 행사에서 열 수 있어요.
             </p>
-            <Link className="menu-pending__link" to="/events">
+            <Link className="menu-pending__link scene-press scene-press--text" to="/events">
               행사 목록으로
             </Link>
           </section>

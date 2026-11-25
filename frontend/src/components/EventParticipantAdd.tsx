@@ -94,7 +94,7 @@ function Add({ event, spaceName }: { event: EventDetail; spaceName?: string }) {
       participantsHref={listPath}
       framed
       leading={
-        <Link className="event-home__back" to={listPath} aria-label="참가 현황">
+        <Link className="event-home__back scene-press scene-press--text" to={listPath} aria-label="참가 현황">
           <img src={arrowLeft} alt="" />
         </Link>
       }
