@@ -1,6 +1,7 @@
 import { checkInLogsOf } from "./checkInStore";
 import { completionNoticeOf, eventFormId } from "./formStore";
 import { publicationCount } from "./groupStore";
+import { participantSettingsVersion } from "./participantSettingsStore";
 import { participantNotificationSummary } from "./noticeStore";
 import { eventById } from "./operatorStore";
 import { currentApplicationRevision } from "./participantStore";
@@ -70,7 +71,8 @@ export function readUpdates(eventId: string, participantId: string) {
     const { name, lifecycleStatus, startDate, endDate, place } = event;
     track(eventId, "home", JSON.stringify([name, lifecycleStatus, startDate, endDate, place, completionNotice(eventId), readFeatures(eventId)]));
   }
-  track(eventId, "group", String(publicationCount(eventId)));
+  // A publish or a roster switch change (DEC-083 §2) raises `group`.
+  track(eventId, "group", `${publicationCount(eventId)}:${participantSettingsVersion(eventId)}`);
   const row = rowOf(eventId);
   return {
     ...row,

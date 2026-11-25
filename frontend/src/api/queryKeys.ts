@@ -27,6 +27,7 @@ export const queryKeys = {
   checkInRosterAll: (eventId: string) => ["events", eventId, "check-ins", "roster-all"] as const,
   publishedGroups: (eventId: string) => ["events", eventId, "groups", "published"] as const,
   groupBoard: (eventId: string) => ["events", eventId, "group-board"] as const,
+  participantSettings: (eventId: string) => ["events", eventId, "participant-settings"] as const,
   /** Schedule working copy (C4). The editor reads the same entry for days, slots and the item. */
   scheduleBoard: (eventId: string) => ["events", eventId, "schedule"] as const,
   forms: (eventId: string, page: number) => ["events", eventId, "forms", page] as const,
@@ -52,6 +53,12 @@ export const queryKeys = {
   participantMe: (eventId: string) => ["participant", "me", eventId] as const,
   participantCheckIn: (eventId: string) => ["participant", "check-in", eventId] as const,
   participantGroup: (eventId: string) => ["participant", "group", eventId] as const,
+  /**
+   * One member opened by the leader (DEC-083 §3). Deliberately not under `participantGroup`: an
+   * `updates.group` change must not read it again, since each read with a phone is logged.
+   */
+  participantGroupMember: (eventId: string, participantId: string) =>
+    ["participant", "group-member", eventId, participantId] as const,
   /**
    * Participant home cards (DEC-080). A card reading more than one request keeps this key as the
    * prefix, e.g. `[...queryKeys.participantNotices(eventId), "detail", noticeId]`, so the one
