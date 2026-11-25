@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router";
 import { listForms } from "../api/forms";
 import { reloadQuery } from "../api/queryClient";
 import { queryKeys } from "../api/queryKeys";
@@ -13,8 +12,8 @@ import "./ParticipantAddress.css";
  * 주소·QR (#497, #483 제안 2): the apply address and the participant address used to sit under the
  * roster all the time. They now open from one button. Every action stays: copy the apply address,
  * copy the participant address, and its QR (DEC-078 §8). Read-only addresses are label-value rows
- * (fe-handoff "박스를 쓰는 때"), not input boxes. The way to 신청서 설정 is in the footer, since the
- * apply address only exists once applications are open there.
+ * (fe-handoff "박스를 쓰는 때"), not input boxes. 신청서 설정 is on the toolbar and in the empty state
+ * (참가 신청 준비), so the dialog does not repeat it.
  */
 export function AddressButton({ eventId }: { eventId: string }) {
   const [open, setOpen] = useState(false);
@@ -29,14 +28,9 @@ export function AddressButton({ eventId }: { eventId: string }) {
           scroll
           onClose={() => setOpen(false)}
           footer={
-            <>
-              <Link className="scene-button scene-button--secondary scene-button--size-40" to={`/events/${eventId}/participants/setup`}>
-                신청서 설정으로 가기
-              </Link>
-              <Button type="button" variant="primary" size={40} onClick={() => setOpen(false)}>
-                닫기
-              </Button>
-            </>
+            <Button type="button" variant="primary" size={40} onClick={() => setOpen(false)}>
+              닫기
+            </Button>
           }
         >
           <dl className="address-sheet">

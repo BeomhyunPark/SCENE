@@ -159,7 +159,7 @@ describe("event participation applicants", () => {
     expect(await screen.findByRole("heading", { level: 2, name: "행사 설정" })).toBeInTheDocument();
   });
 
-  it("opens the addresses and 신청서 설정 from 주소·QR and gives focus back on Esc (#497)", async () => {
+  it("opens the addresses from 주소·QR, gives focus back on Esc, and keeps 신청서 설정 on the toolbar (#497)", async () => {
     const form = openForm();
     submit(form, { 이름: "김하나", 전화: "010-1111-2222" });
     await login({ userId: OWNER });
@@ -176,17 +176,16 @@ describe("event participation applicants", () => {
     expect(within(dialog).getByTestId("participant-address")).toHaveTextContent(`/participate/${EVENT}`);
     expect(within(dialog).getByRole("img", { name: "참가자 주소 QR" })).toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: "QR 복사" })).toBeInTheDocument();
-    expect(within(dialog).getByRole("link", { name: "신청서 설정으로 가기" })).toHaveAttribute(
-      "href",
-      `/events/${EVENT}/participants/setup`,
-    );
+    // 신청서 설정 is on the toolbar, so the dialog does not repeat it.
+    expect(within(dialog).queryByRole("link")).not.toBeInTheDocument();
 
     fireEvent.keyDown(document, { key: "Escape" });
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(button).toHaveFocus();
 
-    fireEvent.click(button);
-    fireEvent.click(within(screen.getByRole("dialog", { name: "주소·QR" })).getByRole("link", { name: "신청서 설정으로 가기" }));
+    // One way to 신청서 설정 in sight on the toolbar while people have applied.
+    expect(screen.getAllByRole("link", { name: "신청서 설정" })).toHaveLength(1);
+    fireEvent.click(screen.getByRole("link", { name: "신청서 설정" }));
     // 신청 설정 is titled with the event name; its back arrow is named 참가 운영.
     expect(await screen.findByRole("link", { name: "참가 운영" })).toHaveAttribute("href", `/events/${EVENT}/participants`);
   });

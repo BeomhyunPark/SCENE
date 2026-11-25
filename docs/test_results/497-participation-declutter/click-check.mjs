@@ -67,10 +67,23 @@ for (const [size, opts] of [["1440", { viewport: { width: 1440, height: 900 } }]
   await page.keyboard.press("Escape");
   ok((await page.getByRole("dialog").count()) === 0, "Esc로 닫힘");
   ok(await button.evaluate((b) => b === document.activeElement), "닫으면 '주소·QR' 버튼으로 포커스 복귀");
-  await button.click();
-  await page.getByRole("link", { name: "신청서 설정으로 가기" }).click();
+  const setupLinks = page.locator(".operator-shell__main, main").first().getByRole("link", { name: "신청서 설정" });
+  ok((await setupLinks.count()) === 1, "도구 줄에 '신청서 설정' 하나");
+  const box = await setupLinks.first().boundingBox();
+  ok(box && box.height >= 40 && box.x >= 0 && box.x + box.width <= page.viewportSize().width, `'신청서 설정' 화면 안·높이 ${box?.height}`);
+  await setupLinks.first().click();
   await page.waitForURL(`**${e}/participants/setup`);
-  ok(true, "'신청서 설정으로 가기' → 신청 설정 화면");
+  ok(true, "도구 줄 '신청서 설정' → 신청 설정 화면");
+  await go(page, `${e}/participants/summary`);
+  await page.locator(".event-home__back").click();
+  await page.waitForURL(`**${e}/participants`);
+  ok(true, "신청 집계 뒤로 → 참가 현황");
+  await go(page, e);
+  await page.locator(`a[href="${e}/participants/summary"]`).first().click();
+  await page.waitForURL(`**${e}/participants/summary`);
+  await page.locator(".event-home__back").click();
+  await page.waitForURL(`**${e}/participants`);
+  ok(true, "행사 홈의 '신청 집계'로 들어와도 뒤로 → 참가 현황");
 
   await go(page, `${e}/participants/${ids.app}/edit`);
   await page.getByText("참가자가 직접 고칠 수 있으면 참가자에게 맡겨 주세요.").waitFor();

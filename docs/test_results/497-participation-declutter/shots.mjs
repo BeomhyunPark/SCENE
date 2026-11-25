@@ -79,6 +79,8 @@ for (const size of ["1440", "390"]) {
     await page.locator(".roster__keys").scrollIntoViewIfNeeded();
     await shot(page, "participants-help", size, false);
   }
+  await go(page, `${e}/participants/summary`);
+  await shot(page, "summary", size, false);
   await go(page, `${e}/participants/${ids.app}`);
   await shot(page, "application", size);
   await go(page, `${e}/participants/${ids.app}/edit`);

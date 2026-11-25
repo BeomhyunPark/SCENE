@@ -607,6 +607,16 @@ th[aria-sort="descending"] .roster__arrow {
   .roster__chip--add {
     margin-left: 0;
   }
+
+  /* #497: with 신청서 설정·주소·QR the actions wrap; each row fills the width so no button is left alone. */
+  .roster__divider {
+    display: none;
+  }
+
+  .roster__tools > .scene-button,
+  .roster__tools .event-home__export > .scene-button {
+    flex: 1 1 auto;
+  }
 }
 
 /* No CSV button without DATA_EXPORT: drop the divider that would precede it. */

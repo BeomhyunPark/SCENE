@@ -126,6 +126,13 @@ function Applicants({
             >
               신청 집계
             </Link>
+            {/* 신청서 설정 (#497): the way to open/close applications and edit questions, in sight on the toolbar. */}
+            <Link
+              className="scene-button scene-button--secondary scene-button--size-40 event-home__summary-link"
+              to={`/events/${eventId}/participants/setup`}
+            >
+              신청서 설정
+            </Link>
             <ApplicantsExport eventId={eventId} total={total} />
             {/* 신청 주소·참가자 주소와 QR (#497): behind one button instead of under the roster. */}
             <AddressButton eventId={eventId} />
@@ -191,7 +198,7 @@ function ParticipationBody({ event, spaceName }: { event: EventDetail; spaceName
           </div>
         </div>
         {/* 참가자를 받는 방법 (#497, #483 제안 3): only while nobody has applied. With applicants the
-            table toolbar carries 주소·QR, whose footer opens 신청서 설정. */}
+            table toolbar carries 신청서 설정 and 주소·QR. */}
         <Applicants
           eventId={eventId}
           eventStatus={event.lifecycleStatus}
