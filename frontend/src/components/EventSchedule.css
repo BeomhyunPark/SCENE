@@ -549,6 +549,13 @@ a.event-schedule__row:hover {
 }
 
 @media (min-width: 1024px) {
+  /* The phone bar bleeds into the 16px page padding; the framed desktop body has 32px or more (#469), so the
+     bar keeps to the body column there and its buttons line up with the fields above. */
+  .operator-shell__main--framed .event-schedule__actions {
+    margin-inline: 0;
+    padding-inline: 0;
+  }
+
   .event-schedule--board {
     max-width: 1280px;
   }
