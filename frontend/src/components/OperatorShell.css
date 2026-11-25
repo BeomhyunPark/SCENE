@@ -184,9 +184,12 @@ a.operator-shell__item {
 }
 
 /* Collapsed sidebar (#265): icons only. Labels stay in the accessibility tree.
-   Scoped to the sidebar so the phone drawer (#368) always shows full labels. */
+   Scoped to the sidebar so the phone drawer (#368) always shows full labels.
+   Sizes follow Figma (#479): Venture Notes V1 Sidebar Collapsed 92:6342 (sidebar 292:13051) and SCENE
+   P08 262:16 — a 64px rail, 16px to the left of each item, 32×36 items with 20px icons and radius 4.
+   The right inset is 15px because the 1px border sits inside the 64px. */
 .operator-shell--collapsed .operator-shell__sidebar {
-  width: 72px;
+  width: 64px;
 }
 
 .operator-shell--collapsed .operator-shell__sidebar .operator-shell__brand {
@@ -203,11 +206,11 @@ a.operator-shell__item {
 }
 
 .operator-shell--collapsed .operator-shell__sidebar .operator-shell__group {
-  padding: 0 12px;
+  padding: 0 15px 0 16px;
 }
 
 .operator-shell--collapsed .operator-shell__sidebar .operator-shell__account {
-  padding: 12px;
+  padding: 12px 15px 12px 16px;
 }
 
 .operator-shell--collapsed .operator-shell__sidebar .operator-shell__account-error {
@@ -216,6 +219,8 @@ a.operator-shell__item {
 
 .operator-shell--collapsed .operator-shell__sidebar .operator-shell__item {
   justify-content: center;
+  width: 32px;
+  padding: 8px 6px;
 }
 
 .operator-shell--collapsed .operator-shell__sidebar .operator-shell__label,
@@ -234,8 +239,8 @@ a.operator-shell__item {
 }
 
 .operator-shell--collapsed .operator-shell__sidebar .operator-shell__org {
-  justify-content: center;
-  padding: 20px 0;
+  justify-content: flex-start;
+  padding: 20px 15px 20px 16px;
 }
 
 .operator-shell--collapsed .operator-shell__sidebar .operator-shell__org > img {
