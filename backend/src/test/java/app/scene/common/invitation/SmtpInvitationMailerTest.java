@@ -86,6 +86,7 @@ class SmtpInvitationMailerTest {
     mailer(sender).send(mail(InvitationMail.Kind.SPACE, "청년2부", "MEMBER"));
 
     MimeMessage message = sender.sent.get(0);
+    message.saveChanges();
     assertThat(message.getSubject()).isEqualTo("[SCENE] 청년2부 조직 멤버에 초대받았어요");
     assertThat(part(message, "text/plain")).contains("역할: Member");
   }
