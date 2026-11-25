@@ -1,9 +1,9 @@
 [
  {
-  "name": "06-participation-card",
+  "name": "12-meals",
   "found": 1,
-  "rest": "pointer bg=rgb(255, 255, 255) border=rgb(218, 226, 228) outline=none/rgb(19, 33, 37)",
-  "hover": "pointer bg=rgb(237, 242, 243) border=rgb(185, 198, 201) outline=none/rgb(19, 33, 37)",
+  "rest": "pointer bg=rgba(0, 0, 0, 0) border=rgb(11, 88, 102) outline=none/rgb(11, 88, 102)",
+  "hover": "pointer bg=rgba(0, 0, 0, 0) border=rgb(11, 88, 102) outline=none/rgb(11, 88, 102)",
   "focus": "-",
   "overflow": false
  }

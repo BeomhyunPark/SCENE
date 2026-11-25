@@ -112,7 +112,7 @@
 | 비밀번호 보기 눈, 약관 창 닫기 | PublicResetPassword·PublicSignup·PublicTermsDialog | ✗ | ✓ | ✓ | `--quiet` |
 | 공개 홈 시작하기, Google 로그인 | PublicHome·PublicLogin | ✓ | ✓ | ✓ | 그대로(이미 hover·눌림) |
 
-## 후속: main(#481·#488·#490) 병합 뒤 (2026-11-25)
+## 후속: main(#481·#488·#490·#489·#492) 병합 뒤 (2026-11-25)
 
 - 행사 목록 행: 꺾쇠가 들어가며 `space-between`의 자식이 늘어 상태 배지가 행 가운데로 밀렸다. 이제 이름(묶음)만 왼쪽에 두고 날짜·장소·상태는 꺾쇠 바로 앞에 붙는다(`EventList.css`, TSX 구조·문구는 그대로). 업무 목록 행은 내용이 왼쪽에 모이고 꺾쇠만 `--end`로 끝에 있어 밀림이 없다.
 - #488(박스 줄이기)과 충돌한 3곳(`EventHome.tsx`, `EventField.tsx`, `notices/StaffNoticesCard.tsx`)은 merge로 풀었다. 박스는 되살리지 않았고, 새 구조에 반응을 다시 입혔다.
@@ -123,7 +123,8 @@
 - #490(불필요한 요소 정리)은 충돌 없이 합쳐졌다. `EventList.tsx`의 정리된 문구는 그대로 두었다. 참가 방법 카드는 "신청 링크 만들기" 하나만 남아 늘 눌리므로 `--card`를 조건 없이 준다.
 - 합친 상태에서 행사 목록 행의 상태 배지가 꺾쇠 바로 앞에 붙는 것을 확인했다(`after-01-event-list-hover.png`).
 - 식수 현황: 목업에는 식사 칸이 없어 "신청서 설정으로 가기" 글자 링크와 펼침(summary)만 있다. 둘 다 hover·포커스 규칙을 받는다(`after-12-meals-hover.png`).
-- 검사: typecheck·lint 통과, test 103개 파일 773개 통과.
+- #489(식수 현황 두 숫자)·#492(공용 Select) 병합: `EventMeals.tsx`는 #489의 새 구조·문구를 두고 "신청서 설정으로 가기"에만 `--text`를 다시 입혔다. `ApplicantTable.tsx`는 공용 Select 교체를 그대로 두고 옆 글자 버튼 "빼기"에만 `--text`를 입혔다. 공용 Select에는 자체 hover·포커스가 있어 `scene-press`를 겹치지 않았다.
+- 검사: typecheck·lint 통과, test 103개 파일 781개 통과.
 - 새 스크린샷:
   - 행사 목록: `after-01-event-list-{default,hover,focus}.png`
   - 행사 홈 구분선 행: `after-05-event-home-task-hover.png`
