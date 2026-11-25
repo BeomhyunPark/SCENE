@@ -1,0 +1,315 @@
+/* 시간표 (#466), after the SCENE 시간표 frame ("01 시간표 · 행사 3일" 172:3, SCENE Design System) and its
+   Event Item (79:33): a subtle 시간 · day header row, hour lines across the day columns with labels on the
+   left, neutral blocks (colour = state only), and the Venture calendars' red current-time line with a dot.
+   Positions come in axis minutes; --timetable-scale turns a minute into pixels. */
+.timetable {
+  --timetable-scale: 1.4px;
+  --timetable-gutter: 48px;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.timetable__headers,
+.timetable__body {
+  display: grid;
+  grid-template-columns: var(--timetable-gutter) repeat(var(--timetable-columns), minmax(0, 1fr));
+  column-gap: 8px;
+}
+
+/* The 시간 · day row stays on top while the day scrolls. */
+.timetable__headers {
+  position: sticky;
+  top: var(--timetable-sticky-top, 0px);
+  z-index: 4;
+  align-items: center;
+  min-height: 40px;
+  background: var(--color-bg-subtle);
+}
+
+.timetable__corner,
+.timetable__header {
+  color: var(--color-text-primary);
+  font: var(--scene-label-m);
+}
+
+.timetable__corner {
+  padding-left: 4px;
+  color: var(--color-text-secondary);
+}
+
+.timetable__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 8px;
+  min-width: 0;
+  padding: 8px 0;
+}
+
+.timetable__header--today {
+  color: var(--color-text-brand);
+}
+
+.timetable__body {
+  position: relative;
+  /* Keeps the layers below (blocks, line, text) inside the timetable, under the sticky header and app bars. */
+  isolation: isolate;
+  /* Room below the header for the first hour label. */
+  padding-top: 2px;
+}
+
+.timetable__gutter,
+.timetable__column {
+  position: relative;
+  height: calc(var(--timetable-scale) * var(--timetable-height) + 16px);
+}
+
+.timetable__tick {
+  position: absolute;
+  left: 0;
+  padding-left: 4px;
+  color: var(--color-text-tertiary);
+  font: var(--scene-caption-m);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  transform: translateY(-1px);
+}
+
+.timetable__grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.timetable__hour {
+  position: absolute;
+  right: 0;
+  left: 0;
+  border-top: 1px solid var(--color-border-default);
+}
+
+/* A long empty stretch (the night between days) folded to a short hatched band. */
+.timetable__fold {
+  position: absolute;
+  right: 0;
+  left: 0;
+  height: calc(var(--timetable-scale) * 24);
+  background: repeating-linear-gradient(135deg, var(--color-bg-subtle) 0 6px, transparent 6px 12px);
+}
+
+.timetable__list {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Calendar / Event Item, Compact (79:2): subtle surface, default border, radius 8. */
+/* Blocks sit above the current-time line, so the line never runs through their text. */
+.timetable__block {
+  position: absolute;
+  z-index: 1;
+  box-sizing: border-box;
+  display: flex;
+  height: var(--block-height);
+  min-height: 0;
+  margin-top: 2px;
+  overflow: hidden;
+  border: 1px solid var(--color-border-default);
+  border-radius: 8px;
+  /* Parent-surface rule: an element on the canvas uses bg/surface. States change --block-bg. */
+  --block-bg: var(--color-bg-surface);
+  background: var(--block-bg);
+  color: var(--color-text-secondary);
+  container: block / size;
+}
+
+/* What a block shows is decided by the size it is actually drawn at (container queries on the block), so
+   no line is ever cut: one line when there is room for one, then time and title, then place, then tags.
+   Line heights: time and title 21px, place 18px, tags 20px; padding 2px; gap 1px. */
+.timetable__block .timetable__content {
+  display: flex;
+  flex: 1;
+  flex-flow: row wrap;
+  align-content: flex-start;
+  align-items: center;
+  gap: 1px 6px;
+  min-width: 0;
+  min-height: 0;
+  padding: 2px 10px;
+  border-radius: 7px;
+}
+
+.timetable__block .timetable__content > *,
+.timetable__block .timetable__content > * > * {
+  flex-shrink: 0;
+}
+
+.timetable__block .timetable__when,
+.timetable__block .timetable__title,
+.timetable__block .timetable__place,
+.timetable__block .timetable__tags {
+  flex: 1 0 100%;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.timetable__block .timetable__title,
+.timetable__block .timetable__place {
+  text-overflow: ellipsis;
+}
+
+.timetable__block .timetable__when {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Tags take one line; a tag that does not fit drops to a hidden second line whole, never cut. */
+.timetable__block .timetable__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-height: 20px;
+}
+
+.timetable__block .timetable__tags > * {
+  max-width: 100%;
+}
+
+/* Kept for screen readers when it is not drawn. */
+.timetable__block .timetable__detail {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@container block (height < 87px) {
+  .timetable__block .timetable__tags {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    clip-path: inset(50%);
+  }
+}
+
+@container block (height < 66px) {
+  .timetable__block .timetable__place {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    clip-path: inset(50%);
+  }
+}
+
+/* One line: the title comes first; the end time goes when the block is narrow, then the whole time. */
+@container block (height < 47px) {
+  .timetable__block .timetable__content {
+    flex-wrap: nowrap;
+  }
+
+  .timetable__block .timetable__when,
+  .timetable__block .timetable__title {
+    flex: 0 1 auto;
+  }
+
+  .timetable__block .timetable__when {
+    flex-shrink: 0;
+  }
+}
+
+/* The end time goes first: on one line when the block is under 200px wide (the title needs the room),
+   on its own line only when even "15:30–17:30 지금" no longer fits. */
+@container block (width < 140px) {
+  .timetable__block .timetable__time-end {
+    display: none;
+  }
+}
+
+@container block (width < 200px) and (height < 47px) {
+  .timetable__block .timetable__time-end,
+  .timetable__block .timetable__when .timetable__badge {
+    display: none;
+  }
+}
+
+@container block (width < 120px) and (height < 47px) {
+  .timetable__block .timetable__when {
+    display: none;
+  }
+}
+
+/* Tapped open (participant): no size limit, everything shows. */
+.timetable__block--expandable:is(:hover, :focus-within) {
+  container-type: normal;
+}
+
+.timetable__block--expandable:is(:hover, :focus-within) .timetable__detail {
+  position: relative;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  clip-path: none;
+  white-space: normal;
+}
+
+.timetable__block--expandable:is(:hover, :focus-within) :is(.timetable__title, .timetable__place) {
+  white-space: normal;
+}
+
+.timetable__block:hover,
+.timetable__block:focus-within {
+  z-index: 5;
+}
+
+/* A block whose text does not fit opens to its full height while tapped or focused, then closes again. */
+.timetable__block--expandable:focus-within,
+.timetable__block--expandable:hover {
+  z-index: 6;
+  height: auto;
+  min-height: var(--block-height);
+  box-shadow: 0 4px 12px var(--color-shadow-popover);
+}
+
+/* No end time: the block stops at the next start (or an hour) and its lower edge is dashed. */
+.timetable__block--open {
+  border-bottom-style: dashed;
+}
+
+/* The current-time line runs under the blocks (Venture Daily/Weekly red line with a dot); it shows in the
+   hour-label gutter, the free time and between lanes; the dot marks the column's left edge. */
+.timetable__now {
+  position: absolute;
+  right: 0;
+  /* Starts under the hour labels so it shows even when a block fills the whole column. */
+  left: calc(-1 * var(--timetable-gutter) - 8px);
+  z-index: 0;
+  height: 0;
+  border-top: 2px solid var(--color-danger-fg);
+  pointer-events: none;
+}
+
+.timetable__now::before {
+  content: "";
+  position: absolute;
+  top: -6px;
+  left: calc(var(--timetable-gutter) + 8px - 5px);
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-danger-fg);
+}
+
+@media (min-width: 1024px) {
+  .timetable {
+    --timetable-scale: 1.2px;
+    --timetable-gutter: 56px;
+  }
+}

@@ -80,7 +80,7 @@ describe("event-only collaborators see and open their events (#387)", () => {
     expect(operatorRequests.some((request) => request.url.startsWith("/api/v1/operator/events?"))).toBe(true);
 
     fireEvent.click(row);
-    expect(await screen.findByRole("heading", { name: "지금 시작할 일" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "지금 할 일" })).toBeInTheDocument();
     // The event's own organization name, though the collaborator has no space list.
     expect((await screen.findAllByText("Local space")).length).toBeGreaterThan(0);
   });
@@ -91,7 +91,7 @@ describe("event-only collaborators see and open their events (#387)", () => {
     openInvitation(token);
     fireEvent.click(await screen.findByRole("button", { name: "초대 수락" }, { timeout: 4000 }));
     fireEvent.click(await screen.findByRole("button", { name: "행사 열기" }));
-    expect(await screen.findByRole("heading", { name: "지금 시작할 일" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "지금 할 일" })).toBeInTheDocument();
   });
 
   it("tells an operator who kept the event that the role stays as it was", async () => {
@@ -119,7 +119,7 @@ describe("event-only collaborators see and open their events (#387)", () => {
     openInvitation(token);
     expect(await screen.findByRole("heading", { name: "Local event 초대는 이미 수락했어요" }, { timeout: 4000 })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "행사 열기" }));
-    expect(await screen.findByRole("heading", { name: "지금 시작할 일" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "지금 할 일" })).toBeInTheDocument();
   });
 
   it("shows a member their organization's events and, below, events in other organizations", async () => {
@@ -136,7 +136,7 @@ describe("event-only collaborators see and open their events (#387)", () => {
     expect(within(collab).queryByText("Local event")).toBeNull();
 
     fireEvent.click(within(collab).getByRole("button", { name: /Bravo retreat/ }));
-    expect(await screen.findByRole("heading", { name: "지금 시작할 일" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "지금 할 일" })).toBeInTheDocument();
     expect((await screen.findAllByText("Bravo church")).length).toBeGreaterThan(0);
   });
 

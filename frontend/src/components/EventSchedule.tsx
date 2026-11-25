@@ -21,15 +21,21 @@ import { eventContext, formatPublishedAt } from "./eventFormat";
 import { readEventAreas } from "./eventLocalState";
 import { OperatorShell } from "./OperatorShell";
 import { categoryLabel, commonFailure, itemTime, publishedText, useScheduleBoard, useScheduleWrite, writeBlocked } from "./scheduleAccess";
-import { initialDay } from "./participant/scheduleNow";
+import { initialDay, scheduleNowNext } from "./participant/scheduleNow";
+import { Timetable, type TimetableColumn } from "./Timetable";
+import { useWideTimetable } from "./useWideTimetable";
+import { isPast, nowLineMinute, nowOnDay, zonedClock } from "./timetable";
+import { useMinuteClock } from "./useMinuteClock";
 import "./EventGroups.css";
 import "./EventSchedule.css";
 
 export type ScheduleNotice = { tone: "success" | "info" | "error"; text: string };
 
 /**
- * 일정표 (C4, DEC-081). Phone first: day tabs, items in time order with what is not yet published, and
- * one 공개 button for the whole board. Each item opens its editor, where "저장하고 바로 공개" is one
+ * 일정표 (C4, DEC-081, #466). A timetable: hour labels on the left and each item as long as it lasts. On an
+ * event day a line marks the current time (event time zone) with 지금·다음 on the items, and finished
+ * items go quiet. Phones show one day under day tabs; wide screens show every day side by side. One 공개
+ * button for the whole board. Each item opens its editor, where "저장하고 바로 공개" is one
  * request. The board is the working copy; participants see only what is published.
  */
 export function EventSchedule() {
@@ -38,7 +44,20 @@ export function EventSchedule() {
 }
 
 /** The operator frame shared with the item editor. */
-export function ScheduleShell({ event, spaceName, back, children }: { event: EventDetail; spaceName?: string; back: string; children: ReactNode }) {
+export function ScheduleShell({
+  event,
+  spaceName,
+  back,
+  board = false,
+  children,
+}: {
+  event: EventDetail;
+  spaceName?: string;
+  back: string;
+  /** The timetable itself, which may use the full width on desktop. */
+  board?: boolean;
+  children: ReactNode;
+}) {
   const eventHref = `/events/${event.eventId}`;
   return (
     <OperatorShell
@@ -56,7 +75,7 @@ export function ScheduleShell({ event, spaceName, back, children }: { event: Eve
         </Link>
       }
     >
-      <div className="event-schedule">{children}</div>
+      <div className={`event-schedule${board ? " event-schedule--board" : ""}`}>{children}</div>
     </OperatorShell>
   );
 }
@@ -65,7 +84,7 @@ function ScheduleFrame({ event, spaceName }: { event: EventDetail; spaceName?: s
   const board = useScheduleBoard(event.eventId);
   const context = [eventContext(event), spaceName ?? ""].filter((part) => part.length > 0).join(" · ");
   return (
-    <ScheduleShell event={event} spaceName={spaceName} back={`/events/${event.eventId}`}>
+    <ScheduleShell event={event} spaceName={spaceName} back={`/events/${event.eventId}`} board>
       {board.data ? (
         <Board eventId={event.eventId} context={context} board={board.data} fetching={board.isFetching} />
       ) : (
@@ -121,10 +140,27 @@ function Board({ eventId, context, board, fetching }: { eventId: string; context
   const [busy, setBusy] = useState(false);
   const [outside, setOutside] = useState<string[]>([]);
 
-  const [openedAt] = useState(() => Date.now());
+  const now = useMinuteClock();
+  const wideScreen = useWideTimetable();
+  // 행사 전체 / 하루 보기 (SCENE 시간표 frame 172:3): every day side by side on wide screens, or one day.
+  const [allDays, setAllDays] = useState(true);
+  const wide = wideScreen && allDays && board.days.length > 1;
+  const inPeriod = board.items.filter((item) => !item.outOfPeriod);
+  const nowNext = scheduleNowNext(inPeriod, now, board.days);
+  const nowItem = nowNext.phase === "during" ? nowNext.now : null;
+  const nextItem = nowNext.phase === "during" ? nowNext.next : null;
   const wanted = Number(params.get("day"));
-  const day = board.days.some((entry) => entry.day === wanted) ? wanted : (initialDay(board.days, openedAt, board.timeZone) ?? 1);
-  const dayItems = board.items.filter((item) => item.day === day && !item.outOfPeriod);
+  // Opens on the day of what is running now (an overnight item keeps yesterday), else today, else day 1.
+  const day = board.days.some((entry) => entry.day === wanted) ? wanted : (nowItem?.day ?? initialDay(board.days, now, board.timeZone) ?? 1);
+  const dayItems = inPeriod.filter((item) => item.day === day);
+  // 오늘 (the calendar frames' Today): back to today's day and the current-time line, while the event is on.
+  const todayDay = nowItem?.day ?? board.days.find((entry) => entry.date === zonedClock(now, board.timeZone).date)?.day ?? null;
+  const [jumps, setJumps] = useState(0);
+  function goToday() {
+    if (todayDay === null) return;
+    if (!wide) setParams({ day: String(todayDay) }, { replace: true });
+    setJumps((count) => count + 1);
+  }
   const outOfPeriod = board.items.filter((item) => item.outOfPeriod || outside.includes(item.itemId));
   const { pendingChanges, lastPublishedAt, lastPublishedByDisplayName } = board.publication;
   const pendingCount = pendingChanges.added + pendingChanges.changed + pendingChanges.removed;
@@ -225,7 +261,26 @@ function Board({ eventId, context, board, fetching }: { eventId: string; context
           <ItemList items={outOfPeriod} board={board} eventHref={eventHref} editable={editable} />
         </section>
       ) : null}
-      {board.days.length > 0 ? (
+      {todayDay !== null || (wideScreen && board.days.length > 1) ? (
+        <div className="event-schedule__views">
+          {todayDay !== null ? (
+            <Button type="button" variant="secondary" size={32} onClick={goToday}>
+              오늘
+            </Button>
+          ) : null}
+          {wideScreen && board.days.length > 1 ? (
+            <div className="event-schedule__view-switch" role="group" aria-label="보기">
+              <Button type="button" variant={allDays ? "primary" : "secondary"} size={32} aria-pressed={allDays} onClick={() => setAllDays(true)}>
+                행사 전체
+              </Button>
+              <Button type="button" variant={allDays ? "secondary" : "primary"} size={32} aria-pressed={!allDays} onClick={() => setAllDays(false)}>
+                하루 보기
+              </Button>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+      {board.days.length > 0 && !wide ? (
         <div className="event-schedule__days" role="tablist" aria-label="일차">
           {board.days.map((entry) => {
             const count = board.items.filter((item) => item.day === entry.day && !item.outOfPeriod).length;
@@ -248,7 +303,7 @@ function Board({ eventId, context, board, fetching }: { eventId: string; context
         </div>
       ) : null}
       {board.days.length > 0 ? (
-        dayItems.length === 0 ? (
+        (wide ? inPeriod.length === 0 : dayItems.length === 0) ? (
           <div className="event-schedule__empty">
             <p>이날은 일정이 없어요.</p>
             {editable ? (
@@ -258,7 +313,17 @@ function Board({ eventId, context, board, fetching }: { eventId: string; context
             ) : null}
           </div>
         ) : (
-          <ItemList items={dayItems} board={board} eventHref={eventHref} editable={editable} label={board.days.find((entry) => entry.day === day)?.dayLabel} />
+          <BoardTimetable
+            board={board}
+            items={inPeriod}
+            days={wide ? board.days : board.days.filter((entry) => entry.day === day)}
+            now={now}
+            nowId={nowItem?.itemId}
+            nextId={nextItem?.itemId}
+            eventHref={eventHref}
+            editable={editable}
+            scrollKey={`${wide ? "all" : day}:${jumps}`}
+          />
         )
       ) : null}
       {publishing ? (
@@ -296,15 +361,100 @@ function ItemList({ items, board, eventHref, editable, label }: { items: Schedul
   );
 }
 
-function ItemSummary({ item, board }: { item: ScheduleItem; board: ScheduleBoard }) {
+function BoardTimetable({
+  board,
+  items,
+  days,
+  now,
+  nowId,
+  nextId,
+  eventHref,
+  editable,
+  scrollKey,
+}: {
+  board: ScheduleBoard;
+  items: ScheduleItem[];
+  days: ScheduleBoard["days"];
+  now: number;
+  nowId?: string;
+  nextId?: string;
+  eventHref: string;
+  editable: boolean;
+  scrollKey: string;
+}) {
+  const columns: TimetableColumn<ScheduleItem>[] = days.map((entry) => {
+    const rows = items.filter((item) => item.day === entry.day);
+    return {
+      key: String(entry.day),
+      label: entry.dayLabel,
+      rows,
+      nowMinute: nowLineMinute(entry.date, rows, now, board.timeZone),
+      header: (
+        <>
+          <span>
+            {entry.dayLabel} · {entry.day}일차
+          </span>
+          <span className="event-schedule__column-count">{rows.length}개 일정</span>
+        </>
+      ),
+    };
+  });
+  // Finished items go quiet only while the event is on (some day has the current-time line).
+  const live = board.days.some((entry) => nowLineMinute(entry.date, items.filter((item) => item.day === entry.day), now, board.timeZone) !== null);
+  return (
+    <Timetable
+      columns={columns}
+      scrollKey={scrollKey}
+      block={(placed, column) => {
+        const item = placed.row;
+        const date = days.find((entry) => String(entry.day) === column.key)?.date ?? "";
+        const classes = ["event-schedule__block"];
+        if (item.itemId === nowId) classes.push("event-schedule__block--now");
+        else if (live && isPast(placed, nowOnDay(date, now, board.timeZone))) classes.push("event-schedule__block--past");
+        if (item.publishState !== "UNCHANGED") classes.push("event-schedule__block--pending");
+        const body = <ItemSummary item={item} board={board} now={item.itemId === nowId} next={item.itemId === nextId} />;
+        // A narrow block may draw only part of the time; the whole line stays in the tooltip.
+        const fullText = [itemTime(item), item.title, item.place].filter(Boolean).join(" · ");
+        return {
+          key: item.itemId,
+          className: classes.join(" "),
+          current: item.itemId === nowId,
+          content: editable ? (
+            <Link
+              className="event-schedule__row timetable__content"
+              to={`${eventHref}/schedule/${item.itemId}`}
+              aria-label={`${item.startTime} ${item.title} 고치기`}
+              title={fullText}
+            >
+              {body}
+            </Link>
+          ) : (
+            <div className="event-schedule__row timetable__content" title={fullText}>
+              {body}
+            </div>
+          ),
+        };
+      }}
+    />
+  );
+}
+
+function ItemSummary({ item, board, now = false, next = false }: { item: ScheduleItem; board: ScheduleBoard; now?: boolean; next?: boolean }) {
   const slot = item.slotId ? (board.slots?.find((entry) => entry.slotId === item.slotId) ?? null) : null;
   return (
     <>
-      <span className="event-schedule__time">{itemTime(item)}</span>
+      <span className="event-schedule__when timetable__when">
+        <span className="event-schedule__time">
+          {item.startTime}
+          <span className="timetable__time-end">{itemTime(item).slice(item.startTime.length)}</span>
+        </span>
+        {now ? <span className="event-schedule__tag event-schedule__tag--now timetable__badge">지금</span> : null}
+        {next ? <span className="event-schedule__tag event-schedule__tag--next timetable__badge">다음</span> : null}
+      </span>
       <span className="event-schedule__main">
-        <span className="event-schedule__title">{item.title}</span>
-        {item.place ? <span className="event-schedule__place">{item.place}</span> : null}
-        <span className="event-schedule__tags">
+        <span className="event-schedule__title timetable__title">{item.title}</span>
+        {item.place ? <span className="event-schedule__place timetable__place">{item.place}</span> : null}
+        <span className="event-schedule__tags timetable__tags">
           <span className="event-schedule__tag">{categoryLabel(item)}</span>
           {item.audience !== "ALL" ? <span className="event-schedule__tag event-schedule__tag--audience">{AUDIENCE_LABEL[item.audience]}만</span> : null}
           {item.slotId ? <span className="event-schedule__tag">{slot ? `${slot.label} 칸` : "신청서에 없는 칸"}</span> : null}

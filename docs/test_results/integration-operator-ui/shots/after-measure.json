@@ -1,0 +1,1022 @@
+[
+ {
+  "size": "390",
+  "screen": "home-active",
+  "title": 20,
+  "content": 20,
+  "boxL": 20,
+  "boxR": 370,
+  "boxW": 350,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": []
+ },
+ {
+  "size": "390",
+  "screen": "home-new",
+  "title": 20,
+  "content": 20,
+  "boxL": 20,
+  "boxR": 370,
+  "boxW": 350,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": []
+ },
+ {
+  "size": "390",
+  "screen": "field-1-list",
+  "title": 20,
+  "content": 16,
+  "boxL": 16,
+  "boxR": 374,
+  "boxW": 358,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": []
+ },
+ {
+  "size": "390",
+  "screen": "field-2-groups",
+  "title": 20,
+  "content": 16,
+  "boxL": 16,
+  "boxR": 374,
+  "boxW": 358,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": []
+ },
+ {
+  "size": "390",
+  "screen": "field-3-qr",
+  "title": 20,
+  "content": 16,
+  "boxL": 16,
+  "boxR": 374,
+  "boxW": 358,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": []
+ },
+ {
+  "size": "390",
+  "screen": "field-4-offline",
+  "title": 20,
+  "content": 16,
+  "boxL": 16,
+  "boxR": 374,
+  "boxW": 358,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": []
+ },
+ {
+  "size": "390",
+  "screen": "schedule-all",
+  "title": 20,
+  "content": 16,
+  "boxL": 16,
+  "boxR": 374,
+  "boxW": 358,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": [
+   {
+    "t": "15:30–17:30",
+    "h": 166,
+    "w": 147,
+    "vcut": false,
+    "hcut": false,
+    "onLine": true
+   },
+   {
+    "t": "16:00–16:15",
+    "h": 40,
+    "w": 147,
+    "vcut": true,
+    "hcut": true,
+    "onLine": true
+   },
+   {
+    "t": "17:30–17:50",
+    "h": 40,
+    "w": 298,
+    "vcut": false,
+    "hcut": true,
+    "onLine": false
+   },
+   {
+    "t": "21:40",
+    "h": 68,
+    "w": 298,
+    "vcut": true,
+    "hcut": false,
+    "onLine": false
+   }
+  ]
+ },
+ {
+  "size": "390",
+  "screen": "schedule-item",
+  "title": 20,
+  "content": 16,
+  "boxL": 16,
+  "boxR": 374,
+  "boxW": 358,
+  "center": 0,
+  "overflow": false,
+  "outside": [
+   "event-schedule__actions -16/16"
+  ],
+  "blocks": []
+ },
+ {
+  "size": "390",
+  "screen": "notices",
+  "title": 20,
+  "content": 16,
+  "boxL": 16,
+  "boxR": 374,
+  "boxW": 358,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": []
+ },
+ {
+  "size": "390",
+  "screen": "notifications",
+  "title": 20,
+  "content": 16,
+  "boxL": 16,
+  "boxR": 374,
+  "boxW": 358,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": []
+ },
+ {
+  "size": "390",
+  "screen": "groups",
+  "title": 20,
+  "content": 16,
+  "boxL": 16,
+  "boxR": 374,
+  "boxW": 358,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": []
+ },
+ {
+  "size": "390",
+  "screen": "participants",
+  "title": 20,
+  "content": 20,
+  "boxL": 20,
+  "boxR": 370,
+  "boxW": 350,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": []
+ },
+ {
+  "size": "390",
+  "screen": "summary",
+  "title": 20,
+  "content": 16,
+  "boxL": 16,
+  "boxR": 374,
+  "boxW": 358,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": []
+ },
+ {
+  "size": "390",
+  "screen": "click",
+  "label": "참가자 카드 → 신청 집계",
+  "result": "OK /events/:id/participants/summary 「Local event」"
+ },
+ {
+  "size": "390",
+  "screen": "click",
+  "label": "일정 카드 → 일정표",
+  "result": "OK /events/:id/schedule 「Local event」"
+ },
+ {
+  "size": "390",
+  "screen": "click",
+  "label": "공지 모두 보기 → 공지",
+  "result": "OK /events/:id/notices 「공지」"
+ },
+ {
+  "size": "390",
+  "screen": "click",
+  "label": "바로가기 현장 운영",
+  "result": "OK /events/:id/field 「현장 운영」"
+ },
+ {
+  "size": "390",
+  "screen": "click",
+  "label": "바로가기 일정",
+  "result": "OK /events/:id/schedule 「Local event」"
+ },
+ {
+  "size": "390",
+  "screen": "click",
+  "label": "사이드바 현장 운영",
+  "result": "OK /events/:id/field 「현장 운영」"
+ },
+ {
+  "size": "1440",
+  "screen": "home-active",
+  "title": 280,
+  "content": 280,
+  "boxL": 280,
+  "boxR": 1408,
+  "boxW": 1128,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": []
+ },
+ {
+  "size": "1440",
+  "screen": "home-new",
+  "title": 280,
+  "content": 280,
+  "boxL": 280,
+  "boxR": 1408,
+  "boxW": 1128,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": []
+ },
+ {
+  "size": "1440",
+  "screen": "field-1-list",
+  "title": 280,
+  "content": 280,
+  "boxL": 280,
+  "boxR": 1408,
+  "boxW": 1128,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": []
+ },
+ {
+  "size": "1440",
+  "screen": "field-2-groups",
+  "title": 280,
+  "content": 280,
+  "boxL": 280,
+  "boxR": 1408,
+  "boxW": 1128,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": []
+ },
+ {
+  "size": "1440",
+  "screen": "field-3-qr",
+  "title": 280,
+  "content": 280,
+  "boxL": 280,
+  "boxR": 1408,
+  "boxW": 1128,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": []
+ },
+ {
+  "size": "1440",
+  "screen": "field-4-offline",
+  "title": 280,
+  "content": 280,
+  "boxL": 280,
+  "boxR": 1408,
+  "boxW": 1128,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": []
+ },
+ {
+  "size": "1440",
+  "screen": "schedule-all",
+  "title": 280,
+  "content": 280,
+  "boxL": 280,
+  "boxR": 1408,
+  "boxW": 1128,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": [
+   {
+    "t": "15:30–17:30",
+    "h": 142,
+    "w": 171,
+    "vcut": false,
+    "hcut": false,
+    "onLine": true
+   },
+   {
+    "t": "16:00–16:15",
+    "h": 34,
+    "w": 171,
+    "vcut": true,
+    "hcut": true,
+    "onLine": true
+   },
+   {
+    "t": "17:30–17:50",
+    "h": 34,
+    "w": 345,
+    "vcut": false,
+    "hcut": true,
+    "onLine": false
+   },
+   {
+    "t": "21:40",
+    "h": 58,
+    "w": 345,
+    "vcut": true,
+    "hcut": false,
+    "onLine": false
+   }
+  ]
+ },
+ {
+  "size": "1440",
+  "screen": "schedule-day",
+  "title": 280,
+  "content": 280,
+  "boxL": 280,
+  "boxR": 1408,
+  "boxW": 1128,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": [
+   {
+    "t": "15:30–17:30",
+    "h": 142,
+    "w": 528,
+    "vcut": false,
+    "hcut": false,
+    "onLine": true
+   },
+   {
+    "t": "16:00–16:15",
+    "h": 34,
+    "w": 528,
+    "vcut": false,
+    "hcut": true,
+    "onLine": true
+   },
+   {
+    "t": "17:30–17:50",
+    "h": 34,
+    "w": 1060,
+    "vcut": false,
+    "hcut": true,
+    "onLine": false
+   },
+   {
+    "t": "21:40",
+    "h": 58,
+    "w": 1060,
+    "vcut": true,
+    "hcut": false,
+    "onLine": false
+   }
+  ]
+ },
+ {
+  "size": "1440",
+  "screen": "schedule-item",
+  "title": 280,
+  "content": 280,
+  "boxL": 280,
+  "boxR": 1408,
+  "boxW": 1128,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": []
+ },
+ {
+  "size": "1440",
+  "screen": "notices",
+  "title": 280,
+  "content": 280,
+  "boxL": 280,
+  "boxR": 1408,
+  "boxW": 1128,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": []
+ },
+ {
+  "size": "1440",
+  "screen": "notifications",
+  "title": 280,
+  "content": 280,
+  "boxL": 280,
+  "boxR": 1408,
+  "boxW": 1128,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": []
+ },
+ {
+  "size": "1440",
+  "screen": "groups",
+  "title": 280,
+  "content": 280,
+  "boxL": 280,
+  "boxR": 1408,
+  "boxW": 1128,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": []
+ },
+ {
+  "size": "1440",
+  "screen": "participants",
+  "title": 280,
+  "content": 280,
+  "boxL": 280,
+  "boxR": 1408,
+  "boxW": 1128,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": []
+ },
+ {
+  "size": "1440",
+  "screen": "summary",
+  "title": 280,
+  "content": 280,
+  "boxL": 280,
+  "boxR": 1408,
+  "boxW": 1128,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": []
+ },
+ {
+  "size": "1440",
+  "screen": "click",
+  "label": "참가자 카드 → 신청 집계",
+  "result": "OK /events/:id/participants/summary 「Local event」"
+ },
+ {
+  "size": "1440",
+  "screen": "click",
+  "label": "일정 카드 → 일정표",
+  "result": "OK /events/:id/schedule 「Local event」"
+ },
+ {
+  "size": "1440",
+  "screen": "click",
+  "label": "공지 모두 보기 → 공지",
+  "result": "OK /events/:id/notices 「공지」"
+ },
+ {
+  "size": "1440",
+  "screen": "click",
+  "label": "바로가기 현장 운영",
+  "result": "OK /events/:id/field 「현장 운영」"
+ },
+ {
+  "size": "1440",
+  "screen": "click",
+  "label": "바로가기 일정",
+  "result": "OK /events/:id/schedule 「Local event」"
+ },
+ {
+  "size": "1440",
+  "screen": "click",
+  "label": "사이드바 현장 운영",
+  "result": "OK /events/:id/field 「현장 운영」"
+ },
+ {
+  "size": "2000",
+  "screen": "home-active",
+  "title": 560,
+  "content": 560,
+  "boxL": 560,
+  "boxR": 1688,
+  "boxW": 1128,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": []
+ },
+ {
+  "size": "2000",
+  "screen": "home-new",
+  "title": 560,
+  "content": 560,
+  "boxL": 560,
+  "boxR": 1688,
+  "boxW": 1128,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": []
+ },
+ {
+  "size": "2000",
+  "screen": "field-1-list",
+  "title": 560,
+  "content": 560,
+  "boxL": 560,
+  "boxR": 1688,
+  "boxW": 1128,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": []
+ },
+ {
+  "size": "2000",
+  "screen": "field-2-groups",
+  "title": 560,
+  "content": 560,
+  "boxL": 560,
+  "boxR": 1688,
+  "boxW": 1128,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": []
+ },
+ {
+  "size": "2000",
+  "screen": "field-3-qr",
+  "title": 560,
+  "content": 560,
+  "boxL": 560,
+  "boxR": 1688,
+  "boxW": 1128,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": []
+ },
+ {
+  "size": "2000",
+  "screen": "field-4-offline",
+  "title": 560,
+  "content": 560,
+  "boxL": 560,
+  "boxR": 1688,
+  "boxW": 1128,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": []
+ },
+ {
+  "size": "2000",
+  "screen": "schedule-all",
+  "title": 560,
+  "content": 560,
+  "boxL": 560,
+  "boxR": 1688,
+  "boxW": 1128,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": [
+   {
+    "t": "15:30–17:30",
+    "h": 142,
+    "w": 171,
+    "vcut": false,
+    "hcut": false,
+    "onLine": true
+   },
+   {
+    "t": "16:00–16:15",
+    "h": 34,
+    "w": 171,
+    "vcut": true,
+    "hcut": true,
+    "onLine": true
+   },
+   {
+    "t": "17:30–17:50",
+    "h": 34,
+    "w": 345,
+    "vcut": false,
+    "hcut": true,
+    "onLine": false
+   },
+   {
+    "t": "21:40",
+    "h": 58,
+    "w": 345,
+    "vcut": true,
+    "hcut": false,
+    "onLine": false
+   }
+  ]
+ },
+ {
+  "size": "2000",
+  "screen": "schedule-day",
+  "title": 560,
+  "content": 560,
+  "boxL": 560,
+  "boxR": 1688,
+  "boxW": 1128,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": [
+   {
+    "t": "15:30–17:30",
+    "h": 142,
+    "w": 528,
+    "vcut": false,
+    "hcut": false,
+    "onLine": true
+   },
+   {
+    "t": "16:00–16:15",
+    "h": 34,
+    "w": 528,
+    "vcut": false,
+    "hcut": true,
+    "onLine": true
+   },
+   {
+    "t": "17:30–17:50",
+    "h": 34,
+    "w": 1060,
+    "vcut": false,
+    "hcut": true,
+    "onLine": false
+   },
+   {
+    "t": "21:40",
+    "h": 58,
+    "w": 1060,
+    "vcut": true,
+    "hcut": false,
+    "onLine": false
+   }
+  ]
+ },
+ {
+  "size": "2000",
+  "screen": "schedule-item",
+  "title": 560,
+  "content": 560,
+  "boxL": 560,
+  "boxR": 1688,
+  "boxW": 1128,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": []
+ },
+ {
+  "size": "2000",
+  "screen": "notices",
+  "title": 560,
+  "content": 560,
+  "boxL": 560,
+  "boxR": 1688,
+  "boxW": 1128,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": []
+ },
+ {
+  "size": "2000",
+  "screen": "notifications",
+  "title": 560,
+  "content": 560,
+  "boxL": 560,
+  "boxR": 1688,
+  "boxW": 1128,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": []
+ },
+ {
+  "size": "2000",
+  "screen": "groups",
+  "title": 560,
+  "content": 560,
+  "boxL": 560,
+  "boxR": 1688,
+  "boxW": 1128,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": []
+ },
+ {
+  "size": "2000",
+  "screen": "participants",
+  "title": 560,
+  "content": 560,
+  "boxL": 560,
+  "boxR": 1688,
+  "boxW": 1128,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": []
+ },
+ {
+  "size": "2000",
+  "screen": "summary",
+  "title": 560,
+  "content": 560,
+  "boxL": 560,
+  "boxR": 1688,
+  "boxW": 1128,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": []
+ },
+ {
+  "size": "1440c",
+  "screen": "home-active",
+  "title": 192,
+  "content": 192,
+  "boxL": 192,
+  "boxR": 1320,
+  "boxW": 1128,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": []
+ },
+ {
+  "size": "1440c",
+  "screen": "home-new",
+  "title": 192,
+  "content": 192,
+  "boxL": 192,
+  "boxR": 1320,
+  "boxW": 1128,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": []
+ },
+ {
+  "size": "1440c",
+  "screen": "field-1-list",
+  "title": 192,
+  "content": 192,
+  "boxL": 192,
+  "boxR": 1320,
+  "boxW": 1128,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": []
+ },
+ {
+  "size": "1440c",
+  "screen": "field-2-groups",
+  "title": 192,
+  "content": 192,
+  "boxL": 192,
+  "boxR": 1320,
+  "boxW": 1128,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": []
+ },
+ {
+  "size": "1440c",
+  "screen": "field-3-qr",
+  "title": 192,
+  "content": 192,
+  "boxL": 192,
+  "boxR": 1320,
+  "boxW": 1128,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": []
+ },
+ {
+  "size": "1440c",
+  "screen": "field-4-offline",
+  "title": 192,
+  "content": 192,
+  "boxL": 192,
+  "boxR": 1320,
+  "boxW": 1128,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": []
+ },
+ {
+  "size": "1440c",
+  "screen": "schedule-all",
+  "title": 192,
+  "content": 192,
+  "boxL": 192,
+  "boxR": 1320,
+  "boxW": 1128,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": [
+   {
+    "t": "15:30–17:30",
+    "h": 142,
+    "w": 171,
+    "vcut": false,
+    "hcut": false,
+    "onLine": true
+   },
+   {
+    "t": "16:00–16:15",
+    "h": 34,
+    "w": 171,
+    "vcut": true,
+    "hcut": true,
+    "onLine": true
+   },
+   {
+    "t": "17:30–17:50",
+    "h": 34,
+    "w": 345,
+    "vcut": false,
+    "hcut": true,
+    "onLine": false
+   },
+   {
+    "t": "21:40",
+    "h": 58,
+    "w": 345,
+    "vcut": true,
+    "hcut": false,
+    "onLine": false
+   }
+  ]
+ },
+ {
+  "size": "1440c",
+  "screen": "schedule-day",
+  "title": 192,
+  "content": 192,
+  "boxL": 192,
+  "boxR": 1320,
+  "boxW": 1128,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": [
+   {
+    "t": "15:30–17:30",
+    "h": 142,
+    "w": 528,
+    "vcut": false,
+    "hcut": false,
+    "onLine": true
+   },
+   {
+    "t": "16:00–16:15",
+    "h": 34,
+    "w": 528,
+    "vcut": false,
+    "hcut": true,
+    "onLine": true
+   },
+   {
+    "t": "17:30–17:50",
+    "h": 34,
+    "w": 1060,
+    "vcut": false,
+    "hcut": true,
+    "onLine": false
+   },
+   {
+    "t": "21:40",
+    "h": 58,
+    "w": 1060,
+    "vcut": true,
+    "hcut": false,
+    "onLine": false
+   }
+  ]
+ },
+ {
+  "size": "1440c",
+  "screen": "schedule-item",
+  "title": 192,
+  "content": 192,
+  "boxL": 192,
+  "boxR": 1320,
+  "boxW": 1128,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": []
+ },
+ {
+  "size": "1440c",
+  "screen": "notices",
+  "title": 192,
+  "content": 192,
+  "boxL": 192,
+  "boxR": 1320,
+  "boxW": 1128,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": []
+ },
+ {
+  "size": "1440c",
+  "screen": "notifications",
+  "title": 192,
+  "content": 192,
+  "boxL": 192,
+  "boxR": 1320,
+  "boxW": 1128,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": []
+ },
+ {
+  "size": "1440c",
+  "screen": "groups",
+  "title": 192,
+  "content": 192,
+  "boxL": 192,
+  "boxR": 1320,
+  "boxW": 1128,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": []
+ },
+ {
+  "size": "1440c",
+  "screen": "participants",
+  "title": 192,
+  "content": 192,
+  "boxL": 192,
+  "boxR": 1320,
+  "boxW": 1128,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": []
+ },
+ {
+  "size": "1440c",
+  "screen": "summary",
+  "title": 192,
+  "content": 192,
+  "boxL": 192,
+  "boxR": 1320,
+  "boxW": 1128,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": []
+ }
+]

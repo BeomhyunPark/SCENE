@@ -10,10 +10,10 @@ export function FieldRoomLine({ room, lodging }: { room: DeskRoom | null; lodgin
   const text = deskRoomText(room, lodging);
   if (!text) return null;
   return (
-    <p className={room ? "field-room" : "field-room field-room--away"}>
+    <span className={room ? "field-room" : "field-room field-room--away"}>
       {room ? <span className="field-room__label">방</span> : null}
       {text}
-    </p>
+    </span>
   );
 }
 

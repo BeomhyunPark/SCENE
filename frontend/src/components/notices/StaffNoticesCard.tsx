@@ -19,8 +19,8 @@ export function StaffNoticesCard({ eventId }: { eventId: string }) {
     <section className="staff-notices" aria-labelledby="staff-notices-title">
       <div className="staff-notices__head">
         <h2 id="staff-notices-title">운영진 공지</h2>
-        <Link className="notices__link" to={noticesHref(eventId)}>
-          공지 전체
+        <Link className="staff-notices__more" to={noticesHref(eventId)}>
+          모두 보기
         </Link>
       </div>
       {notices.isPending ? <p className="notices__support">불러오는 중이에요.</p> : null}

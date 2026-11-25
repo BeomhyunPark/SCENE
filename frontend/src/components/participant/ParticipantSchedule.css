@@ -54,32 +54,90 @@
   letter-spacing: 0;
 }
 
-.participant-schedule__list {
+/* Timetable blocks (#466): the frame and category tint are in Timetable.css. */
+.participant-schedule__timetable {
+  /* Below the 56px sticky shell header. */
+  --timetable-sticky-top: 56px;
+  min-width: 0;
+}
+
+/* Line layout and what fits are in Timetable.css (timetable__content and its container queries). */
+.participant-schedule__block:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: -2px;
+}
+
+/* Title and its marks share one line; a mark that does not fit drops out whole, the title gets an ellipsis. */
+.timetable__block .participant-schedule__title {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 6px;
+  max-height: 21px;
 }
 
-.participant-schedule__item {
-  display: grid;
-  grid-template-columns: 92px 1fr;
-  gap: 4px 12px;
-  padding: 14px 16px;
-  background: var(--color-bg-surface);
-  border: 1px solid var(--color-border-default);
-  border-radius: 12px;
+.participant-schedule__title-text {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
+.timetable__block--expandable:is(:hover, :focus-within) .participant-schedule__title {
+  max-height: none;
+}
+
+.timetable__block--expandable:is(:hover, :focus-within) .participant-schedule__title-text {
+  white-space: normal;
+}
+
+/* 지금: P06-PMOB01's current row. */
 .participant-schedule__item--now {
-  border-color: var(--color-border-selected);
-  background: var(--color-bg-selected);
+  border: 1.5px solid var(--color-border-selected);
+  --block-bg: var(--color-bg-brand-subtle);
 }
 
+.participant-schedule__item--now .participant-schedule__time {
+  color: var(--color-text-brand);
+}
+
+/* Finished and cancelled: quiet, like P06-PMOB01's 완료 rows. */
+.participant-schedule__item--past,
 .participant-schedule__item--removed {
+  border-style: dashed;
+  --block-bg: var(--color-bg-canvas);
+}
+
+.participant-schedule__item--past .participant-schedule__time,
+.participant-schedule__item--past .participant-schedule__title,
+.participant-schedule__item--removed .participant-schedule__time,
+.participant-schedule__item--removed .participant-schedule__title {
   color: var(--color-text-tertiary);
+}
+
+.participant-schedule__count {
+  color: var(--color-text-tertiary);
+  font: var(--scene-caption-m);
+  letter-spacing: 0;
+}
+
+.participant-schedule__today {
+  align-self: flex-start;
+  min-height: 32px;
+  padding: 4px 14px;
+  border: 1px solid var(--color-border-control);
+  border-radius: 8px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font: var(--scene-label-m);
+  letter-spacing: 0;
+  cursor: pointer;
+}
+
+.participant-schedule__today:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
 }
 
 .participant-schedule__time {
@@ -90,10 +148,7 @@
 }
 
 .participant-schedule__main {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
+  display: contents;
 }
 
 .participant-schedule__title {
@@ -102,7 +157,8 @@
   align-items: center;
   gap: 4px 6px;
   margin: 0;
-  font: var(--scene-label-l, var(--scene-label-m));
+  color: var(--color-text-primary);
+  font: var(--scene-label-m);
   letter-spacing: 0;
   overflow-wrap: anywhere;
 }
@@ -110,7 +166,7 @@
 .participant-schedule__place,
 .participant-schedule__description {
   margin: 0;
-  color: var(--color-text-secondary);
+  color: inherit;
   font: var(--scene-body-s);
   letter-spacing: 0;
   overflow-wrap: anywhere;
@@ -209,4 +265,10 @@
   font: var(--scene-label-l, var(--scene-label-m));
   letter-spacing: 0;
   overflow-wrap: anywhere;
+}
+
+/* The time is one run of text (start and end), not a row of items. */
+.timetable__block .participant-schedule__time.timetable__when {
+  display: block;
+  text-overflow: ellipsis;
 }
