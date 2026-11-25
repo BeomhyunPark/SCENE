@@ -51,7 +51,10 @@ export type TaskProgress = {
   outcome: TaskOutcome;
 };
 
-export type TaskDetail = TaskProgress & { title: string };
+/** Optional period (#475): "YYYY-MM-DD". A due date alone is a one-day task; a start needs a due. */
+export type TaskDates = { startDate: string | null; dueDate: string | null };
+
+export type TaskDetail = TaskProgress & { title: string } & TaskDates;
 
 export type TaskListItem = {
   taskId: string;
@@ -61,7 +64,7 @@ export type TaskListItem = {
   assigneeDisplayName: string | null;
   checklist: { done: number; total: number };
   version: number;
-};
+} & TaskDates;
 
 export function listTasks(
   eventId: string,
@@ -74,10 +77,13 @@ export function listTasks(
 
 export function createTask(
   eventId: string,
-  input: { title: string; assigneeUserId?: string | null },
+  input: { title: string; assigneeUserId?: string | null; startDate?: string | null; dueDate?: string | null },
 ): Promise<TaskDetail> {
-  const body: { title: string; assigneeUserId?: string | null } = { title: input.title };
+  const body: { title: string; assigneeUserId?: string | null; startDate?: string | null; dueDate?: string | null } = { title: input.title };
   if (input.assigneeUserId !== undefined) body.assigneeUserId = input.assigneeUserId;
+  // Dates go only when set, so a plain create keeps its old body.
+  if (input.startDate) body.startDate = input.startDate;
+  if (input.dueDate) body.dueDate = input.dueDate;
   return apiRequest(`/api/v1/operator/events/${eventId}/tasks`, { method: "POST", body });
 }
 
@@ -88,7 +94,7 @@ export function getTask(eventId: string, taskId: string): Promise<TaskDetail> {
 export function patchTask(
   eventId: string,
   taskId: string,
-  input: { title?: string; assigneeUserId?: string | null; status?: "CANCELLED" },
+  input: { title?: string; assigneeUserId?: string | null; status?: "CANCELLED"; startDate?: string | null; dueDate?: string | null },
 ): Promise<TaskDetail> {
   return apiRequest(`/api/v1/operator/events/${eventId}/tasks/${taskId}`, {
     method: "PATCH",
