@@ -55,6 +55,9 @@ describe("내 정보 (#427)", () => {
     openApp();
     const card = await screen.findByRole("region", { name: "내 신청" });
     expect(await within(card).findByText("김민수")).toBeInTheDocument();
+    // Own screen, not called by name (fe-handoff §5, #495).
+    expect(screen.getByRole("heading", { level: 1, name: "내 정보" })).toBeInTheDocument();
+    expect(screen.queryByText(/님의 정보/)).not.toBeInTheDocument();
     expect(within(card).getByText("010-2222-3333")).toBeInTheDocument();
     expect(within(card).getByText("94")).toBeInTheDocument();
 

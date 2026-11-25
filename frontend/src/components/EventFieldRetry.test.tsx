@@ -36,7 +36,7 @@ async function openField() {
       <App />
     </MemoryRouter>,
   );
-  await screen.findByText("8명", {}, WAIT);
+  await screen.findByRole("list", { name: "체크인 명단" }, WAIT);
 }
 
 async function rosterRow(name: string): Promise<HTMLElement> {
