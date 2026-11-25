@@ -18,20 +18,10 @@
   cursor: pointer;
 }
 
-.row-menu__trigger:hover,
+/* Hover, press and the focus ring come from scene-press (pressable.css, #484). */
 .row-menu__trigger[aria-expanded="true"] {
   background: var(--color-bg-subtle);
   color: var(--color-text-primary);
-}
-
-.row-menu__trigger:active {
-  background: var(--color-bg-selected);
-}
-
-.row-menu__trigger:focus-visible,
-.row-menu__item:focus-visible {
-  outline: 2px solid var(--color-border-selected);
-  outline-offset: 2px;
 }
 
 .row-menu__trigger:disabled {
@@ -70,13 +60,9 @@
   cursor: pointer;
 }
 
-.row-menu__item:hover,
+/* The item that has focus from the arrow keys shows like a hovered row. */
 .row-menu__item:focus {
   background: var(--color-bg-hover-row);
-}
-
-.row-menu__item:active {
-  background: var(--color-bg-selected);
 }
 
 .row-menu__item--danger {

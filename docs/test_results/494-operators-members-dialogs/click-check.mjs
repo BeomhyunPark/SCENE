@@ -41,7 +41,12 @@ for (const size of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) 
     await page.getByRole("button", { name: "운영자 추가" }).click();
     await dialog.getByText("외부 협력자 초대").click();
     await dialog.getByLabel("이메일").fill(`guest${size.width}@example.org`);
-    await dialog.getByLabel("역할").selectOption("MANAGER");
+    await dialog.getByLabel("역할").click();
+    await page.keyboard.press("Escape");
+    const stays = (await dialog.count()) === 1;
+    await dialog.getByLabel("역할").click();
+    await page.getByRole("option", { name: "Manager" }).click();
+    log("다이얼로그 안 공용 Select: 목록 열고 Esc는 목록만 닫음 → Manager 고르기", stays && (await dialog.getByLabel("역할").innerText()).includes("Manager"));
     await dialog.getByRole("button", { name: "초대 메일 보내기" }).click();
     await page.getByText(`guest${size.width}@example.org에게 초대 메일을 보냈어요.`, { exact: false }).waitFor();
     log("운영자 추가 → 외부 협력자 초대 → 초대 메일 보내기", (await page.getByRole("list", { name: "대기 중인 초대" }).getByText(`guest${size.width}@example.org`).count()) === 1);

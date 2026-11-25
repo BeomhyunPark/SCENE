@@ -8,6 +8,7 @@ import { localEvent, localUsers } from "../mocks/fixtures/seed";
 import { createInvitation } from "../mocks/invitationStore";
 import { mailedLinks, setMockMailDelivery } from "../mocks/mailOutbox";
 import { setLifecycle } from "../mocks/operatorStore";
+import { chooseOption } from "../test/select";
 
 const EVENT = localEvent.eventId;
 const OWNER = localUsers[0].userId;
@@ -26,7 +27,7 @@ async function invite(email: string, role: "MANAGER" | "STAFF") {
   const dialog = await screen.findByRole("dialog", { name: "운영자 추가" });
   fireEvent.click(within(dialog).getByRole("radio", { name: "외부 협력자 초대" }));
   fireEvent.change(within(dialog).getByLabelText("이메일"), { target: { value: email } });
-  fireEvent.change(within(dialog).getByLabelText("역할"), { target: { value: role } });
+  chooseOption(within(dialog).getByLabelText("역할"), role);
   fireEvent.click(within(dialog).getByRole("button", { name: "초대 메일 보내기" }));
   return dialog;
 }

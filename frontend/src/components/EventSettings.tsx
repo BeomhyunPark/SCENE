@@ -29,7 +29,7 @@ function SettingsBody({ event, spaceName }: { event: EventDetail; spaceName?: st
       eventHref={`/events/${event.eventId}`}
       framed
       leading={
-        <Link className="event-home__back" to={`/events/${event.eventId}`} aria-label="행사 홈">
+        <Link className="event-home__back scene-press scene-press--text" to={`/events/${event.eventId}`} aria-label="행사 홈">
           <img src={arrowLeft} alt="" />
         </Link>
       }

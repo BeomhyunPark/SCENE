@@ -108,7 +108,7 @@ export function OperatorShell({
             <span className="scene-wordmark">SCENE</span>
           </span>
           <button
-            className="operator-shell__collapse"
+            className="operator-shell__collapse scene-press scene-press--quiet"
             type="button"
             aria-label={collapsed ? "사이드바 펼치기" : "사이드바 접기"}
             aria-expanded={!collapsed}

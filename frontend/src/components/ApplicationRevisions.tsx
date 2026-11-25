@@ -70,7 +70,7 @@ function RevisionRow({
               {open ? "변경 전후 닫기" : "변경 전후 보기"}
             </Button>
             {!openHere ? (
-              <Link className="revisions__link" to={`/events/${eventId}/participants/${item.applicationId}`}>
+              <Link className="revisions__link scene-press scene-press--text" to={`/events/${eventId}/participants/${item.applicationId}`}>
                 이 신청 열기
               </Link>
             ) : null}
@@ -78,7 +78,7 @@ function RevisionRow({
           {open ? <Diff id={panelId} eventId={eventId} item={item} previous={previous} /> : null}
         </>
       ) : !openHere ? (
-        <Link className="revisions__link" to={`/events/${eventId}/participants/${item.applicationId}`}>
+        <Link className="revisions__link scene-press scene-press--text" to={`/events/${eventId}/participants/${item.applicationId}`}>
           처음 신청 열기
         </Link>
       ) : null}

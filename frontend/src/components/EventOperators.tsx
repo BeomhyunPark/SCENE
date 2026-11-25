@@ -34,6 +34,7 @@ import { OperatorPermissionDialog, PermissionSummary } from "./OperatorPermissio
 import { ROLE_SUMMARY } from "./operatorPermissions";
 import { OperatorShell } from "./OperatorShell";
 import { RowMenu, type RowMenuItem } from "./RowMenu";
+import { Select } from "./Select";
 import { useEventOwner } from "./useEventOwner";
 import "./EventHome.css";
 
@@ -532,7 +533,7 @@ function AddOperatorDialog({
               ["email", "외부 협력자 초대"],
             ] as const
           ).map(([value, label]) => (
-            <label key={value} className={`event-home__segment${way === value ? " event-home__segment--on" : ""}`}>
+            <label key={value} className={`event-home__segment scene-press scene-press--chip${way === value ? " event-home__segment--on" : ""}`}>
               <input
                 type="radio"
                 name="operator-add-way"
@@ -564,18 +565,16 @@ function AddOperatorDialog({
             {candidates.length > 0 ? (
               <>
                 <label htmlFor="operator-add-user">조직 멤버</label>
-                <select
+                <Select
                   id="operator-add-user"
                   className="event-home__select"
                   value={selected}
-                  onChange={(change) => setUserId(change.target.value)}
-                >
-                  {candidates.map((item) => (
-                    <option key={item.userId} value={item.userId}>
-                      {item.email ? `${item.displayName} (${item.email})` : item.displayName}
-                    </option>
-                  ))}
-                </select>
+                  options={candidates.map((item) => ({
+                    value: item.userId,
+                    label: item.email ? `${item.displayName} (${item.email})` : item.displayName,
+                  }))}
+                  onChange={setUserId}
+                />
               </>
             ) : null}
           </>
@@ -603,16 +602,17 @@ function AddOperatorDialog({
         {way === "email" || candidates.length > 0 ? (
           <>
             <label htmlFor="operator-add-role">역할</label>
-            <select
+            <Select
               id="operator-add-role"
               className="event-home__select"
               value={role}
               aria-describedby="operator-add-role-summary"
-              onChange={(change) => setRole(change.target.value === "MANAGER" ? "MANAGER" : "STAFF")}
-            >
-              <option value="STAFF">{operatorRoleLabel("STAFF")}</option>
-              <option value="MANAGER">{operatorRoleLabel("MANAGER")}</option>
-            </select>
+              options={[
+                { value: "STAFF", label: operatorRoleLabel("STAFF") },
+                { value: "MANAGER", label: operatorRoleLabel("MANAGER") },
+              ]}
+              onChange={(value) => setRole(value === "MANAGER" ? "MANAGER" : "STAFF")}
+            />
             <RoleSummary id="operator-add-role-summary" />
           </>
         ) : null}

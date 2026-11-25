@@ -47,6 +47,7 @@ for (const size of ["1440", "390"]) {
     await page.waitForTimeout(300);
     await shot("operators-add-member");
     await page.getByRole("dialog").getByText("외부 협력자 초대").click();
+    await page.waitForTimeout(400); // scene-press 색 전환(120ms)이 끝난 뒤 찍는다
     await shot("operators-add-email");
     await page.keyboard.press("Escape");
   }

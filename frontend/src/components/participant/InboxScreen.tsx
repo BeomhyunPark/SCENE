@@ -25,7 +25,7 @@ import "./InboxScreen.css";
 export function InboxBell({ eventId, unread }: { eventId: string; unread: number | null }) {
   const badge = badgeText(unread ?? 0);
   return (
-    <Link className="participant-bell" to={inboxPath(eventId)} aria-label={badge ? `알림함, 읽지 않은 알림 ${unread}개` : "알림함"}>
+    <Link className="participant-bell scene-press scene-press--quiet" to={inboxPath(eventId)} aria-label={badge ? `알림함, 읽지 않은 알림 ${unread}개` : "알림함"}>
       <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
         <path
           d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"
@@ -157,7 +157,11 @@ function InboxRow({
   // A kind this screen cannot open is text only; it is still marked read with "모두 읽음".
   if (!href) return <div className={className}>{content}</div>;
   return (
-    <button type="button" className={className} onClick={() => onOpen(item, href)}>
+    <button
+      type="button"
+      className={`${className} scene-press scene-press--card${item.important ? " scene-press--keep-border" : ""}`}
+      onClick={() => onOpen(item, href)}
+    >
       {content}
     </button>
   );

@@ -64,7 +64,7 @@ export function RowMenu({ label, items, disabled = false }: { label: string; ite
         type="button"
         role="menuitem"
         tabIndex={-1}
-        className={item.danger ? "row-menu__item row-menu__item--danger" : "row-menu__item"}
+        className={item.danger ? "row-menu__item row-menu__item--danger scene-press scene-press--row scene-press--inset" : "row-menu__item scene-press scene-press--row scene-press--inset"}
         onClick={() => {
           close();
           item.onSelect();
@@ -79,7 +79,7 @@ export function RowMenu({ label, items, disabled = false }: { label: string; ite
       <button
         ref={triggerRef}
         type="button"
-        className="row-menu__trigger"
+        className="row-menu__trigger scene-press scene-press--quiet"
         aria-label={label}
         aria-haspopup="menu"
         aria-expanded={open}
