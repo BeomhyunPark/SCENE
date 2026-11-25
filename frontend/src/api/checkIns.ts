@@ -110,14 +110,13 @@ export function getCheckInSummary(eventId: string, signal?: AbortSignal): Promis
 
 export function listCheckInRoster(
   eventId: string,
-  query: { q?: string; checkedIn?: boolean; arrival?: ArrivalStatus; page: number; size: number },
+  query: { q?: string; checkedIn?: boolean; page: number; size: number },
   signal?: AbortSignal,
 ): Promise<ItemPage<RosterItem>> {
   return apiRequest<unknown>(`/api/v1/operator/events/${eventId}/check-in-roster`, {
     query: {
       q: query.q && query.q.trim().length > 0 ? query.q.trim() : undefined,
       checkedIn: query.checkedIn,
-      arrival: query.arrival,
       page: query.page,
       size: query.size,
     },
