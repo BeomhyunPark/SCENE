@@ -216,7 +216,8 @@ CSRF 쿠키는 `XSRF-TOKEN`, 헤더는 `X-XSRF-TOKEN`이다. 변경 요청은 �
 ### 다른 기능이 부르는 공용 코드 (DEC-080)
 
 - **사람별 참석 칸·숙박 밤:** `event/form/MealSlots.attended`(칸)와 `MealSlots.lodgingNights`(밤, DEC-085 §6). 신청 집계·편성판·조장 보기·숙소 배정판이 같은 함수를 쓴다. 숙소의 `LODGING`·`NOT_LODGING`·`UNKNOWN`은 `event/room/Lodging.of(nights)`다.
-- **공개본 기준 참가자 → 방:** `event/room/PublishedRooms.placements(spaceId, eventId).of(participantId)`(가장 최근 숙소 공개본 한 번 읽기, 공개 전이나 방이 없으면 `null`). 조장 보기의 `room`이 쓰고, 참가 현황 표·CSV·현장 명단의 방(G5)도 이 함수를 쓴다. 활성 참가자 거르기는 부르는 쪽이 한다. 공개본이 있는지는 `exists(spaceId, eventId)`.
+- **공개본 기준 참가자 → 방:** `event/room/PublishedRooms.placements(spaceId, eventId).of(participantId)`(가장 최근 숙소 공개본 한 번 읽기, 공개 전이나 방이 없으면 `null`). 조장 보기의 `room`이 쓴다. 활성 참가자 거르기는 부르는 쪽이 한다. 공개본이 있는지는 `exists(spaceId, eventId)`.
+- **접수대·참가 현황의 방(G5 #460):** `event/room/RoomDesk.all(spaceId, eventId)`·`of(spaceId, eventId, ids)`가 위 `placements`와 배정판의 숙박 판정(`Lodging`)을 한 번에 읽어 `Stay(room, lodging)`를 준다. 참가 현황 표(`ApplicationTableService`), CSV `방` 열(`ApplicationExportService.roomCell`), 체크인 명단·결과(`CheckInService`)가 쓴다.
 - **신청 취소 때 배정 지우기:** `ApplicationWithdrawalService`가 같은 트랜잭션에서 `GroupService.removeWithdrawn`과 `RoomService.removeWithdrawn`을 부른다.
 - **열람 기록:** 개인정보를 보여 준 읽기는 같은 트랜잭션에서 `event/privacy/PrivacyLogs`로 `privacy_logs` 한 줄을 남긴다(`MANDATORY`). 번호·이름·답 값은 detail에 넣지 않는다.
 - **참가자 설정 읽기:** `ParticipantSettingsRepository.groupRosterVisibleToMembers(spaceId, eventId)`(행이 없으면 기본 켬)와 `roomRosterScope(spaceId, eventId)`(행이 없으면 `ALL`).
@@ -278,6 +279,7 @@ Flyway만 스키마를 쓴다. `V1__baseline.sql`이 제품 테이블이고, `V2
 | 조 편성 공개, 공개본, 참가자 내 조 | `event/group/GroupPublicationHttpIT` |
 | 조원 명단·조장 보기·조원 상세·전화 열람 기록·참가자 설정(DEC-083 시험 조건 12가지) | `event/group/ParticipantGroupRosterHttpIT` |
 | 숙소 방 CRUD·배정·경고·숙박 안 함 거절·공개·알림·참가자 숙소·공개 범위·신청 취소·조장 보기의 방(숙소 계약 초안의 시험 조건 14가지) | `event/room/RoomHttpIT` |
+| 참가 현황 표·CSV·체크인 명단·결과의 공개본 방(G5, 숙소 시험 조건 1의 G5 부분) | `event/room/RoomDeskHttpIT` |
 | 사람별 숙박 밤 | `event/form/MealSlotsLodgingTest`, 조장 보기와 집계 비교 `event/application/AttendanceRangeHttpIT` |
 | 참가자 홈, 갱신 값, 대상 판정, 알림 | `event/home/ParticipantHomeHttpIT` |
 | `updates` 한 요청의 SQL 문장 수 | `event/home/ParticipantUpdatesCostIT` |
@@ -299,7 +301,7 @@ Flyway만 스키마를 쓴다. `V1__baseline.sql`이 제품 테이블이고, `V2
 
 - 비밀번호, 토큰 로그인
 - SMTP. 초대 링크는 `CapturingInvitationMailer`의 메모리에만 있다
-- 회비, 차량 테이블과 그 API. 체크인은 `V12__checkins.sql`과 운영자 API가 있고, 참가자 QR 받기는 #283이다. 조는 `V13__groups.sql`(작업본)·`V14__group_publications.sql`(공개본)과 운영자 API, 참가자 내 조(`GET /api/v1/participant/group`)·조장의 조원 상세가 있다. 숙소는 `V26__rooms.sql`과 운영자 API, 참가자 내 숙소(`GET /api/v1/participant/rooms`)가 있고, 참가 현황 표·CSV·현장 명단의 방(G5)과 "다시 볼 것"(A11)은 아직 없다
+- 회비, 차량 테이블과 그 API. 체크인은 `V12__checkins.sql`과 운영자 API가 있고, 참가자 QR 받기는 #283이다. 조는 `V13__groups.sql`(작업본)·`V14__group_publications.sql`(공개본)과 운영자 API, 참가자 내 조(`GET /api/v1/participant/group`)·조장의 조원 상세가 있다. 숙소는 `V26__rooms.sql`과 운영자 API, 참가자 내 숙소(`GET /api/v1/participant/rooms`), 참가 현황 표·CSV·현장 명단의 공개본 방(G5)이 있고, "다시 볼 것"(A11)은 아직 없다
 - 회비·차량 등 다른 권한 키는 쓰는 경로가 없다. 일정표는 `event/schedule`(`SCHEDULE_WRITE`), 공지는 `event/notice`에 있다
 
 `Permission`에 키가 있는 것은 그 API가 열렸다는 뜻이 아니다. `OWNER`는 등록된 키를 모두 갖고, 그 키를 쓰는 명령은 각 서비스에 있을 때만 동작한다.
