@@ -31,7 +31,7 @@ WAI-ARIA select-only combobox. 포커스는 트리거(`button[role=combobox]`)�
 
 ## 검증
 
-- `pnpm typecheck` · `pnpm lint` 통과, `pnpm test` 104 파일 782개 통과 (2026-11-25)
+- `pnpm typecheck` · `pnpm lint` 통과, `pnpm test` 104 파일 782개 통과 (2026-11-25). origin/main dda524d를 merge한 뒤 다시 돌려 104 파일 785개 통과, after 스크린샷도 merge 뒤 다시 찍음
 - `Select.test.tsx` 12개: 이름·숨은 값, 클릭 선택·체크, 비활성, 키보드, Space, Esc/Tab/바깥/blur 닫힘, 다시 눌러 닫기, 글자 입력, disabled, placeholder, 감싼 label, 위로 펼침
 - 기존 테스트 23개는 `src/test/select.ts`(`chooseOption`·`optionLabels`·`selectValue`·`findOptionLabel`)로 같은 의미를 확인하게 바꿨다.
 - 스크린샷: `select-shots.mjs`(목업 Vite, deviceScaleFactor 2), `shots/`.
