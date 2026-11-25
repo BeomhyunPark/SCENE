@@ -3579,6 +3579,7 @@ audit `ROOMS_PUBLISHED`: detail은 `publicationId`, `boardVersion`, `assignedCou
 - **칸의 숫자:** 그 칸에 참석하는 사람(`planned`)을 나눈다. 도착했으면 `arrived`. 안 왔고 그 칸의 도착 예정 칸(그 칸을 포함하는 연속 참석 칸 묶음의 첫 칸, `ArrivalSlots.dueSlot`)이 지금 칸이거나 그 뒤면 `coming`, 이미 지났으면 `missing`. `reflected` = `arrived` + `coming`(도착 반영 식수), `planned` = `arrived` + `coming` + `missing`이다.
 - **`unknown`:** 참석 칸을 모르는 신청(답 없음·꺼진 질문·거꾸로 된 범위). 어느 칸에도 세지 않는다(신청 집계 `meals.unanswered`와 같은 수). `arrived`는 그중 도착한 수다.
 - 주방에 보낼 글을 복사하는 기능(DEC-089 §9)은 만들었다가 사용자 결정으로 뺐다(2026-11-25). 응답은 바뀌지 않았다.
+- 화면(2026-11-25부터)은 식사마다 `planned`(예정)·`arrived`(도착)와 `passed`(예정/식사 완료), 그리고 `nextSlotId`·`label`·`startTime`만 쓴다. `coming`·`missing`·`reflected`·`timeFromSchedule`·`unknown`·`submitted`·`checkedIn`은 응답에 남아 있고 E4(`missing`과 "왔어야 함"이 같은 수)와 시험이 쓴다.
 
 ## 응답에 안 나오는 기록
 

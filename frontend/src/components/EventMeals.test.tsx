@@ -44,12 +44,17 @@ function row(name: string) {
   return within(screen.getByRole("listitem", { name }));
 }
 
+/** The 예정 count of a meal row (the row also says 예정 as its state). */
+function planned(name: string) {
+  return row(name).getByText("예정", { selector: ".meals__pair span" }).parentElement;
+}
+
 afterEach(() => {
   vi.unstubAllGlobals();
 });
 
 describe("식수 현황 screen", () => {
-  it("shows the next meal with planned and arrival-reflected counts side by side", async () => {
+  it("shows each meal with only 예정 and 도착, and 예정 or 식사 완료", async () => {
     seedThree();
     // 19:10 on day 1: dinner has passed, so the next meal is day 2 breakfast.
     setMealCountsNow(new Date("2027-01-22T19:10:00+09:00"));
@@ -57,23 +62,27 @@ describe("식수 현황 screen", () => {
     openMeals();
 
     const next = await screen.findByRole("region", { name: /다음 식사/ });
-    expect(next).toHaveTextContent("다음 식사 · 1월 23일 (토) 아침 08:00 (기본 시각)");
-    expect(within(next).getByText("1명")).toBeInTheDocument();
-    expect(next).toHaveTextContent("예정 2 · 도착 1 · 올 예정 0 · 아직 안 옴 1");
+    expect(next).toHaveTextContent("다음 식사 · 1월 23일 (토) 아침 08:00");
+    expect(within(next).getByText("예정").parentElement).toHaveTextContent("예정2명");
+    expect(within(next).getByText("도착").parentElement).toHaveTextContent("도착1명");
 
     const table = within(screen.getByRole("region", { name: "식사별 식수" }));
     expect(table.getByRole("heading", { name: "1월 22일 (금)" })).toBeInTheDocument();
     const dinner = row("1월 22일 (금) 저녁");
-    expect(dinner.getByText("지남")).toBeInTheDocument();
-    // Day 2 lunch: the partial attendee is still coming, the late full attendee is missing.
+    expect(dinner.getByText("식사 완료")).toBeInTheDocument();
+    // Day 2 lunch: three signed up, one checked in. The partial attendee coming later is not split out.
     const lunch = row("1월 23일 (토) 점심");
-    expect(lunch.getByText("예정").parentElement).toHaveTextContent("예정3");
-    expect(lunch.getByText("도착 반영").parentElement).toHaveTextContent("도착 반영2");
-    expect(lunch.getByText("예정 3 · 도착 1 · 올 예정 1 · 아직 안 옴 1")).toBeInTheDocument();
+    expect(lunch.getByText("예정", { selector: ".meals__state" })).toBeInTheDocument();
+    expect(planned("1월 23일 (토) 점심")).toHaveTextContent("예정3명");
+    expect(lunch.getByText("도착").parentElement).toHaveTextContent("도착1명");
     // Worship slots are not meals.
     expect(screen.queryByRole("listitem", { name: /집회/ })).not.toBeInTheDocument();
     // Copying for the kitchen was taken out (2026-11-25).
     expect(screen.queryByRole("button", { name: /복사/ })).not.toBeInTheDocument();
+    // The 도착 반영 breakdown and the explanations were taken out (2026-11-25).
+    for (const gone of ["도착 반영", "올 예정", "아직 안 옴", "기본 시각", "모르는 신청", "숫자는 이렇게 나와요", "지남", "주방"]) {
+      expect(screen.queryByText(new RegExp(gone))).not.toBeInTheDocument();
+    }
   });
 
   it("uses the schedule time and reflects an edit and a withdrawal on refresh", async () => {
@@ -84,8 +93,9 @@ describe("식수 현황 screen", () => {
     openMeals();
 
     const next = await screen.findByRole("region", { name: /다음 식사/ });
-    expect(next).toHaveTextContent("1월 23일 (토) 아침 07:00 (일정표)");
-    expect(row("1월 23일 (토) 저녁").getByText("예정").parentElement).toHaveTextContent("예정3");
+    expect(next).toHaveTextContent("1월 23일 (토) 아침 07:00");
+    expect(next).not.toHaveTextContent("일정표");
+    expect(planned("1월 23일 (토) 저녁")).toHaveTextContent("예정3명");
 
     // A4: the partial attendee drops dinner. A7: the late attendee is withdrawn.
     reviseApplication(RETREAT, partial, { [retreat.fieldId("MEALS")]: { optionIds: ["opt_d2_lunch"] } });
@@ -96,8 +106,9 @@ describe("식수 현황 screen", () => {
       reapplyBlocked: false,
     });
     fireEvent.click(screen.getByRole("button", { name: "새로 고침" }));
-    expect(await row("1월 23일 (토) 저녁").findByText("예정 1 · 도착 1 · 올 예정 0 · 아직 안 옴 0")).toBeInTheDocument();
-    expect(row("1월 23일 (토) 점심").getByText("예정 2 · 도착 1 · 올 예정 1 · 아직 안 옴 0")).toBeInTheDocument();
+    expect(await row("1월 23일 (토) 저녁").findByText("1명", { selector: "strong" })).toBeInTheDocument();
+    expect(planned("1월 23일 (토) 저녁")).toHaveTextContent("예정1명");
+    expect(planned("1월 23일 (토) 점심")).toHaveTextContent("예정2명");
   });
 
   it("reads again every 10 seconds", async () => {

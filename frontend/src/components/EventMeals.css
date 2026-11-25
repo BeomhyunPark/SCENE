@@ -14,12 +14,6 @@
   font: var(--scene-heading-l);
 }
 
-.meals__title p {
-  margin-top: 4px;
-  color: var(--color-text-secondary);
-  font: var(--scene-body-s);
-}
-
 .meals__notice {
   display: flex;
   flex-direction: column;
@@ -57,34 +51,6 @@
 .meals__next-kicker {
   color: var(--color-text-secondary);
   font: var(--scene-label-m);
-}
-
-.meals__time-source {
-  color: var(--color-text-tertiary);
-}
-
-.meals__next-count {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  font: var(--scene-label-l);
-}
-
-.meals__next-count strong {
-  font: var(--scene-display);
-}
-
-.meals__breakdown {
-  color: var(--color-text-secondary);
-  font: var(--scene-body-s);
-}
-
-.meals__unknown {
-  padding: 12px 16px;
-  border-radius: 8px;
-  background: var(--color-warning-bg);
-  color: var(--color-warning-fg);
-  font: var(--scene-body-s-strong);
 }
 
 .meals__table {
@@ -142,19 +108,6 @@
   font: var(--scene-label-m);
 }
 
-.meals__tag {
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: var(--color-bg-subtle);
-  color: var(--color-text-secondary);
-  font: var(--scene-label-s);
-}
-
-.meals__tag--next {
-  background: var(--color-bg-brand-subtle);
-  color: var(--color-text-brand);
-}
-
 .meals__pair {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -174,19 +127,17 @@
   font: var(--scene-heading-m);
 }
 
-.meals__how {
+.meals__next .meals__pair strong {
+  font: var(--scene-heading-l);
+}
+
+.meals__row--passed .meals__pair strong {
   color: var(--color-text-secondary);
-  font: var(--scene-body-s);
 }
 
-.meals__how summary {
-  cursor: pointer;
+.meals__state {
+  color: var(--color-text-tertiary);
   font: var(--scene-label-m);
-}
-
-.meals__how ul {
-  margin: 8px 0 0;
-  padding-left: 20px;
 }
 
 .meals__refresh {
