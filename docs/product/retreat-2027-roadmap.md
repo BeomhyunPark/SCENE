@@ -272,14 +272,14 @@
 | D3·D4 | main (#449, #442 #443) |
 | I3·A6 | main (#445, V24, #436 #437). `operator_notices` 테이블 삭제는 나중 마이그레이션으로 남겼다 |
 | E2, A10, J4 | 사용자가 운영 서버·실제 휴대폰에서 확인한다(아직) |
-| F2 | 작업 브랜치 `claude/f2-participant-group-roster` → 통합 브랜치 `claude/week3-integration`(main 아님) (#452, DEC-083, V25). 통합 테스트로 계약 시험 조건 12가지 확인. 운영 서버 확인 전 |
+| F2 | 작업 브랜치 `claude/f2-participant-group-roster` → 통합 브랜치 `claude/week3-integration`(main 아님) (#452, DEC-083, V26 — 작업 때 V25). 통합 테스트로 계약 시험 조건 12가지 확인. 운영 서버 확인 전 |
 | F3 | 작업 브랜치 `claude/f3-participant-group-screen` → 통합 브랜치 `claude/week3-integration`(main 아님) (#453, DEC-083). 화면·mock·테스트, 로컬 실제 서버 클릭. 운영 서버 확인 전 |
-| G2 | 작업 브랜치 `claude/g2-room-server` → 통합 브랜치 `claude/week3-integration`(main 아님) (#457, DEC-085, V26). 통합 테스트로 계약 시험 조건 14가지 확인. 운영 서버 확인 전 |
+| G2 | 작업 브랜치 `claude/g2-room-server` → 통합 브랜치 `claude/week3-integration`(main 아님) (#457, DEC-085, V27 — 작업 때 V26). 통합 테스트로 계약 시험 조건 14가지 확인. 운영 서버 확인 전 |
 | G3·A11 | 작업 브랜치 `claude/g3-room-board` → 통합 브랜치 `claude/week3-integration`(main 아님) (#458 #461, DEC-085, 마이그레이션 없음). 로컬 실제 API로 가상 200명을 방에 넣고 공개(68초). 운영 서버 확인 전 |
 | G4 | 작업 브랜치 `claude/g4-participant-rooms` → 통합 브랜치 `claude/week3-integration`(main 아님) (#459, DEC-085). 홈 숙소 카드·숙소 화면(전체 방 배정표). 로컬 실제 서버 클릭. `ROOM_PUBLISHED` 알림 연결은 B5. 운영 서버 확인 전 |
 | G5 | 작업 브랜치 `claude/g5-room-checkin` → 통합 브랜치 `claude/week3-integration`(main 아님) (#460, DEC-085 §10, 마이그레이션 없음). 표·CSV·현장 명단·체크인 결과의 공개본 방, 로컬 실제 클릭. 운영 서버 확인 전 |
-| E3 | 작업 브랜치 `claude/e3-meal-counts` → 통합 브랜치 `claude/week3-integration`(main 아님) (#454, DEC-087). 식수 현황 화면 `/events/{eventId}/meals`. 운영 서버 확인 전 |
-| E4 | 작업 브랜치 `claude/e4-arrival-roster` → 통합 브랜치 `claude/week3-integration`(main 아님) (#456, DEC-087 Follow-up). 현장 운영 명단에 도착 예정 칸과 "왔어야 함" 거르기. 운영 서버 확인 전 |
+| E3 | 작업 브랜치 `claude/e3-meal-counts` → 통합 브랜치 `claude/week3-integration`(main 아님) (#454, DEC-089). 식수 현황 화면 `/events/{eventId}/meals`. 운영 서버 확인 전 |
+| E4 | 작업 브랜치 `claude/e4-arrival-roster` → 통합 브랜치 `claude/week3-integration`(main 아님) (#456, DEC-089 Follow-up). 현장 운영 명단에 도착 예정 칸과 "왔어야 함" 거르기. 운영 서버 확인 전 |
 | 3주차 통합 | 위 여덟 브랜치를 `claude/week3-integration`에 merge 커밋으로 합치고, 최신 main(UI/UX #472)도 합친 뒤 전체 검사·로컬 클릭을 했다([기록](../test_results/week3-integration/README.md)). PR·main 병합 전 |
 | 3주차 나머지(A12, B5, F5) | 시작 전 |
 | H2~H4 | 범위 밖 (2026-11-20, 결정 14) |

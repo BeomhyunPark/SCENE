@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * Start times of the working-copy schedule items tied to a form slot ({@code slotId}, DEC-081), for
- * other features. The meal counts (DEC-087 §5) read when each meal starts from here.
+ * other features. The meal counts (DEC-089 §5) read when each meal starts from here.
  */
 @Component
 public class ScheduleSlotTimes {

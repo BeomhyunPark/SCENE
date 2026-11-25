@@ -8,7 +8,7 @@ import { tableApplications } from "./participantStore";
 import { scheduleSlotStartTimes } from "./scheduleStore";
 
 /**
- * Mock of MealCountService/MealTally (DEC-087): the same counting rule over the mock stores.
+ * Mock of MealCountService/MealTally (DEC-089): the same counting rule over the mock stores.
  * `setMealCountsNow` pins the clock for tests and demos; the backend tests are the source of truth.
  */
 const DEFAULT_TIMES: Record<MockSlot["meal"], string> = { BREAKFAST: "08:00", LUNCH: "12:00", DINNER: "18:00", WORSHIP: "19:30" };

@@ -15,7 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 식수 현황 (#454, DEC-087): per meal slot, the planned count of the submitted applications and the
+ * 식수 현황 (#454, DEC-089): per meal slot, the planned count of the submitted applications and the
  * count that reflects arrivals. Read access is the same as the application summary and the check-in
  * summary: effective {@code EVENT_READ}, or an active space OWNER or ADMIN. Every lifecycle state
  * reads; no audit row.

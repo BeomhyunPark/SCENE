@@ -19,7 +19,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * The one read behind the meal counts (DEC-087) and the arrival roster (E4 #456): slot days, the
+ * The one read behind the meal counts (DEC-089) and the arrival roster (E4 #456): slot days, the
  * schedule's slot times, and every submitted participant's attended slots ({@link AttendedSlots})
  * with whether they are checked in now. Both screens read it, so their numbers cannot drift.
  */

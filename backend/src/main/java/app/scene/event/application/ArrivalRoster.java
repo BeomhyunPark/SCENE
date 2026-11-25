@@ -9,7 +9,7 @@ import java.util.UUID;
 import org.springframework.stereotype.Component;
 
 /**
- * Arrival standing per participant for the check-in roster (E4 #456, DEC-087 Follow-up). Same
+ * Arrival standing per participant for the check-in roster (E4 #456, DEC-089 Follow-up). Same
  * inputs ({@link ArrivalSource}) and the same cursor as the meal counts, so the roster's {@code
  * OVERDUE} people are the next meal's "아직 안 옴". Callers check read access first.
  */

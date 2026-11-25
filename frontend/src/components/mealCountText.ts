@@ -1,7 +1,7 @@
 import type { MealCounts, MealCountSlot } from "../api/mealCounts";
 
 /**
- * 주방에 보낼 식수 글 (#454, DEC-087 §9). The reflected count comes first; the planned count and the
+ * 주방에 보낼 식수 글 (#454, DEC-089 §9). The reflected count comes first; the planned count and the
  * people left out follow, so the kitchen can judge a margin.
  */
 export type MealLine = { dayLabel: string; slot: MealCountSlot };

@@ -17,7 +17,7 @@ import "./EventHome.css";
 import "./EventMeals.css";
 
 /**
- * 식수 현황 (#454, DEC-087): per meal, 예정 (신청 기준) next to 도착 반영 (도착 + 올 예정), with the next meal on
+ * 식수 현황 (#454, DEC-089): per meal, 예정 (신청 기준) next to 도착 반영 (도착 + 올 예정), with the next meal on
  * top and its numbers ready to copy for the kitchen. Nobody is counted at a meal (로드맵 결정 1): the numbers come
  * from the application answers and the arrival check-ins. Read again every 10 seconds while the page is visible,
  * like 현장 운영 (#408). No dedicated Figma frame; it follows the 신청 집계 cards. Copy is a draft.

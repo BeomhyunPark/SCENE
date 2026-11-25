@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The counting rule of the meal counts (DEC-087 §5–§7), apart from reading, so it is tested with
+ * The counting rule of the meal counts (DEC-089 §5–§7), apart from reading, so it is tested with
  * any time. Each slot starts at its schedule item's time, or the meal's default time, on its day in
  * the event zone, and has passed {@link #GRACE} later. The first slot that has not passed (worship
  * included) is the cursor. For each meal slot a person attends: checked in is {@code arrived}; not
@@ -21,10 +21,10 @@ import java.util.Map;
  */
 final class MealTally {
 
-  /** A slot stays current until this long after it starts (DEC-087 §5). */
+  /** A slot stays current until this long after it starts (DEC-089 §5). */
   static final Duration GRACE = Duration.ofHours(1);
 
-  /** Start time when no schedule item holds the slot (DEC-087 §5). */
+  /** Start time when no schedule item holds the slot (DEC-089 §5). */
   static final Map<String, LocalTime> DEFAULT_TIMES =
       Map.of(
           "BREAKFAST", LocalTime.of(8, 0),
@@ -83,7 +83,7 @@ final class MealTally {
   }
 
   /**
-   * Where one person stands for the arrival roster (E4, DEC-087 Follow-up). {@code slotId} is the
+   * Where one person stands for the arrival roster (E4, DEC-089 Follow-up). {@code slotId} is the
    * due slot the status is about, null when unknown or when nothing is attended.
    */
   record Standing(ArrivalStatus status, String slotId) {}
