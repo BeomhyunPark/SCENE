@@ -49,7 +49,16 @@ for (const size of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) 
     log("다이얼로그 안 공용 Select: 목록 열고 Esc는 목록만 닫음 → Manager 고르기", stays && (await dialog.getByLabel("역할").innerText()).includes("Manager"));
     await dialog.getByRole("button", { name: "초대 메일 보내기" }).click();
     await page.getByText(`guest${size.width}@example.org에게 초대 메일을 보냈어요.`, { exact: false }).waitFor();
-    log("운영자 추가 → 외부 협력자 초대 → 초대 메일 보내기", (await page.getByRole("list", { name: "대기 중인 초대" }).getByText(`guest${size.width}@example.org`).count()) === 1);
+    await page.getByRole("list", { name: "대기 중인 초대" }).getByText(`guest${size.width}@example.org`).waitFor();
+    log("운영자 추가 → 외부 협력자 초대 → 초대 메일 보내기", (await page.getByRole("dialog").count()) === 0);
+    // 3-1. 대기 중인 초대 목록이 운영자 목록과 같은 폭인지, 1440에서는 버튼이 이메일과 한 줄인지
+    const opW = (await page.getByRole("list", { name: "운영자" }).boundingBox()).width;
+    const pendW = (await page.getByRole("list", { name: "대기 중인 초대" }).boundingBox()).width;
+    const mail = await page.getByRole("list", { name: "대기 중인 초대" }).getByText(`guest${size.width}@example.org`).boundingBox();
+    const resendBox = await page.getByRole("button", { name: `guest${size.width}@example.org 다시 보내기` }).boundingBox();
+    const sameLine = resendBox.y < mail.y + mail.height;
+    log("대기 중인 초대 목록 폭 = 운영자 목록 폭", Math.abs(opW - pendW) < 1, `${pendW} / ${opW}, 버튼 ${sameLine ? "같은 줄" : "아래 줄"}, 높이 ${resendBox.height}`);
+    if (size.width >= 1000) log("1440: 버튼이 이메일과 한 줄", sameLine);
     // 4. 다시 보내기·초대 취소
     await page.getByRole("button", { name: `guest${size.width}@example.org 다시 보내기` }).click();
     await page.waitForTimeout(400);
@@ -96,6 +105,9 @@ for (const size of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) 
     await md.getByRole("button", { name: "초대 메일 보내기" }).click();
     await page.getByText(`member${size.width}@example.org에게 초대 메일을 보냈어요.`, { exact: false }).waitFor();
     log("멤버 초대 → 잘못된 이메일 안내 → 초대 메일 보내기", (await md.count()) === 0);
+    const memW = (await page.getByRole("list", { name: "멤버" }).boundingBox()).width;
+    const spW = (await page.getByRole("list", { name: "대기 중인 초대" }).boundingBox()).width;
+    log("조직 멤버: 대기 중인 초대 목록 폭 = 멤버 목록 폭", Math.abs(memW - spW) < 1, `${spW} / ${memW}`);
     await page.getByRole("button", { name: `member${size.width}@example.org 초대 취소` }).click();
     await page.getByText("대기 중인 초대가 없어요.").waitFor();
     log("조직 초대 취소 → 빈 목록 한 줄", (await page.getByText("0건").count()) === 0);

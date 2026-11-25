@@ -571,6 +571,7 @@
 }
 
 .event-home__apply .event-home__applicant-rows,
+.event-home__apply .event-home__member-rows,
 .event-home__apply .event-home__issued {
   align-self: stretch;
 }
