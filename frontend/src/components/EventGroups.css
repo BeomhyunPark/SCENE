@@ -678,9 +678,12 @@ body.event-groups--dragging {
   opacity: 0.4;
 }
 
-.event-groups__member--checked,
-.event-groups__pool-card--checked {
+.event-groups__member--checked {
   border-color: var(--color-border-selected);
+  background: var(--color-bg-selected);
+}
+
+.event-groups__pool-card.event-groups__pool-card--checked {
   background: var(--color-bg-selected);
 }
 
@@ -945,26 +948,67 @@ body.event-groups--dragging {
   font: var(--scene-label-s);
 }
 
+/*
+ * 미배정 명단은 카드 격자가 아니라 한 면 안의 행 목록이다(#496, 박스 원칙 #485). 150명이 6열 카드로
+ * 수십 줄이 되던 것을 한 사람 한 줄(고르기·이름·끌기 | 참석 칸 | 참석·소속)로 줄이고, 행 사이는
+ * border/default 1px 구분선만 둔다. 넓은 화면에선 두 단으로 흘려(위에서 아래로) 길이를 반으로 줄인다.
+ * 조 카드 안의 조원 카드(D04 v2 Participant Card)는 그대로다.
+ */
 .event-groups__people {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(176px, 1fr));
-  gap: 12px;
   margin: 0;
   padding: 0;
+  border-top: 1px solid var(--color-border-default);
   list-style: none;
 }
 
+.event-groups__people > li {
+  break-inside: avoid;
+}
+
+@media (min-width: 1024px) {
+  .event-groups__people {
+    column-count: 2;
+    column-gap: 32px;
+  }
+}
+
 .event-groups__pool-card {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-height: 88px;
-  height: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 200px) 120px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 12px;
+  min-height: 40px;
   box-sizing: border-box;
-  padding: 12px;
-  border: 1px solid var(--color-border-default);
-  border-radius: 4px;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--color-border-default);
   background: var(--color-bg-surface);
+}
+
+/* 손잡이는 줄 맨 앞에 보이지만(D04 v2 카드와 같은 자리) DOM에서는 체크박스 뒤에 둔다: 이름을 누르면 label이 첫
+   입력(체크박스)을 눌러 "이름을 눌러 고르기"가 된다. 손잡이가 앞에 있으면 그 버튼이 눌린다. */
+.event-groups__pool-card .event-groups__grip {
+  order: -1;
+}
+
+.event-groups__pool-slots {
+  display: flex;
+  min-width: 0;
+}
+
+.event-groups__pool-slots > .event-groups__slot-bar {
+  flex: 1 1 auto;
+}
+
+@media (max-width: 719px) {
+  .event-groups__pool-card {
+    grid-template-columns: 112px minmax(0, 1fr);
+    padding: 8px 4px;
+  }
+
+  .event-groups__pool-card > .event-groups__card-name,
+  .event-groups__pool-card > .event-rooms__blocked-note {
+    grid-column: 1 / -1;
+  }
 }
 
 .event-groups__pool-card--selectable {
@@ -972,7 +1016,6 @@ body.event-groups--dragging {
 }
 
 .event-groups__pool-card--selectable:hover {
-  border-color: var(--color-border-hover-row);
   background: var(--color-bg-hover-row);
 }
 
@@ -985,6 +1028,7 @@ body.event-groups--dragging {
 .event-groups__pool-meta {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 2px 6px;
 }
 

@@ -1670,7 +1670,9 @@ function PoolCard({
         ) : null}
         {canPick ? <Grip label={`${label} 끌어서 옮기기`} onStart={(event) => onStart(event, true)} /> : null}
       </span>
-      <AttendanceBar slots={board.slots} person={person} />
+      <span className="event-groups__pool-slots">
+        <AttendanceBar slots={board.slots} person={person} />
+      </span>
       <span className="event-groups__pool-meta">
         <span className={`event-rooms__tag event-rooms__tag--${person.lodging.toLowerCase().replace("_", "-")}`}>
           {person.lodging === "LODGING" ? nightsText(person) : LODGING_LABEL[person.lodging]}

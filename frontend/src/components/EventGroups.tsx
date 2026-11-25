@@ -1174,7 +1174,7 @@ function AttendanceTag({ person }: { person: BoardParticipant }) {
   );
 }
 
-/** One card in the 미배정 strip (Figma "Unassigned card"). Pressing the name picks the person. */
+/** One row in the 미배정 list (#496: rows, not Figma's "Unassigned card" grid). Pressing the name picks the person. */
 function PoolCard({
   person,
   slots,
@@ -1209,7 +1209,9 @@ function PoolCard({
         <NamePill person={person} />
         {selectable ? <Grip label={`${label} 끌어서 옮기기`} onStart={(event) => onStart(event, true)} /> : null}
       </span>
-      <AttendanceBar slots={slots} person={person} />
+      <span className="event-groups__pool-slots">
+        <AttendanceBar slots={slots} person={person} />
+      </span>
       <span className="event-groups__pool-meta">
         <AttendanceTag person={person} />
         {meta.length > 0 ? <span className="event-groups__meta">{meta.join(" · ")}</span> : null}
