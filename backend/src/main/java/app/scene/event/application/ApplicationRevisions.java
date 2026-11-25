@@ -27,10 +27,12 @@ import tools.jackson.databind.node.ObjectNode;
  * Stores an edit as a new revision (DEC-078 §4, #402). The new answers become a new {@code
  * SUBMITTED} application row with {@code revision} + 1; the previous row becomes {@code
  * SUPERSEDED}. Answers of hidden questions are carried over because the participant cannot see
- * them. The operator memo moves to the new row (DEC-075). Group assignments and check-ins hang on
- * the participant and stay. When nothing changed, no row is written. The current row is normally
- * {@code SUBMITTED}; a withdrawn participant who applies again revises the {@code WITHDRAWN} row
- * (DEC-084 §5), which then becomes {@code SUPERSEDED} too.
+ * them; an operator's revision also carries consent answers over, since an operator does not
+ * consent for the participant (DEC-088 §2), and records the operator ({@code revised_by OPERATOR}).
+ * The operator memo moves to the new row (DEC-075). Group assignments and check-ins hang on the
+ * participant and stay. When nothing changed, no row is written. The current row is normally {@code
+ * SUBMITTED}; a withdrawn participant who applies again revises the {@code WITHDRAWN} row (DEC-084
+ * §5), which then becomes {@code SUPERSEDED} too.
  */
 @Component
 public class ApplicationRevisions {
@@ -75,10 +77,12 @@ public class ApplicationRevisions {
       boolean revised,
       UUID previousApplicationId,
       String name,
-      List<String> changedLabels) {
+      List<String> changedLabels,
+      List<UUID> changedFieldIds) {
 
     public Result {
       changedLabels = List.copyOf(changedLabels);
+      changedFieldIds = List.copyOf(changedFieldIds);
     }
   }
 
@@ -113,6 +117,23 @@ public class ApplicationRevisions {
 
   public ApplicationRevisionRow findCurrent(UUID spaceId, UUID eventId, UUID participantId) {
     return revisions.findCurrent(spaceId, eventId, participantId);
+  }
+
+  /** Marks a first revision as added by an operator (DEC-088 §3). */
+  @Transactional
+  public void markAddedBy(UUID spaceId, UUID eventId, UUID applicationId, UUID userId) {
+    if (revisions.markAddedBy(spaceId, eventId, applicationId, userId) != 1) {
+      throw new IllegalStateException("added application was not marked");
+    }
+  }
+
+  /** Display names of the operators who stored the participant's revisions, by application id. */
+  public Map<UUID, String> revisorNames(UUID spaceId, UUID eventId, UUID participantId) {
+    Map<UUID, String> names = new HashMap<>();
+    for (RevisorName row : revisions.listRevisorNames(spaceId, eventId, participantId)) {
+      names.put(row.applicationId(), row.displayName());
+    }
+    return names;
   }
 
   public ApplicationRevisionRow find(UUID spaceId, UUID eventId, UUID applicationId) {
@@ -151,13 +172,16 @@ public class ApplicationRevisions {
     for (AnswerEvaluator.Answer answer : evaluated) {
       after.put(answer.fieldId(), answer.value());
     }
+    boolean byOperator = BY_OPERATOR.equals(revisedBy);
     for (FieldDefinition field : fields) {
-      if (field.hidden() && before.containsKey(field.fieldId())) {
+      boolean carried = field.hidden() || (byOperator && AnswerEvaluator.isConsent(field));
+      if (carried && before.containsKey(field.fieldId())) {
         after.put(field.fieldId(), before.get(field.fieldId()));
       }
     }
     ArrayNode changes = json.createArrayNode();
     List<String> labels = new ArrayList<>();
+    List<UUID> fieldIds = new ArrayList<>();
     String newName = null;
     for (FieldDefinition field : fields) {
       JsonNode old = before.get(field.fieldId());
@@ -171,6 +195,7 @@ public class ApplicationRevisions {
       change.put("fieldId", field.fieldId().toString());
       change.put("label", field.label());
       labels.add(field.label());
+      fieldIds.add(field.fieldId());
       if (isName && next != null) {
         newName = next.path("text").asString();
       }
@@ -183,6 +208,7 @@ public class ApplicationRevisions {
           false,
           null,
           currentName,
+          List.of(),
           List.of());
     }
     Instant now = clock.instant();
@@ -226,6 +252,13 @@ public class ApplicationRevisions {
     }
     String name = newName != null ? newName : currentName;
     return new Result(
-        nextId, current.formId(), nextRevision, true, current.applicationId(), name, labels);
+        nextId,
+        current.formId(),
+        nextRevision,
+        true,
+        current.applicationId(),
+        name,
+        labels,
+        fieldIds);
   }
 }

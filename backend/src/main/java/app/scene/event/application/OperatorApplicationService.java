@@ -169,8 +169,13 @@ public class OperatorApplicationService {
       throw new SceneException(ErrorCode.FORBIDDEN);
     }
     List<ApplicationRevisionList.Item> items = new ArrayList<>();
-    for (ApplicationRevisionRow row :
-        revisions.listByApplication(spaceId, eventId, applicationId)) {
+    List<ApplicationRevisionRow> rows =
+        revisions.listByApplication(spaceId, eventId, applicationId);
+    Map<UUID, String> names =
+        rows.isEmpty()
+            ? Map.of()
+            : revisions.revisorNames(spaceId, eventId, rows.get(0).participantId());
+    for (ApplicationRevisionRow row : rows) {
       items.add(
           new ApplicationRevisionList.Item(
               row.applicationId(),
@@ -179,6 +184,7 @@ public class OperatorApplicationService {
               row.submittedAt(),
               row.revisedBy(),
               row.revisedByUserId(),
+              names.get(row.applicationId()),
               json.readTree(row.changes())));
     }
     return new ApplicationRevisionList(items);

@@ -24,7 +24,7 @@ import tools.jackson.databind.json.JsonMapper;
  *
  * <p>{@code operatorEdited} is true when the last revision that changed the question was saved by
  * an operator; {@code revisedByOperator} is whether the current revision was. Both read the stored
- * revisions only (DEC-078 §4); operator values outside revisions (A12) do not exist yet.
+ * revisions only (DEC-078 §4); an operator's edit is such a revision (DEC-088, A12).
  */
 @Component
 public class MemberApplicationReader {
@@ -134,7 +134,8 @@ public class MemberApplicationReader {
         new MemberApplication(
             submittedAt,
             current.revision() > 1 ? current.submittedAt() : null,
-            ApplicationRevisions.BY_OPERATOR.equals(current.revisedBy()),
+            // A first revision an operator added is not an edit (DEC-088 §7).
+            current.revision() > 1 && ApplicationRevisions.BY_OPERATOR.equals(current.revisedBy()),
             List.copyOf(answers)));
   }
 

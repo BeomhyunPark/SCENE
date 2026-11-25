@@ -110,5 +110,14 @@ public final class AuditActions {
   /** An operator restored a withdrawn application (DEC-084). */
   public static final String APPLICATION_RESTORED = "APPLICATION_RESTORED";
 
+  /**
+   * An operator edited a participant's application into a new revision (DEC-088). Details carry
+   * ids, the revision and the changed field ids, never answer values.
+   */
+  public static final String APPLICATION_REVISED_BY_OPERATOR = "APPLICATION_REVISED_BY_OPERATOR";
+
+  /** An operator added a participant (DEC-088). Details carry ids, never the temporary number. */
+  public static final String PARTICIPANT_ADDED = "PARTICIPANT_ADDED";
+
   private AuditActions() {}
 }

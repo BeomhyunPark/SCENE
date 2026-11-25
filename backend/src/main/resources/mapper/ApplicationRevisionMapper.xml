@@ -65,4 +65,17 @@
     WHERE space_id = #{spaceId} AND event_id = #{eventId} AND application_id = #{fromId}
   </update>
 
+  <update id="markAddedBy">
+    UPDATE applications SET revised_by = 'OPERATOR', revised_by_user_id = #{userId}
+    WHERE space_id = #{spaceId} AND event_id = #{eventId} AND id = #{applicationId}
+      AND revision = 1
+  </update>
+
+  <select id="listRevisorNames" resultType="app.scene.event.application.RevisorName">
+    SELECT a.id AS application_id, u.display_name
+    FROM applications a
+    JOIN users u ON u.id = a.revised_by_user_id
+    WHERE a.space_id = #{spaceId} AND a.event_id = #{eventId} AND a.participant_id = #{participantId}
+  </select>
+
 </mapper>

@@ -40,4 +40,12 @@
     SET name = #{name}, updated_at = #{now}
     WHERE space_id = #{spaceId} AND event_id = #{eventId} AND id = #{participantId}
   </update>
+
+  <!-- DEC-088: an operator changes the phone. phone_key stays unique in the event. -->
+  <update id="updatePhone">
+    UPDATE participants
+    SET phone = #{phone}, phone_hash = #{phoneHash}, phone_last4 = #{phoneLast4},
+        phone_key = #{phoneKey}, updated_at = #{now}
+    WHERE space_id = #{spaceId} AND event_id = #{eventId} AND id = #{participantId}
+  </update>
 </mapper>

@@ -202,6 +202,8 @@ class ApplicationReadHttpIT {
             "GET /api/v1/operator/events/{eventId}/applications/{applicationId}/revisions",
             "POST /api/v1/operator/events/{eventId}/applications/{applicationId}/withdraw",
             "POST /api/v1/operator/events/{eventId}/applications/{applicationId}/restore",
+            "PUT /api/v1/operator/events/{eventId}/applications/{applicationId}/answers",
+            "POST /api/v1/operator/events/{eventId}/applications",
             "POST /api/v1/public/events/{eventId}/forms/{formId}/applications");
 
     String publicBody =
