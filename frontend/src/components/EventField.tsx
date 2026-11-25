@@ -306,9 +306,30 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
           </p>
         ) : null}
 
+          {/* 보기 전환 (#288): Venture view tabs (Contact List 20:3612 "List · Kanban"), as P13 has no slot. */}
+          <div className="event-field__views" role="group" aria-label="현황 보기">
+            {(
+              [
+                ["all", "전체 명단"],
+                ["groups", "조별 명단"],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                className="event-field__view"
+                aria-pressed={view === value}
+                onClick={() => setView(value)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
         <div className={wide ? "event-field__layout event-field__layout--wide" : "event-field__layout"}>
           <div className="event-field__queue">
-            {/* OM01 Quick Search (622:14), with the QR scanner (#286) beside it. */}
+            {/* OM01 Quick Search (622:14); the QR scanner (#286) beside it takes the Filter Trigger shape of the
+                SCENE DS Data Toolbar (ZFajaGIQ3VneNqkncKYXbJ 33:28·173:7736), as P13 has no slot. */}
             <div className="event-field__tools">
               {view === "all" ? (
                 <div className="event-field__search">
@@ -335,7 +356,6 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
               <button
                 type="button"
                 className="event-field__scan-open"
-                aria-label="QR 스캔"
                 aria-expanded={scanOpen}
                 aria-describedby={blocked ? "field-blocked" : undefined}
                 disabled={Boolean(blocked) || !mayWrite}
@@ -345,7 +365,7 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
                 }}
               >
                 <QrIcon />
-                <span aria-hidden="true">QR</span>
+                QR 스캔
               </button>
             </div>
 
@@ -375,7 +395,7 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
               )}
             </section>
 
-            {/* TL01 filter chips (620:19) and count chip (620:17); 전체/조별 (#288) is a small switch beside them. */}
+            {/* TL01 filter chips (620:19) and count chip (620:17). */}
             <div className="event-field__controls">
               {view === "all" ? (
                 <div className="event-field__filters" role="group" aria-label="체크인 상태로 보기">
@@ -403,24 +423,6 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
                   ) : null}
                 </div>
               ) : null}
-              <div className="event-field__views" role="group" aria-label="현황 보기">
-                {(
-                  [
-                    ["all", "전체 명단"],
-                    ["groups", "조별 명단"],
-                  ] as const
-                ).map(([value, label]) => (
-                  <button
-                    key={value}
-                    type="button"
-                    className="event-field__view"
-                    aria-pressed={view === value}
-                    onClick={() => setView(value)}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
             </div>
 
             <div className="event-field__notice-slot" aria-live="polite">

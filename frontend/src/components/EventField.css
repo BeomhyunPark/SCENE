@@ -157,22 +157,24 @@
   outline-offset: 2px;
 }
 
-/* QR 스캔 (#286): a square control the height of the search box, so it sits beside it. */
+/*
+ * QR 스캔 (#286): SCENE DS Filter Trigger (ZFajaGIQ3VneNqkncKYXbJ 33:28, Venture "Filter" 20:3612) — outline,
+ * radius 8, 20px icon and a 14px medium label — at the search box height so the toolbar reads as one row.
+ */
 .event-field__scan-open {
   display: inline-flex;
   flex: none;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 1px;
-  width: 52px;
+  gap: 8px;
   height: 52px;
-  padding: 0;
+  padding: 0 14px;
   border: 1px solid var(--color-border-control);
-  border-radius: 10px;
+  border-radius: 8px;
   background: var(--color-bg-surface);
-  color: var(--color-text-brand);
-  font: 700 11px/14px "Noto Sans KR", sans-serif;
+  color: var(--color-text-primary);
+  font: var(--scene-label-m);
+  white-space: nowrap;
   cursor: pointer;
 }
 
@@ -180,9 +182,10 @@
   background: var(--color-bg-subtle);
 }
 
+/* Filter Trigger "Active": darker outline on a subtle fill. */
 .event-field__scan-open[aria-expanded="true"] {
-  border-color: var(--color-border-selected);
-  background: var(--color-bg-selected);
+  border-color: var(--color-text-primary);
+  background: var(--color-bg-subtle);
 }
 
 .event-field__scan-open:disabled {
@@ -226,7 +229,6 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
   gap: 8px 12px;
   margin-top: -6px;
 }
@@ -257,8 +259,7 @@
   font-weight: 700;
 }
 
-.event-field__filter::after,
-.event-field__view::after {
+.event-field__filter::after {
   content: "";
   position: absolute;
   inset: -8px -2px;
@@ -273,31 +274,35 @@
   font: 700 11px/16px "Noto Sans KR", sans-serif;
 }
 
+/* 전체/조별 (#288): Venture view tabs (Contact List 20:3612) — text tabs with a 2px selected underline. */
 .event-field__views {
-  display: inline-flex;
-  margin-left: auto;
-  padding: 2px;
-  border: 1px solid var(--color-border-default);
-  border-radius: 8px;
-  background: var(--color-bg-surface);
+  display: flex;
+  gap: 20px;
+  margin-top: -4px;
+  border-bottom: 1px solid var(--color-border-default);
 }
 
 .event-field__view {
   position: relative;
-  min-height: 26px;
-  padding: 0 10px;
+  min-height: 40px;
+  margin-bottom: -1px;
+  padding: 0 2px;
   border: 0;
-  border-radius: 6px;
+  border-bottom: 2px solid transparent;
   background: transparent;
   color: var(--color-text-secondary);
-  font: var(--scene-label-s);
+  font: var(--scene-label-m);
   cursor: pointer;
 }
 
 .event-field__view[aria-pressed="true"] {
-  background: var(--color-bg-selected);
-  color: var(--color-text-brand);
+  border-bottom-color: var(--color-border-selected);
+  color: var(--color-text-primary);
   font-weight: 700;
+}
+
+.event-field__controls:empty {
+  display: none;
 }
 
 .event-field__notice-slot:empty {
@@ -366,9 +371,10 @@
   background: var(--color-bg-surface);
 }
 
+/* Operational List Item "Selected" (33:28): a tinted fill with a stronger outline. */
 .event-field__row--selected {
   border-color: var(--color-border-selected);
-  box-shadow: inset 0 0 0 1px var(--color-border-selected);
+  background: var(--color-bg-selected);
 }
 
 .event-field__row-main {
