@@ -125,7 +125,7 @@ export function PublicRegisterOrganization() {
                 <div className="public-register__match-row">
                   <span className="public-register__match-name">{sample.name}</span>
                   <span className="public-register__match-detail">{sample.detail}</span>
-                  <button className="public-register__ask" type="button" onClick={() => setJoinOpen(true)}>
+                  <button className="public-register__ask scene-press scene-press--text" type="button" onClick={() => setJoinOpen(true)}>
                     가입 요청
                   </button>
                 </div>

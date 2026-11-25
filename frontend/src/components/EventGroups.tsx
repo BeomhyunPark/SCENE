@@ -37,6 +37,7 @@ import { reloadQuery } from "../api/queryClient";
 import { queryKeys } from "../api/queryKeys";
 import { getMe } from "../api/session";
 import { Button } from "./Button";
+import { Select, type SelectOption } from "./Select";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { EventScreen } from "./EventScreen";
 import { eventContext, formatPublishedAt } from "./eventFormat";
@@ -131,7 +132,7 @@ function GroupsBody({ event, spaceName }: { event: EventDetail; spaceName?: stri
       tasksHref={`${eventHref}/tasks`}
       framed
       leading={
-        <Link className="event-home__back" to={eventHref} aria-label="행사 홈으로">
+        <Link className="event-home__back scene-press scene-press--text" to={eventHref} aria-label="행사 홈으로">
           <img src={arrowLeft} alt="" />
         </Link>
       }
@@ -904,19 +905,13 @@ function Board({
           <label className="event-groups__visually-hidden" htmlFor="groups-target">
             보낼 조
           </label>
-          <select
+          <Select
             id="groups-target"
             className="event-groups__select"
             value={targetId}
-            onChange={(change) => setTarget(change.target.value)}
-          >
-            <option value="">보낼 조 고르기</option>
-            {board.groups.map((group) => (
-              <option key={group.groupId} value={group.groupId}>
-                {group.name}
-              </option>
-            ))}
-          </select>
+            options={[{ value: "", label: "보낼 조 고르기" }, ...board.groups.map((group) => ({ value: group.groupId, label: group.name }))]}
+            onChange={setTarget}
+          />
           <Button type="button" variant="primary" size={40} disabled={busy || !targetId} onClick={() => void move(targetId, chosen)}>
             보내기
           </Button>
@@ -1011,11 +1006,16 @@ function Filters({
           onChange={(change) => set({ q: change.target.value })}
         />
       </label>
-      <FilterSelect label="배정 상태" value={filters.assignment} onChange={(value) => set({ assignment: value as AssignmentFilter })}>
-        <option value="unassigned">미배정</option>
-        <option value="assigned">배정됨</option>
-        <option value="all">전체</option>
-      </FilterSelect>
+      <FilterSelect
+        label="배정 상태"
+        value={filters.assignment}
+        options={[
+          { value: "unassigned", label: "미배정" },
+          { value: "assigned", label: "배정됨" },
+          { value: "all", label: "전체" },
+        ]}
+        onChange={(value) => set({ assignment: value as AssignmentFilter })}
+      />
       <AnswerSelect label="성별" value={filters.gender} options={options.gender} onChange={(gender) => set({ gender })} />
       <AnswerSelect label="또래" value={filters.cohort} options={options.cohort} onChange={(cohort) => set({ cohort })} />
       <AnswerSelect
@@ -1044,20 +1044,18 @@ function Filters({
 function FilterSelect({
   label,
   value,
+  options,
   onChange,
-  children,
 }: {
   label: string;
   value: string;
+  options: SelectOption[];
   onChange: (value: string) => void;
-  children: ReactNode;
 }) {
   return (
     <label className="event-groups__field">
       <span className="event-groups__field-label">{label}</span>
-      <select className="event-groups__select" value={value} onChange={(change) => onChange(change.target.value)}>
-        {children}
-      </select>
+      <Select className="event-groups__select" value={value} options={options} onChange={onChange} />
     </label>
   );
 }
@@ -1074,14 +1072,12 @@ function AnswerSelect({
   onChange: (value: string) => void;
 }) {
   return (
-    <FilterSelect label={label} value={value} onChange={onChange}>
-      <option value={ANY}>전체</option>
-      {options.map((option) => (
-        <option key={option.value} value={option.value}>
-          {option.label} ({option.count})
-        </option>
-      ))}
-    </FilterSelect>
+    <FilterSelect
+      label={label}
+      value={value}
+      options={[{ value: ANY, label: "전체" }, ...options.map((option) => ({ value: option.value, label: `${option.label} (${option.count})` }))]}
+      onChange={onChange}
+    />
   );
 }
 
@@ -1464,7 +1460,7 @@ function GroupCard({
                   {editable ? (
                     <button
                       type="button"
-                      className="event-groups__heart"
+                      className="event-groups__heart scene-press scene-press--quiet"
                       aria-pressed={person.leader}
                       disabled={busy}
                       title={person.leader ? "조장 해제" : "조장으로 지정"}

@@ -125,7 +125,6 @@
   background: var(--color-bg-surface);
   color: var(--color-text-primary);
   text-align: left;
-  cursor: pointer;
 }
 
 .event-home__card:focus {
