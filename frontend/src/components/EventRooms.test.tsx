@@ -84,6 +84,11 @@ describe("room board (G3 #458)", () => {
     expect(screen.getByRole("heading", { name: "아직 방이 없어요" })).toBeInTheDocument();
     expect(screen.getByText("위의 + 방 추가로 방을 만들어 주세요.")).toBeInTheDocument();
     expect(screen.queryByText(/아직 방이 없어요\. 위의/)).toBeNull();
+    expect(screen.getAllByText(/아직 방이 없어요/)).toHaveLength(1);
+    // 뒤로 화살표와 같은 곳으로 가던 "행사 홈" 버튼, 같은 뜻을 되풀이하던 저장·경고 안내는 걷었다(#496).
+    expect(screen.getByRole("link", { name: "행사 홈으로" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "행사 홈" })).toBeNull();
+    expect(screen.queryByText(/바로 저장되지만|경고만 보여요/)).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "+ 방 추가" }));
     const form = screen.getByRole("form", { name: "방 만들기" });
