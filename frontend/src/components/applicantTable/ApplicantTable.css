@@ -830,8 +830,37 @@ th[aria-sort="descending"] .roster__arrow {
   min-width: 40px;
 }
 
+/* Stays in the tree (a live region must exist before it speaks) but takes no room while empty. */
+.roster__live:empty {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+/* 키보드 설명은 도움말을 눌렀을 때만 (#497). summary is the 40px touch target. */
 .roster__keys {
   margin-top: -8px;
+}
+
+.roster__keys summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  color: var(--color-text-secondary);
+  font: var(--scene-label-m);
+  cursor: pointer;
+}
+
+.roster__keys summary:focus {
+  outline: none;
+}
+
+.roster__keys summary:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 .roster__order {

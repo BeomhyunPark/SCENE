@@ -64,7 +64,11 @@ describe("event participation applicants", () => {
     expect(screen.getByRole("heading", { level: 1, name: "참가 현황" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /전체 참가자 2/ })).toHaveAttribute("aria-pressed", "true");
     expect(screen.queryByRole("heading", { name: "아직 참가자가 없어요." })).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "참가자를 받는 방법" })).toBeInTheDocument();
+    // #497: 참가자를 받는 방법 is for the empty state; the 참가 운영 badge and the always-open addresses are gone.
+    expect(screen.queryByRole("heading", { name: "참가자를 받는 방법" })).not.toBeInTheDocument();
+    expect(screen.queryByText("참가 운영")).not.toBeInTheDocument();
+    expect(screen.queryByText("신청 주소")).not.toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: "참가자 주소 QR" })).not.toBeInTheDocument();
     // 식사 is not one of the design's columns: it is off until the operator turns it on.
     expect(within(table).queryByText("채식")).not.toBeInTheDocument();
     expect(document.body.textContent ?? "").not.toContain("730914");
@@ -153,5 +157,51 @@ describe("event participation applicants", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "행사 설정" }));
     expect(await screen.findByRole("heading", { level: 2, name: "행사 설정" })).toBeInTheDocument();
+  });
+
+  it("opens the addresses and 신청서 설정 from 주소·QR and gives focus back on Esc (#497)", async () => {
+    const form = openForm();
+    submit(form, { 이름: "김하나", 전화: "010-1111-2222" });
+    await login({ userId: OWNER });
+    openApp(`/events/${EVENT}/participants`);
+
+    await screen.findByRole("grid", { name: "신청자 명단" });
+    const button = screen.getByRole("button", { name: "주소·QR" });
+    button.focus();
+    fireEvent.click(button);
+    const dialog = screen.getByRole("dialog", { name: "주소·QR" });
+    expect(dialog).toHaveAttribute("aria-modal", "true");
+    expect(dialog).toHaveFocus();
+    expect(await within(dialog).findByTestId("apply-address")).toHaveTextContent(`/apply/${EVENT}/${form.formId}`);
+    expect(within(dialog).getByTestId("participant-address")).toHaveTextContent(`/participate/${EVENT}`);
+    expect(within(dialog).getByRole("img", { name: "참가자 주소 QR" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "QR 복사" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("link", { name: "신청서 설정으로 가기" })).toHaveAttribute(
+      "href",
+      `/events/${EVENT}/participants/setup`,
+    );
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(button).toHaveFocus();
+
+    fireEvent.click(button);
+    fireEvent.click(within(screen.getByRole("dialog", { name: "주소·QR" })).getByRole("link", { name: "신청서 설정으로 가기" }));
+    // 신청 설정 is titled with the event name; its back arrow is named 참가 운영.
+    expect(await screen.findByRole("link", { name: "참가 운영" })).toHaveAttribute("href", `/events/${EVENT}/participants`);
+  });
+
+  it("keeps the table's key guide behind 도움말 (#497)", async () => {
+    const form = openForm();
+    submit(form, { 이름: "김하나", 전화: "010-1111-2222" });
+    await login({ userId: OWNER });
+    openApp(`/events/${EVENT}/participants`);
+
+    await screen.findByRole("grid", { name: "신청자 명단" });
+    const guide = screen.getByText(/칸을 누르고 화살표로 움직여요/);
+    const details = guide.closest("details")!;
+    expect(details).not.toHaveAttribute("open");
+    fireEvent.click(within(details).getByText("도움말"));
+    expect(details).toHaveAttribute("open");
   });
 });

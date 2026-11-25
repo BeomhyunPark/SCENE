@@ -87,6 +87,13 @@
   min-width: 0;
 }
 
+/* 참가 현황 빈 상태 (#497): 주소·QR next to 참가 신청 준비. */
+.event-home__welcome-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .event-home__welcome-copy h2,
 .event-home__work-intro h2 {
   margin: 0;
@@ -505,17 +512,7 @@
   color: var(--color-text-primary);
 }
 
-/* 참가자 주소와 QR (DEC-078 §8). */
-.event-home__qr {
-  border: 1px solid var(--color-border-default);
-  border-radius: 12px;
-}
-
-.event-home__address-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
+/* 참가자 주소와 QR (DEC-078 §8) moved into the 주소·QR dialog: ParticipantAddress.css (#497). */
 
 /*
  * Event home dashboard (#467, boxes cut down in #485). Layout from SCENE 「02 행사 홈 · v2.0 Candidate」
