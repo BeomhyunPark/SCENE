@@ -24,7 +24,7 @@ import { categoryLabel, commonFailure, itemTime, publishedText, useScheduleBoard
 import { initialDay, scheduleNowNext } from "./participant/scheduleNow";
 import { Timetable, type TimetableColumn } from "./Timetable";
 import { useWideTimetable } from "./useWideTimetable";
-import { isPast, nowLineMinute, nowOnDay, zonedClock } from "./timetable";
+import { clockOf, isPast, nowLineMinute, nowOnDay, zonedClock } from "./timetable";
 import { useMinuteClock } from "./useMinuteClock";
 import "./EventGroups.css";
 import "./EventSchedule.css";
@@ -303,16 +303,9 @@ function Board({ eventId, context, board, fetching }: { eventId: string; context
         </div>
       ) : null}
       {board.days.length > 0 ? (
-        (wide ? inPeriod.length === 0 : dayItems.length === 0) ? (
-          <div className="event-schedule__empty">
-            <p>이날은 일정이 없어요.</p>
-            {editable ? (
-              <Button type="button" variant="secondary" size={40} onClick={() => navigate(addHref)}>
-                + 일정 추가
-              </Button>
-            ) : null}
-          </div>
-        ) : (
+        <>
+          {!wide && dayItems.length === 0 ? <p className="event-schedule__day-note">이날은 일정이 없어요.</p> : null}
+          {editable ? <p className="event-schedule__day-note">빈 시간을 누르거나 끌어서 일정을 추가할 수 있어요.</p> : null}
           <BoardTimetable
             board={board}
             items={inPeriod}
@@ -323,8 +316,13 @@ function Board({ eventId, context, board, fetching }: { eventId: string; context
             eventHref={eventHref}
             editable={editable}
             scrollKey={`${wide ? "all" : day}:${jumps}`}
+            onPick={
+              editable
+                ? (pickedDay, start, end) => navigate(`${eventHref}/schedule/new?day=${pickedDay}&start=${clockOf(start)}&end=${clockOf(end)}`)
+                : undefined
+            }
           />
-        )
+        </>
       ) : null}
       {publishing ? (
         <PublishDialog
@@ -371,6 +369,7 @@ function BoardTimetable({
   eventHref,
   editable,
   scrollKey,
+  onPick,
 }: {
   board: ScheduleBoard;
   items: ScheduleItem[];
@@ -381,6 +380,7 @@ function BoardTimetable({
   eventHref: string;
   editable: boolean;
   scrollKey: string;
+  onPick?: (day: number, start: number, end: number) => void;
 }) {
   const columns: TimetableColumn<ScheduleItem>[] = days.map((entry) => {
     const rows = items.filter((item) => item.day === entry.day);
@@ -405,6 +405,7 @@ function BoardTimetable({
     <Timetable
       columns={columns}
       scrollKey={scrollKey}
+      onPick={onPick ? (column, start, end) => onPick(Number(column.key), start, end) : undefined}
       block={(placed, column) => {
         const item = placed.row;
         const date = days.find((entry) => String(entry.day) === column.key)?.date ?? "";
