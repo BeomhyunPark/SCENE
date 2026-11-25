@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { axisTop, buildAxis, clockOf, FOLD_HEIGHT, isPast, nowLineMinute, nowOnDay, placeDay, spanOf, zonedClock } from "./timetable";
+import { axisTop, buildAxis, minuteAt, pickedSpan, clockOf, FOLD_HEIGHT, isPast, nowLineMinute, nowOnDay, placeDay, spanOf, zonedClock } from "./timetable";
 
 function row(startTime: string, endTime: string | null = null, endsNextDay = false) {
   return { startTime, endTime, endsNextDay };
@@ -86,5 +86,24 @@ describe("current time in the event time zone", () => {
     const [morning, afternoon] = placeDay([row("09:00", "10:00"), row("14:00", "15:00")]);
     expect(isPast(morning, 870)).toBe(true);
     expect(isPast(afternoon, 870)).toBe(false);
+  });
+});
+
+describe("picking free time", () => {
+  it("maps a position back to a minute, and a fold to its end", () => {
+    const axis = buildAxis([
+      [420, 600],
+      [1320, 1440],
+    ]);
+    expect(minuteAt(axis, 0)).toBe(420);
+    expect(minuteAt(axis, 95)).toBe(515);
+    expect(minuteAt(axis, 180 + 5)).toBe(1320);
+    expect(minuteAt(axis, 180 + FOLD_HEIGHT + 30)).toBe(1350);
+  });
+
+  it("snaps a tap to 30 minutes and a drag to 15-minute steps either way", () => {
+    expect(pickedSpan(607, null)).toEqual({ start: 600, end: 630 });
+    expect(pickedSpan(600, 668)).toEqual({ start: 600, end: 675 });
+    expect(pickedSpan(668, 600)).toEqual({ start: 600, end: 675 });
   });
 });
