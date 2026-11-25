@@ -7,7 +7,9 @@ import { localEvent, localUsers } from "../mocks/fixtures/seed";
 import { groupPeople, moveAsOtherOperator, publish as publishGroups, seedGroup, seedRoomRoster } from "../mocks/groupStore";
 import { setLifecycle } from "../mocks/operatorStore";
 import { editApplication, placeAsOtherOperator, roomOf, roomPublications, seedRooms } from "../mocks/roomBoardStore";
+import { server } from "../mocks/server";
 import { revokePermissions } from "../mocks/taskStore";
+import { http, HttpResponse } from "msw";
 
 const EVENT = localEvent.eventId;
 const WAIT = { timeout: 4000 };
@@ -54,6 +56,16 @@ async function idle() {
     },
     { timeout: 10000 },
   );
+}
+
+/**
+ * Waits for a write's outcome in the notice slot only. With 200 people on the board, a screen-wide findByText
+ * walks the whole DOM every 50 ms while the screen is still sending, which starved a 40-room batch to 6+ s.
+ */
+async function findNotice(text: string | RegExp, timeout = 10000): Promise<HTMLElement> {
+  const slot = document.querySelector<HTMLElement>(".event-groups__notice-slot");
+  if (!slot) throw new Error("no notice slot");
+  return within(slot).findByText(text, {}, { timeout });
 }
 
 function chip(): string {
@@ -244,17 +256,47 @@ describe("room board (G3 #458)", () => {
     const form = screen.getByRole("form", { name: "번호로 여러 방 만들기" });
     fireEvent.change(within(form).getByLabelText("끝 번호"), { target: { value: "340" } });
     fireEvent.click(within(form).getByRole("button", { name: "301호~340호 40개 만들기" }));
-    expect(await screen.findByText("방 40개를 만들었어요.", {}, { timeout: 10000 })).toBeInTheDocument();
+    expect(await findNotice("방 40개를 만들었어요.")).toBeInTheDocument();
     await idle();
 
     // Everyone visible at once: one request of up to 200.
     fireEvent.click(screen.getByRole("checkbox", { name: "보이는 사람 모두 고르기" }));
     fireEvent.change(screen.getByLabelText("보낼 방"), { target: { value: screen.getAllByRole("option", { name: /^301호/ })[0].getAttribute("value") } });
     fireEvent.click(screen.getByRole("button", { name: "보내기" }));
-    expect(await screen.findByText(new RegExp(`${eligible}명을 301호에 넣었어요`), {}, { timeout: 10000 })).toBeInTheDocument();
+    expect(await findNotice(new RegExp(`${eligible}명을 301호에 넣었어요`))).toBeInTheDocument();
     await idle();
     expect(chip()).toMatch(new RegExp(`^배정 ${eligible} · 미배정 0`));
   }, 30000);
+
+  it("reads the board once after a numbered batch, also when it stops halfway", async () => {
+    seedRooms(EVENT, 1, 6);
+    await open();
+    let boardReads = 0;
+    let creates = 0;
+    const count = ({ request }: { request: Request }) => {
+      const path = new URL(request.url).pathname;
+      if (request.method === "GET" && path.endsWith("/room-board")) boardReads += 1;
+    };
+    server.events.on("request:start", count);
+    // The third new room fails on the server (after 301호 exists, 302·303 are made, 304 fails).
+    server.use(
+      http.post("/api/v1/operator/events/:eventId/rooms", () => {
+        creates += 1;
+        return creates === 3 ? HttpResponse.json({ code: "INTERNAL_ERROR", status: 500 }, { status: 500 }) : undefined;
+      }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "+ 방 추가" }));
+    fireEvent.click(screen.getByRole("radio", { name: "번호로 여러 개" }));
+    const form = screen.getByRole("form", { name: "번호로 여러 방 만들기" });
+    fireEvent.change(within(form).getByLabelText("끝 번호"), { target: { value: "306" } });
+    fireEvent.click(within(form).getByRole("button", { name: "301호~306호 6개 만들기" }));
+    expect(await findNotice(/^방 2개를 만든 뒤 멈췄어요\. 결과를 확인하지 못했어요/)).toBeInTheDocument();
+    await idle();
+    server.events.removeListener("request:start", count);
+    // 301호 was there already (skipped by name), 302·303 were made; the board was read once, after the batch.
+    expect(boardReads).toBe(1);
+    expect(screen.getAllByRole("article").map((item) => item.querySelector("h3")?.textContent)).toEqual(["301호", "302호", "303호"]);
+  });
 
   it("is read-only without ROOM_WRITE and when the event ended", async () => {
     revokePermissions(EVENT, localUsers[0].userId, ["ROOM_WRITE"]);
