@@ -1,0 +1,19 @@
+after 1440 drawer focus on: _r_6_
+after 1440 created row visible: true
+after 1440 focus back on opener: +업무 추가
+after 1440 esc closed drawer
+after 1440 month pick: 2027-01-18 ~ 2027-01-20
+after 1440 month-created bar: true
+after 1440 title saved (list row after leaving): true
+after 1440 status after due: [ '목업 데이터로 보고 있어요', '기간을 저장했어요.' ]
+after 1440 complete enabled: true
+after 1440 done → 다시 진행 shown, 업무 완료 hidden: true
+after 390 drawer focus on: _r_6_
+after 390 created row visible: true
+after 390 focus back on opener: +업무 추가
+after 390 esc closed drawer
+after 390 phone day pick due: 2027-01-02
+after 390 title saved (list row after leaving): true
+after 390 status after due: [ '목업 데이터로 보고 있어요', '기간을 저장했어요.' ]
+after 390 complete enabled: true
+after 390 done → 다시 진행 shown, 업무 완료 hidden: true
