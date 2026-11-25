@@ -386,28 +386,116 @@
   }
 }
 
+/* Member and invitation lists (#494): one row per person, divider lines between rows instead of a box
+   per row (fe-handoff "박스(테두리 컨테이너)"), name and a secondary line on the left, role, then actions. */
+.event-home__member-rows {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--color-border-default);
+}
+
 .event-home__member {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
+  gap: 8px 16px;
   box-sizing: border-box;
   width: 100%;
-  padding: 12px 18px;
-  border: 1px solid var(--color-border-default);
-  border-radius: 4px;
-  background: var(--color-bg-surface);
+  min-height: 56px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--color-border-default);
   color: var(--color-text-primary);
 }
 
-.event-home__member .event-home__applicant-name {
-  flex: 1 1 160px;
+.event-home__member-main {
+  display: flex;
+  flex: 1 1 200px;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.event-home__member-sub,
+.event-home__member-main .operator-permissions__summary {
+  overflow-wrap: anywhere;
+  flex: none;
+  order: 0;
+  color: var(--color-text-tertiary);
+  font: var(--scene-caption-m);
+}
+
+.event-home__member-role {
+  flex: none;
+  min-width: 64px;
+  color: var(--color-text-secondary);
+  font: var(--scene-body-m);
+}
+
+.event-home__member-menu-space {
+  flex: none;
+  width: 40px;
 }
 
 .event-home__member-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-left: auto;
+}
+
+.event-home__head-action {
+  margin-left: auto;
+}
+
+.event-home__segments {
+  display: flex;
+  flex-wrap: wrap;
+  grid-column: 1 / -1;
+  gap: 8px;
+}
+
+.event-home__segment {
+  position: relative;
+  display: flex;
+  flex: 1 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 6px 12px;
+  border: 1px solid var(--color-chip-default-border);
+  border-radius: 8px;
+  background: var(--color-chip-default-bg);
+  color: var(--color-chip-default-text);
+  font: var(--scene-label-m);
+  cursor: pointer;
+}
+
+.event-home__segment input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.event-home__segment:has(input:focus-visible) {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.event-home__segment--on {
+  border-color: var(--color-chip-selected-border);
+  background: var(--color-chip-selected-bg);
+  color: var(--color-chip-selected-text);
+}
+
+.event-home__invite-full {
+  grid-column: 1 / -1;
+}
+
+.event-home__invite p {
+  margin: 0;
 }
 
 .event-home__invite {
@@ -483,6 +571,7 @@
 }
 
 .event-home__apply .event-home__applicant-rows,
+.event-home__apply .event-home__member-rows,
 .event-home__apply .event-home__issued {
   align-self: stretch;
 }
