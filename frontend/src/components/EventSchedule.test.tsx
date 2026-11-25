@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { MemoryRouter } from "react-router";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { App } from "../App";
 import { login } from "../api/session";
 import { localEvent, localUsers } from "../mocks/fixtures/seed";
@@ -260,5 +260,64 @@ describe("ways into the schedule (C4)", () => {
     expect(await screen.findByRole("heading", { name: "일정표" }, WAIT)).toBeInTheDocument();
     const menuLinks = screen.getAllByRole("link", { name: "일정" });
     expect(menuLinks.some((link) => link.getAttribute("href") === `/events/${EVENT}/schedule`)).toBe(true);
+  });
+});
+
+describe("timetable (#466)", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function seedDay() {
+    period();
+    seedScheduleItem(EVENT, { day: 1, startTime: "08:00", endTime: "08:30", title: "아침", category: "MEAL" });
+    seedScheduleItem(EVENT, { day: 1, startTime: "09:00", endTime: "10:30", title: "오전 집회", category: "WORSHIP" });
+    seedScheduleItem(EVENT, { day: 1, startTime: "12:00", endTime: "13:00", title: "점심", category: "MEAL" });
+    seedScheduleItem(EVENT, { day: 2, startTime: "09:00", endTime: "10:00", title: "둘째 날 집회", category: "WORSHIP" });
+  }
+
+  it("draws the current-time line on an event day, marks 지금·다음 and quiets finished items", async () => {
+    seedDay();
+    // 00:40 UTC is 09:40 on day 1 in Seoul, whatever zone the test machine is in.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2027-01-22T00:40:00Z"));
+    await openAs(0);
+    const running = (await screen.findByRole("link", { name: "09:00 오전 집회 고치기" }, WAIT)).closest("li")!;
+    expect(running).toHaveAttribute("aria-current", "time");
+    expect(within(running).getByText("지금")).toBeInTheDocument();
+    expect(within(screen.getByRole("link", { name: "12:00 점심 고치기" }).closest("li")!).getByText("다음")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "08:00 아침 고치기" }).closest("li")).toHaveClass("event-schedule__block--past");
+    expect(screen.getByRole("tab", { name: /1일차/, selected: true })).toBeInTheDocument();
+    expect(document.querySelectorAll(".timetable__now")).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "오늘" })).toBeInTheDocument();
+
+    // Another day of the event: the timetable without the line.
+    fireEvent.click(screen.getByRole("tab", { name: /2일차/ }));
+    expect(await screen.findByRole("link", { name: "09:00 둘째 날 집회 고치기" }, WAIT)).toBeInTheDocument();
+    expect(document.querySelector(".timetable__now")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "오늘" }));
+    expect(await screen.findByRole("tab", { name: /1일차/, selected: true }, WAIT)).toBeInTheDocument();
+  });
+
+  it("opens on today's day", async () => {
+    seedDay();
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2027-01-23T01:00:00Z"));
+    await openAs(0);
+    expect(await screen.findByRole("link", { name: "09:00 둘째 날 집회 고치기" }, WAIT)).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /2일차/, selected: true })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "09:00 둘째 날 집회 고치기" }).closest("li")).toHaveClass("event-schedule__block--past");
+  });
+
+  it("has no line, no 지금 and nothing quiet before the event", async () => {
+    seedDay();
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-12-01T01:00:00Z"));
+    await openAs(0);
+    const row = await screen.findByRole("link", { name: "08:00 아침 고치기" }, WAIT);
+    expect(row.closest("li")).not.toHaveClass("event-schedule__block--past");
+    expect(document.querySelector(".timetable__now")).toBeNull();
+    expect(screen.queryByText("지금")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "오늘" })).not.toBeInTheDocument();
   });
 });
