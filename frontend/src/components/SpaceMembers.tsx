@@ -74,7 +74,8 @@ function Members({ spaceId }: { spaceId: string }) {
 
 /**
  * Space invitations for OWNER and ADMIN. The January screen has no role picker, so every
- * invitation is MEMBER (DEC-076). The link comes back once from create or resend and lives only in
+ * invitation is MEMBER (DEC-076). The server mails the link; only with mail off does it come back
+ * once from create or resend, and then it lives only in
  * this component's state, never in localStorage, sessionStorage, the path, or the query.
  */
 function SpaceInvitations({ spaceId, spaceName }: { spaceId: string; spaceName: string }) {
@@ -115,7 +116,8 @@ function SpaceInvitations({ spaceId, spaceName }: { spaceId: string; spaceName: 
     else if (isApiError(caught, "RESOURCE_NOT_FOUND")) {
       setAlert("초대를 찾을 수 없어요.");
       refresh();
-    } else setAlert("처리하지 못했어요. 다시 시도해 주세요.");
+    } else if (isApiError(caught, "MAIL_SEND_FAILED")) setAlert("초대 메일을 보내지 못했어요. 잠시 뒤 다시 시도해 주세요.");
+    else setAlert("처리하지 못했어요. 다시 시도해 주세요.");
   }
 
   const create = useMutation({
@@ -165,7 +167,7 @@ function SpaceInvitations({ spaceId, spaceName }: { spaceId: string; spaceName: 
     create.mutate({ email: email.trim() });
   }
 
-  const address = issued ? `${window.location.origin}${issued.link}` : "";
+  const address = issued?.link ? `${window.location.origin}${issued.link}` : "";
 
   return (
     <section className="space-settings__card event-home__apply" aria-labelledby="space-invite-title">
@@ -173,7 +175,8 @@ function SpaceInvitations({ spaceId, spaceName }: { spaceId: string; spaceName: 
         멤버 초대하기
       </h2>
       <p>
-        초대 링크를 만들어 직접 보내 주세요. 받은 사람은 {spaceName}의 멤버가 돼요. 링크는 지금 한 번만 보여요.
+        이메일을 적으면 초대 메일을 바로 보내요. 받은 사람이 메일의 링크를 열고 같은 이메일로 로그인하면 {spaceName}의
+        멤버가 돼요.
       </p>
       <form className="event-home__invite" onSubmit={submit} noValidate>
         <label htmlFor="space-invite-email">이메일</label>
@@ -193,7 +196,7 @@ function SpaceInvitations({ spaceId, spaceName }: { spaceId: string; spaceName: 
           </p>
         ) : null}
         <Button type="submit" variant="primary" size={40} loading={create.isPending} disabled={pending}>
-          초대 링크 만들기
+          초대 메일 보내기
         </Button>
       </form>
       {alert ? (
@@ -201,9 +204,19 @@ function SpaceInvitations({ spaceId, spaceName }: { spaceId: string; spaceName: 
           {alert}
         </p>
       ) : null}
-      {issued ? (
+      {issued?.delivery === "EMAIL" ? (
         <div className="event-home__issued" role="status">
-          <p>{issued.email}에게 보낼 링크예요. 이 화면을 떠나면 다시 볼 수 없어요.</p>
+          <p>
+            {issued.email}에게 초대 메일을 보냈어요. 링크는 {formatSubmittedAt(issued.expiresAt)}까지 쓸 수 있어요.
+          </p>
+        </div>
+      ) : null}
+      {issued?.delivery === "LINK" ? (
+        <div className="event-home__issued" role="status">
+          <p>
+            메일 발송이 꺼져 있어 링크를 직접 전달해 주세요. {issued.email}에게 보낼 링크예요. 이 화면을 떠나면 다시 볼
+            수 없어요.
+          </p>
           <input className="event-home__address" readOnly aria-label="초대 링크" value={address} />
           {copied ? <p>복사했어요.</p> : null}
           <Button

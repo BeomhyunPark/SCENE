@@ -5,6 +5,10 @@ function retry(failureCount: number, error: unknown): boolean {
   if (isApiError(error) && error.status >= 400 && error.status < 500) {
     return false;
   }
+  // The mail server may have taken the first try anyway; the operator decides whether to send again.
+  if (isApiError(error, "MAIL_SEND_FAILED")) {
+    return false;
+  }
   return failureCount < 1;
 }
 

@@ -49,13 +49,18 @@ export type PendingInvitation = {
   expiresAt: string;
 };
 
-/** Create and resend body. `link` is shown once and is not stored in the browser. */
+/**
+ * Create and resend body. `EMAIL`: the server mailed the link to the invited address and `link` is
+ * null. `LINK`: mail is off on that server, so `link` is shown once and is not stored in the
+ * browser.
+ */
 export type IssuedInvitation = {
   id: string;
   role: string;
   status: string;
   expiresAt: string;
-  link: string;
+  delivery: "EMAIL" | "LINK";
+  link: string | null;
 };
 
 const LINK_PREFIX = "/operator/invitations#";
@@ -92,7 +97,18 @@ export function parseIssued(value: unknown): IssuedInvitation {
     typeof value.id !== "string" ||
     typeof value.role !== "string" ||
     typeof value.status !== "string" ||
-    typeof value.expiresAt !== "string" ||
+    typeof value.expiresAt !== "string"
+  ) {
+    throw new ApiError({ status: 200, code: "UNEXPECTED" });
+  }
+  const base = { id: value.id, role: value.role, status: value.status, expiresAt: value.expiresAt };
+  if (value.delivery === "EMAIL") {
+    if (value.link !== null && value.link !== undefined) throw new ApiError({ status: 200, code: "UNEXPECTED" });
+    return { ...base, delivery: "EMAIL", link: null };
+  }
+  // A server without `delivery` predates invitation mail and always returns the link.
+  if (
+    (value.delivery !== "LINK" && value.delivery !== undefined) ||
     typeof value.link !== "string" ||
     !value.link.startsWith(LINK_PREFIX) ||
     value.link.length === LINK_PREFIX.length ||
@@ -100,7 +116,7 @@ export function parseIssued(value: unknown): IssuedInvitation {
   ) {
     throw new ApiError({ status: 200, code: "UNEXPECTED" });
   }
-  return { id: value.id, role: value.role, status: value.status, expiresAt: value.expiresAt, link: value.link };
+  return { ...base, delivery: "LINK", link: value.link };
 }
 
 export function parsePendingPage(value: unknown): ItemPage<PendingInvitation> {

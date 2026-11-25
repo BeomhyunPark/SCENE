@@ -170,7 +170,7 @@ describe("event owner adds organization members (#363)", () => {
     openApp();
 
     const invite = await screen.findByRole("region", { name: "외부 협력자 초대" });
-    expect(within(invite).getByText(/조직 멤버가 아닌 분은 초대 링크를 만들어/)).toBeInTheDocument();
-    expect(within(invite).getByRole("button", { name: "초대 링크 만들기" })).toBeInTheDocument();
+    expect(within(invite).getByText(/조직 멤버가 아닌 분은 이메일로 초대해 주세요/)).toBeInTheDocument();
+    expect(within(invite).getByRole("button", { name: "초대 메일 보내기" })).toBeInTheDocument();
   });
 });
