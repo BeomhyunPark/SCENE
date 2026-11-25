@@ -375,7 +375,9 @@ function Board({
               skipped.push(name);
               continue;
             }
-            throw Object.assign(error as object, { made });
+            // Rooms made before the failure stay; say how many, whatever the failure was.
+            if (made === 0) throw error;
+            return { tone: "error", text: `방 ${made}개를 만든 뒤 멈췄어요. ${commonFailure(error) ?? roomWriteFailure(error, board.rooms.length + made)}` };
           }
         }
         ok = made > 0;
@@ -384,10 +386,7 @@ function Board({
           text: `방 ${made}개를 만들었어요.${skipped.length > 0 ? ` 같은 이름이 있어 ${skipped.join(", ")}은 건너뛰었어요.` : ""}`,
         };
       },
-      (error) => {
-        const made = (error as { made?: number }).made ?? 0;
-        return `${made > 0 ? `방 ${made}개를 만든 뒤 ` : ""}${roomWriteFailure(error, board.rooms.length)}`;
-      },
+      (error) => roomWriteFailure(error, board.rooms.length),
     ).then(() => ok);
   }
 
