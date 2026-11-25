@@ -86,6 +86,26 @@ function Detail({ event, spaceName, taskId }: { event: EventDetail; spaceName?: 
     setDueDate(task.data?.dueDate ?? "");
   }
 
+  // 바뀌면 바로 저장 (#493, Figma P07-D01에는 저장 버튼이 없다): 제목은 칸을 떠나거나 Enter, 기간은 두 날짜 칸을 떠날 때.
+  function saveTitle() {
+    const trimmed = title.trim();
+    if (trimmed === serverTitle) return;
+    if (!trimmed) {
+      setField("업무 제목을 입력해 주세요.");
+      return;
+    }
+    void run(() => patchTask(eventId, taskId, { title: trimmed }));
+  }
+
+  function saveDates() {
+    if (`${startDate}|${dueDate}` === serverDates) return;
+    if ((startDate && !dueDate) || (startDate && dueDate && startDate > dueDate)) {
+      setField(taskFieldCopy.dueDate);
+      return;
+    }
+    void run(() => patchTask(eventId, taskId, { startDate: startDate || null, dueDate: dueDate || null }), "기간을 저장했어요.");
+  }
+
   function merge(progress: TaskProgress) {
     queryClient.setQueryData<TaskBody>(queryKeys.task(eventId, taskId), (current) =>
       current ? { ...current, ...progress, title: current.title } : current,
@@ -194,7 +214,7 @@ function Detail({ event, spaceName, taskId }: { event: EventDetail; spaceName?: 
 
   return (
     <OperatorShell
-      title={body.title}
+      title="준비 업무"
       spaceName={spaceName}
       eventName={event.name}
       eventHref={`/events/${eventId}`}
@@ -209,147 +229,213 @@ function Detail({ event, spaceName, taskId }: { event: EventDetail; spaceName?: 
       }
     >
       <div className="task-detail">
-        <p className="task-detail__badge">{taskStatusLabel(body.status)}</p>
-        {notice ? <p role="status">{notice}</p> : null}
-        {alert ? <p role="alert">{alert}</p> : null}
-        {reasonText ? <p>{reasonText}</p> : null}
-        {canWrite ? (
-          <form
-            className="task-detail__title"
-            onSubmit={(form) => {
-              form.preventDefault();
-              void run(() => patchTask(eventId, taskId, { title }));
-            }}
-          >
-            <label htmlFor="task-edit-title">업무 제목</label>
-            <input id="task-edit-title" value={title} onChange={(change) => setTitle(change.target.value)} />
-            <Button type="submit" variant="secondary" size={40} loading={pending}>
-              제목 저장
-            </Button>
-          </form>
-        ) : (
-          <h2>{body.title}</h2>
-        )}
-        {canWrite ? (
-          <form
-            className="task-detail__dates"
-            aria-label="기간"
-            onSubmit={(form) => {
-              form.preventDefault();
-              void run(() => patchTask(eventId, taskId, { startDate: startDate || null, dueDate: dueDate || null }), "기간을 저장했어요.");
-            }}
-          >
-            <label>
-              시작일 (선택)
-              <input type="date" value={startDate} max={dueDate || undefined} onChange={(change) => setStartDate(change.target.value)} />
-            </label>
-            <label>
-              마감일 (선택)
-              <input type="date" value={dueDate} min={startDate || undefined} onChange={(change) => setDueDate(change.target.value)} />
-            </label>
-            <Button type="submit" variant="secondary" size={40} loading={pending}>
-              기간 저장
-            </Button>
-          </form>
-        ) : body.dueDate ? (
-          <p className="task-detail__period">기간 {periodText(body)}</p>
-        ) : null}
-        {field ? <p role="alert">{field}</p> : null}
-        <label className="task-detail__assignee">
-          담당자
-          <Select
-            aria-label="담당자"
-            value={body.assigneeUserId ?? ""}
-            disabled={!canWrite}
-            options={[
-              { value: "", label: "담당 없음" },
-              ...(operators.data?.items.map((operator) => ({ value: operator.userId, label: operator.displayName })) ?? []),
-            ]}
-            onChange={(value) => {
-              void run(() => patchTask(eventId, taskId, { assigneeUserId: value === "" ? null : value }));
-            }}
-          />
-        </label>
-        <ul className="task-detail__items">
-          {body.checklist.items.map((item) => (
-            <li key={item.itemId}>
-              <label>
-                <input
-                  type="checkbox"
-                  aria-label={item.label}
-                  checked={item.checked}
-                  disabled={!body.actions.canCheck || readOnly}
-                  onChange={(event) => {
-                    event.currentTarget.checked = item.checked;
-                    const previous = queryClient.getQueryData<TaskBody>(queryKeys.task(eventId, taskId));
-                    if (previous) {
-                      queryClient.setQueryData<TaskBody>(queryKeys.task(eventId, taskId), {
-                        ...previous,
-                        checklist: {
-                          ...previous.checklist,
-                          items: previous.checklist.items.map((row) =>
-                            row.itemId === item.itemId ? { ...row, checked: !row.checked } : row,
-                          ),
-                        },
-                      });
-                    }
-                    void run(async () => {
-                      try {
-                        return await setItemChecked(eventId, taskId, item.itemId, !item.checked);
-                      } catch (caught) {
-                        if (previous) queryClient.setQueryData(queryKeys.task(eventId, taskId), previous);
-                        throw caught;
-                      }
-                    });
-                  }}
-                />
-                {item.label}
-              </label>
-            </li>
-          ))}
-        </ul>
-        {!readOnly ? (
-          <div className="task-detail__actions">
-            {/* 완료와 다시 진행 중 지금 쓸 수 있는 쪽만 둔다(#483, Figma P07-D01은 "업무 완료" 하나). */}
-            {body.status === "DONE" ? (
-              <Button
-                type="button"
-                variant="secondary"
-                size={40}
-                disabled={!body.actions.canReopen || pending}
-                onClick={() => void run(() => reopenTask(eventId, taskId, { version: body.version, reason: reason || undefined }))}
-              >
-                다시 진행
-              </Button>
-            ) : (
-              <Button
-                type="button"
-                variant="primary"
-                size={40}
-                disabled={!body.actions.canComplete || pending}
-                onClick={() => void run(() => completeTask(eventId, taskId, body.version))}
-              >
-                완료
-              </Button>
-            )}
-            {canWrite ? (
-              <>
-                <Button type="button" variant="secondary" size={40} onClick={() => setConfirm("cancel")}>
-                  업무 취소
-                </Button>
-                <Button type="button" variant="danger" size={40} onClick={() => setConfirm("delete")}>
-                  삭제
-                </Button>
-              </>
-            ) : null}
+        <div className="task-detail__main">
+          {canWrite ? (
+            <input
+              className="task-detail__title"
+              aria-label="업무 제목"
+              value={title}
+              onChange={(change) => setTitle(change.target.value)}
+              onBlur={saveTitle}
+              onKeyDown={(key) => {
+                if (key.key === "Enter") {
+                  key.preventDefault();
+                  saveTitle();
+                }
+                if (key.key === "Escape") setTitle(serverTitle);
+              }}
+            />
+          ) : (
+            <h2 className="task-detail__title">{body.title}</h2>
+          )}
+          {notice ? <p className="task-detail__notice" role="status">{notice}</p> : null}
+          {alert ? <p className="task-detail__alert" role="alert">{alert}</p> : null}
+          {field ? <p className="task-detail__alert" role="alert">{field}</p> : null}
+          {body.checklist.items.length > 0 ? (
+            <section className="task-detail__checklist" aria-labelledby="task-detail-checklist">
+              <div className="task-detail__section-head">
+                <h3 id="task-detail-checklist">체크리스트</h3>
+                <span>
+                  {body.checklist.done}/{body.checklist.total} 완료
+                </span>
+              </div>
+              <ul className="task-detail__items">
+                {body.checklist.items.map((item) => (
+                  <li key={item.itemId}>
+                    <label>
+                      <input
+                        type="checkbox"
+                        aria-label={item.label}
+                        checked={item.checked}
+                        disabled={!body.actions.canCheck || readOnly}
+                        onChange={(event) => {
+                          event.currentTarget.checked = item.checked;
+                          const previous = queryClient.getQueryData<TaskBody>(queryKeys.task(eventId, taskId));
+                          if (previous) {
+                            queryClient.setQueryData<TaskBody>(queryKeys.task(eventId, taskId), {
+                              ...previous,
+                              checklist: {
+                                ...previous.checklist,
+                                items: previous.checklist.items.map((row) =>
+                                  row.itemId === item.itemId ? { ...row, checked: !row.checked } : row,
+                                ),
+                              },
+                            });
+                          }
+                          void run(async () => {
+                            try {
+                              return await setItemChecked(eventId, taskId, item.itemId, !item.checked);
+                            } catch (caught) {
+                              if (previous) queryClient.setQueryData(queryKeys.task(eventId, taskId), previous);
+                              throw caught;
+                            }
+                          });
+                        }}
+                      />
+                      <span>{item.label}</span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+        </div>
+        <aside className="task-detail__panel">
+          <div className="task-detail__prop">
+            <span className="task-detail__label">현재 상태</span>
+            <span className={`task-detail__status task-detail__status--${body.status.toLowerCase()}`}>{taskStatusLabel(body.status)}</span>
           </div>
-        ) : null}
-        {!readOnly && body.actions.canReopen ? (
-          <label>
-            사유 (선택)
-            <input aria-label="사유" value={reason} onChange={(change) => setReason(change.target.value)} />
-          </label>
-        ) : null}
+          <div className="task-detail__prop">
+            <label className="task-detail__label" htmlFor="task-detail-assignee">
+              담당자
+            </label>
+            {canWrite ? (
+              <Select
+                id="task-detail-assignee"
+                className="task-detail__control"
+                value={body.assigneeUserId ?? ""}
+                options={[
+                  { value: "", label: "담당 없음" },
+                  ...(operators.data?.items.map((operator) => ({ value: operator.userId, label: operator.displayName })) ?? []),
+                ]}
+                onChange={(value) => {
+                  void run(() => patchTask(eventId, taskId, { assigneeUserId: value === "" ? null : value }));
+                }}
+              />
+            ) : (
+              <span className="task-detail__value">{body.assigneeDisplayName ?? "담당 없음"}</span>
+            )}
+          </div>
+          {canWrite ? (
+            <div
+              className="task-detail__dates"
+              role="group"
+              aria-label="기간"
+              onBlur={(blur) => {
+                if (!blur.currentTarget.contains(blur.relatedTarget as Node | null)) saveDates();
+              }}
+              onKeyDown={(key) => {
+                if (key.key === "Enter") {
+                  key.preventDefault();
+                  saveDates();
+                }
+              }}
+            >
+              <div className="task-detail__prop">
+                <label className="task-detail__label" htmlFor="task-detail-start">
+                  시작일
+                </label>
+                <input
+                  id="task-detail-start"
+                  className="task-detail__control"
+                  type="date"
+                  value={startDate}
+                  max={dueDate || undefined}
+                  onChange={(change) => setStartDate(change.target.value)}
+                />
+              </div>
+              <div className="task-detail__prop">
+                <label className="task-detail__label" htmlFor="task-detail-due">
+                  마감일
+                </label>
+                <input
+                  id="task-detail-due"
+                  className="task-detail__control"
+                  type="date"
+                  value={dueDate}
+                  min={startDate || undefined}
+                  onChange={(change) => setDueDate(change.target.value)}
+                />
+              </div>
+            </div>
+          ) : body.dueDate ? (
+            <div className="task-detail__prop">
+              <span className="task-detail__label">기간</span>
+              <span className="task-detail__value task-detail__period">{periodText(body)}</span>
+            </div>
+          ) : null}
+          {!readOnly ? (
+            <div className="task-detail__actions">
+              {reasonText ? (
+                <p id="task-detail-blocked" className="task-detail__hint">
+                  {reasonText}
+                </p>
+              ) : null}
+              {/* 완료와 다시 진행 중 지금 쓸 수 있는 쪽만 둔다(#483, Figma P07-D01은 "업무 완료" 하나). */}
+              {body.status === "DONE" ? (
+                <>
+                  {body.actions.canReopen ? (
+                    <div className="task-detail__prop">
+                      <label className="task-detail__label" htmlFor="task-detail-reason">
+                        사유 (선택)
+                      </label>
+                      <input
+                        id="task-detail-reason"
+                        className="task-detail__control"
+                        aria-label="사유"
+                        value={reason}
+                        onChange={(change) => setReason(change.target.value)}
+                      />
+                    </div>
+                  ) : null}
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size={40}
+                    disabled={!body.actions.canReopen || pending}
+                    aria-describedby={reasonText ? "task-detail-blocked" : undefined}
+                    onClick={() => void run(() => reopenTask(eventId, taskId, { version: body.version, reason: reason || undefined }))}
+                  >
+                    다시 진행
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  type="button"
+                  variant="primary"
+                  size={40}
+                  disabled={!body.actions.canComplete || pending}
+                  aria-describedby={reasonText ? "task-detail-blocked" : undefined}
+                  onClick={() => void run(() => completeTask(eventId, taskId, body.version))}
+                >
+                  업무 완료
+                </Button>
+              )}
+              {canWrite ? (
+                <div className="task-detail__quiet">
+                  <Button type="button" variant="tertiary" size={40} onClick={() => setConfirm("cancel")}>
+                    업무 취소
+                  </Button>
+                  <Button type="button" variant="tertiary" size={40} onClick={() => setConfirm("delete")}>
+                    업무 삭제
+                  </Button>
+                </div>
+              ) : null}
+            </div>
+          ) : reasonText ? (
+            <p className="task-detail__hint">{reasonText}</p>
+          ) : null}
+        </aside>
       </div>
       {confirm ? (
         <ConfirmDialog
