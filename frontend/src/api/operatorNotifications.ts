@@ -58,7 +58,7 @@ export function listOperatorNotifications(
   return apiRequest<unknown>(`/api/v1/operator/events/${eventId}/notifications`, {
     query: { before: before ?? undefined, limit: 30 },
     signal,
-  }).then(parsePage);
+  }).then(parseNotificationPage);
 }
 
 export function markOperatorNotificationsRead(eventId: string, body: NotificationReadBody): Promise<number> {
@@ -85,7 +85,8 @@ function parseUpdates(value: unknown): OperatorUpdates {
   };
 }
 
-function parsePage(value: unknown): NotificationPage {
+/** The list shape both lists share (operator I3 and participant B5, api.md §7.4). */
+export function parseNotificationPage(value: unknown): NotificationPage {
   if (!isRecord(value) || !Array.isArray(value.items)) throw new ApiError({ status: 200, code: "UNEXPECTED" });
   const items: OperatorNotification[] = [];
   for (const item of value.items) {
