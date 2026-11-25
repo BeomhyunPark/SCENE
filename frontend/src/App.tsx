@@ -18,6 +18,8 @@ import { EventScheduleItem } from "./components/EventScheduleItem";
 import { EventSettings } from "./components/EventSettings";
 import { EventList } from "./components/EventList";
 import { EventApplication } from "./components/EventApplication";
+import { EventApplicationEdit } from "./components/EventApplicationEdit";
+import { EventParticipantAdd } from "./components/EventParticipantAdd";
 import { EventApplicationSummary } from "./components/EventApplicationSummary";
 import { EventMenuPending } from "./components/EventMenuPending";
 import { EventOperators } from "./components/EventOperators";
@@ -122,6 +124,8 @@ export function App() {
           <Route path="/events/:eventId/notices/new" element={<NoticeEditor />} />
           <Route path="/events/:eventId/notices/:noticeId/edit" element={<NoticeEditor />} />
           <Route path="/events/:eventId/notices/:noticeId" element={<NoticeDetail />} />
+          <Route path="/events/:eventId/participants/new" element={<EventParticipantAdd />} />
+          <Route path="/events/:eventId/participants/:applicationId/edit" element={<EventApplicationEdit />} />
           <Route path="/events/:eventId/participants/:applicationId" element={<EventApplication />} />
           <Route path="/events/:eventId/participants" element={<EventParticipation />} />
           <Route path="/events/:eventId" element={<EventHome />} />

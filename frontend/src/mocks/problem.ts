@@ -21,6 +21,8 @@ export function problem(
     applicationStatus?: string;
     retryAfterSeconds?: number;
     revision?: number;
+    applicationId?: string;
+    status?: string;
   },
 ): Response {
   return HttpResponse.json(

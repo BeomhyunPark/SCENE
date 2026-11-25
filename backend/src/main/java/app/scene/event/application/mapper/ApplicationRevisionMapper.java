@@ -67,4 +67,17 @@ public interface ApplicationRevisionMapper {
       @Param("eventId") UUID eventId,
       @Param("fromId") UUID fromId,
       @Param("toId") UUID toId);
+
+  /** DEC-088 §3: the first revision of a participant an operator added. */
+  int markAddedBy(
+      @Param("spaceId") UUID spaceId,
+      @Param("eventId") UUID eventId,
+      @Param("applicationId") UUID applicationId,
+      @Param("userId") UUID userId);
+
+  /** Display names of the operators who stored the participant's revisions. */
+  java.util.List<app.scene.event.application.RevisorName> listRevisorNames(
+      @Param("spaceId") UUID spaceId,
+      @Param("eventId") UUID eventId,
+      @Param("participantId") UUID participantId);
 }

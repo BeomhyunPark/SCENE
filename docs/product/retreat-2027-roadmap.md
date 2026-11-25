@@ -1,7 +1,7 @@
 # 2027년 1월 수련회 로드맵
 
 - 작성일: 2026-11-19
-- 상태: 사용자 결정 14건 반영(2026-11-20). 숙박하지 않는 사람은 방에 넣지 않고(결정 13), 식사 순서(트랙 H)는 1월 범위에서 뺐다(결정 14). 1주차와 2주차의 서버·화면 작업(P0)은 모두 main에 병합됐다(5.1, #230 댓글). 남은 2주차 항목은 사용자가 운영 서버에서 하는 실제 확인(A10, J4, E2)이다. 3주차 작업(F2·F3·G2~G5·A11·E3·E4)은 통합 브랜치 `claude/week3-integration`에 모였고 main에는 아직 없으며, 남은 3주차 항목은 A12·B5·F5다.
+- 상태: 사용자 결정 14건 반영(2026-11-20). 숙박하지 않는 사람은 방에 넣지 않고(결정 13), 식사 순서(트랙 H)는 1월 범위에서 뺐다(결정 14). 1주차와 2주차의 서버·화면 작업(P0)은 모두 main에 병합됐다(5.1, #230 댓글). 남은 2주차 항목은 사용자가 운영 서버에서 하는 실제 확인(A10, J4, E2)이다. 3주차 작업(F2·F3·G2~G5·A11·E3·E4)은 통합 브랜치 `claude/week3-integration`(PR #474)에, A12·B5와 통합 뒤 수정(#473)은 그 위의 `claude/week3-integration-2`에 모였고 main에는 아직 없으며, 남은 3주차 항목은 사용자가 확인할 F5다.
 - 상위 이슈: [#230 2027년 1월 수련회를 SCENE으로 운영한다](https://github.com/BeomhyunPark/SCENE/issues/230)
 - 근거: [backend/docs/api.md](../../backend/docs/api.md), [App.tsx](../../frontend/src/App.tsx), [operatorMenu.ts](../../frontend/src/components/operatorMenu.ts), [PRODUCT_DECISIONS.md](PRODUCT_DECISIONS.md) DEC-064~077, [홈서버 운영](../devops/home-server.md), 열린 이슈 목록(2026-11-19)
 - 확인 방법: 문서·소스·이슈를 읽었다. 실제 화면 클릭과 운영 서버 확인은 하지 않았다.
@@ -280,9 +280,12 @@
 | G5 | 작업 브랜치 `claude/g5-room-checkin` → 통합 브랜치 `claude/week3-integration`(main 아님) (#460, DEC-085 §10, 마이그레이션 없음). 표·CSV·현장 명단·체크인 결과의 공개본 방, 로컬 실제 클릭. 운영 서버 확인 전 |
 | E3 | 작업 브랜치 `claude/e3-meal-counts` → 통합 브랜치 `claude/week3-integration`(main 아님) (#454, DEC-087). 식수 현황 화면 `/events/{eventId}/meals`. 운영 서버 확인 전 |
 | E4 | 작업 브랜치 `claude/e4-arrival-roster` → 통합 브랜치 `claude/week3-integration`(main 아님) (#456, DEC-087 Follow-up). 현장 운영 명단에 도착 예정 칸과 "왔어야 함" 거르기. 운영 서버 확인 전 |
-| B5 | 작업 브랜치 `claude/b5-participant-inbox-463`(통합 브랜치 위, main 아님) (#463, DEC-080 Follow-up). 머리글 종·알림함·누르면 그 화면, 조 공개 알림(`GROUP_PUBLISHED`) 서버. 로컬 실제 서버 클릭. 운영 서버 확인 전 |
-| 3주차 통합 | 위 여덟 브랜치를 `claude/week3-integration`에 merge 커밋으로 합치고, 최신 main(UI/UX #472)도 합친 뒤 전체 검사·로컬 클릭을 했다([기록](../test_results/week3-integration/README.md)). PR·main 병합 전 |
-| 3주차 나머지(A12, B5, F5) | 시작 전 |
+| A12 | 작업 브랜치 `claude/a12-operator-edit-462` → 통합 브랜치 2 `claude/week3-integration-2`(main 아님) (#462, DEC-088, V27, #339 함께 해결). 운영자 대신 고치기·직접 추가, 서버 통합 테스트·로컬 실제 클릭. 운영 서버 확인 전 |
+| B5 | 작업 브랜치 `claude/b5-participant-inbox-463` → 통합 브랜치 2 `claude/week3-integration-2`(main 아님) (#463, DEC-080 Follow-up). 머리글 종·알림함·누르면 그 화면, 조 공개 알림(`GROUP_PUBLISHED`). 운영 서버 확인 전 |
+| 통합 뒤 수정 | 작업 브랜치 `claude/week3-integration-fixes` → 통합 브랜치 2 `claude/week3-integration-2`(main 아님) (#473 날짜 없는 행사의 참가자 일정 401, 숙소 공개 mock 연결, 문서 정리). 운영 서버 확인 전 |
+| 3주차 통합 | 위 여덟 브랜치를 `claude/week3-integration`에 merge 커밋으로 합치고, 최신 main(UI/UX #472)도 합친 뒤 전체 검사·로컬 클릭을 했다(PR #474, [기록](../test_results/week3-integration/README.md)). main 병합 전 |
+| 3주차 통합 2 | 통합 브랜치(PR #474 head) 위에 통합 뒤 수정 → B5 → A12를 `claude/week3-integration-2`에 merge 커밋으로 합치고 전체 검사·로컬 클릭을 했다([기록](../test_results/week3-integration/README.md)). PR·main 병합 전 |
+| F5 | 실제 신청 명단으로 조 편성·참가자 화면 확인 — 사용자 확인 |
 | H2~H4 | 범위 밖 (2026-11-20, 결정 14) |
 
 일정이 밀릴 때 자르는 순서: P2 전부 → B6(오프라인 보기) → B5(참가자 알림함. 새 공지 표시는 D4에 남는다) → G3의 끌어 놓기(걸러서 보내기만 남긴다). P0는 자르지 않는다.

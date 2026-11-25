@@ -14,6 +14,7 @@ import { Link } from "react-router";
 import type { TableRow } from "../../api/applications";
 import {
   editedText,
+  isAdded,
   isEdited,
   clampWidth,
   copyText,
@@ -605,6 +606,11 @@ function DataCell({
         {isEdited(row) ? (
           <span className="roster__tag roster__tag--edited" title={editedText(row)}>
             수정됨
+          </span>
+        ) : null}
+        {isAdded(row) ? (
+          <span className="roster__tag roster__tag--edited" title="운영자가 직접 추가한 참가자">
+            직접 추가
           </span>
         ) : null}
       </td>

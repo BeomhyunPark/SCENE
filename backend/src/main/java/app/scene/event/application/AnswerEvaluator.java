@@ -31,6 +31,7 @@ public final class AnswerEvaluator {
   static final int PHONE_DIGITS_MIN = 4;
   static final int COHORT_DIGITS = 2;
   private static final String COHORT = "COHORT";
+  private static final String CONSENT = "CONSENT";
   private static final JsonNodeFactory NODES = JsonNodeFactory.instance;
 
   private AnswerEvaluator() {}
@@ -45,6 +46,29 @@ public final class AnswerEvaluator {
 
   /** Reads {@code {"answers": [...]}} and returns the answers to store, in position order. */
   public static List<Answer> evaluate(JsonNode body, List<FieldDefinition> fields) {
+    return evaluate(body, fields, false);
+  }
+
+  /**
+   * The operator's check (DEC-088 §2): the same shapes, options, lengths, conditions and range as
+   * {@link #evaluate}, but only the name and the phone are required, and consent questions are not
+   * answered by an operator (a sent value is dropped like a hidden question's).
+   */
+  public static List<Answer> evaluateForOperator(JsonNode body, List<FieldDefinition> fields) {
+    return evaluate(body, fields, true);
+  }
+
+  /** A {@code YES_NO} question with {@code style: CONSENT} (DEC-069). */
+  public static boolean isConsent(FieldDefinition field) {
+    JsonNode style = field.config() == null ? null : field.config().get("style");
+    return field.answerType() == app.scene.event.form.AnswerType.YES_NO
+        && style != null
+        && style.isString()
+        && CONSENT.equals(style.asString());
+  }
+
+  private static List<Answer> evaluate(
+      JsonNode body, List<FieldDefinition> fields, boolean operator) {
     Map<UUID, JsonNode> submitted = read(body);
     Map<UUID, ObjectNode> kept = new LinkedHashMap<>();
     List<Answer> answers = new ArrayList<>();
@@ -53,9 +77,12 @@ public final class AnswerEvaluator {
       if (field.hidden() || !holds(field.showWhen(), kept)) {
         continue;
       }
+      if (operator && isConsent(field)) {
+        continue;
+      }
       ObjectNode value = raw == null ? null : normalize(field, raw, kept);
       if (value == null) {
-        if (field.required()) {
+        if (operator ? identity(field) : field.required()) {
           throw invalid();
         }
         continue;
@@ -68,6 +95,12 @@ public final class AnswerEvaluator {
     }
     checkRange(fields, kept);
     return answers;
+  }
+
+  /** The name and the phone: an operator must still give them (DEC-088 §2). */
+  private static boolean identity(FieldDefinition field) {
+    return field.isSystem()
+        && ("NAME".equals(field.systemKey()) || "PHONE".equals(field.systemKey()));
   }
 
   /** DEC-074: the departure slot may not come before the arrival slot. The same slot is fine. */

@@ -58,6 +58,7 @@
 | 사람마다 도착 예정 칸(식수 현황·E4 도착 명단 공용) | `event/form/ArrivalSlots` |
 | 다른 기능이 읽는 일정 칸별 시작 시각 | `event/schedule/ScheduleSlotTimes` |
 | 참가자 공지 목록·상세 | `event/notice/ParticipantNoticeService` |
+| 운영자가 대신 고치기·직접 추가(검사 차이, 임시 번호, 전화번호 바꾸기) | `event/application/OperatorApplicationEditService`, 운영자 검사 `AnswerEvaluator.evaluateForOperator`, 동의·숨긴 답 옮기기 `ApplicationRevisions.revise` |
 | 운영자 공지 갱신 값(`notice_boards`) | `event/notice/NoticeBoardVersions` |
 | SQL | `src/main/resources/mapper/`의 같은 이름 XML |
 
@@ -202,6 +203,7 @@ CSRF 쿠키는 `XSRF-TOKEN`, 헤더는 `X-XSRF-TOKEN`이다. 변경 요청은 �
 | 일정표 작업본, 항목 만들기·고치기·지우기, 공개, 저장하고 바로 공개, 공개본 조회 | `event/schedule/ScheduleController` |
 | 공지 목록·상세·만들기·고치기·지우기·발행·보관·보관 해제 | `event/notice/NoticeController` |
 | 식수 현황(끼니별 예정·도착 반영 식수, DEC-087) | `event/application/MealCountController` |
+| 운영자의 신청 고치기·참가자 직접 추가(DEC-088, A12) | `event/application/OperatorApplicationEditController` |
 
 참가자 경로(`/api/v1/participant`, 쿠키 `SCENE_PSESSION`)와 공개 경로(`/api/v1/public`)다.
 
@@ -231,7 +233,7 @@ CSRF 쿠키는 `XSRF-TOKEN`, 헤더는 `X-XSRF-TOKEN`이다. 변경 요청은 �
 - **참가자 판정:** 요청마다 `ParticipantAudience.viewer(self)`를 한 번 부르고(한 문장) 항목마다 `viewer.sees(audience)`. 활성 참가자(`SUBMITTED` 신청이 있음)만 본다. 알림 받는 사람은 `participantIds(spaceId, eventId, audience)`(`ALL`은 활성 참가자 전원, `LEADERS`는 최근 공개본의 활성 조장, `STAFF`·모르는 값은 없음).
 - **알림 만들기:** 같은 트랜잭션에서 `Notifications.toParticipants(spaceId, eventId, ids, draft)` 또는 `toOperators(spaceId, eventId, userIds, draft)`. `draft`는 `new NotificationDraft(kind, targetType, targetId, title, body, important)`(제목 80자·본문 200자를 넘으면 자른다). 만든 사람 자신은 호출한 쪽이 목록에서 뺀다. 같은 받는 사람·`kind`·대상의 읽지 않은 알림은 합친다. 받는 사람 1,000명까지 한 문장이다.
 - **운영자 받는 사람:** `OperatorRecipients.withPermission(spaceId, eventId, Permission.X, exceptUserId)`(그 권한이 유효한 활성 운영자, 한 문장), `owners(…)`(넘긴 권한이 끝나지 않은 OWNER), `all(…, exceptUserId)`(그 행사 운영자 전원, 운영진 공지용). 기준은 `event_users` 행과 `PermissionEvaluator`다.
-- **대상 id 옮기기:** 대상이 새 행으로 바뀌는 기능(신청 revision)은 `Notifications.retarget(spaceId, eventId, targetType, fromIds, toId)`로 옛 행을 가리키던 알림을 옮긴 뒤 새 알림을 만든다(같은 트랜잭션). 신청 알림은 `event/application/ApplicationNotices`가 한곳에서 만든다(`revised`·`resubmitted`, 취소·되돌리기는 `ApplicationStatusChanged` 리스너).
+- **대상 id 옮기기:** 대상이 새 행으로 바뀌는 기능(신청 revision)은 `Notifications.retarget(spaceId, eventId, targetType, fromIds, toId)`로 옛 행을 가리키던 알림을 옮긴 뒤 새 알림을 만든다(같은 트랜잭션). 신청 알림은 `event/application/ApplicationNotices`가 한곳에서 만든다(`revised`·`resubmitted`, 운영자 수정 `operatorRevised`(참가자에게 `APPLICATION_UPDATED_BY_OPERATOR`, 다른 운영자에게 `APPLICATION_REVISED`)·직접 추가 `operatorAdded`, 취소·되돌리기는 `ApplicationStatusChanged` 리스너).
 - **일정 작업본 버전:** 운영자 `GET …/events/{eventId}/updates`의 `schedule`(I3)은 `ScheduleBoards.boardVersion(spaceId, eventId)`(기본 키 한 번 읽기, 처음은 0)를 쓴다. 공개는 이 값을 올리지 않는다.
 - **알림 읽기:** `summary(recipient)`(최신 `seq`·읽지 않은 수, 한 문장), `page(recipient, NotificationListQuery.parse(before, limit))`, `markRead(recipient, NotificationReadRequest.parse(body))`. 받는 사람은 `NotificationRecipient.participant(self)` 또는 `NotificationRecipient.operator(spaceId, eventId, userId)`. 공지 쪽은 `markTargetReadForAll(spaceId, eventId, "NOTICE", noticeId)`(보관 때, 같은 트랜잭션)와 `unreadTargets(recipient, "NOTICE", noticeIds)`(목록의 `unread`)를 쓴다.
 - **운영자 공지 갱신 값:** `NoticeBoardVersions.read(spaceId, eventId)`(기본 키 한 문장, 행이 없으면 0). 대상·상태와 상관없이 공지 쓰기마다 오르는 운영자 범위 값이다(참가자 값 `participant_feed_versions.notices`와 다르다). 운영자 `GET …/events/{eventId}/updates`(I3)의 `notices`가 이 값을 쓴다. 올리기는 `NoticeService`만 한다.
@@ -257,7 +259,7 @@ Flyway만 스키마를 쓴다. `V1__baseline.sql`이 제품 테이블이고, `V2
 
 `local` 프로파일만 `db/seed/R__local_seed.sql`을 넣는다. dev, stg, prod와 테스트는 이 시드를 쓰지 않는다. 테스트는 Testcontainers의 PostgreSQL을 띄운다.
 
-`audit_logs`는 쓰이지만 읽는 URL이 없다. `V20__participant_feed_and_notifications.sql`이 `participant_feed_versions`와 `notifications`를, `V22__notices.sql`이 `notices`와 `notice_boards`를, `V23__schedule.sql`이 일정표의 `schedule_boards`·`schedule_items`·`schedule_publications`를 더한다. 어떤 명령이 어떤 `action`을 남기는지는 [API의 기록 절](api.md#응답에-안-나오는-기록)에 있다. `V24__operator_notices_to_notifications.sql`(#436)이 `operator_notices`의 행을 `notifications`로 옮겼고, 코드는 더 이상 `operator_notices`에 쓰지 않는다. 그 테이블은 되돌림에 대비해 남겼고 나중 마이그레이션에서 지운다. `V25__participant_settings_and_privacy_logs.sql`(#452, DEC-083)이 행사 참가자 설정 `event_participant_settings`와 참가자 행위자도 받는 열람 기록 `privacy_logs`를 더한다. `privacy_logs`도 읽는 URL이 없다. `V26__rooms.sql`(#457, DEC-085)이 숙소의 `room_boards`·`rooms`·`room_assignments`·`room_assignment_logs`·`room_publications`와 `event_participant_settings.room_roster_scope`를 더한다. `room_assignment_logs`도 읽는 URL이 없다.
+`audit_logs`는 쓰이지만 읽는 URL이 없다. `V20__participant_feed_and_notifications.sql`이 `participant_feed_versions`와 `notifications`를, `V22__notices.sql`이 `notices`와 `notice_boards`를, `V23__schedule.sql`이 일정표의 `schedule_boards`·`schedule_items`·`schedule_publications`를 더한다. 어떤 명령이 어떤 `action`을 남기는지는 [API의 기록 절](api.md#응답에-안-나오는-기록)에 있다. `V24__operator_notices_to_notifications.sql`(#436)이 `operator_notices`의 행을 `notifications`로 옮겼고, 코드는 더 이상 `operator_notices`에 쓰지 않는다. 그 테이블은 되돌림에 대비해 남겼고 나중 마이그레이션에서 지운다. `V25__participant_settings_and_privacy_logs.sql`(#452, DEC-083)이 행사 참가자 설정 `event_participant_settings`와 참가자 행위자도 받는 열람 기록 `privacy_logs`를 더한다. `privacy_logs`도 읽는 URL이 없다. `V26__rooms.sql`(#457, DEC-085)이 숙소의 `room_boards`·`rooms`·`room_assignments`·`room_assignment_logs`·`room_publications`와 `event_participant_settings.room_roster_scope`를 더한다. `room_assignment_logs`도 읽는 URL이 없다. `V27__operator_added_application.sql`(#462, DEC-088)이 `applications_revision_shape` 제약을 넓혀, 운영자가 직접 추가한 첫 revision이 `revised_by = 'OPERATOR'`와 `revised_by_user_id`를 갖게 한다.
 
 설계 문서의 참가자, 신청, 재정, 조, 방, 차량, 체크인 테이블은 이 마이그레이션에 없다.
 
@@ -285,6 +287,7 @@ Flyway만 스키마를 쓴다. `V1__baseline.sql`이 제품 테이블이고, `V2
 | 조원 명단·조장 보기·조원 상세·전화 열람 기록·참가자 설정(DEC-083 시험 조건 12가지) | `event/group/ParticipantGroupRosterHttpIT` |
 | 숙소 방 CRUD·배정·경고·숙박 안 함 거절·공개·알림·참가자 숙소·공개 범위·신청 취소·조장 보기의 방·"다시 볼 것"(api.md "숙소" 시험 조건 1~15) | `event/room/RoomHttpIT` |
 | 참가 현황 표·CSV·체크인 명단·결과의 공개본 방(G5, 숙소 시험 조건 1의 G5 부분) | `event/room/RoomDeskHttpIT` |
+| 운영자 대신 고치기·직접 추가와 집계·편성판·CSV·표·식수·숙소 다시 볼 것·조장 보기의 일치(DEC-088, #339) | `event/application/OperatorApplicationEditHttpIT`, 운영자 검사 `AnswerEvaluatorTest` |
 | 사람별 숙박 밤 | `event/form/MealSlotsLodgingTest`, 조장 보기와 집계 비교 `event/application/AttendanceRangeHttpIT` |
 | 참가자 홈, 갱신 값, 대상 판정, 알림 | `event/home/ParticipantHomeHttpIT` |
 | `updates` 한 요청의 SQL 문장 수 | `event/home/ParticipantUpdatesCostIT` |

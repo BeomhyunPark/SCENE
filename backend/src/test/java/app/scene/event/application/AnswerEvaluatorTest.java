@@ -61,6 +61,31 @@ class AnswerEvaluatorTest {
     rejected();
   }
 
+  /** DEC-088 §2: only the name and phone are required, and consent is not an operator's to give. */
+  @Test
+  void operatorCheckRequiresOnlyNameAndPhoneAndSkipsConsent() {
+    FieldDefinition name = system("NAME");
+    FieldDefinition phone = system("PHONE");
+    custom(AnswerType.LONG_TEXT, "{}", true, null);
+    FieldDefinition consent = custom(AnswerType.YES_NO, "{\"style\":\"CONSENT\"}", true, null);
+    FieldDefinition count = custom(AnswerType.NUMBER, "{\"min\":1,\"max\":3}", false, null);
+
+    List<AnswerEvaluator.Answer> answers =
+        operator(
+            text(name, "김"), text(phone, "010-1234-5678"), answer(consent, "{\"value\":false}"));
+    assertThat(answers)
+        .extracting(AnswerEvaluator.Answer::fieldId)
+        .containsExactly(name.fieldId(), phone.fieldId());
+    assertThat(AnswerEvaluator.isConsent(consent)).isTrue();
+    assertThat(AnswerEvaluator.isConsent(count)).isFalse();
+
+    operatorRejected(text(name, "김"));
+    operatorRejected(
+        text(name, "김"), text(phone, "010-1234-5678"), answer(count, "{\"number\":9}"));
+    // A participant still has to answer the required questions.
+    rejected(text(name, "김"), text(phone, "010-1234-5678"));
+  }
+
   @Test
   void unknownFieldAndDuplicateAreRejected() {
     FieldDefinition note = custom(AnswerType.SHORT_TEXT, "{}", false, null);
@@ -316,6 +341,18 @@ class AnswerEvaluatorTest {
   private List<AnswerEvaluator.Answer> evaluate(String... answers) {
     return AnswerEvaluator.evaluate(
         json.readTree("{\"answers\":[" + String.join(",", answers) + "]}"), fields);
+  }
+
+  private List<AnswerEvaluator.Answer> operator(String... answers) {
+    return AnswerEvaluator.evaluateForOperator(
+        json.readTree("{\"answers\":[" + String.join(",", answers) + "]}"), fields);
+  }
+
+  private void operatorRejected(String... answers) {
+    assertThatThrownBy(() -> operator(answers))
+        .isInstanceOf(SceneException.class)
+        .extracting(error -> ((SceneException) error).code())
+        .isEqualTo(ErrorCode.APPLICATION_VALIDATION_FAILED);
   }
 
   private void rejected(String... answers) {

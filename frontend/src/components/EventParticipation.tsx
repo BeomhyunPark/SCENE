@@ -178,6 +178,15 @@ function Applicants({
               신청 집계
             </Link>
             <ApplicantsExport eventId={eventId} total={total} />
+            {/* 참가자 직접 추가 (DEC-088 §3): also after applications close and at the 현장 desk. */}
+            {effective.includes("PARTICIPANT_WRITE") && eventStatus !== "ENDED" && eventStatus !== "ARCHIVED" ? (
+              <Link
+                className="scene-button scene-button--secondary scene-button--size-40"
+                to={`/events/${eventId}/participants/new`}
+              >
+                참가자 추가
+              </Link>
+            ) : null}
           </>
         }
       />
@@ -262,7 +271,13 @@ function ParticipationBody({ event, spaceName }: { event: EventDetail; spaceName
               className="event-home__card"
               type="button"
               aria-label={item.title}
-              onClick={item.title === "신청 링크 만들기" && setupPath ? () => navigate(setupPath) : undefined}
+              onClick={
+                item.title === "신청 링크 만들기" && setupPath
+                  ? () => navigate(setupPath)
+                  : item.title === "참가자 직접 추가"
+                    ? () => navigate(`/events/${eventId}/participants/new`)
+                    : undefined
+              }
             >
               <span className="event-home__chip">{item.badge}</span>
               <span className="event-home__card-title">{item.title}</span>

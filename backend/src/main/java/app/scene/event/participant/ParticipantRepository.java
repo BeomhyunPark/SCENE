@@ -52,4 +52,26 @@ public class ParticipantRepository {
       throw new IllegalStateException("participant name was not stored");
     }
   }
+
+  /**
+   * An operator changes the participant's phone (DEC-088 §2). Throws {@code DuplicateKeyException}
+   * when another participant of the event has the same phone.
+   */
+  @Transactional
+  public void updatePhone(
+      UUID spaceId, UUID eventId, UUID participantId, String phone, Instant now) {
+    String digits = ParticipantPins.digits(phone);
+    if (participants.updatePhone(
+            spaceId,
+            eventId,
+            participantId,
+            phone,
+            Digests.sha256Hex(phone),
+            digits.substring(digits.length() - 4),
+            ParticipantPins.phoneKey(phone),
+            now)
+        != 1) {
+      throw new IllegalStateException("participant phone was not stored");
+    }
+  }
 }
