@@ -42,3 +42,34 @@
 [schedule401.cjs](schedule401.cjs): 시작·끝 날짜 없이 만든 행사에 신청하면 `GET /participant/home` 200, `GET /participant/schedule` **401 AUTHENTICATION_REQUIRED**. 통합 브랜치에서 재현된다.
 
 원인 위치: `backend/src/main/resources/mapper/ScheduleMapper.xml`의 참가자 읽기(`SELECT e.start_date, e.end_date, latest.published_at, latest.snapshot … LEFT JOIN LATERAL`)는 날짜가 없고 공개본도 없으면 모든 칸이 NULL인 행을 돌려준다. MyBatis는 모든 칸이 NULL인 행을 `null`로 매핑하므로(`returnInstanceForEmptyRow` 기본 false), `ScheduleService.participant`(`event/schedule/ScheduleService.java` 697행 근처)의 `row == null → AUTHENTICATION_REQUIRED`로 빠져 참가자가 로그인 화면으로 돌아간다. 일정을 하나라도 공개했거나 날짜가 있으면 생기지 않는다.
+
+---
+
+# 최신 main(UI/UX #472)을 합친 뒤 확인 (2026-11-25 10:50~11:00 KST)
+
+`origin/main` 17a4d24(운영자 행사 홈·현장 운영·일정표 Figma 기준, 데스크톱 본문 쏠림 수정 #466~#469)를 merge 커밋 7288d9d로 합쳤다.
+
+| 구분 | 무엇 | 결과 |
+|---|---|---|
+| 충돌 해결 | `EventField.tsx`·`EventField.css`·`FieldRosterRow.tsx`. 모양·배치는 main([#468 기록](../468-field-figma/README.md)의 OM01·TL01), 그 위에 E4 도착 예정·거르기 칩·요약 줄, G5 방 줄·수동 체크인 안내의 방, E3 식수 현황 링크를 다시 얹음. `FieldRoomLine`은 데스크톱에서 button 안에 들어가므로 `p` → `span` | 병합 커밋에 포함 |
+| 서버 검증 | `./gradlew check --rerun-tasks` (main은 백엔드를 바꾸지 않음) | 통과 593개, 실패 0, 건너뜀 0 |
+| 화면 검증 | `pnpm lint`·`typecheck`·`test`·`build` | 통과. 테스트 98파일 742개 |
+| 실제 클릭 | 로컬 서버 + Vite(실제 API). [flow-main.cjs](flow-main.cjs), [schedule-check.cjs](schedule-check.cjs), 기록 [click-log-main.txt](click-log-main.txt) | 아래 |
+| 운영 서버 | 하지 않았다 | 사용자 확인 필요 |
+
+## 결과
+
+| 캡처 | 확인한 것 |
+|---|---|
+| `20-field-390-top` | 새 머리(행사명·확인 칩)·검색·QR 아래 "전체 8 · 미완료 8 · 체크인 완료 0", 그 아래 E4 요약 "다음 끼니 2일차 점심 기준 / 왔어야 함 6명 · 올 예정 1명 · 참석 칸 지남 1명", "식수 현황 보기", 거르기 칩 "전체 · 미완료 · 왔어야 함 · 완료 · 8명" |
+| `21`·`22`·`23` | 수동 체크인 안내 "94 김하늘 님을 체크인했어요. 방: 301호 · 본관 3층 왼쪽", 숙박 안 함은 "(숙박 안 함)". 새 카드 안에 이름 → 방 → 조·끝자리 → 도착 예정 → 체크인 기록. 390에서 문서·카드 가로 넘침 0 |
+| `24-field-390-overdue-filter` | "왔어야 함" 칩 → 5명(오다은·윤새벽·이도윤·최예린·한수아) |
+| `25`·`26` (1440) | 2단(대기열 + 선택한 참가자). 카드에 방·도착 예정이 같이 보이고, 선택·체크인 안내의 방도 그대로. 가로 넘침 0 |
+| `27`~`30` (1440·390) | 식수 현황·숙소 배정판·조 편성(명단 공개 스위치 "명단 숨기기" 보임)·참가 현황 표(`방` 열 보임). 모두 문서 가로 넘침 없음, 1440 본문 폭 1192 |
+| `31`·`33` | 참가자 홈 카드(행사·지금·다음 일정·최신 공지·도착 QR·내 조·숙소), 조장 조원 현황의 "방 301호" |
+| `34`·`35` | 일정 공개 뒤 홈 "지금·다음 일정"(다음 12:00 점심 식사)과 내 조·숙소 카드가 함께 보이고, 일정 탭은 main의 시간표(오늘·1~3일차, 12:00 점심·19:30 저녁 집회). 390 가로 넘침 없음 |
+
+## 하지 못한 것 · 발견
+
+- QR 스캔 결과의 방(`EventFieldScan`의 `ScanRoom`)은 자동 병합됐고 조 줄과 같은 모양 클래스를 쓴다. 카메라가 없어 실제로 찍지 못했고 화면 테스트로만 확인했다.
+- **데스크톱 "선택한 참가자" 패널(main #468에서 새로 생김)에는 방·도착 예정이 없다.** 카드에는 보인다. 병합 깨짐이 아니라 새 패널에 3주차 칸을 더할지의 문제라 고치지 않았다(후속 판단).
