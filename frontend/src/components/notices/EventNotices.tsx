@@ -88,9 +88,8 @@ function NoticeList({ event, spaceName }: { event: EventDetail; spaceName?: stri
     <NoticeShell event={event} spaceName={spaceName} title="공지" back={`/events/${eventId}`} backLabel="행사 홈">
       <div className="notices">
         <div className="notices__head">
-          <p className="notices__support">
-            참가자와 운영진에게 보이는 공지예요. 고정 {pinnedCount}/3
-          </p>
+          {/* Only the pinned count; who sees a notice is chosen per notice (#495). */}
+          <p className="notices__support">고정 {pinnedCount}/3</p>
           {access.canWrite ? (
             <Button type="button" variant="primary" size={40} onClick={() => navigate(noticesHref(eventId, "new"))}>
               공지 쓰기
