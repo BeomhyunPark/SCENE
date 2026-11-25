@@ -159,7 +159,9 @@ describe("task suggestions", () => {
     });
     await openPanel();
     expect(await screen.findByText("추천을 불러오지 못했어요 · 직접 추가해 주세요")).toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: "업무 제목" })).toBeInTheDocument();
+    // Manual entry stays one press away: "+ 업무 추가" opens the create drawer (#493).
+    fireEvent.click(screen.getByRole("button", { name: "업무 추가" }));
+    expect(screen.getByRole("textbox", { name: "업무명" })).toBeInTheDocument();
   });
 
   it("shows the failure copy when the suggester times out", async () => {

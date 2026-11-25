@@ -1,0 +1,100 @@
+/* 새 업무 만들기 서랍 (#493, Figma P07-D02 264:26467). 바깥 틀·덮개·아래 버튼 줄은 OperationDrawer와 같다. */
+.task-create__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 72px;
+  padding: 0 20px 0 24px;
+  border-bottom: 1px solid var(--color-border-default);
+}
+
+.task-create__title {
+  margin: 0;
+  color: var(--color-text-primary);
+  font: var(--scene-heading-m);
+}
+
+.task-create__close {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--color-text-secondary);
+}
+
+.task-create__form {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.task-create__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  padding: 16px 24px 24px;
+}
+
+.task-create__pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.task-create__field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+
+.task-create__field label {
+  color: var(--color-text-primary);
+  font: var(--scene-body-s-strong);
+}
+
+.task-create__field input,
+.task-create__field select {
+  box-sizing: border-box;
+  width: 100%;
+  height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border-control);
+  border-radius: 8px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font: var(--scene-body-m);
+}
+
+.task-create__field input::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+.task-create__field input:focus-visible,
+.task-create__field select:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 1px;
+}
+
+.task-create__error {
+  margin: 0;
+  color: var(--color-danger-fg, var(--color-text-primary));
+  font: var(--scene-body-s);
+}
+
+@media (max-width: 640px) {
+  .task-create__head {
+    min-height: 56px;
+    padding: 0 8px 0 16px;
+  }
+
+  .task-create__body {
+    padding: 16px;
+  }
+}
