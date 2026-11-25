@@ -19,6 +19,7 @@ import { Button } from "./Button";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { formatSubmittedAt } from "./eventFormat";
 import { PinReset } from "./PinReset";
+import { Select } from "./Select";
 import { WithdrawApplication } from "./ApplicationWithdraw";
 import { statusChangeBlocked } from "./applicationStatus";
 import "./OperationDrawer.css";
@@ -266,25 +267,24 @@ export function OperationDrawer({
               <label className="operation-drawer__label" htmlFor={groupId}>
                 조 배정
               </label>
-              <select
+              <Select
                 id={groupId}
                 className="operation-drawer__control"
                 value={targetGroup}
                 disabled={Boolean(groupBlocked) || busy}
                 aria-describedby={`${groupId}-note`}
-                onChange={(event) => {
-                  setGroupDraft(event.target.value);
+                options={[
+                  { value: UNASSIGNED, label: "미배정" },
+                  ...groups.map((group) => ({
+                    value: group.groupId,
+                    label: `${group.name}${row.group?.groupId === group.groupId && row.group.leader ? " · 조장" : ""}`,
+                  })),
+                ]}
+                onChange={(value) => {
+                  setGroupDraft(value);
                   setSaved(false);
                 }}
-              >
-                <option value={UNASSIGNED}>미배정</option>
-                {groups.map((group) => (
-                  <option key={group.groupId} value={group.groupId}>
-                    {group.name}
-                    {row.group?.groupId === group.groupId && row.group.leader ? " · 조장" : ""}
-                  </option>
-                ))}
-              </select>
+              />
               <p id={`${groupId}-note`} className="operation-drawer__hint">
                 {groupBlocked ?? "조 편성의 작업본이 바뀌어요. 참가자에게는 조 편성에서 공개해야 보여요."}
               </p>

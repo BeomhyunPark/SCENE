@@ -3,11 +3,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router";
 import arrowLeft from "../assets/event-create/arrow-left.svg";
 import calendar from "../assets/event-create/calendar.svg";
-import caret from "../assets/event-nav/caret.svg";
 import { createEvent, type EventType } from "../api/events";
 import { EVENT_TYPE_OPTIONS } from "../api/eventTypes";
 import { isApiError } from "../api/errors";
 import { queryKeys } from "../api/queryKeys";
+import { Select } from "./Select";
 import { mayCreateEvents } from "../api/spaces";
 import { useCurrentSpace } from "../api/useCurrentSpace";
 import { Button } from "./Button";
@@ -199,20 +199,13 @@ export function EventCreate() {
               행사 유형 (선택)
             </label>
             <span className="event-create__control">
-              <select
+              <Select
                 id="event-kind"
                 className={kind === "" ? "event-create__select event-create__select--empty" : "event-create__select"}
                 value={kind}
-                onChange={(event) => setKind(event.target.value)}
-              >
-                <option value="">선택하지 않음</option>
-                {EVENT_TYPE_OPTIONS.map((type) => (
-                  <option key={type.value} value={type.value}>
-                    {type.label}
-                  </option>
-                ))}
-              </select>
-              <img src={caret} alt="" aria-hidden="true" />
+                options={[{ value: "", label: "선택하지 않음" }, ...EVENT_TYPE_OPTIONS.map((type) => ({ value: type.value, label: type.label }))]}
+                onChange={setKind}
+              />
             </span>
             {fieldError === "eventType" ? (
               <p className="event-create__error" role="alert">
