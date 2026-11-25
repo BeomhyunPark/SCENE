@@ -27,7 +27,7 @@ type Content = {
   slotId: string | null;
   sortOrder: number;
 };
-type Item = Content & { itemId: string; version: number; updatedAt: string; updatedBy: string };
+type Item = Content & { itemId: string; version: number; updatedAt: string; updatedBy: string; autoFilled?: boolean };
 type Change = { kind: "ADDED" | "CHANGED"; changedAt: string; fields: string[]; previous: Record<string, unknown> | null };
 type SnapItem = Content & { itemId: string; change: Change | null };
 type Removed = { itemId: string; day: number; title: string; startTime: string; audience: Audience; removedAt: string };
@@ -42,9 +42,69 @@ const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
 let boards = new Map<string, Board>();
+/** Slots whose item the operator deleted or unlinked (DEC-090 §4). */
+let dismissed = new Map<string, Set<string>>();
 
 export function resetScheduleStore(): void {
   boards = new Map();
+  dismissed = new Map();
+}
+
+function dismissedOf(eventId: string): Set<string> {
+  let set = dismissed.get(eventId);
+  if (!set) dismissed.set(eventId, (set = new Set()));
+  return set;
+}
+
+const SLOT_STARTS: Record<string, string> = { BREAKFAST: "08:00", LUNCH: "12:00", DINNER: "18:00", WORSHIP: "19:30" };
+
+/**
+ * DEC-090 (the server's ScheduleSlotFill): one working-copy item per 식사·집회 칸 no item holds and the
+ * operator did not take off. The mock form-setup save calls it, and `POST …/schedule/slot-items`
+ * ("식사·집회 다시 넣기") calls it with `refill` after forgetting the dismissed slots. Returns the count added.
+ */
+export function fillScheduleSlots(eventId: string, actorId: string, refill = false): number {
+  const slots = boardSlotsOf(eventId);
+  const days = daysOf(eventId).length;
+  if (!slots || days === 0) return 0;
+  if (refill) dismissedOf(eventId).clear();
+  const board = boardOf(eventId);
+  let added = 0;
+  for (const slot of slots) {
+    if (slot.day > days || dismissedOf(eventId).has(slot.slotId) || board.items.some((item) => item.slotId === slot.slotId)) continue;
+    if (board.items.length >= 300) break;
+    const startTime = SLOT_STARTS[slot.meal] ?? "12:00";
+    board.items.push({
+      day: slot.day,
+      startTime,
+      endTime: null,
+      title: slot.label,
+      place: null,
+      description: null,
+      category: slot.meal === "WORSHIP" ? "WORSHIP" : "MEAL",
+      audience: "ALL",
+      slotId: slot.slotId,
+      sortOrder: nextSort(board, slot.day, startTime),
+      itemId: crypto.randomUUID(),
+      version: 1,
+      updatedAt: new Date().toISOString(),
+      updatedBy: actorId,
+      autoFilled: true,
+    });
+    added += 1;
+  }
+  if (added > 0) board.version += 1;
+  return added;
+}
+
+export function refillScheduleSlots(eventId: string, actorId: string) {
+  const gate = writeGate(eventId, actorId);
+  if (gate) return gate;
+  const state = stateGate(eventId);
+  if (state) return state;
+  if (daysOf(eventId).length === 0) return { status: 409, code: "CONFLICT", reason: "EVENT_PERIOD_REQUIRED" };
+  const added = fillScheduleSlots(eventId, actorId, true);
+  return { status: 200, body: { added, boardVersion: boardOf(eventId).version } };
 }
 
 function boardOf(eventId: string): Board {
@@ -202,6 +262,8 @@ function operatorItem(eventId: string, board: Board, item: Item) {
     updatedByDisplayName: displayName(item.updatedBy),
     publishState: !published ? "ADDED" : sameContent(published, item) ? "UNCHANGED" : "CHANGED",
     outOfPeriod: outOfPeriod(eventId, item.day),
+    autoFilled: item.autoFilled === true,
+    slotRemoved: item.slotId !== null && !(boardSlotsOf(eventId) ?? []).some((slot) => slot.slotId === item.slotId),
   };
 }
 
@@ -442,6 +504,7 @@ export function createScheduleItem(eventId: string, actorId: string, body: unkno
     };
     target.items.push(item);
     target.version += 1;
+    if (item.slotId) dismissedOf(eventId).delete(item.slotId);
     return item;
   }, 201);
 }
@@ -472,6 +535,10 @@ export function updateScheduleItem(eventId: string, itemId: string, actorId: str
   return withPublish(eventId, actorId, flags, itemId, () => {
     const target = boardOf(eventId).items.find((item) => item.itemId === itemId)!;
     if (sameContent(target, content)) return target;
+    if (target.slotId !== content.slotId) {
+      if (target.slotId) dismissedOf(eventId).add(target.slotId);
+      if (content.slotId) dismissedOf(eventId).delete(content.slotId);
+    }
     Object.assign(target, content);
     target.version += 1;
     target.updatedAt = new Date().toISOString();
@@ -499,6 +566,7 @@ export function deleteScheduleItem(eventId: string, itemId: string, actorId: str
     const target = boardOf(eventId);
     target.items = target.items.filter((item) => item.itemId !== itemId);
     target.version += 1;
+    if (found.slotId) dismissedOf(eventId).add(found.slotId);
     return null;
   });
   if ("body" in result) {
