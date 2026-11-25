@@ -79,44 +79,6 @@
   font: var(--scene-body-s);
 }
 
-.meals__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.meals__actions > * {
-  flex: 1 1 160px;
-}
-
-.meals__copied {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px 16px;
-  border-radius: 8px;
-  background: var(--color-bg-subtle);
-  font: var(--scene-body-s);
-}
-
-.meals__copied--error {
-  background: var(--color-danger-bg);
-  color: var(--color-danger-fg);
-}
-
-.meals__manual {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 8px;
-  border: 1px solid var(--color-border-control);
-  border-radius: 6px;
-  background: var(--color-bg-surface);
-  color: var(--color-text-primary);
-  font: var(--scene-body-s);
-  resize: vertical;
-}
-
 .meals__unknown {
   padding: 12px 16px;
   border-radius: 8px;

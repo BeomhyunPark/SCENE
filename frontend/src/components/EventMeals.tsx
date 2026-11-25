@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router";
 import arrowLeft from "../assets/event-create/arrow-left.svg";
@@ -11,14 +10,13 @@ import { Button } from "./Button";
 import { EventScreen } from "./EventScreen";
 import { readEventAreas } from "./eventLocalState";
 import { fieldRefresh } from "./fieldRefresh";
-import { kitchenText, mealLines, remainingLines, type MealLine } from "./mealCountText";
 import { OperatorShell } from "./OperatorShell";
 import "./EventHome.css";
 import "./EventMeals.css";
 
 /**
  * 식수 현황 (#454, DEC-089): per meal, 예정 (신청 기준) next to 도착 반영 (도착 + 올 예정), with the next meal on
- * top and its numbers ready to copy for the kitchen. Nobody is counted at a meal (로드맵 결정 1): the numbers come
+ * top. Copying for the kitchen was taken out by the user (2026-11-25); the operator reads the numbers here. Nobody is counted at a meal (로드맵 결정 1): the numbers come
  * from the application answers and the arrival check-ins. Read again every 10 seconds while the page is visible,
  * like 현장 운영 (#408). No dedicated Figma frame; it follows the 신청 집계 cards. Copy is a draft.
  */
@@ -26,8 +24,6 @@ export function EventMeals() {
   const { eventId = "" } = useParams();
   return <EventScreen eventId={eventId}>{(event, spaceName) => <MealsBody event={event} spaceName={spaceName} />}</EventScreen>;
 }
-
-type Copied = { tone: "success" | "error"; text: string; manual?: string } | null;
 
 function MealsBody({ event, spaceName }: { event: EventDetail; spaceName?: string }) {
   const eventId = event.eventId;
@@ -38,19 +34,6 @@ function MealsBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
     refetchInterval: fieldRefresh.intervalMs,
   });
   const { refetch: readAgain } = counts;
-  const [copied, setCopied] = useState<Copied>(null);
-
-  async function copy(lines: MealLine[], what: string) {
-    if (!counts.data) return;
-    const text = kitchenText(event.name, counts.data, lines);
-    try {
-      if (!navigator.clipboard) throw new Error("no clipboard");
-      await navigator.clipboard.writeText(text);
-      setCopied({ tone: "success", text: `${what}를 복사했어요. 주방 연락처에 붙여 넣어 주세요.` });
-    } catch {
-      setCopied({ tone: "error", text: "복사하지 못했어요. 아래 글을 길게 눌러 복사해 주세요.", manual: text });
-    }
-  }
 
   return (
     <OperatorShell
@@ -90,13 +73,7 @@ function MealsBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
           )
         ) : null}
         {counts.data ? (
-          <MealsContent
-            eventId={eventId}
-            data={counts.data}
-            copied={copied}
-            onCopyNext={(line) => void copy([line], "다음 식사")}
-            onCopyRest={(lines) => void copy(lines, "남은 식사")}
-          />
+          <MealsContent eventId={eventId} data={counts.data} />
         ) : null}
         {counts.data ? (
           <div className="meals__refresh" role="status">
@@ -119,19 +96,7 @@ function MealsBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
   );
 }
 
-function MealsContent({
-  eventId,
-  data,
-  copied,
-  onCopyNext,
-  onCopyRest,
-}: {
-  eventId: string;
-  data: MealCounts;
-  copied: Copied;
-  onCopyNext: (line: MealLine) => void;
-  onCopyRest: (lines: MealLine[]) => void;
-}) {
+function MealsContent({ eventId, data }: { eventId: string; data: MealCounts }) {
   if (data.days.length === 0) {
     return (
       <section className="meals__notice">
@@ -143,9 +108,9 @@ function MealsContent({
       </section>
     );
   }
-  const lines = mealLines(data);
-  const next = lines.find((line) => line.slot.slotId === data.nextSlotId) ?? null;
-  const rest = remainingLines(data);
+  const next =
+    data.days.flatMap((day) => day.slots.map((slot) => ({ dayLabel: day.label, slot }))).find((line) => line.slot.slotId === data.nextSlotId) ??
+    null;
   return (
     <>
       {next ? (
@@ -159,16 +124,6 @@ function MealsContent({
             <strong>{count(next.slot.reflected)}명</strong>
           </p>
           <Breakdown slot={next.slot} />
-          <div className="meals__actions">
-            <Button type="button" variant="primary" size={48} onClick={() => onCopyNext(next)}>
-              다음 식사 복사
-            </Button>
-            {rest.length > 1 ? (
-              <Button type="button" variant="secondary" size={48} onClick={() => onCopyRest(rest)}>
-                남은 식사 복사
-              </Button>
-            ) : null}
-          </div>
         </section>
       ) : (
         <section className="meals__notice" role="status">
@@ -176,14 +131,6 @@ function MealsContent({
           <p>모든 식사 시각이 지났어요. 아래 표에서 식사마다 숫자를 볼 수 있어요.</p>
         </section>
       )}
-      {copied ? (
-        <div className={`meals__copied meals__copied--${copied.tone}`} role={copied.tone === "error" ? "alert" : "status"}>
-          <p>{copied.text}</p>
-          {copied.manual ? (
-            <textarea className="meals__manual" readOnly rows={Math.min(8, copied.manual.split("\n").length)} value={copied.manual} aria-label="복사할 글" />
-          ) : null}
-        </div>
-      ) : null}
       {data.unknown.count > 0 ? (
         <p className="meals__unknown" role="note">
           어느 식사인지 모르는 신청 {count(data.unknown.count)}명(그중 도착 {count(data.unknown.arrived)}명)은 어느 식사에도 세지

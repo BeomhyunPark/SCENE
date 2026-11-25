@@ -72,46 +72,8 @@ describe("식수 현황 screen", () => {
     expect(lunch.getByText("예정 3 · 도착 1 · 올 예정 1 · 아직 안 옴 1")).toBeInTheDocument();
     // Worship slots are not meals.
     expect(screen.queryByRole("listitem", { name: /집회/ })).not.toBeInTheDocument();
-  });
-
-  it("copies the next meal and the remaining meals for the kitchen", async () => {
-    seedThree();
-    setMealCountsNow(new Date("2027-01-22T19:10:00+09:00"));
-    const writeText = vi.fn().mockResolvedValue(undefined);
-    vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
-    await login({ userId: OWNER });
-    openMeals();
-
-    fireEvent.click(await screen.findByRole("button", { name: "다음 식사 복사" }));
-    expect(await screen.findByText("다음 식사를 복사했어요. 주방 연락처에 붙여 넣어 주세요.")).toBeInTheDocument();
-    expect(writeText).toHaveBeenLastCalledWith(
-      "[겨울 수련회] 식수 (1/22 19:10 기준)\n1월 23일 (토) 아침 1명 (신청 2명, 아직 안 온 1명 제외)",
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "남은 식사 복사" }));
-    const text = String(writeText.mock.lastCall?.[0]);
-    expect(text.split("\n")).toEqual([
-      "[겨울 수련회] 식수 (1/22 19:10 기준)",
-      "1월 23일 (토) 아침 1명 (신청 2명, 아직 안 온 1명 제외)",
-      "1월 23일 (토) 점심 2명 (신청 3명, 아직 안 온 1명 제외)",
-      "1월 23일 (토) 저녁 2명 (신청 3명, 아직 안 온 1명 제외)",
-      "1월 24일 (일) 아침 1명 (신청 2명, 아직 안 온 1명 제외)",
-      "1월 24일 (일) 점심 1명 (신청 2명, 아직 안 온 1명 제외)",
-    ]);
-  });
-
-  it("shows the text to copy by hand when the clipboard is not there", async () => {
-    seedThree();
-    setMealCountsNow(new Date("2027-01-20T09:00:00+09:00"));
-    vi.stubGlobal("navigator", { ...navigator, clipboard: undefined });
-    await login({ userId: OWNER });
-    openMeals();
-
-    fireEvent.click(await screen.findByRole("button", { name: "다음 식사 복사" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("복사하지 못했어요");
-    expect(screen.getByRole("textbox", { name: "복사할 글" })).toHaveValue(
-      "[겨울 수련회] 식수 (1/20 09:00 기준)\n1월 22일 (금) 저녁 2명",
-    );
+    // Copying for the kitchen was taken out (2026-11-25).
+    expect(screen.queryByRole("button", { name: /복사/ })).not.toBeInTheDocument();
   });
 
   it("uses the schedule time and reflects an edit and a withdrawal on refresh", async () => {
