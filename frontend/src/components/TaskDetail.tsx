@@ -25,6 +25,7 @@ import { markEventArea, readEventAreas } from "./eventLocalState";
 import { OperatorShell } from "./OperatorShell";
 import { OperatorStatus } from "./RequireOperator";
 import { blockedCopy, taskFieldCopy, taskStatusLabel } from "./taskCopy";
+import { periodText } from "./taskMonth";
 import "./TaskDetail.css";
 
 export function TaskDetail() {
@@ -72,6 +73,16 @@ function Detail({ event, spaceName, taskId }: { event: EventDetail; spaceName?: 
   if (serverTitle !== titleSource) {
     setTitleSource(serverTitle);
     setTitle(serverTitle);
+  }
+  // 기간 (#475): kept as typed until saved, reset when the server's dates change.
+  const serverDates = `${task.data?.startDate ?? ""}|${task.data?.dueDate ?? ""}`;
+  const [datesSource, setDatesSource] = useState(serverDates);
+  const [startDate, setStartDate] = useState(task.data?.startDate ?? "");
+  const [dueDate, setDueDate] = useState(task.data?.dueDate ?? "");
+  if (serverDates !== datesSource) {
+    setDatesSource(serverDates);
+    setStartDate(task.data?.startDate ?? "");
+    setDueDate(task.data?.dueDate ?? "");
   }
 
   function merge(progress: TaskProgress) {
@@ -218,6 +229,30 @@ function Detail({ event, spaceName, taskId }: { event: EventDetail; spaceName?: 
         ) : (
           <h2>{body.title}</h2>
         )}
+        {canWrite ? (
+          <form
+            className="task-detail__dates"
+            aria-label="기간"
+            onSubmit={(form) => {
+              form.preventDefault();
+              void run(() => patchTask(eventId, taskId, { startDate: startDate || null, dueDate: dueDate || null }), "기간을 저장했어요.");
+            }}
+          >
+            <label>
+              시작일 (선택)
+              <input type="date" value={startDate} max={dueDate || undefined} onChange={(change) => setStartDate(change.target.value)} />
+            </label>
+            <label>
+              마감일 (선택)
+              <input type="date" value={dueDate} min={startDate || undefined} onChange={(change) => setDueDate(change.target.value)} />
+            </label>
+            <Button type="submit" variant="secondary" size={40} loading={pending}>
+              기간 저장
+            </Button>
+          </form>
+        ) : body.dueDate ? (
+          <p className="task-detail__period">기간 {periodText(body)}</p>
+        ) : null}
         {field ? <p role="alert">{field}</p> : null}
         <label className="task-detail__assignee">
           담당자

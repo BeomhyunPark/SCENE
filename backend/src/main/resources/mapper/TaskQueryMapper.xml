@@ -5,7 +5,7 @@
 
   <sql id="lockColumns">
     t.id, t.event_id, t.title, t.status, t.version, t.assignee_user_id,
-    t.completed_by_user_id, t.completed_at, e.lifecycle_status
+    t.completed_by_user_id, t.completed_at, e.lifecycle_status, t.start_date, t.due_date
   </sql>
 
   <select id="find" resultType="app.scene.event.task.TaskRow">
@@ -33,7 +33,8 @@
     SELECT t.id AS task_id, t.title, t.status, t.version, t.assignee_user_id,
            u.display_name AS assignee_display_name,
            (count(i.id) FILTER (WHERE i.checked))::int AS done,
-           count(i.id)::int AS total
+           count(i.id)::int AS total,
+           t.start_date, t.due_date
     FROM tasks t
     LEFT JOIN users u ON u.id = t.assignee_user_id
     LEFT JOIN task_checklist_items i

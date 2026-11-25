@@ -27,6 +27,8 @@ type TaskRow = {
   completedByDisplayName: string | null;
   completedAt: string | null;
   items: ItemRow[];
+  startDate?: string | null;
+  dueDate?: string | null;
 };
 
 export type TaskFailure = {
@@ -160,7 +162,10 @@ export function createTask(
     }
     assignee = body.assigneeUserId;
   }
+  const dates = readDates(body, { startDate: null, dueDate: null });
+  if ("field" in dates) return field(dates.field);
   const task: TaskRow = {
+    ...dates,
     eventId,
     taskId: crypto.randomUUID(),
     title,
@@ -207,6 +212,13 @@ export function patchTask(
     } else {
       return field("assigneeUserId");
     }
+  }
+  if ("startDate" in body || "dueDate" in body) {
+    // Like the title: a date-only change keeps the version (#475).
+    const dates = readDates(body, { startDate: task.startDate ?? null, dueDate: task.dueDate ?? null });
+    if ("field" in dates) return field(dates.field);
+    task.startDate = dates.startDate;
+    task.dueDate = dates.dueDate;
   }
   if ("status" in body) {
     if (body.status !== "CANCELLED") return field("status");
@@ -582,7 +594,27 @@ function toProgress(task: TaskRow, actorId: string, outcome: TaskOutcome): TaskP
 }
 
 function toDetail(task: TaskRow, actorId: string, outcome: TaskOutcome): TaskDetail {
-  return { ...toProgress(task, actorId, outcome), title: task.title };
+  return { ...toProgress(task, actorId, outcome), title: task.title, startDate: task.startDate ?? null, dueDate: task.dueDate ?? null };
+}
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** startDate/dueDate as the server reads them (#475): present null clears; a start needs a due on or after it. */
+function readDates(
+  body: Record<string, unknown>,
+  current: { startDate: string | null; dueDate: string | null },
+): { startDate: string | null; dueDate: string | null } | { field: string } {
+  const next = { ...current };
+  for (const key of ["startDate", "dueDate"] as const) {
+    if (!(key in body)) continue;
+    const value = body[key];
+    if (value === null) next[key] = null;
+    else if (typeof value === "string" && ISO_DATE.test(value) && !Number.isNaN(Date.parse(`${value}T00:00:00Z`))) next[key] = value;
+    else return { field: key };
+  }
+  // The server names dueDate for both (TaskCommandService.requireDateRange).
+  if (next.startDate !== null && (next.dueDate === null || next.startDate > next.dueDate)) return { field: "dueDate" };
+  return next;
 }
 
 function toListItem(task: TaskRow): TaskListItem {
@@ -595,6 +627,8 @@ function toListItem(task: TaskRow): TaskListItem {
     assigneeDisplayName: display(task.eventId, task.assigneeUserId),
     checklist: counts,
     version: task.version,
+    startDate: task.startDate ?? null,
+    dueDate: task.dueDate ?? null,
   };
 }
 

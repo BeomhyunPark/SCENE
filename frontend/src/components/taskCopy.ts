@@ -21,4 +21,6 @@ export const taskFieldCopy: Record<string, string> = {
   assigneeUserId: "담당자를 확인해 주세요.",
   version: "버전을 확인해 주세요.",
   reason: "사유를 확인해 주세요.",
+  startDate: "시작일을 확인해 주세요.",
+  dueDate: "마감일을 확인해 주세요. 시작일이 있으면 마감일도 있어야 하고, 시작일과 같거나 뒤여야 해요.",
 };

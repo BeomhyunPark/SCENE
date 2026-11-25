@@ -12,6 +12,8 @@ import app.scene.event.lifecycle.OperatorActor;
 import app.scene.identity.OperatorAccountRepository;
 import app.scene.space.EventUserPermissionRepository;
 import app.scene.space.EventUserRepository;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -80,7 +82,9 @@ public class OperatorTaskCommandService {
               row.assigneeUserId(),
               row.assigneeDisplayName(),
               new TaskListItem.Checklist(row.done(), row.total()),
-              row.version()));
+              row.version(),
+              row.startDate(),
+              row.dueDate()));
     }
     return ItemPage.of(items, request, total);
   }
@@ -101,6 +105,7 @@ public class OperatorTaskCommandService {
     EventAccessGate.Opened opened = gate.open(actorId, eventId);
     requireTaskWrite(opened, actorId);
     ParsedCreate parsed = parseCreate(body);
+    TaskCommandService.requireDateRange(parsed.startDate(), parsed.dueDate());
     UUID spaceId = opened.location().spaceId();
     if (parsed.assigneeUserId() != null) {
       requireAssignee(spaceId, eventId, parsed.assigneeUserId());
@@ -108,7 +113,15 @@ public class OperatorTaskCommandService {
     OperatorActor actor = gate.actor(actorId, opened);
     UUID taskId;
     try {
-      taskId = commands.create(spaceId, eventId, parsed.title(), parsed.assigneeUserId(), actor);
+      taskId =
+          commands.create(
+              spaceId,
+              eventId,
+              parsed.title(),
+              parsed.assigneeUserId(),
+              parsed.startDate(),
+              parsed.dueDate(),
+              actor);
     } catch (SceneException exception) {
       throw attachTask(exception, spaceId, eventId, null, actor);
     } catch (DataIntegrityViolationException exception) {
@@ -252,7 +265,9 @@ public class OperatorTaskCommandService {
             displayName(task.completedByUserId()),
             task.completedAt(),
             actions(task, checklist, canWrite),
-            null);
+            null,
+            task.startDate(),
+            task.dueDate());
     return Optional.of(new CommandView(response, task.lifecycleStatus()));
   }
 
@@ -386,10 +401,23 @@ public class OperatorTaskCommandService {
     if (assigneeNode != null && !assigneeNode.isNull()) {
       assignee = uuid(assigneeNode, "assigneeUserId");
     }
-    return new ParsedCreate(title, assignee);
+    LocalDate startDate = null;
+    JsonNode startNode = body.get("startDate");
+    if (startNode != null && !startNode.isNull()) {
+      startDate = date(startNode, "startDate");
+    }
+    LocalDate dueDate = null;
+    JsonNode dueNode = body.get("dueDate");
+    if (dueNode != null && !dueNode.isNull()) {
+      dueDate = date(dueNode, "dueDate");
+    }
+    return new ParsedCreate(title, assignee, startDate, dueDate);
   }
 
-  /** First failing field wins: title, assignee, then status. {@code version} is ignored. */
+  /**
+   * First failing field wins: title, assignee, status, startDate, then dueDate. {@code version} is
+   * ignored. The date range is checked after merging with the stored row.
+   */
   private static TaskPatch parsePatch(JsonNode body) {
     if (body == null || !body.isObject()) {
       throw new SceneException(ErrorCode.VALIDATION_FAILED);
@@ -428,7 +456,35 @@ public class OperatorTaskCommandService {
       }
       status = CANCELLED;
     }
-    return new TaskPatch(titlePresent, title, assigneePresent, assignee, statusPresent, status);
+    boolean startPresent = false;
+    LocalDate startDate = null;
+    JsonNode startNode = body.get("startDate");
+    if (startNode != null) {
+      startPresent = true;
+      if (!startNode.isNull()) {
+        startDate = date(startNode, "startDate");
+      }
+    }
+    boolean duePresent = false;
+    LocalDate dueDate = null;
+    JsonNode dueNode = body.get("dueDate");
+    if (dueNode != null) {
+      duePresent = true;
+      if (!dueNode.isNull()) {
+        dueDate = date(dueNode, "dueDate");
+      }
+    }
+    return new TaskPatch(
+        titlePresent,
+        title,
+        assigneePresent,
+        assignee,
+        statusPresent,
+        status,
+        startPresent,
+        startDate,
+        duePresent,
+        dueDate);
   }
 
   private static UUID uuid(JsonNode node, String name) {
@@ -438,6 +494,18 @@ public class OperatorTaskCommandService {
     try {
       return UUID.fromString(node.asString());
     } catch (IllegalArgumentException exception) {
+      throw field(name);
+    }
+  }
+
+  /** An ISO {@code YYYY-MM-DD} string. Anything else fails on that field. */
+  private static LocalDate date(JsonNode node, String name) {
+    if (!node.isString()) {
+      throw field(name);
+    }
+    try {
+      return LocalDate.parse(node.asString());
+    } catch (DateTimeParseException exception) {
       throw field(name);
     }
   }
@@ -455,7 +523,8 @@ public class OperatorTaskCommandService {
     return exception;
   }
 
-  private record ParsedCreate(String title, UUID assigneeUserId) {}
+  private record ParsedCreate(
+      String title, UUID assigneeUserId, LocalDate startDate, LocalDate dueDate) {}
 
   private record CommandView(TaskCommandResponse response, String lifecycleStatus) {}
 }
