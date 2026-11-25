@@ -8,15 +8,13 @@ import {
   deleteRoom,
   publishRooms,
   readRoomBoard,
-  readSettings,
   reorderRooms,
   updateRoom,
-  writeSettings,
   type RoomFailure,
 } from "../roomBoardStore";
 import { currentOperator } from "./session";
 
-/** Shaped like RoomController (G2 #457) for the operator room screen (G3 #458) and 다시 볼 것 (A11 #461), plus 참가자 설정. */
+/** Shaped like RoomController (G2 #457) for the operator room screen (G3 #458) and 다시 볼 것 (A11 #461) (참가자 설정 is served by groups.ts through participantSettingsStore). */
 const base = "/api/v1/operator/events/:eventId";
 
 type Handler = (eventId: string, actorId: string, request: Request, params: Record<string, string | readonly string[] | undefined>) => Promise<object> | object;
@@ -54,8 +52,6 @@ export const roomBoardHandlers = [
   ),
   http.post(`${base}/room-assignments/review`, write(async (eventId, actorId, request) => confirmReview(eventId, actorId, await readJson(request)))),
   http.post(`${base}/room-assignments`, write(async (eventId, actorId, request) => assignRooms(eventId, actorId, await readJson(request)))),
-  http.get(`${base}/participant-settings`, read((eventId, actorId) => readSettings(eventId, actorId))),
-  http.put(`${base}/participant-settings`, write(async (eventId, actorId, request) => writeSettings(eventId, actorId, await readJson(request)))),
 ];
 
 function reply(result: object, status = 200): Response {

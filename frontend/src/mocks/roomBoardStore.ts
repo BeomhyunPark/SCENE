@@ -66,12 +66,10 @@ const GENDER_LABELS: Record<string, string> = { opt_male: "ë‚¨", opt_female: "ì—
 let boards = new Map<string, Board>();
 /** A4 edits after assignment (test and click seam): nights and gender that override the answers. */
 let edits = new Map<string, { lodgingNights?: number[] | null; gender?: { optionId: string; label: string } | null; slotIds?: string[] | null }>();
-let settings = new Map<string, { groupRosterVisibleToMembers: boolean; roomRosterScope: string; version: number; updatedAt: string | null; updatedBy: string | null }>();
 
 export function resetRoomBoardStore(): void {
   boards = new Map();
   edits = new Map();
-  settings = new Map();
 }
 resetRoomBoardStore();
 
@@ -431,50 +429,6 @@ export function publishRooms(eventId: string, actorId: string, body: unknown, no
     changedParticipantCount: diff.people,
     roomsWithWarnings: warned,
     notifiedCount: notified,
-  };
-}
-
-export function readSettings(eventId: string, actorId: string) {
-  if (!eventById(eventId)) return { status: 404, code: "RESOURCE_NOT_FOUND" };
-  if (!hasPermission(eventId, actorId, "EVENT_READ") && !spaceAdmin(eventId, actorId)) return { status: 403, code: "FORBIDDEN" };
-  return settingsBody(eventId);
-}
-
-export function writeSettings(eventId: string, actorId: string, body: unknown) {
-  if (!eventById(eventId)) return { status: 404, code: "RESOURCE_NOT_FOUND" };
-  if (!hasPermission(eventId, actorId, "EVENT_UPDATE")) return { status: 403, code: "FORBIDDEN" };
-  const record = isRecord(body) ? body : {};
-  const hasGroup = "groupRosterVisibleToMembers" in record;
-  const hasScope = "roomRosterScope" in record;
-  if (!hasGroup && !hasScope) return field("groupRosterVisibleToMembers");
-  if (hasGroup && typeof record.groupRosterVisibleToMembers !== "boolean") return field("groupRosterVisibleToMembers");
-  if (hasScope && !["ALL", "ROOMMATES", "MY_ROOM"].includes(record.roomRosterScope as string)) return field("roomRosterScope");
-  if (!isCount(record.expectedVersion)) return field("expectedVersion");
-  if (eventById(eventId)!.lifecycleStatus === "ARCHIVED") return { status: 409, code: "EVENT_ARCHIVED" };
-  const current = settingsOf(eventId);
-  if (current.version !== record.expectedVersion) return { status: 409, code: "CONCURRENT_MODIFICATION", version: current.version };
-  const next = {
-    groupRosterVisibleToMembers: hasGroup ? (record.groupRosterVisibleToMembers as boolean) : current.groupRosterVisibleToMembers,
-    roomRosterScope: hasScope ? (record.roomRosterScope as string) : current.roomRosterScope,
-  };
-  if (next.groupRosterVisibleToMembers !== current.groupRosterVisibleToMembers || next.roomRosterScope !== current.roomRosterScope) {
-    settings.set(eventId, { ...next, version: current.version + 1, updatedAt: new Date().toISOString(), updatedBy: actorId });
-  }
-  return settingsBody(eventId);
-}
-
-function settingsOf(eventId: string) {
-  return settings.get(eventId) ?? { groupRosterVisibleToMembers: true, roomRosterScope: "ALL", version: 0, updatedAt: null, updatedBy: null };
-}
-
-function settingsBody(eventId: string) {
-  const current = settingsOf(eventId);
-  return {
-    groupRosterVisibleToMembers: current.groupRosterVisibleToMembers,
-    roomRosterScope: current.roomRosterScope,
-    version: current.version,
-    updatedAt: current.updatedAt,
-    updatedByDisplayName: current.updatedBy ? displayName(current.updatedBy) : null,
   };
 }
 
