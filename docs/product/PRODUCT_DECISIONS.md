@@ -3252,7 +3252,7 @@ B2 서버를 만들며 계약 초안과 다르게 정하거나 초안이 열어 
 B3·B4 화면(하위 세션)을 만들며 정하거나 덧붙인 점이다. 경로 계약은 위 #423 Follow-up과 api.md를 따른다.
 
 - **완료 안내 모양:** 위 #423 1번대로 `completionNotice` 문자열만 읽는다(`api/participantHome.ts`의 `completionText` 한곳).
-- **다음 식사 카드는 없다.** 위 "식사 순서 보류" Follow-up대로다. 화면은 `features.mealOrder`와 `updates.mealOrder`를 서버가 보내도 무시한다. 숙소 카드는 빈 상태("숙소가 정해지면 여기에 보여요", room-contract §10.1)로 남고, `updates.rooms`가 바뀌면 조장 화면의 방 때문에 `group`도 다시 읽는다(§10.2).
+- **다음 식사 카드는 없다.** 위 "식사 순서 보류" Follow-up대로다. 화면은 `features.mealOrder`와 `updates.mealOrder`를 서버가 보내도 무시한다. 숙소 카드는 빈 상태("숙소가 정해지면 여기에 보여요", 그때의 숙소 계약 §10.1, 지금은 [참가자 홈 계약](../architecture/participant-home-contract.md))로 남고, `updates.rooms`가 바뀌면 조장 화면의 방 때문에 `group`도 다시 읽는다(api.md "숙소").
 - **세션이 끊긴 뒤:** 카드나 `updates`가 `401`(또는 `403 PARTICIPANT_PIN_CHANGE_REQUIRED`)이면 참가자 읽기를 모두 지우고, 다시 들어올 때까지 들어오기 화면에 머문다. `/participant/me`가 아직 열려 있다고 답해도 홈으로 돌아가지 않는다(카드 `401`과 `me` 성공이 엇갈리면 홈과 들어오기를 끝없이 오가던 문제를 막는다).
 - **포커스 다시 읽기를 뺐다:** 도착 QR·내 조·`home`·`/participant/me`는 창 포커스·재연결로 다시 읽지 않는다. 다시 보일 때의 `updates` 한 번이 그 일을 맡는다(같은 경로를 두 번 부르지 않기). 카드 쿼리는 `staleTime: Infinity`이고 `updates`가 바뀐 키만 무효화한다.
 - **갱신 주기 기본값은 25초다(정함, 조율 세션 검토 2026-11-20).** 사용자 기준이 "공개하고 30초 안에 바뀐다"이고 화면은 ±20%로 부르므로, 30초면 확인 간격이 24–36초가 되어 30초를 넘을 수 있다(로컬 실제 서버 클릭에서 조 공개가 한 번 32.6초 뒤에 보였다). 25초면 20–30초다. 요청은 200명 기준 초당 8건 안팎으로 약 20% 늘고, J6 부하 확인에서 함께 본다. 서버 기본값(`ParticipantProperties`), 화면의 없을 때 값(`DEFAULT_POLL_SECONDS`), mock을 25로 바꿨다. 범위 10–300과 `.env`(`SCENE_PARTICIPANT_POLLAFTERSECONDS`)로 바꾸는 방식은 그대로다. 위 Decision 5와 #423 6번의 "시작 30"은 이 값으로 바뀐다.
@@ -3719,7 +3719,7 @@ DEC-072 §6은 일반 참가자에게 조원 명단을 주지 않고 조장에�
 13. **행사 상태.** `DRAFT`·`ACTIVE`에서 쓰고 공개한다. `ENDED`는 `409 EVENT_ENDED`, `ARCHIVED`는 `409 EVENT_ARCHIVED`. 참가자는 어느 상태에서나 마지막 공개본을 본다. 판정 순서는 조 편성과 같다.
 14. **기록.** 공개마다 audit `ROOMS_PUBLISHED`(개수만). 배정 변경은 `room_assignment_logs`(`MOVE`·`ROOM_DELETED`·`WITHDRAWN`). 이름·전화·답은 audit·이력·로그에 없다. 새 ErrorCode는 없다.
 
-경로·요청·응답·오류·테이블 초안·시험 조건과 DEC-080·083·084 계약에 더하는 것은 [숙소 계약 초안](../architecture/room-contract.md)에 있다.
+경로·요청·응답·오류·테이블·시험 조건은 [api.md "숙소"](../../backend/docs/api.md#숙소)에 있다(G2 #457에서 계약 초안을 옮기고 지웠다. 아래 Follow-up 2026-11-25).
 
 ### 결정 대기 (추천안으로 진행, PR 검토에서 확인)
 
@@ -3769,7 +3769,27 @@ DEC-072 §6은 일반 참가자에게 조원 명단을 주지 않고 조장에�
 - **바뀐 것:** 결정 대기 3을 사용자가 뒤집었다. 원문 "085-3 숙박하지 않는 사람을 방에 넣을 수 있나 → 아니 그냥 허용하지 마라". 숙박하지 않는 사람(`NOT_LODGING`)은 방에 넣지 못한다. 배정 요청에 한 명이라도 있으면 아무것도 저장하지 않고 `409 INVALID_STATE_TRANSITION`, `reason: NOT_LODGING`, `participantIds`다(활성 참가자가 아닌 사람을 넣을 때와 같은 모양, 새 ErrorCode 없음). 미배정으로 빼는 것은 된다. 조 단위 일괄 배정에서도 숙박하지 않는 사람은 포함할 수 없다. `UNKNOWN`(숙박 질문이 없는 행사 포함)은 지금처럼 배정한다.
 - **따라 나온 세부(결정 대기 7, 추천안):** 배정한 뒤 신청을 고쳐 숙박을 뺀 사람은 자동으로 빼지 않는다(DEC-045 유지). 배정판에 "다시 볼 것"과 방 `NOT_LODGING` 경고로 보이고, 공개할 때 미배정처럼 확인을 받는다(`notLodgingAssignedCount`, `confirmNotLodging`). 확인하고 공개하면 공개본 방 명단에 그대로 보인다.
 - **그대로인 것:** 결정 대기 1·2·4·5·6은 추천안대로다.
-- **고친 곳:** 이 절의 Decision 6·7·8과 결정 대기 3·7, [숙소 계약 초안](../architecture/room-contract.md) §3·§4·§5·§7.1·§7.6·§7.8·§8.2·§13·§15, 로드맵 6.1 결정 13. 구현(G2~G5)은 아직 시작하지 않았다. 기록: [#424](https://github.com/BeomhyunPark/SCENE/issues/424), [#383](https://github.com/BeomhyunPark/SCENE/issues/383).
+- **고친 곳:** 이 절의 Decision 6·7·8과 결정 대기 3·7, 숙소 계약 초안(그때의 `docs/architecture/room-contract.md`, 지금은 api.md "숙소") §3·§4·§5·§7.1·§7.6·§7.8·§8.2·§13·§15, 로드맵 6.1 결정 13. 구현(G2~G5)은 아직 시작하지 않았다. 기록: [#424](https://github.com/BeomhyunPark/SCENE/issues/424), [#383](https://github.com/BeomhyunPark/SCENE/issues/383).
+
+### Follow-up 2026-11-25 — G2 서버 구현에서 계약 초안과 다르게 정한 것 (#457)
+
+**Status:** 구현 세션의 판단(추천안). PR 검토에서 사용자가 확인한다. 서버는 작업 브랜치 `claude/g2-room-server`(F2 브랜치 위, V26)에 있고, 계약 내용은 [api.md "숙소"](../../backend/docs/api.md#숙소)로 옮기고 초안(`docs/architecture/room-contract.md`)을 지웠다. 계약 §10의 DEC-080 쪽(홈 숙소 카드·`features.rooms`·`updates.rooms`·`ROOM_PUBLISHED` 받는 사람)은 [참가자 홈 계약](../architecture/participant-home-contract.md)에, DEC-083 쪽(`roomRosterScope`, `leaderView.members[].room`·조원 상세 `room`)은 api.md "조 편성"에 반영했다. 시험 조건 14가지는 통합 테스트 `RoomHttpIT`(13개)이고 `./gradlew check` 전체가 통과했다. 운영 서버 확인과 실제 클릭은 하지 않았다. 화면(G3·G4), 표·CSV·현장 명단의 방(G5), "다시 볼 것"(A11)은 하지 않았다.
+
+1. **"다시 볼 것"(A11)을 위해 배정 행에 근거를 저장한다(읽을 때 다른 것과 비교하지 않는다).** 방에 넣거나 옮길 때마다 `room_assignments.basis`에 `{ genderOptionId(보이는 보기만), lodgingNights, slotIds }`와 `basis_at`을 찍는다. A11은 배정판을 읽을 때 이 값과 지금 값을 비교해 `review.reasons`를 붙이고, "확인"하면 같은 열을 다시 찍는다. 이유: (가) "배정할 때의 값"은 저장하지 않으면 되살리기 어렵다. 신청 revision으로 거꾸로 찾으려면 배정 시각의 revision을 골라 다시 계산해야 하고, 운영자가 고친 값(A12)은 revision 밖에 생긴다(DEC-075 §1). (나) "확인"은 방을 바꾸지 않고 기준점만 옮기는 동작이라 어차피 저장할 자리가 필요하다. (다) 근거 값만 비교하므로 숙소와 상관없는 답(셀 이름 등)을 고쳐도 표시가 붙지 않는다(위 Alternatives). G2의 배정판 `review`는 키만 있고 늘 `null`이며 확인 경로(`POST …/room-assignments/review`)는 A11이 연다. `NOT_LODGING` 경고·`notLodgingAssignedCount`·공개 때 `confirmNotLodging` 확인은 지금 값으로 계산하므로 G2에서 이미 동작한다.
+2. **취소한 본인은 `NOT_ELIGIBLE` 대신 `401`을 받는다.** 신청을 취소하면 세션이 끝나고(DEC-084 §4) 세션은 `SUBMITTED` 신청이 있을 때만 유효해서 숙소 읽기에 닿지 않는다(DEC-083 Follow-up 4와 같다). 시험 조건 7은 `401`로 확인한다. `NOT_ELIGIBLE` 판정은 서비스에 남는다.
+3. **`roomRosterScope`를 바꿔도 숙소 공개본이 없으면 `updates.rooms`를 올리지 않는다.** 공개 전에는 범위와 상관없이 `NOT_PUBLISHED`라 다시 읽을 것이 없고, 올리면 행사 유형이 `RETREAT`·`CAMP`가 아닌 행사에서 `features.rooms`("공개본이 있으면 켬", 계약 §10.1)가 공개 전에 켜진다. 공개본이 있으면 계약대로 오른다.
+4. **가장 최근 공개본에 있던 사람이 신청을 취소하면 `updates.rooms`가 오른다.** 계약 §10.4는 `boardVersion`만 적었다. 같은 방 사람의 명단과 전체 배정표가 바뀌므로 조 편성(`updates.group`)과 같게 했다. 되돌려도 옛 방은 돌아오지 않는다(배정 행이 지워졌고, 공개본을 읽을 때 공개 뒤 취소로 지워진 사람을 뺀다).
+5. **참가자 설정 `PUT`은 바꿀 키만 받는다.** `groupRosterVisibleToMembers`·`roomRosterScope` 중 하나 이상(둘 다 없으면 `400`, 필드 `groupRosterVisibleToMembers`), 넣지 않은 키는 그대로다. audit `fields`는 실제로 바뀐 키만 담고, 갱신 값도 바뀐 쪽만 올린다(조원 명단 → `groups`, 숙소 범위 → `rooms`).
+6. **배정판 `participants[].gender`는 숨긴 보기도 그대로 보인다(편성판과 같다).** 경고와 참가자 응답에서는 숨긴 보기를 "성별 없음"으로 본다(`GENDER_UNKNOWN`, `gender: null`).
+7. **방 만들기 응답도 배정판의 방 객체(`memberCount`·`warnings` 포함)다.** 계약은 만들기 `{ room }`, 고치기만 경고를 담았다. 한 모양으로 두면 화면이 같은 부품으로 그린다.
+8. **알림 문구:** 위치 메모가 없는 방은 본문이 방 이름만이다("301호"). 두 번째 이후 공개에서 처음 방을 받은 사람도 "숙소가 바뀌었어요"다(계약 표의 "배정·이동"). → 결정 대기 8.
+9. **`ALREADY_PUBLISHED` 응답의 `roomsWithWarnings`는 지금 경고가 있는 방 수다**(0이 아니다). `changedParticipantCount`·`notifiedCount`만 0이다.
+10. **배정 판정 순서는 형식(`400`) → 행사 상태(`409`) → 없는 방·참가자(`404`) → 충돌 → 활성 아님 → 숙박 안 함이다.** 계약 §7.6의 순서에 §7.0의 행사 상태를 끼운 것이다.
+11. **G5가 쓸 "공개본 기준 참가자 → 방"은 `PublishedRooms.placements(spaceId, eventId)` 한 함수다.** 조장 보기 `room`이 이미 쓰고, 공개본 한 번 읽기로 행사 전체의 지도를 만든다.
+
+| # | 질문 | 선택지 | 추천안 | 영향 |
+|---|---|---|---|---|
+| 8 | 두 번째 이후 공개에서 처음 방을 받은 사람의 알림 제목 | "숙소가 바뀌었어요"(계약 표 그대로) / "숙소가 정해졌어요" | 계약대로(지금 구현) | 늦게 신청해 처음 방을 받은 사람이 "바뀌었어요"를 본다. 바꾸면 문구 분기 하나와 시험 한 줄이 늘어난다 |
 
 ### Evidence
 

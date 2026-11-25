@@ -31,7 +31,7 @@
 | 최신 공지 | `features.notices` | `notices` | 고정 공지와 최신 공지 최대 2건 |
 | 도착 QR | 늘 | `check-in` | api.md "체크인"의 참가자 QR 그대로 |
 | 내 조 | `features.groups` | `group` | 조 이름·조장 이름. 조장이면 "조원 현황" 바로가기 |
-| 숙소 | `features.rooms` | `rooms`(G1에서 정함) | 방 이름·위치·같은 방 사람. G1 전에는 빈 상태 |
+| 숙소 | `features.rooms` | [`GET /participant/rooms`](../../backend/docs/api.md#get-apiv1participantrooms)(DEC-085, #457) | `ASSIGNED`면 방 이름·위치 메모와 같은 방 사람 이름(나 빼고 최대 5명 + "외 N명", `myRoom.members`가 `null`이면 생략). `rosterScope`가 `ALL`이면 "전체 방 배정표" 버튼(같은 응답의 `rooms`로 그린다). `UNASSIGNED`는 `notLodging`이면 "숙박하지 않는 것으로 신청했어요", 아니면 "숙소를 정하고 있어요". `NOT_PUBLISHED`는 빈 상태 "숙소가 정해지면 여기에 보여요". `NOT_ELIGIBLE`은 카드 없음 |
 | ~~다음 식사~~ | — | — | **1월에는 쓰지 않는다**(식사 순서 보류, 사용자 결정 2026-11-20, DEC-080 Follow-up 2026-11-20). 카드를 만들지 않는다. 보류 전 계획: `features.mealOrder`일 때 `schedule` + `meal-order`로 다음 식사 시각과 우리 조 순서 |
 
 ## 2. 기능 영역(`features`)
@@ -44,7 +44,7 @@
 
 1. 운영자가 영역을 저장했으면(I5에서 `event_features`로 만든다) 그 값.
 2. 저장한 값이 없으면 행사 유형 기본값: `RETREAT`·`CAMP`는 `mealOrder`를 뺀 네 영역 켬, 그 밖의 유형과 유형 없음은 `schedule`·`notices`만 켬.
-3. 1·2와 상관없이, 공개본이 하나라도 있는 영역은 켬으로 본다. 공개한 내용이 화면에서 사라지지 않게 하려는 것이다.
+3. 1·2와 상관없이, 공개본이 하나라도 있는 영역은 켬으로 본다. 공개한 내용이 화면에서 사라지지 않게 하려는 것이다. 숙소는 `room_publications`에 그 행사 행이 있다는 뜻이고, 서버는 `updates.rooms` > 0으로 판단한다(`roomRosterScope` 변경은 공개본이 있을 때만 이 값을 올리므로 같은 뜻이다, DEC-085 Follow-up 2026-11-25).
 
 I5 전에는 1번이 없고 2·3번만으로 정한다. 응답 모양은 I5 뒤에도 같다.
 
@@ -61,7 +61,7 @@ api.md로 옮겼다([참가자 홈·갱신 확인·알림](../../backend/docs/ap
 | `schedule` | 일정표를 공개할 때(`PUBLISHED`만) |
 | `notices` | 참가자에게 보이는 공지(대상 `ALL`·`LEADERS`)가 발행·수정·보관·보관 해제·고정 변경될 때. 바뀌기 전이나 뒤의 대상 중 하나라도 참가자를 포함하면 오른다 |
 | `group` | 조 편성 공개(`PUBLISHED`, 만들었다), 조원 명단 스위치(DEC-083)가 바뀔 때 |
-| `rooms` | 숙소 배정을 공개할 때(G1) |
+| `rooms` | 숙소 공개 `PUBLISHED`, 공개본이 있을 때의 `roomRosterScope` 변경, 공개본에 있던 사람의 신청 취소(DEC-085, api.md "숙소"). 조장 화면은 이 값이 바뀌면 `group`도 다시 읽는다(조장 보기의 방) |
 | `mealOrder` | 식사 순서를 공개할 때(H1). **1월에는 쓰지 않는다**(보류). 키는 남고 늘 0이다 |
 
 - 조장이 되거나 풀리는 것은 조 편성 공개로 일어나므로 `group`이 오른다. 화면은 `group`이 바뀌면 `notices`·`schedule`도 다시 읽는다.
@@ -128,7 +128,7 @@ api.md로 옮겼다([참가자 홈·갱신 확인·알림](../../backend/docs/ap
 | `SCHEDULE_PUBLISHED` | `SCHEDULE` | 활성 참가자 전원 | 일정표 첫 공개(DEC-081) |
 | `SCHEDULE_CHANGED` | `SCHEDULE` | 바뀐 항목을 볼 수 있는 활성 참가자 | 두 번째 이후 공개에서 운영자가 알림을 끄지 않았을 때 |
 | `GROUP_PUBLISHED` | `GROUP` | 공개본에서 조·조장 표시가 바뀐 활성 참가자(처음이면 배정된 전원) | 조 편성 공개 |
-| `ROOM_PUBLISHED` | `ROOM` | G1에서 정함 | 숙소 공개 |
+| `ROOM_PUBLISHED` | `ROOM`(받는 사람의 방, 빠졌으면 `null`) | 첫 공개는 공개본에 방이 있는 활성 참가자, 그 뒤에는 방이 바뀐(새로 배정·이동·빠짐) 사람과 방 이름·위치 메모가 바뀐 사람(api.md "숙소") | 숙소 공개에서 운영자가 알림을 끄지 않았을 때 |
 | `MEAL_ORDER_PUBLISHED` | `MEAL_ORDER` | H1에서 정함 | 식사 순서 공개. **1월에는 만들지 않는다**(보류) |
 | `APPLICATION_UPDATED_BY_OPERATOR` | `APPLICATION` | 그 신청의 참가자 | 운영자가 내 신청을 고칠 때(A12) |
 
@@ -224,7 +224,7 @@ api.md로 옮겼다([운영자 알림·갱신 확인](../../backend/docs/api.md#
 
 - `updates`가 위 표의 때에만 오르고, `ALREADY_PUBLISHED`·작업본 저장·DRAFT 공지 저장에는 오르지 않는다.
 - `updates` 한 요청의 SQL이 여섯 번 이하다(세션 확인 포함). 공개본·공지 테이블을 읽지 않는다. (#423에서 `ParticipantUpdatesCostIT`로 확인했다: 네 문장)
-- 참가자 알림 `title`·`body`에 다른 참가자의 이름·전화·답이 없다(조 공개 알림은 "내 조가 정해졌어요 · 1조"까지).
+- 참가자 알림 `title`·`body`에 다른 참가자의 이름·전화·답이 없다(조 공개 알림은 "내 조가 정해졌어요 · 1조"까지, `ROOM_PUBLISHED`는 내 방 이름·위치까지. 후자는 #457 `RoomHttpIT`로 확인했다).
 - 다른 참가자의 알림 id로 읽음 처리해도 그 알림이 바뀌지 않고 응답이 같다.
 - 합치기: 읽지 않은 같은 종류·대상이 있으면 행이 하나이고 `count`가 오른다.
 - `operator_notices`의 기존 행이 옮겨지고 읽은 상태다. (#436에서 `OperatorNoticeMigrationIT`·`OperatorNotificationHttpIT`·`OperatorUpdatesCostIT`로 확인했다)

@@ -23,7 +23,7 @@
 - [Architecture와 소스 우선순위·검토 필요사항](architecture/architecture-v0.1.md)
 - [Data Model](architecture/data-model-v0.1.md) · [Security / Privacy](architecture/security-privacy-v0.1.md)
 - [API Architecture와 OPEN 항목](architecture/api-architecture-v0.1.md)
-- 계약 초안(아직 서버에 없음): [참가자 홈·갱신 확인·알림](architecture/participant-home-contract.md) · [일정표](architecture/schedule-contract.md) · [공지](architecture/notice-contract.md) · [숙소](architecture/room-contract.md) · [식사 순서](architecture/meal-order-contract.md)
+- 계약 초안(아직 서버에 없음): [참가자 홈·갱신 확인·알림](architecture/participant-home-contract.md) · [일정표](architecture/schedule-contract.md) · [공지](architecture/notice-contract.md) · [식사 순서](architecture/meal-order-contract.md)
 - [홈서버 운영 (1월 수련회)](devops/home-server.md) · [호스팅 비교 기록](devops/hosting-decision.md)
 
 ## 진행 관리
