@@ -254,9 +254,10 @@ describe("ways into the schedule (C4)", () => {
   it("opens the schedule from the event menu and from the event home", async () => {
     period();
     await openAs(0, `/events/${EVENT}`);
-    const links = await screen.findAllByRole("link", { name: /일정표/ }, WAIT);
-    expect(links[0]).toHaveAttribute("href", `/events/${EVENT}/schedule`);
-    fireEvent.click(screen.getByRole("button", { name: "일정 정리" }));
+    const shortcuts = await screen.findByRole("navigation", { name: "바로가기" }, WAIT);
+    const link = within(shortcuts).getByRole("link", { name: /^일정/ });
+    expect(link).toHaveAttribute("href", `/events/${EVENT}/schedule`);
+    fireEvent.click(link);
     expect(await screen.findByRole("heading", { name: "일정표" }, WAIT)).toBeInTheDocument();
     const menuLinks = screen.getAllByRole("link", { name: "일정" });
     expect(menuLinks.some((link) => link.getAttribute("href") === `/events/${EVENT}/schedule`)).toBe(true);

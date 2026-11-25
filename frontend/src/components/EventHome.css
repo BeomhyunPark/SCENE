@@ -33,31 +33,9 @@
   min-height: 68px;
 }
 
-.event-home__retrospective {
-  display: inline-block;
-  margin-top: 8px;
-  color: var(--color-text-brand);
-  font: var(--scene-label-m);
-  letter-spacing: 0;
-  text-decoration: none;
-}
 
-.event-home__ended {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 12px;
-}
 
-.event-home__ended h2,
-.event-home__ended p {
-  margin: 0;
-}
 
-.event-home__ended p {
-  color: var(--color-text-secondary);
-  font: var(--scene-body-m);
-}
 
 .event-home__facts {
   margin: 0;
@@ -510,56 +488,12 @@
   align-self: stretch;
 }
 
-/* 현장 운영 shortcut on an ACTIVE event (#286). */
-.event-home__field {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-height: 48px;
-  padding: 16px;
-  border: 1px solid var(--color-border-selected);
-  border-radius: 12px;
-  background: var(--color-bg-brand-subtle);
-  color: var(--color-text-primary);
-  text-decoration: none;
-}
 
-.event-home__field:focus-visible {
-  outline: 2px solid var(--color-focus-ring);
-  outline-offset: 2px;
-}
 
-.event-home__field-title {
-  color: var(--color-text-brand);
-  font: var(--scene-body-l-strong);
-}
 
-.event-home__field-detail {
-  color: var(--color-text-secondary);
-  font: var(--scene-body-m);
-}
 
-.event-home__summary {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-height: 48px;
-  padding: 16px;
-  border: 1px solid var(--color-border-control);
-  border-radius: 12px;
-  background: var(--color-bg-surface);
-  color: var(--color-text-primary);
-  text-decoration: none;
-}
 
-.event-home__summary:hover {
-  background: var(--color-bg-hover-row);
-}
 
-.event-home__summary:focus-visible {
-  outline: 2px solid var(--color-focus-ring);
-  outline-offset: 2px;
-}
 
 .event-home__summary-link {
   text-decoration: none;
@@ -581,4 +515,321 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+/*
+ * Event home dashboard (#467). Layout from SCENE 「02 행사 홈 · v2.0 Candidate」 (RreFdEVMiwgHrV7teaCEOm
+ * 46:18286); card, row, agenda and badge shapes from Venture (2yztLB533ohOebuAKuwZr0 Dashboard
+ * 873:109446: stat card 539:33865, Upcoming Agenda 539:33910, Rows 652:38950; Analytics 14:2842 panels).
+ * Colours and type are SCENE tokens.
+ */
+.event-home--dashboard {
+  background: var(--color-bg-canvas);
+}
+
+.event-home__retrospective {
+  color: var(--color-text-brand);
+  font: var(--scene-label-s);
+  text-underline-offset: 3px;
+}
+
+.event-home__stats,
+.event-home__modules {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.event-home__stat,
+.event-home__module,
+.event-home__panel {
+  box-sizing: border-box;
+  min-width: 0;
+  border: 1px solid var(--color-border-default);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+}
+
+/* Venture stat card: radius 4, padding 20, gap 12. */
+.event-home__stat,
+.event-home__module {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+  border-radius: 4px;
+  text-decoration: none;
+}
+
+.event-home__stat:hover,
+.event-home__module:hover {
+  border-color: var(--color-border-hover-row);
+}
+
+.event-home__stat:focus-visible,
+.event-home__module:focus-visible,
+.event-home__task:focus-visible,
+.event-home__slot:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.event-home__card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.event-home__stat-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  background: var(--color-bg-subtle);
+}
+
+.event-home__stat-icon img {
+  width: 24px;
+  height: 24px;
+}
+
+.event-home__stat-go {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.event-home__caret {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  transform: rotate(-90deg);
+}
+
+.event-home__stat-hint {
+  color: var(--color-text-brand);
+  font: var(--scene-label-s);
+}
+
+.event-home__stat-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.event-home__stat-label {
+  color: var(--color-text-secondary);
+  font: var(--scene-label-m);
+}
+
+.event-home__stat-value {
+  font: var(--scene-display);
+  font-variant-numeric: tabular-nums;
+}
+
+.event-home__stat-detail,
+.event-home__module-detail {
+  color: var(--color-text-secondary);
+  font: var(--scene-caption-m);
+}
+
+.event-home__module-title {
+  font: var(--scene-title);
+}
+
+.event-home__columns {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 24px;
+}
+
+/* Venture panel (Analytics 14:2842): radius 8, padding 20, gap 16. */
+.event-home__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+  border-radius: 8px;
+}
+
+.event-home__panel-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.event-home__panel-title {
+  margin: 0;
+  font: var(--scene-heading-m);
+}
+
+.event-home__panel-support,
+.event-home__empty {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font: var(--scene-body-s);
+}
+
+.event-home__rows,
+.event-home__agenda {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.event-home__rows {
+  gap: 12px;
+}
+
+.event-home__agenda {
+  gap: 16px;
+}
+
+/* Venture Rows 652:38950: white row, 1px border, radius 4, padding 12. */
+.event-home__task {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-sizing: border-box;
+  padding: 12px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 4px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  text-decoration: none;
+}
+
+.event-home__task:hover {
+  border-color: var(--color-border-hover-row);
+  background: var(--color-bg-hover-row);
+}
+
+.event-home__row-copy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.event-home__row-title,
+.event-home__slot-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.event-home__row-title {
+  font: var(--scene-body-m);
+}
+
+.event-home__row-meta {
+  color: var(--color-text-secondary);
+  font: var(--scene-caption-m);
+}
+
+/* Venture status badge: pill, padding 4/8, 8px dot, 12 medium. */
+.event-home__pill {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 36px;
+  font: var(--scene-label-s);
+}
+
+.event-home__pill-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.event-home__pill--neutral {
+  background: var(--color-bg-subtle);
+  color: var(--color-text-secondary);
+}
+
+.event-home__pill--brand {
+  background: var(--color-bg-brand-subtle);
+  color: var(--color-text-brand);
+}
+
+.event-home__pill--success {
+  background: var(--color-success-bg);
+  color: var(--color-success-fg);
+}
+
+/* Venture Upcoming Agenda 539:33910: time badge, title, description; gap 8. */
+.event-home__slot {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 4px 0;
+  border-radius: 4px;
+  color: var(--color-text-primary);
+  text-decoration: none;
+}
+
+.event-home__slot:hover .event-home__slot-title {
+  text-decoration: underline;
+}
+
+.event-home__slot-time {
+  padding: 4px 6px;
+  border-radius: 4px;
+  background: var(--color-bg-brand-subtle);
+  color: var(--color-text-brand);
+  font: var(--scene-label-s);
+  font-variant-numeric: tabular-nums;
+}
+
+.event-home__slot-title {
+  max-width: 100%;
+  font: var(--scene-label-m);
+}
+
+.event-home__slot-meta {
+  color: var(--color-text-secondary);
+  font: var(--scene-caption-m);
+}
+
+.event-home__ended {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 16px;
+}
+
+@media (max-width: 1023px) {
+  .event-home__stats,
+  .event-home__modules {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .event-home__columns {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+}
+
+@media (max-width: 560px) {
+  .event-home__stat,
+  .event-home__module,
+  .event-home__panel {
+    padding: 16px;
+  }
+
+  .event-home__stat-value {
+    font: var(--scene-heading-l);
+  }
 }
