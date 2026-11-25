@@ -19,7 +19,7 @@
 }
 
 .event-tasks__create label {
-  font: var(--scene-label-l);
+  font: var(--scene-label-m);
 }
 
 .event-tasks__create input {

@@ -166,7 +166,7 @@ There are no `raised-md` or `shadow/overlay` tokens.
 | SCENE/Body/M-Strong | 14 / 21 | Bold 700 | `--scene-body-m-strong` | Names and values in tables and cards |
 | SCENE/Body/S | 13 / 20 | Regular 400 | `--scene-body-s` | Secondary body, helper text |
 | SCENE/Body/S-Strong | 13 / 20 | Bold 700 | `--scene-body-s-strong` | Dense card names (D04, P13) |
-| SCENE/Label/L | 18 / 26 | Medium 500 | `--scene-label-l` | Size-48 button labels, field mode |
+| SCENE/Label/L | 18 / 26 | Medium 500 | `--scene-label-l` | Card and list-item titles (행사·끼니·일정 항목 이름), field mode. **Not for buttons or chips** (2026-11-25 owner feedback: 18px labels read too large) |
 | SCENE/Label/M | 14 / 21 | Medium 500 | `--scene-label-m` | Buttons (40/32), tabs, field labels, nav |
 | SCENE/Label/S | 12 / 17 | Medium 500 | `--scene-label-s` | Badges, chips, table headers |
 | SCENE/Caption/M | 12 / 18 | Regular 400 | `--scene-caption-m` | Captions, timestamps |
@@ -196,6 +196,8 @@ There are no `raised-md` or `shadow/overlay` tokens.
 | Square label#2020:142 | off | Page numbers (text in the square). Current page Primary/32 with `aria-current="page"`, others Tertiary/32 |
 
 **Measured:** radius 8 everywhere. Padding and gap: 48 → 10/18, gap 8, `SCENE/Label/L` · 40 → 10/16, gap 8, `SCENE/Label/M` · 32 → 6/12, gap 6, `SCENE/Label/M`. Icon only is square with padding 0.
+
+**Code differs from the master on size 48 (2026-11-25):** the label is `--scene-body-l-strong` (Medium 16/24), not `SCENE/Label/L` 18, after the owner reported 18px button text as too large. The Venture library button (`2yztLB533ohOebuAKuwZr0`) is also 18 at 48 (Extra Large) and 16 at 40 (Large), 14 at 37, 12 at 32; SCENE keeps 14 at 40/32. Chips and filter chips (공지 발행/초안/보관, 받는 사람) use `SCENE/Label/M` 14 at a 32px visual height with a 40px touch area; the product chips on TL01 use 11–12.
 
 | Type | Default | Hover | Pressed | Disabled | Selected (icon) |
 |---|---|---|---|---|---|
