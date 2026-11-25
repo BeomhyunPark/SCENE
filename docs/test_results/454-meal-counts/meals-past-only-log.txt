@@ -1,0 +1,156 @@
+--- 12-past-only-390 (390) .meals text ---
+식수 현황
+
+다음 식사 · 1월 23일 (토) 저녁 18:00
+
+예정
+6명
+
+도착
+3명
+
+1월 22일 (금)
+저녁 18:00
+식사 완료
+
+예정
+5명
+
+도착
+3명
+
+1월 23일 (토)
+아침 08:00
+식사 완료
+
+예정
+5명
+
+도착
+3명
+
+점심 12:00
+식사 완료
+
+예정
+6명
+
+도착
+3명
+
+저녁 18:00
+
+예정
+6명
+
+도착
+3명
+
+1월 24일 (일)
+아침 08:00
+
+예정
+5명
+
+도착
+3명
+
+점심 12:00
+
+예정
+5명
+
+도착
+3명
+
+오전 6:50:04에 읽음
+새로 고침
+12-past-only-390 state words: ["식사 완료","식사 완료","식사 완료"]
+12-past-only-390 has "끼니": false
+12-past-only-390 has "도착 반영": false
+12-past-only-390 has "올 예정": false
+12-past-only-390 has "아직 안 옴": false
+12-past-only-390 has "기본 시각": false
+12-past-only-390 has "모르는 신청": false
+12-past-only-390 has "복사": false
+12-past-only-390 has "주방": false
+12-past-only-390 has "지남": false
+12-past-only-390 horizontal overflow: false
+--- 13-past-only-1440 (1440) .meals text ---
+식수 현황
+
+다음 식사 · 1월 23일 (토) 저녁 18:00
+
+예정
+6명
+
+도착
+3명
+
+1월 22일 (금)
+저녁 18:00
+식사 완료
+
+예정
+5명
+
+도착
+3명
+
+1월 23일 (토)
+아침 08:00
+식사 완료
+
+예정
+5명
+
+도착
+3명
+
+점심 12:00
+식사 완료
+
+예정
+6명
+
+도착
+3명
+
+저녁 18:00
+
+예정
+6명
+
+도착
+3명
+
+1월 24일 (일)
+아침 08:00
+
+예정
+5명
+
+도착
+3명
+
+점심 12:00
+
+예정
+5명
+
+도착
+3명
+
+오전 6:50:05에 읽음
+새로 고침
+13-past-only-1440 state words: ["식사 완료","식사 완료","식사 완료"]
+13-past-only-1440 has "끼니": false
+13-past-only-1440 has "도착 반영": false
+13-past-only-1440 has "올 예정": false
+13-past-only-1440 has "아직 안 옴": false
+13-past-only-1440 has "기본 시각": false
+13-past-only-1440 has "모르는 신청": false
+13-past-only-1440 has "복사": false
+13-past-only-1440 has "주방": false
+13-past-only-1440 has "지남": false
+13-past-only-1440 horizontal overflow: false
