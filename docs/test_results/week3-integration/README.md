@@ -86,3 +86,40 @@
 | [01](member-detail/01-leader-status-before-tap.png) | 조장 조원 현황: 줄마다 `›` |
 | [02](member-detail/02-leader-member-detail-after-tap.png) | 이도윤을 누른 뒤 조원 상세 |
 | [03](member-detail/03-member-group-no-links.png) | 일반 조원 화면: 누를 수 있는 조원 항목 없음 |
+
+---
+
+# 통합 브랜치 2 확인 (2026-11-25 12:40~13:00 KST)
+
+- 브랜치: `claude/week3-integration-2`. `claude/week3-integration` fe9c53e(PR #474 head) 위에 `claude/week3-integration-fixes`(#473) → `claude/b5-participant-inbox-463`(#463) → `claude/a12-operator-edit-462`(#462, #339)을 merge 커밋으로 합쳤다.
+
+| 구분 | 무엇 | 결과 |
+|---|---|---|
+| 문서 작성 | 충돌 해결: 이 README(통합 1 기록 + fixes의 조원 상세 기록 모두 유지), 로드맵 5.1(A12·B5·통합 뒤 수정 줄, "3주차 통합 2" 줄, 남은 줄은 F5 사용자 확인)과 "상태" 줄, `source-guide.md`(A12 쪽 같은 뜻의 문장은 fixes 문장 하나로) | 작성 |
+| 마이그레이션 | 새로 생긴 것은 `V27__operator_added_application.sql` 하나, `ApplicationContextIT` 기대값 `27`. 로컬 DB(V26)에서 서버를 띄우자 V27만 더 적용됐다 | 확인 |
+| 서버 검증 | `./gradlew check` | 통과 600개, 실패 0, 건너뜀 0 |
+| 화면 검증 | lint·typecheck·build 통과. `pnpm test` 단독 2번 | 2번 모두 102파일 756개 통과 |
+| 화면 테스트 시간 초과 재현 | 서버 검사(`./gradlew check`)가 도는 동안 `pnpm test` 2번 | 1번 실패: `EventRooms.test.tsx` "makes numbered rooms in one go and fills them with 200 people"가 "방 40개를 만들었어요." 기다림(10초)에서 시간 초과. 단독 실행 시 그 테스트 전체가 10.7초 |
+| mock 연결 | 운영자 숙소 공개 mock(`roomBoardStore.publishRooms` → `publishParticipantRooms`)이 B5의 공용 `participantNotificationStore`에 `ROOM_PUBLISHED`를 쌓고, 알림함 경로가 `/participate/{eventId}/rooms`인지 임시 테스트로 확인(커밋하지 않음) | 통과 |
+| 실제 클릭 | 로컬 서버 + Vite(실제 API). [round2/flow2.cjs](round2/flow2.cjs), 기록 [round2/click-log.txt](round2/click-log.txt) | 아래 모두 통과 |
+| 운영 서버 | 하지 않았다 | 사용자 확인 필요 |
+
+## 한 흐름 (round2/)
+
+| # | 단계 | 결과 | 캡처 |
+|---|---|---|---|
+| 1 | 운영자 화면 "참가자 추가"로 최현장 직접 추가 | 임시 번호 6자리, 표에 revision 1 · `OPERATOR` · 조 없음 | 01 |
+| 2 | 임시 번호로 참가자 로그인 → "새 숫자 6자리를 정해 주세요" → 번호 정하기 | 홈으로 들어오고 머리글 종이 보임. 조 공개 뒤 추가된 사람의 `GET /participant/group`은 `UNASSIGNED`(오류 없음) | 02, 03 |
+| 3 | 301호에 배정(작업본) 뒤 운영자가 신청 고치기: 부분 참석 + "수련회장에서 숙박하지 않아요" | 저장 | 04 |
+| 4 | 참가자 알림함 | 종 "읽지 않은 알림 1개", 줄 "운영자가 내 신청을 고쳤어요 / 참석 방식, …, 숙박" → 눌러서 `/me`. 서버 종류 `APPLICATION_UPDATED_BY_OPERATOR` = B5 `inboxRoutes`의 키 | 05 |
+| 5 | 숙소 배정판 | "⚑ 다시 볼 것 1명 / 최현장 / 301호 · 지금 숙박 안 함 / 숙박을 뺐어요 · 참석 구간이 바뀌었어요 / 미배정으로 빼기 / 확인" | 06 |
+| 6 | 공지 발행 | "새 공지 / 첫날 집합 장소 안내" → `/notices/{id}` | 07 |
+| 7 | 일정 공개 | "일정표가 올라왔어요" → `/schedule` | 08 |
+| 8 | 직접 추가한 사람을 1조에 넣고 다시 조 공개 | "내 조가 정해졌어요 / 1조" → `/group` | 09 |
+| 9 | 숙소 공개(숙박 안 함 확인) | "숙소가 정해졌어요 / 301호 · 본관 3층" → `/rooms` | 10 |
+| 10 | 날짜 없는 행사에 신청한 참가자의 일정 탭 | `GET /participant/schedule` **200**, 화면은 `/schedule`에 머물고 "아직 일정표가 올라오지 않았어요." (#473 수정 확인) | 11 |
+
+## 발견 · 하지 못한 것
+
+- **화면 테스트 시간 초과(고치지 않음):** 위 200명 숙소 테스트는 화면이 방 만들기를 한 개씩 40번 이어 부르고(DEC-085 Follow-up G3 §7, 서버 묶음 경로 없음), 부를 때마다 200명 배정판을 다시 그린다. 단독으로도 10.7초라 단계별 대기 10초에 여유가 거의 없고, 서버 검사와 CPU를 나누면 넘친다. 병합으로 생긴 것이 아니며, 기다림 시간을 늘리는 대신 테스트 인원을 줄이거나 화면의 연속 만들기를 묶을지 판단이 필요하다.
+- 실제 휴대폰·운영 서버, 알림 갱신 주기(25초)를 기다리는 확인은 하지 않았다(알림함은 홈에서 다시 열어 읽음).
