@@ -79,9 +79,9 @@ type ConflictReport = {
 };
 
 /**
- * 조 편성 (#301, DEC-072). Layout follows Figma P16-26 (1325:5129): page head with the 배정·미배정 chip,
- * 행사 홈 and one primary button (left for 공개, #302), group cards four at a time with 이전/다음, member
- * row cards, and the 미배정 card strip below ("이름을 눌러 배정"). The board is the working copy: every
+ * 조 편성 (#301, DEC-072). Layout follows Figma P16-26 (1325:5129): page head with the 배정·미배정 chip
+ * and one primary button (left for 공개, #302; the 행사 홈 button was dropped for the back arrow, #496), group
+ * cards four at a time with 이전/다음, member row cards, and the 미배정 list below as divided rows (#496). The board is the working copy: every
  * change is saved at once and is not shown to participants until it is published. People move by drag and
  * drop (#343: mouse anywhere on a row, touch on the grip; onto a member row to place them there, onto a
  * card or its end zone, onto the 미배정 area to unassign; checked people move together; group cards drag by
@@ -140,7 +140,6 @@ function GroupsBody({ event, spaceName }: { event: EventDetail; spaceName?: stri
         {board.data ? (
           <Board
             eventId={eventId}
-            eventHref={eventHref}
             context={context}
             board={board.data}
             fetching={board.isFetching}
@@ -150,7 +149,7 @@ function GroupsBody({ event, spaceName }: { event: EventDetail; spaceName?: stri
           />
         ) : (
           <>
-            <PageHead context={context} eventHref={eventHref} chip={null} primary={null} />
+            <PageHead context={context} chip={null} primary={null} />
             {isApiError(board.error) && board.error.status === 403 ? (
               <p className="event-groups__blocked" role="note">
                 조 편성을 볼 권한이 없어요. 행사 OWNER에게 조 편성 권한을 요청해 주세요.
@@ -174,12 +173,10 @@ function GroupsBody({ event, spaceName }: { event: EventDetail; spaceName?: stri
 
 function PageHead({
   context,
-  eventHref,
   chip,
   primary,
 }: {
   context: string;
-  eventHref: string;
   chip: ReactNode;
   primary: ReactNode;
 }) {
@@ -191,9 +188,6 @@ function PageHead({
       </div>
       <div className="event-groups__head-actions">
         {chip}
-        <Link className="scene-button scene-button--secondary scene-button--size-40 event-groups__home" to={eventHref}>
-          <span className="scene-button__label">행사 홈</span>
-        </Link>
         {/* Figma의 주 버튼 자리("변경 영향 확인")에 공개를 둔다. 영향은 공개 확인 창에서 보여 준다. */}
         <div className="event-groups__primary-slot" data-slot="publish">
           {primary}
@@ -227,7 +221,6 @@ function usePageSize(): number {
 
 function Board({
   eventId,
-  eventHref,
   context,
   board,
   fetching,
@@ -236,7 +229,6 @@ function Board({
   permissionsPending,
 }: {
   eventId: string;
-  eventHref: string;
   context: string;
   board: GroupBoard;
   fetching: boolean;
@@ -618,6 +610,7 @@ function Board({
     );
   }
 
+  const hint = publicationHint(board);
   const targetId = target && board.groups.some((group) => group.groupId === target) ? target : "";
   const rangeText =
     board.groups.length === 0
@@ -638,7 +631,6 @@ function Board({
     <>
       <PageHead
         context={context}
-        eventHref={eventHref}
         chip={
           <p className="event-groups__chip" aria-live="polite">
             배정 {assigned.toLocaleString("ko-KR")} · 미배정 {(people.length - assigned).toLocaleString("ko-KR")}
@@ -660,14 +652,13 @@ function Board({
           </Button>
         }
       />
-      <p className="event-groups__hint">
-        바꾼 내용은 바로 저장되지만, 참가자에게는 공개해야 보여요.{" "}
-        <span className="event-groups__published">{publishedText(board)}</span>
-        {board.publication.hasUnpublishedChanges ? (
-          <span className="event-groups__unpublished"> 참가자에게 아직 공개하지 않은 변경이 있어요.</span>
-        ) : null}
-        {fetching ? <span className="event-groups__fetching"> 최신 상태를 확인하는 중…</span> : null}
-      </p>
+      {/* 저장·공개 안내는 한 문장만(#496): 공개 안 한 변경이 있으면 그 문장, 없으면 마지막 공개(D04 v2 머리와 같은 정보). */}
+      {hint || fetching ? (
+        <p className={`event-groups__hint${board.publication.hasUnpublishedChanges ? " event-groups__hint--unpublished" : ""}`}>
+          {hint}
+          {fetching ? <span className="event-groups__fetching"> 최신 상태를 확인하는 중…</span> : null}
+        </p>
+      ) : null}
 
       <GroupRosterSwitch eventId={eventId} canWrite={mayUpdateEvent} status={board.eventStatus} />
 
@@ -1577,11 +1568,12 @@ function PublishDialog({
   );
 }
 
-function publishedText(board: GroupBoard): string {
-  const { lastPublishedAt, lastPublishedByDisplayName } = board.publication;
-  if (!lastPublishedAt) return "아직 공개하지 않았어요.";
-  const at = formatPublishedAt(lastPublishedAt);
-  return `마지막 공개 ${at}${lastPublishedByDisplayName ? ` · ${lastPublishedByDisplayName}` : ""}.`;
+/** The one line under the head (#496): unpublished changes first, otherwise when it was last published. */
+function publicationHint(board: GroupBoard): string | null {
+  const { lastPublishedAt, lastPublishedByDisplayName, hasUnpublishedChanges } = board.publication;
+  if (hasUnpublishedChanges) return "참가자에게 아직 공개하지 않은 변경이 있어요.";
+  if (!lastPublishedAt) return null;
+  return `마지막 공개 ${formatPublishedAt(lastPublishedAt)}${lastPublishedByDisplayName ? ` · ${lastPublishedByDisplayName}` : ""}.`;
 }
 
 function ConflictPanel({

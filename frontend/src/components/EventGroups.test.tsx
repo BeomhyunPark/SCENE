@@ -101,7 +101,10 @@ describe("group board (#301)", () => {
     expect(within(pool()).getByText("96 박서준")).toBeInTheDocument();
     expect(within(pool()).getByText("정민호")).toBeInTheDocument();
     expect(screen.getByText(/참가자에게 아직 공개하지 않은 변경이 있어요/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "행사 홈" })).toHaveAttribute("href", `/events/${EVENT}`);
+    // 머리의 뒤로 화살표만 행사 홈으로 간다. 같은 곳으로 가던 "행사 홈" 버튼은 걷었다(#496).
+    expect(screen.getByRole("link", { name: "행사 홈으로" })).toHaveAttribute("href", `/events/${EVENT}`);
+    expect(screen.queryByRole("link", { name: "행사 홈" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/바로 저장되지만/)).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "전체 1조 중 1조" })).toBeInTheDocument();
 
     const nav = screen.getByRole("navigation", { name: "운영 메뉴" });
@@ -411,7 +414,9 @@ describe("group publish (#302)", () => {
     moveAsOtherOperator(EVENT, leader, one, true);
     moveAsOtherOperator(EVENT, person("95 김하람").participantId, one);
     await openAs(0);
-    expect(screen.getByText("아직 공개하지 않았어요.")).toBeInTheDocument();
+    // 공개 전 안내는 한 문장(#496): 공개 안 한 변경이 있다는 것만.
+    expect(screen.getByText("참가자에게 아직 공개하지 않은 변경이 있어요.")).toBeInTheDocument();
+    expect(screen.queryByText("아직 공개하지 않았어요.")).not.toBeInTheDocument();
     expect(readParticipantGroup(EVENT, leader)).toMatchObject({ status: "NOT_PUBLISHED" });
 
     fireEvent.click(publishButton());

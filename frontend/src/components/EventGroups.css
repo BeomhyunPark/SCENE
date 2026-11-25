@@ -59,11 +59,6 @@
   font: var(--scene-body-m);
 }
 
-.event-groups__home {
-  min-width: 120px;
-  text-decoration: none;
-}
-
 .event-groups__primary-slot:empty {
   display: none;
 }
@@ -75,7 +70,7 @@
   font: var(--scene-body-s);
 }
 
-.event-groups__unpublished {
+.event-groups__hint--unpublished {
   color: var(--color-text-primary);
 }
 
@@ -1062,10 +1057,6 @@ body.event-groups--dragging {
 }
 
 /* 공개 (#302): Figma 1325:5581 — tinted box of what goes out. */
-.event-groups__published {
-  color: var(--color-text-secondary);
-}
-
 .event-groups__publish-stale {
   margin: 0 0 12px;
   padding: 10px 12px;
