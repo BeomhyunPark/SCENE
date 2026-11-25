@@ -1,0 +1,2 @@
+visual 32 tap 3px above → pressed: false
+tap 3px below 보관 → pressed: false

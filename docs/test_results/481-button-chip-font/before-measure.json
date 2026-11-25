@@ -1,0 +1,196 @@
+[
+ {
+  "label": "1440",
+  "name": "login",
+  "filter": [],
+  "btn48": [],
+  "btn40": [
+   "들어가기 14px/21px h43"
+  ]
+ },
+ {
+  "label": "1440",
+  "name": "signup",
+  "filter": [],
+  "btn48": [],
+  "btn40": [
+   "계정 만들기 14px/21px h43"
+  ]
+ },
+ {
+  "label": "1440",
+  "name": "notices",
+  "filter": [
+   "발행 18px/26px h40",
+   "초안 18px/26px h40",
+   "보관 18px/26px h40"
+  ],
+  "btn48": [],
+  "btn40": [
+   "공지 쓰기 14px/21px h43"
+  ]
+ },
+ {
+  "label": "1440",
+  "name": "notice-new",
+  "filter": [
+   "전체 18px/26px h40",
+   "조장 18px/26px h40",
+   "운영진 18px/26px h40"
+  ],
+  "btn48": [
+   "발행 18px/26px h48",
+   "초안으로 저장 18px/26px h48"
+  ],
+  "btn40": []
+ },
+ {
+  "label": "1440",
+  "name": "meals",
+  "filter": [],
+  "btn48": [
+   "다음 끼니 복사 18px/26px h48",
+   "남은 끼니 복사 18px/26px h48"
+  ],
+  "btn40": [
+   "새로 고침 14px/21px h43"
+  ]
+ },
+ {
+  "label": "1440",
+  "name": "schedule",
+  "filter": [],
+  "btn48": [],
+  "btn40": [
+   "+ 일정 추가 14px/21px h43",
+   "공개 14px/21px h43"
+  ]
+ },
+ {
+  "label": "1440",
+  "name": "tasks",
+  "filter": [],
+  "btn48": [],
+  "btn40": [
+   "업무 추가 14px/21px h43",
+   "추천 업무 보기 14px/21px h43"
+  ]
+ },
+ {
+  "label": "1440",
+  "name": "events",
+  "filter": [],
+  "btn48": [],
+  "btn40": [
+   "새 행사 14px/21px h43"
+  ]
+ },
+ {
+  "label": "1440",
+  "name": "setup",
+  "filter": [],
+  "btn48": [],
+  "btn40": [
+   "행사 설정 14px/21px h43",
+   "신청 닫기 14px/21px h43",
+   "수정 닫기 14px/21px h43"
+  ]
+ },
+ {
+  "label": "390",
+  "name": "login",
+  "filter": [],
+  "btn48": [],
+  "btn40": [
+   "들어가기 14px/21px h43"
+  ]
+ },
+ {
+  "label": "390",
+  "name": "signup",
+  "filter": [],
+  "btn48": [],
+  "btn40": [
+   "계정 만들기 18px/26px h48"
+  ]
+ },
+ {
+  "label": "390",
+  "name": "notices",
+  "filter": [
+   "발행 18px/26px h40",
+   "초안 18px/26px h40",
+   "보관 18px/26px h40"
+  ],
+  "btn48": [],
+  "btn40": [
+   "공지 쓰기 14px/21px h43"
+  ]
+ },
+ {
+  "label": "390",
+  "name": "notice-new",
+  "filter": [
+   "전체 18px/26px h40",
+   "조장 18px/26px h40",
+   "운영진 18px/26px h40"
+  ],
+  "btn48": [
+   "발행 18px/26px h48",
+   "초안으로 저장 18px/26px h48"
+  ],
+  "btn40": []
+ },
+ {
+  "label": "390",
+  "name": "meals",
+  "filter": [],
+  "btn48": [
+   "다음 끼니 복사 18px/26px h48",
+   "남은 끼니 복사 18px/26px h48"
+  ],
+  "btn40": [
+   "새로 고침 14px/21px h43"
+  ]
+ },
+ {
+  "label": "390",
+  "name": "schedule",
+  "filter": [],
+  "btn48": [],
+  "btn40": [
+   "+ 일정 추가 14px/21px h43",
+   "공개 14px/21px h43"
+  ]
+ },
+ {
+  "label": "390",
+  "name": "tasks",
+  "filter": [],
+  "btn48": [],
+  "btn40": [
+   "업무 추가 14px/21px h43",
+   "추천 업무 보기 14px/21px h43"
+  ]
+ },
+ {
+  "label": "390",
+  "name": "events",
+  "filter": [],
+  "btn48": [],
+  "btn40": [
+   "새 행사 14px/21px h43"
+  ]
+ },
+ {
+  "label": "390",
+  "name": "setup",
+  "filter": [],
+  "btn48": [],
+  "btn40": [
+   "행사 설정 14px/21px h43",
+   "신청 닫기 14px/21px h43",
+   "수정 닫기 14px/21px h43"
+  ]
+ }
+]
