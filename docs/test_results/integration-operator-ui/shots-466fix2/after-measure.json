@@ -1,0 +1,491 @@
+[
+ {
+  "size": "390",
+  "screen": "schedule-all",
+  "title": 20,
+  "content": 16,
+  "boxL": 16,
+  "boxR": 374,
+  "boxW": 358,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": [
+   {
+    "t": "13:00–14:00",
+    "h": 82,
+    "w": 298,
+    "vcut": false,
+    "hcut": true,
+    "onLine": false
+   },
+   {
+    "t": "14:00–15:00",
+    "h": 82,
+    "w": 298,
+    "vcut": false,
+    "hcut": true,
+    "onLine": false
+   },
+   {
+    "t": "15:30–17:30",
+    "h": 166,
+    "w": 147,
+    "vcut": false,
+    "hcut": false,
+    "onLine": true
+   },
+   {
+    "t": "16:00",
+    "h": 40,
+    "w": 147,
+    "vcut": true,
+    "hcut": true,
+    "onLine": true
+   },
+   {
+    "t": "17:30–17:50",
+    "h": 40,
+    "w": 298,
+    "vcut": true,
+    "hcut": true,
+    "onLine": false
+   },
+   {
+    "t": "18:00–19:00",
+    "h": 82,
+    "w": 298,
+    "vcut": false,
+    "hcut": true,
+    "onLine": false
+   },
+   {
+    "t": "21:40",
+    "h": 68,
+    "w": 298,
+    "vcut": false,
+    "hcut": true,
+    "onLine": false
+   }
+  ]
+ },
+ {
+  "size": "390",
+  "screen": "schedule-item",
+  "title": 20,
+  "content": 16,
+  "boxL": 16,
+  "boxR": 374,
+  "boxW": 358,
+  "center": 0,
+  "overflow": false,
+  "outside": [
+   "event-schedule__actions -16/16"
+  ],
+  "blocks": []
+ },
+ {
+  "size": "390",
+  "screen": "participant-schedule",
+  "title": -1,
+  "content": 16,
+  "boxL": 16,
+  "boxR": 374,
+  "boxW": 358,
+  "center": null,
+  "overflow": false,
+  "outside": [],
+  "blocks": [
+   {
+    "t": "15:30–17:30",
+    "h": 166,
+    "w": 298,
+    "vcut": false,
+    "hcut": false,
+    "onLine": true
+   }
+  ]
+ },
+ {
+  "size": "1440",
+  "screen": "schedule-all",
+  "title": 280,
+  "content": 280,
+  "boxL": 280,
+  "boxR": 1408,
+  "boxW": 1128,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": [
+   {
+    "t": "13:00–14:00",
+    "h": 70,
+    "w": 345,
+    "vcut": false,
+    "hcut": true,
+    "onLine": false
+   },
+   {
+    "t": "14:00–15:00",
+    "h": 70,
+    "w": 345,
+    "vcut": false,
+    "hcut": true,
+    "onLine": false
+   },
+   {
+    "t": "15:30–17:30",
+    "h": 142,
+    "w": 171,
+    "vcut": false,
+    "hcut": false,
+    "onLine": true
+   },
+   {
+    "t": "16:00",
+    "h": 34,
+    "w": 171,
+    "vcut": true,
+    "hcut": true,
+    "onLine": true
+   },
+   {
+    "t": "17:30–17:50",
+    "h": 34,
+    "w": 345,
+    "vcut": true,
+    "hcut": true,
+    "onLine": false
+   },
+   {
+    "t": "18:00–19:00",
+    "h": 70,
+    "w": 345,
+    "vcut": true,
+    "hcut": true,
+    "onLine": false
+   },
+   {
+    "t": "21:40",
+    "h": 58,
+    "w": 345,
+    "vcut": false,
+    "hcut": true,
+    "onLine": false
+   },
+   {
+    "t": "07:30–08:30",
+    "h": 70,
+    "w": 345,
+    "vcut": false,
+    "hcut": true,
+    "onLine": false
+   },
+   {
+    "t": "11:00–12:00",
+    "h": 70,
+    "w": 345,
+    "vcut": false,
+    "hcut": true,
+    "onLine": false
+   }
+  ]
+ },
+ {
+  "size": "1440",
+  "screen": "schedule-day",
+  "title": 280,
+  "content": 280,
+  "boxL": 280,
+  "boxR": 1408,
+  "boxW": 1128,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": [
+   {
+    "t": "13:00–14:00",
+    "h": 70,
+    "w": 1060,
+    "vcut": false,
+    "hcut": true,
+    "onLine": false
+   },
+   {
+    "t": "14:00–15:00",
+    "h": 70,
+    "w": 1060,
+    "vcut": false,
+    "hcut": true,
+    "onLine": false
+   },
+   {
+    "t": "15:30–17:30",
+    "h": 142,
+    "w": 528,
+    "vcut": false,
+    "hcut": false,
+    "onLine": true
+   },
+   {
+    "t": "16:00–16:15",
+    "h": 34,
+    "w": 528,
+    "vcut": true,
+    "hcut": true,
+    "onLine": true
+   },
+   {
+    "t": "17:30–17:50",
+    "h": 34,
+    "w": 1060,
+    "vcut": true,
+    "hcut": true,
+    "onLine": false
+   },
+   {
+    "t": "18:00–19:00",
+    "h": 70,
+    "w": 1060,
+    "vcut": true,
+    "hcut": true,
+    "onLine": false
+   },
+   {
+    "t": "21:40",
+    "h": 58,
+    "w": 1060,
+    "vcut": false,
+    "hcut": true,
+    "onLine": false
+   }
+  ]
+ },
+ {
+  "size": "1440",
+  "screen": "schedule-item",
+  "title": 280,
+  "content": 280,
+  "boxL": 280,
+  "boxR": 1408,
+  "boxW": 1128,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": []
+ },
+ {
+  "size": "1440",
+  "screen": "participant-schedule",
+  "title": -1,
+  "content": 456,
+  "boxL": 456,
+  "boxR": 984,
+  "boxW": 528,
+  "center": null,
+  "overflow": false,
+  "outside": [],
+  "blocks": [
+   {
+    "t": "15:30–17:30",
+    "h": 142,
+    "w": 460,
+    "vcut": false,
+    "hcut": false,
+    "onLine": true
+   }
+  ]
+ },
+ {
+  "size": "2000",
+  "screen": "schedule-all",
+  "title": 560,
+  "content": 560,
+  "boxL": 560,
+  "boxR": 1688,
+  "boxW": 1128,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": [
+   {
+    "t": "13:00–14:00",
+    "h": 70,
+    "w": 345,
+    "vcut": false,
+    "hcut": true,
+    "onLine": false
+   },
+   {
+    "t": "14:00–15:00",
+    "h": 70,
+    "w": 345,
+    "vcut": false,
+    "hcut": true,
+    "onLine": false
+   },
+   {
+    "t": "15:30–17:30",
+    "h": 142,
+    "w": 171,
+    "vcut": false,
+    "hcut": false,
+    "onLine": true
+   },
+   {
+    "t": "16:00",
+    "h": 34,
+    "w": 171,
+    "vcut": true,
+    "hcut": true,
+    "onLine": true
+   },
+   {
+    "t": "17:30–17:50",
+    "h": 34,
+    "w": 345,
+    "vcut": true,
+    "hcut": true,
+    "onLine": false
+   },
+   {
+    "t": "18:00–19:00",
+    "h": 70,
+    "w": 345,
+    "vcut": true,
+    "hcut": true,
+    "onLine": false
+   },
+   {
+    "t": "21:40",
+    "h": 58,
+    "w": 345,
+    "vcut": false,
+    "hcut": true,
+    "onLine": false
+   },
+   {
+    "t": "07:30–08:30",
+    "h": 70,
+    "w": 345,
+    "vcut": false,
+    "hcut": true,
+    "onLine": false
+   },
+   {
+    "t": "11:00–12:00",
+    "h": 70,
+    "w": 345,
+    "vcut": false,
+    "hcut": true,
+    "onLine": false
+   }
+  ]
+ },
+ {
+  "size": "2000",
+  "screen": "schedule-day",
+  "title": 560,
+  "content": 560,
+  "boxL": 560,
+  "boxR": 1688,
+  "boxW": 1128,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": [
+   {
+    "t": "13:00–14:00",
+    "h": 70,
+    "w": 1060,
+    "vcut": false,
+    "hcut": true,
+    "onLine": false
+   },
+   {
+    "t": "14:00–15:00",
+    "h": 70,
+    "w": 1060,
+    "vcut": false,
+    "hcut": true,
+    "onLine": false
+   },
+   {
+    "t": "15:30–17:30",
+    "h": 142,
+    "w": 528,
+    "vcut": false,
+    "hcut": false,
+    "onLine": true
+   },
+   {
+    "t": "16:00–16:15",
+    "h": 34,
+    "w": 528,
+    "vcut": true,
+    "hcut": true,
+    "onLine": true
+   },
+   {
+    "t": "17:30–17:50",
+    "h": 34,
+    "w": 1060,
+    "vcut": true,
+    "hcut": true,
+    "onLine": false
+   },
+   {
+    "t": "18:00–19:00",
+    "h": 70,
+    "w": 1060,
+    "vcut": true,
+    "hcut": true,
+    "onLine": false
+   },
+   {
+    "t": "21:40",
+    "h": 58,
+    "w": 1060,
+    "vcut": false,
+    "hcut": true,
+    "onLine": false
+   }
+  ]
+ },
+ {
+  "size": "2000",
+  "screen": "schedule-item",
+  "title": 560,
+  "content": 560,
+  "boxL": 560,
+  "boxR": 1688,
+  "boxW": 1128,
+  "center": 0,
+  "overflow": false,
+  "outside": [],
+  "blocks": []
+ },
+ {
+  "size": "2000",
+  "screen": "participant-schedule",
+  "title": -1,
+  "content": 736,
+  "boxL": 736,
+  "boxR": 1264,
+  "boxW": 528,
+  "center": null,
+  "overflow": false,
+  "outside": [],
+  "blocks": [
+   {
+    "t": "15:30–17:30",
+    "h": 142,
+    "w": 460,
+    "vcut": false,
+    "hcut": false,
+    "onLine": true
+   }
+  ]
+ }
+]
