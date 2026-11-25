@@ -220,8 +220,8 @@ function LeaderStatus({ eventId, view, today }: { eventId: string; view: LeaderV
 
       {counts.days.length > 0 ? (
         <div className="participant-group__block">
-          <h4 className="participant-group__block-title">끼니별 인원 (신청 기준)</h4>
-          <dl className="participant-group__slots" aria-label="끼니별 조 인원">
+          <h4 className="participant-group__block-title">식사별 인원 (신청 기준)</h4>
+          <dl className="participant-group__slots" aria-label="식사별 조 인원">
             {counts.days.map((day) => (
               <div key={day.day} className="participant-group__slot-day">
                 <dt>{day.dayLabel}</dt>
