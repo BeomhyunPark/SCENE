@@ -492,6 +492,97 @@ class OperatorApplicationEditHttpIT {
 
   // --- helpers ---
 
+  /**
+   * DEC-091 Follow-up 1: the 참가 현황 table and the CSV keep each person where they first applied. A
+   * participant's own edit (A4), an operator edit (A12), a cancel and restore, and a re-application
+   * with changed answers all make or reuse a later row, but the person keeps their place. A direct
+   * add sits at the time it was added.
+   */
+  @Test
+  void tableAndCsvKeepEachPersonWhereTheyFirstApplied() throws Exception {
+    Form form = openForm("순서 owner");
+    Person garam = form.submit("가람", 1, full());
+    Person narae = form.submit("나래", 2, full());
+    Person dasom = form.submit("다솜", 3, full());
+    Person hana = form.submit("하나", 4, full());
+    String added =
+        json.readTree(
+                created(
+                    form.owner(
+                        post(eventPath(form) + "/applications"),
+                        form.addBody("현장", 5, Map.of("ATTENDANCE", opt("opt_worship"))))))
+            .get("participantId")
+            .asString();
+
+    // A4: 가람 changes their own answers.
+    ok(
+        write(
+            put("/api/v1/participant/application"),
+            garam.session,
+            form.body(
+                1, "가람", 1, values("GENDER", opt("opt_female"), "ATTENDANCE", opt("opt_full")))));
+    // A12: the owner changes 나래.
+    ok(
+        form.owner(
+            put(answersPath(form, narae.applicationId)),
+            form.body(
+                1, "나래", 2, values("GENDER", opt("opt_female"), "ATTENDANCE", opt("opt_full")))));
+    // DEC-084: 다솜 is cancelled and restored.
+    ok(form.owner(post(applicationPath(form, dasom.applicationId) + "/withdraw"), "{}"));
+    ok(form.owner(post(applicationPath(form, dasom.applicationId) + "/restore"), null));
+    // 하나 is cancelled and applies again with other answers: a new revision.
+    ok(form.owner(post(applicationPath(form, hana.applicationId) + "/withdraw"), "{}"));
+    mvc.perform(
+            post("/api/v1/public/events/"
+                    + form.eventId
+                    + "/forms/"
+                    + form.formId
+                    + "/applications")
+                .cookie(csrf())
+                .header(CSRF_HEADER, CSRF)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    "{\"pin\":\""
+                        + PIN
+                        + "\",\"answers\":["
+                        + String.join(
+                            ",",
+                            form.answers(
+                                "하나",
+                                4,
+                                values("GENDER", opt("opt_female"), "ATTENDANCE", opt("opt_full")),
+                                true))
+                        + "]}"))
+        .andExpect(status().isOk());
+
+    List<String> order = new ArrayList<>();
+    for (JsonNode row :
+        json.readTree(ok(get(eventPath(form) + "/applications/table").cookie(form.owner)))
+            .get("rows")) {
+      order.add(row.get("participantId").asString());
+    }
+    assertThat(order).containsExactly(garam.id(), narae.id(), dasom.id(), hana.id(), added);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM applications WHERE event_id = ? AND revision > 1",
+                Long.class,
+                form.eventId))
+        .isEqualTo(3);
+
+    List<String> lines = csvText(export(form)).lines().skip(1).toList();
+    List<Integer> at = new ArrayList<>();
+    for (String name : List.of("가람", "나래", "다솜", "하나", "현장")) {
+      int index = -1;
+      for (int i = 0; i < lines.size() && index < 0; i++) {
+        if (lines.get(i).contains(name)) {
+          index = i;
+        }
+      }
+      at.add(index);
+    }
+    assertThat(at).containsExactly(0, 1, 2, 3, 4);
+  }
+
   private final class Form {
     final UUID spaceId;
     final UUID eventId;
@@ -575,8 +666,7 @@ class OperatorApplicationEditHttpIT {
           + "]}";
     }
 
-    private List<String> answers(
-        String name, int number, Map<String, String> values, boolean consent) {
+    List<String> answers(String name, int number, Map<String, String> values, boolean consent) {
       List<String> answers = new ArrayList<>();
       answers.add(text("NAME", name));
       answers.add(text("PHONE", phone(number)));

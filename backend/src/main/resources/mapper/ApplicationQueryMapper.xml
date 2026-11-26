@@ -48,13 +48,20 @@
     ORDER BY ${orderByClause}
   </select>
 
-  <!-- Export (#233): submitted applications only, in list order. -->
+  <!-- Export (#233) and the 참가 현황 table: submitted applications only, in the order each person
+       first submitted (DEC-091 Follow-up 1). A revision (A4, A12) or a re-application after a
+       cancel keeps the person's place: revision 1 of the participant holds the first time. -->
   <select id="findSubmitted" resultType="app.scene.event.application.ApplicationRow">
     SELECT app.id AS application_id, app.form_id, app.status, app.submitted_at,
            CAST(NULL AS text) AS name
     FROM applications app
+    LEFT JOIN applications first
+      ON first.space_id = app.space_id
+     AND first.event_id = app.event_id
+     AND first.participant_id = app.participant_id
+     AND first.revision = 1
     WHERE app.space_id = #{spaceId} AND app.event_id = #{eventId} AND app.status = 'SUBMITTED'
-    ORDER BY app.submitted_at ASC, app.id ASC
+    ORDER BY coalesce(first.submitted_at, app.submitted_at) ASC, app.participant_id ASC, app.id ASC
   </select>
 
   <!-- Export (#233): every answer of the submitted applications in one read. -->
