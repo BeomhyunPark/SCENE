@@ -51,7 +51,7 @@ import {
 } from "./useCheckInQueue";
 import { useWideField } from "./useWideField";
 import "./EventField.css";
-import { expectedWhen, fieldCounts, fieldState, type FieldCounts } from "./fieldState";
+import { expectedWhen, FIELD_STATE_LABELS, fieldCounts, fieldState, type FieldCounts } from "./fieldState";
 import type { ItemPage } from "../api/types";
 
 const PAGE_SIZE = 50;
@@ -645,12 +645,7 @@ function QrIcon() {
 }
 
 /** 미도착 first: it is what the desk acts on. 도착 예정 hides when nobody is expected later (unless chosen). */
-const FILTERS: readonly (readonly [Filter, string])[] = [
-  ["all", "전체"],
-  ["absent", "미도착"],
-  ["expected", "도착 예정"],
-  ["arrived", "도착"],
-];
+const FILTERS: readonly (readonly [Filter, string])[] = [["all", "전체"], ...FIELD_STATE_LABELS];
 
 function visibleFilters(counts: FieldCounts | null, filter: Filter): (readonly [Filter, string])[] {
   return FILTERS.filter(([value]) => value !== "expected" || filter === "expected" || (counts?.expected ?? 0) > 0);
@@ -797,7 +792,7 @@ function CancelDialog({
         </>
       }
     >
-      <p>취소하면 도착 전으로 돌아가고, 다시 체크인할 수 있어요.</p>
+      <p>취소하면 미도착으로 돌아가고, 다시 체크인할 수 있어요.</p>
       <label className="event-field__reason-label" htmlFor="field-cancel-reason">
         취소 사유 (선택)
       </label>

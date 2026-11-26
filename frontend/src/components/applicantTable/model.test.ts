@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { EMPTY_DOC } from "../../api/rosterSheet";
+import { participantKey, Workbook } from "./sheet";
 import { EMPTY_OPERATION, type ApplicationTable, type TableColumn, type TableRow } from "../../api/applications";
 import {
   bucketsOf,
@@ -8,7 +10,6 @@ import {
   copyText,
   countBy,
   groupRows,
-  moveColumn,
   crossCount,
   EMPTY_VIEW,
   HAS_MEMO,
@@ -91,6 +92,7 @@ function row(id: string, answers: Record<string, Record<string, unknown>>, extra
     revisedBy: null,
     room: null,
     lodging: null,
+    arrival: null,
     ...extra,
   };
 }
@@ -195,7 +197,7 @@ describe("columns", () => {
     expect(col("affiliation").text(ROWS[1])).toBe("청년2부");
     expect(col("group").text(ROWS[0])).toBe("2조 · 조장");
     expect(col("group").text(ROWS[1])).toBe("미배정");
-    expect(col("status").text(ROWS[0])).toBe("도착 완료");
+    expect(col("status").text(ROWS[0])).toBe("도착");
     expect(col("meals").text(ROWS[1])).toBe("1일차 저녁, 기타: 간식");
     expect(col("consent").text(ROWS[0])).toBe("동의함");
     expect(col("age").text(ROWS[0])).toBe("32 세");
@@ -216,12 +218,6 @@ describe("columns", () => {
   it("hides and shows columns by id in the chosen order, keeping 참가자 first", () => {
     expect(visibleColumns(COLS, ["meals", "age"]).map((item) => item.id)).toEqual(["person", "meals", "age"]);
     expect(visibleColumns(COLS, ["age", "person", "meals", "gone"]).map((item) => item.id)).toEqual(["person", "age", "meals"]);
-  });
-
-  it("moves a column within the order and keeps 참가자 out of it", () => {
-    expect(moveColumn(["person", "a", "b", "c"], "c", -1)).toEqual(["a", "c", "b"]);
-    expect(moveColumn(["a", "b"], "a", -1)).toEqual(["a", "b"]);
-    expect(moveColumn(["a", "b"], "a", 1)).toEqual(["b", "a"]);
   });
 });
 
@@ -369,7 +365,7 @@ describe("counting", () => {
     expect(summarize(ROWS, col("cohort"))).toBe("응답 3 · 고유 2");
     expect(summarize(ROWS, col("person"))).toBe("3명");
     expect(summarize(ROWS, col("group"))).toBe("배정 2 · 2개 조");
-    expect(summarize(ROWS, col("status"))).toBe("도착 1 · 전 2");
+    expect(summarize(ROWS, col("status"))).toBe("미도착 2 · 도착 1");
   });
 });
 
@@ -422,6 +418,8 @@ describe("address", () => {
       widths: { person: 220, age: 96 },
       density: "compact" as const,
       groupBy: "gender",
+      hidden: ["c:pay"],
+      freeze: { cols: 2, rows: 1 },
     };
     expect(readView(new URLSearchParams(writeView(view).toString()))).toEqual(view);
   });
@@ -437,6 +435,8 @@ describe("address", () => {
       widths: {},
       density: "comfortable",
       groupBy: null,
+      hidden: [],
+      freeze: { cols: 1, rows: 0 },
     });
     expect(params.toString()).toBe("");
   });
@@ -520,5 +520,31 @@ describe("운영 메모 column (#337)", () => {
 
   it("copies on one line", () => {
     expect(copyText([withMemo[0]], [memo])).toBe("토 저녁 외출");
+  });
+});
+
+describe("현재 상태 in the 현장 운영 words (DEC-091 Follow-up 3)", () => {
+  const coming: TableRow = { ...ROWS[1], arrival: { status: "COMING", slot: null } };
+  const late: TableRow = { ...ROWS[2], arrival: { status: "OVERDUE", slot: null } };
+  const rows = [ROWS[0], coming, late];
+
+  it("says 도착, 도착 예정 and 미도착 by the server's arrival, and counts them in that order", () => {
+    expect(rows.map((item) => col("status").text(item))).toEqual(["도착", "도착 예정", "미도착"]);
+    expect(rows.map((item) => col("status").buckets(item))).toEqual([["arrived"], ["expected"], ["absent"]]);
+    expect(summarize(rows, col("status"))).toBe("미도착 1 · 도착 예정 1 · 도착 1");
+    expect(summarize([ROWS[0], late], col("status"))).toBe("미도착 1 · 도착 1");
+  });
+
+  it("lets a formula count the words", () => {
+    const refs = rows.map((item, index) => ({ kind: "participant" as const, key: participantKey(item), row: item, number: index + 1 }));
+    const doc = {
+      ...EMPTY_DOC,
+      rows: [{ id: "sum" }],
+      cells: {
+        "r:sum|person": { v: '=COUNTIF([[status]]:[[status]],"도착")&"/"&COUNTIF([[status]]:[[status]],"미도착")&"/"&COUNTIF([[status]]:[[status]],"도착 예정")' },
+      },
+    };
+    const book = new Workbook(doc, COLS, ["person", "status"], [...refs, { kind: "operator", key: "r:sum", id: "sum", number: 4 }]);
+    expect(book.display("r:sum", "person")).toBe("1/1/1");
   });
 });

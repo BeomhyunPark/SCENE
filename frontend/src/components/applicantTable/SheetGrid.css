@@ -1,0 +1,540 @@
+/* 참가 현황 spreadsheet (#509): toolbar, formula bar and a grid-lined sheet in both densities. */
+.sheet {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.sheet-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 6px;
+  border: 1px solid var(--color-border-default);
+  border-bottom: 0;
+  border-radius: 8px 8px 0 0;
+  background: var(--color-bg-surface);
+}
+
+.sheet-toolbar__button,
+.sheet-toolbar__text {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  height: 30px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--color-text-primary);
+  font: var(--scene-body-s, 14px/1.4 sans-serif);
+  cursor: pointer;
+}
+
+.sheet-toolbar__text {
+  padding: 0 10px;
+}
+
+.sheet-toolbar__button:hover:not(:disabled),
+.sheet-toolbar__text:hover {
+  background: var(--color-bg-hover-row);
+}
+
+.sheet-toolbar__button[aria-pressed="true"] {
+  background: var(--color-bg-selected);
+  color: var(--color-selected-indicator);
+}
+
+.sheet-toolbar__button:disabled {
+  color: var(--color-text-tertiary);
+  cursor: default;
+}
+
+.sheet-toolbar__sep {
+  width: 1px;
+  height: 20px;
+  margin: 0 4px;
+  background: var(--color-border-default);
+}
+
+.sheet-toolbar__status {
+  margin-left: auto;
+  color: var(--color-text-tertiary);
+  font: var(--scene-caption-m);
+}
+
+.sheet-palette {
+  position: relative;
+  display: inline-flex;
+}
+
+.sheet-palette__icon {
+  display: inline-block;
+  min-width: 14px;
+  border-bottom: 3px solid transparent;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+}
+
+.sheet-palette__menu {
+  position: absolute;
+  top: 34px;
+  left: 0;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: repeat(5, 24px);
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 8px;
+  background: var(--color-bg-surface);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 14%);
+}
+
+.sheet-palette__swatch {
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.sheet-palette__none {
+  grid-column: 1 / -1;
+  height: 28px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 4px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.sheet-bar {
+  display: flex;
+  align-items: center;
+  height: 34px;
+  border: 1px solid var(--color-border-default);
+  border-bottom: 0;
+  background: var(--color-bg-surface);
+}
+
+.sheet-bar__name {
+  width: 96px;
+  height: 100%;
+  padding: 0 8px;
+  border: 0;
+  border-right: 1px solid var(--color-border-default);
+  background: none;
+  color: var(--color-text-primary);
+  font: var(--scene-body-s, 14px/1.4 sans-serif);
+}
+
+.sheet-bar__fx {
+  padding: 0 10px;
+  color: var(--color-text-tertiary);
+  font-style: italic;
+}
+
+.sheet-bar__input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0 8px;
+  border: 0;
+  border-left: 1px solid var(--color-border-default);
+  background: none;
+  color: var(--color-text-primary);
+  font: var(--scene-body-s, 14px/1.4 sans-serif);
+}
+
+.sheet-bar__name:focus,
+.sheet-bar__input:focus {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: -2px;
+}
+
+/* The sheet itself: grid lines, no row cards, full height of the window. */
+.sheet .sheet-scroll {
+  max-height: max(480px, calc(100vh - 230px));
+  border: 1px solid var(--color-border-default);
+  border-radius: 0 0 8px 8px;
+  background: var(--color-bg-surface);
+}
+
+.sheet .sheet-table {
+  border-spacing: 0;
+  font: var(--scene-body-s, 14px/1.4 sans-serif);
+}
+
+.sheet .sheet-table th,
+.sheet .sheet-table td {
+  height: 44px;
+  padding: 0 8px;
+}
+
+.sheet .roster__table--compact.sheet-table th,
+.sheet .roster__table--compact.sheet-table td {
+  height: 32px;
+}
+
+.sheet .sheet-table thead th,
+.sheet .sheet-table thead td,
+.sheet .sheet-table tbody td,
+.sheet .sheet-table tbody th,
+.sheet .sheet-table thead th:first-child,
+.sheet .sheet-table thead th:last-child,
+.sheet .sheet-table tbody td:first-child,
+.sheet .sheet-table tbody td:last-child {
+  border: 0;
+  border-right: 1px solid var(--color-border-default);
+  border-bottom: 1px solid var(--color-border-default);
+  border-radius: 0;
+}
+
+.sheet .sheet-table thead th,
+.sheet .sheet-table thead td {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  height: 52px;
+  padding: 0 4px 0 8px;
+  background: var(--color-bg-canvas);
+  vertical-align: top;
+}
+
+/* Above the frozen body cells that scroll under the header (ApplicantTable.css loads later). */
+.sheet .roster__sheet .sheet-table thead th.roster__sticky,
+.sheet .roster__sheet .sheet-table thead td.sheet-corner {
+  z-index: 7;
+}
+
+.sheet .sheet-table tbody td {
+  position: relative;
+  background: var(--color-bg-surface);
+}
+
+.sheet .sheet-table tbody tr:hover td {
+  background: var(--color-bg-surface);
+}
+
+.sheet .sheet-table tbody td.roster__sticky,
+.sheet .sheet-table tfoot td.roster__sticky,
+.sheet .sheet-table thead th.roster__sticky {
+  position: sticky;
+}
+
+.sheet .sheet-table tbody td.roster__sticky {
+  z-index: 3;
+}
+
+.sheet .sheet-table tbody td.is-selected {
+  background: var(--color-bg-selected);
+}
+
+.sheet .sheet-table tbody td.is-fill {
+  outline: 1px dashed var(--color-selected-indicator);
+  outline-offset: -2px;
+}
+
+.sheet .sheet-table tbody td.is-active {
+  outline: 2px solid var(--color-selected-indicator);
+  outline-offset: -2px;
+  z-index: 4;
+}
+
+.sheet .sheet-table tbody td.is-editing {
+  overflow: visible;
+  padding: 0;
+  z-index: 8;
+}
+
+.sheet-corner,
+.sheet .sheet-gutter {
+  position: sticky;
+  left: 0;
+  padding: 0 !important;
+  background: var(--color-bg-canvas) !important;
+  color: var(--color-text-tertiary);
+  font: var(--scene-caption-m);
+  text-align: center !important;
+  cursor: default;
+  user-select: none;
+}
+
+.sheet .sheet-table tbody th.sheet-gutter {
+  z-index: 3;
+}
+
+.sheet .sheet-row--frozen th.sheet-gutter {
+  position: sticky;
+  z-index: 6;
+}
+
+.sheet .sheet-row--frozen td {
+  border-bottom-color: var(--color-border-strong, #9aa5a8);
+}
+
+.sheet .sheet-row--operator th.sheet-gutter {
+  color: var(--color-selected-indicator);
+}
+
+.sheet-head__letter {
+  display: block;
+  width: 100%;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-text-tertiary);
+  font: var(--scene-caption-m);
+  text-align: center;
+  cursor: pointer;
+}
+
+.sheet-head__main {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 30px;
+  padding-right: 6px;
+}
+
+.sheet-head__main .roster__sort {
+  flex: 1;
+  min-width: 0;
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.sheet-head__menu {
+  flex: none;
+  width: 20px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  opacity: 0;
+}
+
+.sheet .sheet-table thead th:hover .sheet-head__menu,
+.sheet-head__menu:focus-visible {
+  opacity: 1;
+}
+
+/* Phones have no hover: the column menu is where sorting, filters and hidden columns live. */
+@media (hover: none) {
+  .sheet-head__menu {
+    opacity: 1;
+  }
+}
+
+/* A filter is on this column (the column menu takes it off). */
+.sheet-head__filtered {
+  flex: none;
+  margin-left: 4px;
+  color: var(--color-accent);
+  vertical-align: -1px;
+}
+
+.sheet .sheet-table thead th.is-selected {
+  background: var(--color-bg-selected);
+}
+
+.sheet .sheet-table thead th.sheet-head--operator {
+  box-shadow: inset 0 3px 0 var(--color-selected-indicator);
+}
+
+.sheet .sheet-table thead th.is-drop {
+  box-shadow: inset 3px 0 0 var(--color-selected-indicator);
+}
+
+.sheet .sheet-table thead th.is-dragging {
+  opacity: 0.5;
+}
+
+.sheet-cell--error {
+  color: var(--color-danger, #b00020);
+}
+
+.sheet-handle {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  z-index: 5;
+  width: 8px;
+  height: 8px;
+  border: 1px solid var(--color-bg-surface);
+  background: var(--color-selected-indicator);
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.sheet-editor {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  min-height: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0 8px;
+  border: 2px solid var(--color-selected-indicator);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font: inherit;
+  line-height: 28px;
+  resize: none;
+  outline: none;
+  overflow: hidden;
+  white-space: pre;
+}
+
+.sheet-choices {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  min-width: 100%;
+  max-height: 240px;
+  overflow: auto;
+  padding: 4px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 6px;
+  background: var(--color-bg-surface);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 14%);
+}
+
+.sheet-choices button {
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--color-text-primary);
+  font: inherit;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.sheet-choices button:hover {
+  background: var(--color-bg-hover-row);
+}
+
+.sheet-choices--functions button {
+  font-family: ui-monospace, monospace;
+}
+
+.sheet-menu {
+  position: fixed;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  min-width: 220px;
+  padding: 6px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 8px;
+  background: var(--color-bg-surface);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 18%);
+}
+
+.sheet-menu--inline {
+  position: absolute;
+  top: 34px;
+  left: 0;
+}
+
+.sheet-menu button {
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--color-text-primary);
+  font: var(--scene-body-s, 14px/1.4 sans-serif);
+  text-align: left;
+  cursor: pointer;
+}
+
+.sheet-menu button:hover:not(:disabled) {
+  background: var(--color-bg-hover-row);
+}
+
+.sheet-menu button:disabled {
+  color: var(--color-text-tertiary);
+  cursor: default;
+}
+
+.sheet-menu hr {
+  width: 100%;
+  margin: 4px 0;
+  border: 0;
+  border-top: 1px solid var(--color-border-default);
+}
+
+.sheet-menu__note {
+  padding: 6px 10px;
+  color: var(--color-text-tertiary);
+  font: var(--scene-caption-m);
+}
+
+.sheet-menu__rename {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+}
+
+.sheet-menu__rename input {
+  flex: 1;
+  min-width: 0;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 4px;
+  font: inherit;
+}
+
+/* Conditional format panel. */
+.sheet-rules {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sheet-rules__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.sheet-rules__row input[type="text"] {
+  width: 140px;
+  height: 36px;
+  padding: 0 8px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 6px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font: inherit;
+}
+
+.sheet-rules__row input[type="color"] {
+  width: 36px;
+  height: 36px;
+  padding: 2px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 6px;
+  background: var(--color-bg-surface);
+}
+
+.sheet-rules__preview {
+  padding: 4px 10px;
+  border-radius: 4px;
+  font: var(--scene-body-s, 14px/1.4 sans-serif);
+}

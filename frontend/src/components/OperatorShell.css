@@ -273,6 +273,12 @@ a.operator-shell__item {
     padding-left: max(32px, calc((100% - 1128px) / 2));
     padding-right: max(32px, calc((100% - 1128px) / 2));
   }
+
+  /* 참가 현황 (#509): the sheet takes the whole width, as a spreadsheet does. */
+  .operator-shell__main.operator-shell__main--framed.operator-shell__main--wide > :not(dialog) {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
 }
 
 .operator-shell__header {

@@ -63,7 +63,10 @@ public class ApplicationRepository {
     return queries.findAnswers(AnswerListQuery.of(spaceId, eventId, applicationId, ANSWER_ORDER));
   }
 
-  /** Submitted applications of the event in list order, for the CSV export (#233). */
+  /**
+   * Submitted applications in the order each person first submitted, for the table and the CSV
+   * (#233, DEC-091).
+   */
   public List<ApplicationRow> listSubmitted(UUID spaceId, UUID eventId) {
     return queries.findSubmitted(EventApplicationKey.of(spaceId, eventId));
   }

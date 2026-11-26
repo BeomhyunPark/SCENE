@@ -30,6 +30,8 @@ public final class AuditActions {
    */
   public static final String APPLICATION_OPERATION_UPDATED = "APPLICATION_OPERATION_UPDATED";
 
+  public static final String ROSTER_SHEET_UPDATED = "ROSTER_SHEET_UPDATED";
+
   /**
    * Check-in and cancel (#282). Details are {@code checkInId}, {@code participantId}, {@code
    * method} (null on cancel), and {@code reason} (null on check-in). No name or phone.

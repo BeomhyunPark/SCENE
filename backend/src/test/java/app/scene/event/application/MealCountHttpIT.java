@@ -313,6 +313,14 @@ class MealCountHttpIT {
     assertThat(item(all, mir).get("arrival").get("status").asString()).isEqualTo("UNKNOWN");
     assertThat(item(all, mir).get("arrival").get("slot").isNull()).isTrue();
     assertThat(item(all, bada).get("arrival").get("status").asString()).isEqualTo("ARRIVED");
+    // The 참가 현황 table carries the same standing per person (DEC-091 Follow-up 3).
+    JsonNode tableRows =
+        json.readTree(ok(get(base(event) + "/applications/table").cookie(event.owner))).get("rows");
+    assertThat(tableRows.size()).isEqualTo(all.get("items").size());
+    for (JsonNode row : tableRows) {
+      assertThat(row.get("arrival"))
+          .isEqualTo(item(all, row.get("participantId").asString()).get("arrival"));
+    }
     assertThat(participants(roster(event, "?arrival=UNKNOWN"))).containsExactly(mir);
     assertThat(participants(roster(event, "?arrival=COMING&checkedIn=false")))
         .containsExactly(narae);

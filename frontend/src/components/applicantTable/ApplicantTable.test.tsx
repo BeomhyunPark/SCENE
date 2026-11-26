@@ -58,11 +58,10 @@ describe("참가 현황 table at retreat size", () => {
       "조 배정",
       "참석 범위",
       "참석 일정",
-      "작업",
     ]);
     const totals = within(grid).getAllByRole("row").at(-1)!;
     expect(totals).toHaveTextContent("200명");
-    expect(totals).toHaveTextContent(/도착 \d+ · 전 \d+/);
+    expect(totals).toHaveTextContent(/미도착 \d+ · (도착 예정 \d+ · )?도착 \d+/);
     expect(totals).toHaveTextContent(/응답 \d+ · 고유 \d+/);
   });
 
@@ -71,9 +70,11 @@ describe("참가 현황 table at retreat size", () => {
     const { field, options } = genderField(fields);
     await login({ userId: OWNER });
     openApp();
-    await screen.findByRole("grid", { name: "신청자 명단" });
+    const grid = await screen.findByRole("grid", { name: "신청자 명단" });
 
-    fireEvent.click(screen.getByRole("button", { name: "필터" }));
+    // The column menu opens the filter (the 필터 button above the table is gone).
+    fireEvent.click(within(grid).getByRole("button", { name: "현재 상태 열 메뉴" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "필터" }));
     chooseOption(screen.getByRole("combobox", { name: "조건 더하기" }), field.fieldId);
     const gender = screen.getByRole("group", { name: /성별/ });
     fireEvent.click(within(gender).getByRole("checkbox", { name: new RegExp(`^${options[0].label}`) }));
@@ -89,6 +90,34 @@ describe("참가 현황 table at retreat size", () => {
     ).length;
     expect(summary()).toBe(`${expected}명`);
     expect(screen.getByRole("list", { name: "걸린 조건" })).toHaveTextContent("티셔츠 크기: 응답 없음");
+    fireEvent.click(screen.getByRole("button", { name: "닫기" }));
+    expect(screen.queryByRole("group", { name: "필터" })).not.toBeInTheDocument();
+  });
+
+  it("marks a filtered or sorted header and takes either off from the column menu", async () => {
+    const { fields } = seedDemoRoster(40);
+    const { field, options } = genderField(fields);
+    await login({ userId: OWNER });
+    openApp(`${PATH}?f.${field.fieldId}=${options[0].optionId}&sort=status:asc&cols=status,${field.fieldId}`);
+    const grid = await screen.findByRole("grid", { name: "신청자 명단" });
+    const gender = within(grid).getByRole("columnheader", { name: /성별/ });
+    expect(within(gender).getByRole("img", { name: "필터 걸림" })).toBeInTheDocument();
+    // A short state name and no tooltip (DEC-091 Follow-up).
+    const sortButton = within(gender).getByRole("button", { name: "성별 열, 정렬 안 됨, 필터 걸림" });
+    expect(sortButton).not.toHaveAttribute("title");
+    expect(within(grid).getByRole("button", { name: "현재 상태 열, 오름차순" })).toBeInTheDocument();
+    expect(summary()).toBe(`${countGender(options[0].optionId)}명`);
+
+    fireEvent.click(within(grid).getByRole("button", { name: "성별 열 메뉴" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "필터 해제" }));
+    expect(summary()).toBe("40명");
+    expect(within(gender).queryByRole("img", { name: "필터 걸림" })).not.toBeInTheDocument();
+
+    const status = within(grid).getByRole("columnheader", { name: /현재 상태/ });
+    expect(status).toHaveAttribute("aria-sort", "ascending");
+    fireEvent.click(within(grid).getByRole("button", { name: "현재 상태 열 메뉴" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "정렬 해제" }));
+    expect(status).toHaveAttribute("aria-sort", "none");
   });
 
   it("restores a filter, sort and columns from the address after a reload", async () => {
@@ -112,7 +141,7 @@ describe("참가 현황 table at retreat size", () => {
     const table = await screen.findByRole("grid", { name: "신청자 명단" });
 
     const header = within(table).getByRole("columnheader", { name: /조 배정/ });
-    fireEvent.click(within(header).getByRole("button"));
+    fireEvent.click(header.querySelector<HTMLElement>(".roster__sort")!);
     expect(header).toHaveAttribute("aria-sort", "ascending");
     // Numeric order: 1조, 2조, … 10조, then 미배정 last.
     expect(within(within(table).getAllByRole("row")[1]).getAllByRole("cell")[4].textContent).toMatch(/^1조/);
@@ -124,19 +153,25 @@ describe("참가 현황 table at retreat size", () => {
     expect(summary()).toBe(`${unassigned}명`);
   });
 
-  it("turns question columns on and off", async () => {
+  it("hides a column and shows hidden ones again from the column menu", async () => {
     seedDemoRoster(40);
     await login({ userId: OWNER });
     openApp();
     const table = await screen.findByRole("grid", { name: "신청자 명단" });
 
-    fireEvent.click(screen.getByRole("button", { name: "+ 열 보기" }));
-    const panel = screen.getByRole("group", { name: "열 보기" });
-    fireEvent.click(within(panel).getByRole("checkbox", { name: "티셔츠 크기" }));
-    fireEvent.click(within(panel).getByRole("checkbox", { name: "연락처" }));
-    expect(within(table).getByRole("columnheader", { name: /티셔츠 크기/ })).toBeInTheDocument();
+    fireEvent.click(within(table).getByRole("button", { name: "연락처 열 메뉴" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "열 숨기기" }));
     expect(within(table).queryByRole("columnheader", { name: /연락처/ })).not.toBeInTheDocument();
-    expect(within(panel).getByRole("checkbox", { name: "옛 질문 (숨김)" })).not.toBeChecked();
+
+    fireEvent.click(within(table).getByRole("button", { name: "현재 상태 열 메뉴" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /^숨긴 열 보이기/ }));
+    const hidden = screen.getByRole("group", { name: "숨긴 열" });
+    expect(within(hidden).getByRole("menuitem", { name: "연락처" })).toBeInTheDocument();
+    expect(within(hidden).getByRole("menuitem", { name: "옛 질문 (숨김)" })).toBeInTheDocument();
+    fireEvent.click(within(hidden).getByRole("menuitem", { name: "티셔츠 크기" }));
+    const headers = within(table).getAllByRole("columnheader").map((cell) => cell.querySelector(".roster__label")?.textContent);
+    // It comes back right of the column whose menu was used.
+    expect(headers.indexOf("티셔츠 크기")).toBe(headers.indexOf("현재 상태") + 1);
   });
 
   it("counts one question per option and crosses two, then opens the people behind a cell", async () => {
@@ -273,8 +308,12 @@ describe("참가 현황 table at retreat size", () => {
     fireEvent.keyDown(handle, { key: "ArrowRight" });
     expect(Number(within(grid).getByRole("separator", { name: "소속 열 너비" }).getAttribute("aria-valuenow"))).toBe(width + 16);
 
-    fireEvent.click(screen.getByRole("button", { name: "+ 열 보기" }));
-    fireEvent.click(screen.getByRole("button", { name: "참석 범위 앞으로" }));
+    // Drag the 참석 범위 header onto 조 배정 (the column list panel is gone).
+    const dataTransfer = { setData: () => undefined, effectAllowed: "" };
+    const header = (label: string) => within(grid).getByRole("columnheader", { name: new RegExp(label) });
+    fireEvent.dragStart(header("참석 범위"), { dataTransfer });
+    fireEvent.dragOver(header("조 배정"), { dataTransfer });
+    fireEvent.drop(header("조 배정"), { dataTransfer });
     const headers = within(grid).getAllByRole("columnheader").map((cell) => cell.querySelector(".roster__label")?.textContent);
     expect(headers.indexOf("참석 범위")).toBeLessThan(headers.indexOf("조 배정"));
   });

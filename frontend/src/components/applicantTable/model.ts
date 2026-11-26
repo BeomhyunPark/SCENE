@@ -3,6 +3,7 @@ import { cohortSortKey, compareCohort } from "../cohort";
 import type { AnswerType, FieldOption } from "../../api/forms";
 import { formatAnswer, HIDDEN_MARK } from "../answerDisplay";
 import { participantLabel } from "../participantLabel";
+import { arrivalState, FIELD_STATE_LABELS, type FieldState } from "../fieldState";
 import { roomColumn, summarizeRooms } from "./roomColumn";
 
 /**
@@ -25,7 +26,9 @@ export type ColumnType =
   | "group"
   | "room"
   | "status"
-  | "memo";
+  | "memo"
+  /** An operator column of the sheet (#509). */
+  | "sheet";
 
 /** Id of the 수정 column (#437): rows the participant (or an operator) changed after applying. */
 export const EDITED = "edited";
@@ -97,6 +100,10 @@ export type ViewState = {
   density: Density;
   /** Rows grouped by this column, or null. */
   groupBy: string | null;
+  /** Operator columns (#509) the reader hid; table columns hide by leaving `visible`. */
+  hidden: string[];
+  /** Frozen columns (참가자 by default) and rows at the top of the sheet. */
+  freeze: { cols: number; rows: number };
 };
 
 export const EMPTY_VIEW: ViewState = {
@@ -109,6 +116,8 @@ export const EMPTY_VIEW: ViewState = {
   widths: {},
   density: "comfortable",
   groupBy: null,
+  hidden: [],
+  freeze: { cols: 1, rows: 0 },
 };
 
 export const MIN_WIDTH = 64;
@@ -117,6 +126,13 @@ export const MAX_WIDTH = 640;
 const CHOICE_TYPES: AnswerType[] = ["SINGLE_CHOICE", "DROPDOWN", "MULTI_CHOICE", "YES_NO"];
 
 // --- columns ---
+
+/** 도착 / 미도착 / 도착 예정 of a row, the 현장 운영 rule (fieldState). */
+export function rowState(row: TableRow): FieldState {
+  return arrivalState(row.checkedInAt !== null, row.arrival);
+}
+
+const STATE_LABEL = new Map(FIELD_STATE_LABELS);
 
 /**
  * Columns in screen order. The design's fixed columns come first (참가자, 소속, 연락처, 현재 상태, 조
@@ -172,13 +188,11 @@ export function buildColumns(table: ApplicationTable): ColumnDef[] {
     type: "status",
     defaultVisible: true,
     countable: true,
-    options: [
-      { key: "arrived", label: "도착 완료" },
-      { key: "waiting", label: "도착 전" },
-    ],
-    text: (row) => (row.checkedInAt ? "도착 완료" : "도착 전"),
-    buckets: (row) => [row.checkedInAt ? "arrived" : "waiting"],
-    sortValue: (row) => (row.checkedInAt ? 1 : 0),
+    // The 현장 운영 words (DEC-091 Follow-up 3): 도착, 미도착, 도착 예정 by the roster's own rule.
+    options: FIELD_STATE_LABELS.map(([key, label]) => ({ key, label })),
+    text: (row) => STATE_LABEL.get(rowState(row))!,
+    buckets: (row) => [rowState(row)],
+    sortValue: (row) => FIELD_STATE_LABELS.findIndex(([key]) => key === rowState(row)),
   });
   if (table.groupVisible) {
     const groups = new Map<string, string>();
@@ -640,7 +654,12 @@ export function crossCount(rows: readonly TableRow[], a: ColumnDef, b: ColumnDef
  */
 export function summarize(rows: readonly TableRow[], column: ColumnDef): string {
   if (column.type === "person") return `${rows.length}명`;
-  if (column.type === "status") return `도착 ${rows.filter((row) => row.checkedInAt).length} · 전 ${rows.filter((row) => !row.checkedInAt).length}`;
+  if (column.type === "status") {
+    return FIELD_STATE_LABELS.map(([key, label]) => [label, rows.filter((row) => rowState(row) === key).length] as const)
+      .filter(([label, count]) => count > 0 || label !== "도착 예정")
+      .map(([label, count]) => `${label} ${count}`)
+      .join(" · ");
+  }
   if (column.type === "memo") return `메모 ${rows.filter((row) => row.operation.memo.trim()).length}`;
   if (column.type === "room") return summarizeRooms(rows);
   if (column.type === "group") {
@@ -703,18 +722,6 @@ export function copyText(rows: readonly TableRow[], columns: readonly ColumnDef[
   return rows.map((row) => columns.map((column) => clean(column.text(row))).join("\t")).join("\n");
 }
 
-// --- column order ---
-
-/** Moves one id up or down the explicit column order. 참가자 stays first. */
-export function moveColumn(order: readonly string[], id: string, delta: -1 | 1): string[] {
-  const next = order.filter((item) => item !== "person");
-  const index = next.indexOf(id);
-  const target = index + delta;
-  if (index < 0 || target < 0 || target >= next.length) return [...next];
-  [next[index], next[target]] = [next[target], next[index]];
-  return next;
-}
-
 export function defaultWidth(column: ColumnDef): number {
   if (column.type === "person") return 180;
   if (column.type === "status" || column.type === "number") return 120;
@@ -722,6 +729,7 @@ export function defaultWidth(column: ColumnDef): number {
   // 방: room names are short, but the summary "배정 N · M개 방 · 숙박 안 함 K" needs room.
   if (column.type === "room") return 200;
   if (column.type === "memo") return 220;
+  if (column.type === "sheet") return 140;
   if (column.type === "date") return 150;
   if (column.type === "multi") return 220;
   return 170;
@@ -774,6 +782,8 @@ export function readView(params: URLSearchParams): ViewState {
     widths,
     density: params.get("density") === "compact" ? "compact" : "comfortable",
     groupBy: params.get("group"),
+    hidden: (params.get("hide") ?? "").split(",").filter(Boolean),
+    freeze: readFreeze(params.get("fz")),
   };
 }
 
@@ -793,7 +803,18 @@ export function writeView(view: ViewState): URLSearchParams {
   if (widths.length > 0) params.set("w", widths.map(([id, px]) => `${id}:${px}`).join(","));
   if (view.density === "compact") params.set("density", "compact");
   if (view.groupBy) params.set("group", view.groupBy);
+  if (view.hidden?.length) params.set("hide", view.hidden.join(","));
+  if (view.freeze && (view.freeze.cols !== 1 || view.freeze.rows !== 0)) params.set("fz", `${view.freeze.cols},${view.freeze.rows}`);
   return params;
+}
+
+function readFreeze(text: string | null): { cols: number; rows: number } {
+  if (!text) return { cols: 1, rows: 0 };
+  const [cols, rows] = text.split(",").map(Number);
+  return {
+    cols: Number.isInteger(cols) && cols >= 0 && cols <= 20 ? cols : 1,
+    rows: Number.isInteger(rows) && rows >= 0 && rows <= 50 ? rows : 0,
+  };
 }
 
 /** Visible columns: 참가자 first, then the explicit order, or the default set in canonical order. */

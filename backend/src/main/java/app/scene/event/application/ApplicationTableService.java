@@ -17,6 +17,7 @@ import app.scene.event.lifecycle.EventLocation;
 import app.scene.event.room.RoomDesk;
 import app.scene.space.EventUserPermissionRepository;
 import java.time.Clock;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -62,6 +63,7 @@ public class ApplicationTableService {
   private final ApplicationOperationRepository operations;
   private final ApplicationStatusChanges statuses;
   private final RoomDesk roomDesk;
+  private final ArrivalRoster arrivals;
   private final EventUserPermissionRepository permissions;
   private final AuditLogRepository auditLogs;
   private final JsonMapper json;
@@ -75,6 +77,7 @@ public class ApplicationTableService {
       ApplicationOperationRepository operations,
       ApplicationStatusChanges statuses,
       RoomDesk roomDesk,
+      ArrivalRoster arrivals,
       EventUserPermissionRepository permissions,
       AuditLogRepository auditLogs,
       JsonMapper json,
@@ -86,6 +89,7 @@ public class ApplicationTableService {
     this.operations = operations;
     this.statuses = statuses;
     this.roomDesk = roomDesk;
+    this.arrivals = arrivals;
     this.permissions = permissions;
     this.auditLogs = auditLogs;
     this.json = json;
@@ -154,6 +158,9 @@ public class ApplicationTableService {
 
     Map<UUID, ApplicationOperation> stored = operations.byApplication(spaceId, eventId);
     RoomDesk.Stays stays = roomDesk.all(spaceId, eventId);
+    // The 현장 운영 roster's standing, read to the second like the roster (DEC-091 Follow-up 3).
+    ArrivalRoster.Snapshot arrival =
+        arrivals.read(spaceId, eventId, clock.instant().truncatedTo(ChronoUnit.SECONDS));
     List<ApplicationTable.Row> rows = new ArrayList<>();
     for (ApplicationRow row : applications.listSubmitted(spaceId, eventId)) {
       ApplicationTableState state = states.get(row.applicationId());
@@ -177,7 +184,8 @@ public class ApplicationTableService {
               stay.room() == null
                   ? null
                   : new ApplicationTable.Room(stay.room().roomId(), stay.room().name()),
-              stay.lodging()));
+              stay.lodging(),
+              state == null ? null : arrival.of(state.participantId())));
     }
 
     if (anyContact && !rows.isEmpty()) {

@@ -104,12 +104,8 @@ function Applicants({
       <ApplicantTable
         eventId={eventId}
         table={table.data}
+        mayWrite={effective.includes("PARTICIPANT_WRITE") && eventStatus !== "ARCHIVED"}
         onEdit={mayEdit ? (row: TableRow) => setEditing(row.applicationId) : undefined}
-        editNote={
-          permissions.isSuccess && !mayEdit
-            ? "운영 메모·조 배정을 고칠 권한이 없어 수정 버튼이 없어요. 행사 소유자에게 요청해 주세요."
-            : undefined
-        }
         withdrawnPanel={
           <WithdrawnList
             eventId={eventId}
@@ -179,6 +175,7 @@ function ParticipationBody({ event, spaceName }: { event: EventDetail; spaceName
       eventAreas={["participants"]}
       participantsHref={eventId ? `/events/${eventId}/participants` : undefined}
       framed
+      wide
       leading={
         <Link className="event-home__back scene-press scene-press--text" to="/events" aria-label="행사 목록">
           <img src={arrowLeft} alt="" />

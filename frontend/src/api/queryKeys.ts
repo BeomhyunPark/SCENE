@@ -38,6 +38,8 @@ export const queryKeys = {
   applications: (eventId: string, page: number) => ["events", eventId, "applications", page] as const,
   applicationSummary: (eventId: string) => ["events", eventId, "applications", "summary"] as const,
   applicationTable: (eventId: string) => ["events", eventId, "applications", "table"] as const,
+  /** 참가 현황 운영 시트 (#509): operator columns, rows, cell values and formats. */
+  rosterSheet: (eventId: string) => ["events", eventId, "roster-sheet"] as const,
   /** 식수 현황 (#454): read again every 10 seconds while visible. */
   mealCounts: (eventId: string) => ["events", eventId, "meal-counts"] as const,
   application: (eventId: string, applicationId: string) =>
