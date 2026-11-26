@@ -1,7 +1,6 @@
 import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import type { ApplicationTable, TableRow } from "../../api/applications";
-import { Button } from "../Button";
 import { Select } from "../Select";
 import {
   EDITED,
@@ -13,7 +12,6 @@ import {
   countBy,
   crossCount,
   isActive,
-  moveColumn,
   NONE,
   readView,
   sortRows,
@@ -22,7 +20,6 @@ import {
   writeView,
   type ColumnDef,
   type Filter,
-  type Sort,
   type ViewState,
 } from "./model";
 import { SheetGrid } from "./SheetGrid";
@@ -34,7 +31,7 @@ import "./ApplicantTable.css";
 /** A text column offers value checkboxes when it has at most this many distinct answers (또래, 셀). */
 const VALUE_LIST_MAX = 40;
 
-type Panel = "sort" | "filter" | "columns" | "withdrawn" | "rules" | null;
+type Panel = "filter" | "withdrawn" | "rules" | null;
 
 /**
  * 참가 현황 (#308, Figma P03-01 1325:5059). One table of every applicant: filter by any question,
@@ -46,7 +43,6 @@ export function ApplicantTable({
   table,
   actions,
   onEdit,
-  editNote,
   withdrawnPanel,
   mayWrite = false,
 }: {
@@ -57,8 +53,6 @@ export function ApplicantTable({
   actions?: ReactNode;
   /** Opens the 현재 운영 정보 수정 drawer (#337). Without it the row has no 수정 button. */
   onEdit?: (row: TableRow) => void;
-  /** Why there is no 수정 button, shown above the table. */
-  editNote?: string;
   /** 취소된 신청 (DEC-084 §9), opened by the "취소 N" chip; hidden by default and in no count. */
   withdrawnPanel?: ReactNode;
 }) {
@@ -70,6 +64,7 @@ export function ApplicantTable({
   const [panel, setPanel] = useState<Panel>(null);
 
   const [rulesFor, setRulesFor] = useState<string | null>(null);
+  const [filterFor, setFilterFor] = useState<string | null>(null);
   const base = useMemo(() => buildColumns(table), [table]);
   const findRow = useCallback(
     (rowKey: string) => table.rows.find((row) => participantKey(row) === rowKey),
@@ -171,24 +166,6 @@ export function ApplicantTable({
             value={search}
             onChange={(event) => setSearch(event.target.value)}
           />
-          <Button
-            type="button"
-            variant="secondary"
-            size={40}
-            aria-expanded={panel === "sort"}
-            onClick={() => setPanel(panel === "sort" ? null : "sort")}
-          >
-            정렬{view.sorts.length > 0 ? ` ${view.sorts.length}` : ""}
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            size={40}
-            aria-expanded={panel === "filter"}
-            onClick={() => setPanel(panel === "filter" ? null : "filter")}
-          >
-            필터{activeCount > 0 ? ` ${activeCount}` : ""}
-          </Button>
           {actions ? <span className="roster__divider" aria-hidden="true" /> : null}
           {actions}
         </div>
@@ -223,34 +200,19 @@ export function ApplicantTable({
             취소 <span className="roster__chip-count">{table.withdrawn.length}</span>
           </button>
         ) : null}
-        <button
-          type="button"
-          className="roster__chip roster__chip--add"
-          aria-expanded={panel === "columns"}
-          onClick={() => setPanel(panel === "columns" ? null : "columns")}
-        >
-          + 열 보기
-        </button>
       </div>
 
       {panel === "withdrawn" ? withdrawnPanel : null}
-      {panel === "sort" ? <SortPanel columns={columns} sorts={view.sorts} onChange={(sorts) => update({ sorts })} /> : null}
       {panel === "filter" ? (
-        <FilterPanel columns={columns} rows={table.rows} filters={filters} onChange={setFilter} onClear={clearAll} />
-      ) : null}
-      {panel === "columns" ? (
-        <ColumnsPanel
-          eventId={eventId}
+        <FilterPanel
+          key={filterFor ?? ""}
           columns={columns}
-          visible={shown.map((column) => column.id)}
-          onChange={(visible) =>
-            update({
-              visible,
-              hidden: doc.columns.map((column) => `c:${column.id}`).filter((id) => !visible.includes(id)),
-            })
-          }
-          params={params}
-          onApply={(saved) => setParams(new URLSearchParams(saved), { replace: true })}
+          rows={table.rows}
+          filters={filters}
+          initial={filterFor}
+          onChange={setFilter}
+          onClear={clearAll}
+          onClose={() => setPanel(null)}
         />
       ) : null}
 
@@ -295,7 +257,6 @@ export function ApplicantTable({
               ))}
             </div>
           </div>
-          {editNote ? <p className="roster__hint">{editNote}</p> : null}
           {panel === "rules" ? (
             <RulesPanel
               columns={shown}
@@ -321,7 +282,9 @@ export function ApplicantTable({
             groupBy={groupBy}
             freeze={view.freeze}
             onFreeze={(freeze) => update({ freeze })}
-            onSort={(id, add, dir) => update({ sorts: dir ? [{ id, dir }] : toggleSort(view.sorts, id, add) })}
+            onSort={(id, add, dir) =>
+              update({ sorts: dir ? [{ id, dir }] : dir === null ? view.sorts.filter((sort) => sort.id !== id) : toggleSort(view.sorts, id, add) })
+            }
             onResize={(id, width) => update({ widths: { ...view.widths, [id]: width } })}
             onOpen={(row) => navigate(`/events/${eventId}/participants/${row.applicationId}`)}
             onHide={(id) => {
@@ -334,7 +297,21 @@ export function ApplicantTable({
               visible.splice(at < 0 ? visible.length : at, 0, id);
               update({ visible });
             }}
-            onFilter={() => setPanel("filter")}
+            filtered={new Set(Object.keys(filters).filter((id) => isActive(filters[id])))}
+            hiddenColumns={columns.filter((column) => column.type !== "person" && !shownIds.includes(column.id))}
+            onShow={(id, after) => {
+              const visible = shown.map((column) => column.id).filter((item) => item !== id);
+              visible.splice(visible.indexOf(after) + 1, 0, id);
+              update({ visible, hidden: view.hidden.filter((item) => item !== id) });
+            }}
+            onFilter={(id, clear) => {
+              if (clear) {
+                setFilter(id, null);
+                return;
+              }
+              setFilterFor(id);
+              setPanel("filter");
+            }}
             onRules={(colId) => {
               setRulesFor(colId);
               setPanel("rules");
@@ -444,63 +421,26 @@ function describe(column: ColumnDef, rows: readonly TableRow[], filter: Filter):
   return filter.keys.map((key) => labels.get(key) ?? key).join(", ");
 }
 
-function SortPanel({ columns, sorts, onChange }: { columns: ColumnDef[]; sorts: Sort[]; onChange: (sorts: Sort[]) => void }) {
-  const unused = columns.filter((column) => !sorts.some((sort) => sort.id === column.id));
-  return (
-    <div className="roster__panel" role="group" aria-label="정렬">
-      <p className="roster__hint">위에서부터 차례로 정렬해요. 표 머리글을 눌러도 되고, Shift를 누른 채 누르면 기준이 더해져요.</p>
-      <ol className="roster__sort-list">
-        {sorts.map((sort, index) => {
-          const column = columns.find((item) => item.id === sort.id);
-          return (
-            <li key={sort.id}>
-              <span>
-                {index + 1}. {column?.label ?? sort.id}
-              </span>
-              <Select
-                aria-label={`${column?.label ?? sort.id} 정렬 방향`}
-                value={sort.dir}
-                options={[
-                  { value: "asc", label: "오름차순" },
-                  { value: "desc", label: "내림차순" },
-                ]}
-                onChange={(value) => onChange(sorts.map((item) => (item.id === sort.id ? { ...item, dir: value as Sort["dir"] } : item)))}
-              />
-              <button type="button" className="roster__link scene-press scene-press--text" onClick={() => onChange(sorts.filter((item) => item.id !== sort.id))}>
-                빼기
-              </button>
-            </li>
-          );
-        })}
-      </ol>
-      <label className="roster__field">
-        정렬 기준 더하기
-        <Select
-          value=""
-          options={[{ value: "", label: "열 고르기" }, ...unused.map((column) => ({ value: column.id, label: column.label }))]}
-          onChange={(value) => {
-            if (value) onChange([...sorts, { id: value, dir: "asc" }]);
-          }}
-        />
-      </label>
-    </div>
-  );
-}
 
 function FilterPanel({
   columns,
   rows,
   filters,
+  initial,
   onChange,
   onClear,
+  onClose,
 }: {
   columns: ColumnDef[];
   rows: readonly TableRow[];
   filters: Record<string, Filter>;
+  /** The column whose menu opened the panel. */
+  initial: string | null;
   onChange: (id: string, filter: Filter | null) => void;
   onClear: () => void;
+  onClose: () => void;
 }) {
-  const [adding, setAdding] = useState<string[]>([]);
+  const [adding, setAdding] = useState<string[]>(initial ? [initial] : []);
   const ids = [...new Set([...Object.keys(filters), ...adding])].filter((id) => columns.some((column) => column.id === id));
   const available = columns.filter((column) => column.type !== "person" && !ids.includes(column.id));
   return (
@@ -547,6 +487,9 @@ function FilterPanel({
             모두 지우기
           </button>
         ) : null}
+        <button type="button" className="roster__link scene-press scene-press--text" onClick={onClose}>
+          닫기
+        </button>
       </div>
     </div>
   );
@@ -632,152 +575,6 @@ function rangeOf(filter: Filter | undefined, change: { min?: string; max?: strin
   const before = filter?.kind === "range" ? filter : { kind: "range" as const, min: "", max: "" };
   const next = { ...before, ...change };
   return next.min === "" && next.max === "" ? null : next;
-}
-
-type SavedView = { name: string; query: string };
-
-function savedKey(eventId: string): string {
-  return `scene.roster.views.${eventId}`;
-}
-
-function readSaved(eventId: string): SavedView[] {
-  try {
-    const raw = window.localStorage.getItem(savedKey(eventId));
-    const parsed: unknown = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed)
-      ? parsed.filter((item): item is SavedView => typeof item?.name === "string" && typeof item?.query === "string")
-      : [];
-  } catch {
-    return [];
-  }
-}
-
-function writeSaved(eventId: string, views: SavedView[]) {
-  try {
-    window.localStorage.setItem(savedKey(eventId), JSON.stringify(views));
-  } catch {
-    // A private window may refuse storage; the view is still in the address.
-  }
-}
-
-function ColumnsPanel({
-  eventId,
-  columns,
-  visible,
-  onChange,
-  params,
-  onApply,
-}: {
-  eventId: string;
-  columns: ColumnDef[];
-  visible: string[];
-  onChange: (visible: string[]) => void;
-  params: URLSearchParams;
-  onApply: (query: string) => void;
-}) {
-  const [saved, setSaved] = useState(() => readSaved(eventId));
-  const [name, setName] = useState("");
-  return (
-    <div className="roster__panel roster__panel--columns" role="group" aria-label="열 보기">
-      <div>
-        <p className="roster__hint">표에 보일 열과 순서를 정해요. 숨긴 열도 필터와 세기에는 쓸 수 있어요.</p>
-        <ol className="roster__order" aria-label="보이는 열 순서">
-          {visible
-            .filter((id) => id !== "person")
-            .map((id, index, list) => {
-              const column = columns.find((item) => item.id === id);
-              if (!column) return null;
-              return (
-                <li key={id}>
-                  <label>
-                    <input type="checkbox" checked onChange={() => onChange(visible.filter((item) => item !== id))} />
-                    {column.label}
-                  </label>
-                  <span className="roster__order-buttons">
-                    <button
-                      type="button"
-                      aria-label={`${column.label} 앞으로`}
-                      disabled={index === 0}
-                      onClick={() => onChange(moveColumn(visible, id, -1))}
-                    >
-                      ↑
-                    </button>
-                    <button
-                      type="button"
-                      aria-label={`${column.label} 뒤로`}
-                      disabled={index === list.length - 1}
-                      onClick={() => onChange(moveColumn(visible, id, 1))}
-                    >
-                      ↓
-                    </button>
-                  </span>
-                </li>
-              );
-            })}
-        </ol>
-        <div className="roster__options roster__options--columns" aria-label="숨긴 열">
-          {columns
-            .filter((column) => column.type !== "person" && !visible.includes(column.id))
-            .map((column) => (
-              <label key={column.id}>
-                <input
-                  type="checkbox"
-                  checked={false}
-                  onChange={() => onChange([...visible.filter((id) => id !== "person"), column.id])}
-                />
-                {column.label}
-              </label>
-            ))}
-        </div>
-        <button type="button" className="roster__link scene-press scene-press--text" onClick={() => onChange(columns.filter((column) => column.defaultVisible).map((column) => column.id))}>
-          기본 열로
-        </button>
-      </div>
-      <div className="roster__saved">
-        <p className="roster__hint">지금 필터·정렬·열을 이 브라우저에 이름 붙여 저장해요. 검색어는 저장하지 않아요.</p>
-        <form
-          className="roster__save"
-          onSubmit={(event) => {
-            event.preventDefault();
-            const trimmed = name.trim();
-            if (!trimmed) return;
-            const next = [...saved.filter((view) => view.name !== trimmed), { name: trimmed, query: params.toString() }];
-            setSaved(next);
-            writeSaved(eventId, next);
-            setName("");
-          }}
-        >
-          <input aria-label="보기 이름" placeholder="보기 이름 (예: 1일차 식사)" value={name} maxLength={30} onChange={(event) => setName(event.target.value)} />
-          <Button type="submit" variant="secondary" size={32} disabled={!name.trim()}>
-            보기 저장
-          </Button>
-        </form>
-        {saved.length > 0 ? (
-          <ul className="roster__saved-list" aria-label="저장한 보기">
-            {saved.map((view) => (
-              <li key={view.name}>
-                <button type="button" className="roster__link scene-press scene-press--text" onClick={() => onApply(view.query)}>
-                  {view.name}
-                </button>
-                <button
-                  type="button"
-                  aria-label={`${view.name} 보기 지우기`}
-                  className="roster__link roster__muted scene-press scene-press--text"
-                  onClick={() => {
-                    const next = saved.filter((item) => item.name !== view.name);
-                    setSaved(next);
-                    writeSaved(eventId, next);
-                  }}
-                >
-                  지우기
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-      </div>
-    </div>
-  );
 }
 
 function CountView({

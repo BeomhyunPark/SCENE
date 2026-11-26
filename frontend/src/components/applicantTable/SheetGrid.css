@@ -327,6 +327,21 @@
   opacity: 1;
 }
 
+/* Phones have no hover: the column menu is where sorting, filters and hidden columns live. */
+@media (hover: none) {
+  .sheet-head__menu {
+    opacity: 1;
+  }
+}
+
+/* A filter is on this column (the column menu takes it off). */
+.sheet-head__filtered {
+  flex: none;
+  margin-left: 4px;
+  color: var(--color-accent);
+  vertical-align: -1px;
+}
+
 .sheet .sheet-table thead th.is-selected {
   background: var(--color-bg-selected);
 }

@@ -80,6 +80,9 @@ export function SheetGrid({
   onEdit,
   onHide,
   onMove,
+  filtered,
+  hiddenColumns,
+  onShow,
   onFilter,
   onRules,
 }: {
@@ -97,13 +100,19 @@ export function SheetGrid({
   freeze: Freeze;
   toolbarEnd?: ReactNode;
   onFreeze: (freeze: Freeze) => void;
-  onSort: (id: string, add: boolean, dir?: "asc" | "desc") => void;
+  onSort: (id: string, add: boolean, dir?: "asc" | "desc" | null) => void;
   onResize: (id: string, width: number) => void;
   onOpen: (row: TableRow) => void;
   onEdit?: (row: TableRow) => void;
   onHide: (id: string) => void;
   onMove: (id: string, before: string | null) => void;
-  onFilter: () => void;
+  /** Column ids with a filter on; their headers carry a mark. */
+  filtered: ReadonlySet<string>;
+  /** Columns not shown, offered again by the column menu. */
+  hiddenColumns: ColumnDef[];
+  onShow: (id: string, after: string) => void;
+  /** Opens the filter on that column; `clear` takes it off instead. */
+  onFilter: (id: string, clear?: boolean) => void;
   onRules: (colId: string | null) => void;
 }) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
@@ -621,7 +630,6 @@ export function SheetGrid({
     event.preventDefault();
     setMenu({ kind, r, c, x: event.clientX, y: event.clientY });
   }, []);
-  const edit = useCallback((row: TableRow) => onEdit?.(row), [onEdit]);
 
   // Frozen columns stay put at these offsets from the row numbers.
   const lefts: number[] = [];
@@ -634,8 +642,7 @@ export function SheetGrid({
   }
   const frozenStyle = (c: number) => (c < frozenCols ? { left: lefts[c] } : undefined);
 
-  const actionsWidth = onEdit ? 144 : 72;
-  const total = GUTTER + columns.reduce((sum, column) => sum + width(column), 0) + actionsWidth;
+  const total = GUTTER + columns.reduce((sum, column) => sum + width(column), 0);
   const activeRef = flat[cur.r];
   const activeColumn = columns[cur.c];
   const barText = editing ? editing.text : flat.length > 0 && activeColumn ? rawOf(cur.r, cur.c) : "";
@@ -669,7 +676,6 @@ export function SheetGrid({
         onPick={pick}
         onOpen={open}
         onMenu={menuAt}
-        onEdit={onEdit ? edit : undefined}
         onFillStart={startFill}
         onEditChange={(text) => setEditing((before) => (before ? { ...before, text } : before))}
         onEditKey={(event) => {
@@ -830,7 +836,6 @@ export function SheetGrid({
             {columns.map((column) => (
               <col key={column.id} style={{ width: width(column) }} />
             ))}
-            <col style={{ width: actionsWidth }} />
           </colgroup>
           <thead ref={head}>
             <tr aria-rowindex={1}>
@@ -849,6 +854,7 @@ export function SheetGrid({
                   index={c}
                   letter={columnLetter(c)}
                   sorts={sorts}
+                  filtered={filtered.has(column.id)}
                   width={width(column)}
                   frozen={c < frozenCols}
                   left={lefts[c]}
@@ -874,22 +880,19 @@ export function SheetGrid({
                   }}
                 />
               ))}
-              <th scope="col" className="roster__actions-head" aria-colindex={columns.length + 2}>
-                작업
-              </th>
             </tr>
           </thead>
           <tbody ref={body}>
             {frozenLines.map((line, at) => renderRow(line, at))}
             {padTop > 0 ? (
               <tr aria-hidden="true" className="roster__pad" style={{ height: padTop }}>
-                <td colSpan={columns.length + 2} />
+                <td colSpan={columns.length + 1} />
               </tr>
             ) : null}
             {lines.slice(from, to).map((line) =>
               line.kind === "group" ? (
                 <tr key={`g:${line.key}`} className="roster__group-row">
-                  <th scope="rowgroup" colSpan={columns.length + 2}>
+                  <th scope="rowgroup" colSpan={columns.length + 1}>
                     <button
                       type="button"
                       aria-expanded={line.open}
@@ -913,7 +916,7 @@ export function SheetGrid({
             )}
             {padBottom > 0 ? (
               <tr aria-hidden="true" className="roster__pad" style={{ height: padBottom }}>
-                <td colSpan={columns.length + 2} />
+                <td colSpan={columns.length + 1} />
               </tr>
             ) : null}
           </tbody>
@@ -930,7 +933,6 @@ export function SheetGrid({
                   {summarize(summaryRows, column)}
                 </td>
               ))}
-              <td />
             </tr>
           </tfoot>
         </table>
@@ -951,9 +953,13 @@ export function SheetGrid({
             .filter((ref): ref is Extract<SheetRowRef, { kind: "operator" }> => ref.kind === "operator")
             .map((ref) => ref.id)}
           onClose={() => setMenu(null)}
+          sorted={sorts.some((sort) => sort.id === columns[menu.c]?.id)}
+          filtered={filtered.has(columns[menu.c]?.id ?? "")}
+          hiddenColumns={hiddenColumns}
           onSort={(dir) => onSort(columns[menu.c].id, false, dir)}
           onHide={() => onHide(columns[menu.c].id)}
-          onFilter={onFilter}
+          onShow={(id) => onShow(id, columns[menu.c].id)}
+          onFilter={(clear) => onFilter(columns[menu.c].id, clear)}
           onRules={() => onRules(columns[menu.c].id)}
           onFreeze={onFreeze}
           onOpen={() => {
@@ -979,18 +985,6 @@ export function SheetGrid({
       <p className="roster__hint roster__live" aria-live="polite">
         {shownNotice}
       </p>
-      <details className="roster__keys">
-        <summary className="scene-press scene-press--text">도움말</summary>
-        <p className="roster__hint">
-          칸을 누르고 화살표로 움직여요. 바로 입력하거나 Enter·F2·두 번 누르기로 고치고, Enter·Tab으로 저장해요. Shift로 범위를 넓히고
-          Ctrl(⌘)+C·X·V로 복사·잘라내기·붙여넣기, Ctrl+Z·Y로 되돌려요. 선택 모서리의 점을 끌면 채워지고, Ctrl+D는 아래로 채워요.
-        </p>
-        <p className="roster__hint">
-          수식은 =로 시작해요. 예: =SUM(E:E), =COUNTIF(D:D,&quot;도착 완료&quot;), =IF(F2&gt;0,&quot;입금&quot;,&quot;미입금&quot;). 쓸 수 있는 함수:{" "}
-          {FUNCTION_NAMES.join(", ")}.
-        </p>
-        <p className="roster__hint">참가자 답을 고치면 신청에 &quot;운영자가 고침&quot;으로 남아요. 열·행 추가와 운영 칸은 운영자만 봐요.</p>
-      </details>
     </div>
   );
 }
@@ -1162,9 +1156,13 @@ function SheetMenu({
   frozenCols,
   frozenRows,
   selectedOperatorRows,
+  sorted,
+  filtered,
+  hiddenColumns,
   onClose,
   onSort,
   onHide,
+  onShow,
   onFilter,
   onRules,
   onFreeze,
@@ -1183,10 +1181,14 @@ function SheetMenu({
   frozenCols: number;
   frozenRows: number;
   selectedOperatorRows: string[];
+  sorted: boolean;
+  filtered: boolean;
+  hiddenColumns: ColumnDef[];
   onClose: () => void;
-  onSort: (dir: "asc" | "desc") => void;
+  onSort: (dir: "asc" | "desc" | null) => void;
   onHide: () => void;
-  onFilter: () => void;
+  onShow: (id: string) => void;
+  onFilter: (clear?: boolean) => void;
   onRules: () => void;
   onFreeze: (freeze: Freeze) => void;
   onOpen: () => void;
@@ -1198,6 +1200,7 @@ function SheetMenu({
   operatorIndex: (id: string) => number;
 }) {
   const [renaming, setRenaming] = useState(false);
+  const [showing, setShowing] = useState(false);
   const [label, setLabel] = useState(column?.label ?? "");
   if (!column) return null;
   const operator = isOperatorColumn(column.id);
@@ -1239,13 +1242,29 @@ function SheetMenu({
           <hr />
           {item("오름차순 정렬 (가→하)", () => onSort("asc"))}
           {item("내림차순 정렬 (하→가)", () => onSort("desc"))}
-          {item("필터", onFilter)}
+          {sorted ? item("정렬 해제", () => onSort(null)) : null}
+          {item("필터", () => onFilter())}
+          {filtered ? item("필터 해제", () => onFilter(true)) : null}
           {item("조건부 서식", onRules)}
           <hr />
           {item(frozenCols === menu.c + 1 ? "열 고정 해제" : `${columnLetter(menu.c)}열까지 고정`, () =>
             onFreeze({ cols: frozenCols === menu.c + 1 ? 0 : menu.c + 1, rows: frozenRows }),
           )}
           {column.id !== "person" ? item("열 숨기기", onHide) : null}
+          {hiddenColumns.length > 0 ? (
+            <button type="button" role="menuitem" aria-expanded={showing} onClick={() => setShowing(!showing)}>
+              숨긴 열 보이기 ({hiddenColumns.length})
+            </button>
+          ) : null}
+          {showing ? (
+            <span className="sheet-menu sheet-menu--inline" role="group" aria-label="숨긴 열">
+              {hiddenColumns.map((hidden) => (
+                <button key={hidden.id} type="button" role="menuitem" onClick={act(() => onShow(hidden.id))}>
+                  {hidden.label}
+                </button>
+              ))}
+            </span>
+          ) : null}
           {operator && may
             ? item("열 삭제", () => {
                 if (window.confirm(`"${column.label}" 열과 그 안의 값을 지울까요? Ctrl+Z로 되돌릴 수 있어요.`)) editor.deleteColumn(column.id);
@@ -1312,7 +1331,6 @@ const SheetLine = memo(function SheetLine({
   onPick,
   onOpen,
   onMenu,
-  onEdit,
   onFillStart,
   onEditChange,
   onEditKey,
@@ -1338,7 +1356,6 @@ const SheetLine = memo(function SheetLine({
   onPick: (r: number, c: number, extend: boolean, event: ReactMouseEvent) => void;
   onOpen: (r: number, c: number) => void;
   onMenu: (kind: "row" | "cell", r: number, c: number, event: ReactMouseEvent) => void;
-  onEdit?: (row: TableRow) => void;
   onFillStart: (event: ReactPointerEvent<HTMLSpanElement>) => void;
   onEditChange: (text: string) => void;
   onEditKey: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
@@ -1408,31 +1425,6 @@ const SheetLine = memo(function SheetLine({
           />
         );
       })}
-      <td className="roster__actions" aria-colindex={columns.length + 2} style={top !== undefined ? { position: "sticky", top } : undefined}>
-        {participant ? (
-          <>
-            <Link
-              className="roster__detail scene-press scene-press--text"
-              tabIndex={-1}
-              to={`/events/${eventId}/participants/${participant.applicationId}`}
-              aria-label={`${columns[0]?.text(participant) ?? ""} 상세`}
-            >
-              상세
-            </Link>
-            {onEdit ? (
-              <button
-                type="button"
-                className="roster__detail roster__edit"
-                tabIndex={-1}
-                aria-label={`${columns[0]?.text(participant) ?? ""} 운영 정보 수정`}
-                onClick={() => onEdit(participant)}
-              >
-                수정
-              </button>
-            ) : null}
-          </>
-        ) : null}
-      </td>
     </tr>
   );
 });
@@ -1442,6 +1434,7 @@ function HeaderCell({
   index,
   letter,
   sorts,
+  filtered,
   width,
   frozen,
   left,
@@ -1460,6 +1453,7 @@ function HeaderCell({
   index: number;
   letter: string;
   sorts: Sort[];
+  filtered: boolean;
   width: number;
   frozen: boolean;
   left: number;
@@ -1521,6 +1515,11 @@ function HeaderCell({
             {sort ? (sort.dir === "asc" ? "▲" : "▼") : ""}
             {sort && sorts.length > 1 ? <sub>{at + 1}</sub> : null}
           </span>
+          {filtered ? (
+            <svg className="sheet-head__filtered" viewBox="0 0 12 12" width="12" height="12" role="img" aria-label="필터 걸림">
+              <path d="M1 2h10L7 6.5V10L5 11V6.5z" fill="currentColor" />
+            </svg>
+          ) : null}
         </button>
         <button type="button" className="sheet-head__menu" aria-label={`${column.label} 열 메뉴`} onClick={onMenu}>
           ▾

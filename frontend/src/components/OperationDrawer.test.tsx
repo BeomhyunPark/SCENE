@@ -45,9 +45,19 @@ function openApp(path: string) {
   );
 }
 
+/** The person's name link in the sheet; the cell menu holds 운영 정보 수정 (the row buttons are gone). */
+function nameLink(name: string) {
+  return screen.queryByRole("link", { name: new RegExp(`${name}$`) });
+}
+
+async function cellMenu(name: string) {
+  await waitFor(() => expect(nameLink(name)).toBeInTheDocument(), WAIT);
+  fireEvent.contextMenu(nameLink(name)!.closest("td")!);
+  return screen.findByRole("menu", { name: "칸 메뉴" });
+}
+
 async function openDrawer(name: string) {
-  const edit = await screen.findByRole("button", { name: `${name} 운영 정보 수정` }, WAIT);
-  fireEvent.click(edit);
+  fireEvent.click(within(await cellMenu(name)).getByRole("menuitem", { name: "운영 정보 수정 (E)" }));
   return screen.findByRole("dialog", { name: "현재 운영 정보 수정" });
 }
 
@@ -129,13 +139,14 @@ describe("현재 운영 정보 수정 drawer (#337)", () => {
     expect(within(drawer).getByText(/권한이 있는 운영자만 초기화할 수 있어요/)).toBeInTheDocument();
   });
 
-  it("hides 수정 and says why when the operator can change nothing", async () => {
+  it("offers no 운영 정보 수정 in the cell menu when the operator can change nothing", async () => {
     seed(["김하나"]);
     await login({ userId: localUsers[2].userId });
     openApp(`/events/${EVENT}/participants`);
     await screen.findByRole("grid", { name: "신청자 명단" }, WAIT);
-    expect(await screen.findByText(/고칠 권한이 없어 수정 버튼이 없어요/, {}, WAIT)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /운영 정보 수정/ })).not.toBeInTheDocument();
+    const menu = await cellMenu("김하나");
+    expect(within(menu).getByRole("menuitem", { name: "신청 상세 보기" })).toBeInTheDocument();
+    expect(within(menu).queryByRole("menuitem", { name: /운영 정보 수정/ })).not.toBeInTheDocument();
   });
 
   it("does not save a memo in an archived event", async () => {
@@ -290,8 +301,8 @@ describe("신청 취소와 되돌리기 (DEC-084, #421)", () => {
 
     expect(await screen.findByText(/김하나님의 신청을 취소했어요/, {}, WAIT)).toBeInTheDocument();
     expect(screen.queryByRole("dialog", { name: "현재 운영 정보 수정" })).not.toBeInTheDocument();
-    await waitFor(() => expect(screen.queryByRole("button", { name: "김하나 운영 정보 수정" })).not.toBeInTheDocument(), WAIT);
-    expect(screen.getByRole("button", { name: "이둘 운영 정보 수정" })).toBeInTheDocument();
+    await waitFor(() => expect(nameLink("김하나")).not.toBeInTheDocument(), WAIT);
+    expect(nameLink("이둘")).toBeInTheDocument();
     expect(workingGroupOf(EVENT, first.participantId)).toBeNull();
     expect(openParticipantSession(EVENT, { name: "김하나", phone: "010-1111-0000", pin: "730914" })).toMatchObject({
       code: "PARTICIPANT_LOGIN_FAILED",
@@ -307,7 +318,7 @@ describe("신청 취소와 되돌리기 (DEC-084, #421)", () => {
     expect(within(restore).getByText(/조는 돌아오지 않아요/)).toBeInTheDocument();
     fireEvent.click(within(restore).getByRole("button", { name: "되돌리기" }));
 
-    expect(await screen.findByRole("button", { name: "김하나 운영 정보 수정" }, WAIT)).toBeInTheDocument();
+    await waitFor(() => expect(nameLink("김하나")).toBeInTheDocument(), WAIT);
     expect(workingGroupOf(EVENT, first.participantId)).toBeNull();
     expect(openParticipantSession(EVENT, { name: "김하나", phone: "010-1111-0000", pin: "730914" })).toBeNull();
   });

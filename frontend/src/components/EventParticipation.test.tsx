@@ -190,17 +190,22 @@ describe("event participation applicants", () => {
     expect(await screen.findByRole("link", { name: "참가 운영" })).toHaveAttribute("href", `/events/${EVENT}/participants`);
   });
 
-  it("keeps the table's key guide behind 도움말 (#497)", async () => {
+  it("keeps only the sheet's own controls: no 도움말, 정렬·필터 buttons, + 열 보기 or row buttons (DEC-091 Follow-up)", async () => {
     const form = openForm();
     submit(form, { 이름: "김하나", 전화: "010-1111-2222" });
     await login({ userId: OWNER });
     openApp(`/events/${EVENT}/participants`);
 
-    await screen.findByRole("grid", { name: "신청자 명단" });
-    const guide = screen.getByText(/칸을 누르고 화살표로 움직여요/);
-    const details = guide.closest("details")!;
-    expect(details).not.toHaveAttribute("open");
-    fireEvent.click(within(details).getByText("도움말"));
-    expect(details).toHaveAttribute("open");
+    const grid = await screen.findByRole("grid", { name: "신청자 명단" });
+    expect(screen.queryByText("도움말")).not.toBeInTheDocument();
+    expect(screen.queryByText(/칸을 누르고 화살표로 움직여요/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^정렬/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^필터/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "+ 열 보기" })).not.toBeInTheDocument();
+    expect(within(grid).queryByRole("columnheader", { name: "작업" })).not.toBeInTheDocument();
+    expect(within(grid).queryByRole("link", { name: /상세$/ })).not.toBeInTheDocument();
+    expect(within(grid).queryByRole("button", { name: /운영 정보 수정$/ })).not.toBeInTheDocument();
+    // The name still opens the application.
+    expect(within(grid).getByRole("link", { name: /김하나$/ })).toHaveAttribute("href", expect.stringContaining(`/events/${EVENT}/participants/`));
   });
 });

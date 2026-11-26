@@ -114,17 +114,11 @@
   background: var(--color-bg-hover-row);
 }
 
-.roster__chip--add {
-  margin-left: auto;
-  color: var(--color-text-primary);
-}
-
 .roster__tab:focus-visible,
 .roster__chip:focus-visible,
 .roster__sort:focus-visible,
 .roster__link:focus-visible,
 .roster__count-link:focus-visible,
-.roster__detail:focus-visible,
 .roster__person a:focus-visible {
   outline: 2px solid var(--color-focus-ring);
   outline-offset: 2px;
@@ -138,20 +132,6 @@
   border: 1px solid var(--color-border-default);
   border-radius: 12px;
   background: var(--color-bg-canvas);
-}
-
-.roster__panel--columns {
-  flex-direction: row;
-  flex-wrap: wrap;
-  gap: 24px;
-}
-
-.roster__panel--columns > div {
-  flex: 1 1 280px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 8px;
 }
 
 .roster__panel-foot {
@@ -242,13 +222,6 @@
   font: var(--scene-body-m);
 }
 
-.roster__options--columns {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  max-height: 260px;
-  width: 100%;
-}
-
 .roster__options label {
   display: flex;
   align-items: center;
@@ -265,26 +238,6 @@
 .roster__range input {
   min-width: 0;
   flex: 1;
-}
-
-.roster__save {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.roster__saved-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.roster__saved-list li {
-  display: flex;
-  gap: 12px;
 }
 
 .roster__link {
@@ -493,24 +446,6 @@ th[aria-sort="descending"] .roster__arrow {
   color: var(--color-text-tertiary);
 }
 
-.roster__actions-head,
-.roster__actions {
-  width: 1px;
-}
-
-.roster__detail {
-  display: inline-grid;
-  place-items: center;
-  min-width: 48px;
-  height: 36px;
-  padding: 0 10px;
-  border: 1px solid var(--color-border-control);
-  border-radius: 8px;
-  color: var(--color-text-primary);
-  font: var(--scene-label-s);
-  text-decoration: none;
-}
-
 .roster__empty {
   margin: 0;
   padding: 24px 0;
@@ -518,7 +453,6 @@ th[aria-sort="descending"] .roster__arrow {
   font: var(--scene-body-m);
   text-align: center;
 }
-
 
 .roster__count {
   display: flex;
@@ -602,10 +536,6 @@ th[aria-sort="descending"] .roster__arrow {
   .roster__search {
     flex: 1 1 100%;
     width: auto;
-  }
-
-  .roster__chip--add {
-    margin-left: 0;
   }
 
   /* #497: with 신청서 설정·주소·QR the actions wrap; each row fills the width so no button is left alone. */
@@ -835,11 +765,6 @@ th[aria-sort="descending"] .roster__arrow {
   display: none;
 }
 
-.roster__table--compact .roster__detail {
-  height: 28px;
-  min-width: 40px;
-}
-
 /* Stays in the tree (a live region must exist before it speaks) but takes no room while empty. */
 .roster__live:empty {
   position: absolute;
@@ -849,94 +774,12 @@ th[aria-sort="descending"] .roster__arrow {
   clip-path: inset(50%);
 }
 
-/* 키보드 설명은 도움말을 눌렀을 때만 (#497). summary is the 40px touch target. */
-.roster__keys {
-  margin-top: -8px;
-}
-
-.roster__keys summary {
-  display: inline-flex;
-  align-items: center;
-  min-height: 40px;
-  color: var(--color-text-secondary);
-  font: var(--scene-label-m);
-  cursor: pointer;
-}
-
-.roster__keys summary:focus {
-  outline: none;
-}
-
-.roster__keys summary:focus-visible {
-  outline: 2px solid var(--color-focus-ring);
-  outline-offset: 2px;
-  border-radius: 4px;
-}
-
-.roster__order {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  width: 100%;
-  max-height: 260px;
-  margin: 0;
-  padding: 0;
-  overflow-y: auto;
-  list-style: none;
-  font: var(--scene-body-m);
-}
-
-.roster__order li {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  min-height: 32px;
-}
-
-.roster__order label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.roster__order-buttons {
-  display: inline-flex;
-  gap: 4px;
-}
-
-.roster__order-buttons button {
-  min-width: 28px;
-  min-height: 28px;
-  border: 1px solid var(--color-border-default);
-  border-radius: 6px;
-  background: var(--color-bg-surface);
-  cursor: pointer;
-}
-
-.roster__order-buttons button:disabled {
-  color: var(--color-text-disabled);
-  cursor: default;
-}
-
 /* Spacer rows that stand in for the rows outside the drawn window. */
 .roster__table tbody tr.roster__pad td {
   height: auto;
   padding: 0;
   border: 0;
   background: none;
-}
-
-/* 수정 (#337): next to 상세 in the row's 작업 cell. */
-.roster__edit {
-  margin-left: 6px;
-  background: var(--color-bg-surface, #fff);
-  cursor: pointer;
-}
-
-.roster__edit:focus-visible {
-  outline: 2px solid var(--color-focus-ring);
-  outline-offset: 2px;
 }
 
 @media (max-width: 639px) {

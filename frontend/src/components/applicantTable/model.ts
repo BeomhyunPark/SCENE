@@ -711,18 +711,6 @@ export function copyText(rows: readonly TableRow[], columns: readonly ColumnDef[
   return rows.map((row) => columns.map((column) => clean(column.text(row))).join("\t")).join("\n");
 }
 
-// --- column order ---
-
-/** Moves one id up or down the explicit column order. 참가자 stays first. */
-export function moveColumn(order: readonly string[], id: string, delta: -1 | 1): string[] {
-  const next = order.filter((item) => item !== "person");
-  const index = next.indexOf(id);
-  const target = index + delta;
-  if (index < 0 || target < 0 || target >= next.length) return [...next];
-  [next[index], next[target]] = [next[target], next[index]];
-  return next;
-}
-
 export function defaultWidth(column: ColumnDef): number {
   if (column.type === "person") return 180;
   if (column.type === "status" || column.type === "number") return 120;

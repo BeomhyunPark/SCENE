@@ -8,7 +8,6 @@ import {
   copyText,
   countBy,
   groupRows,
-  moveColumn,
   crossCount,
   EMPTY_VIEW,
   HAS_MEMO,
@@ -216,12 +215,6 @@ describe("columns", () => {
   it("hides and shows columns by id in the chosen order, keeping 참가자 first", () => {
     expect(visibleColumns(COLS, ["meals", "age"]).map((item) => item.id)).toEqual(["person", "meals", "age"]);
     expect(visibleColumns(COLS, ["age", "person", "meals", "gone"]).map((item) => item.id)).toEqual(["person", "age", "meals"]);
-  });
-
-  it("moves a column within the order and keeps 참가자 out of it", () => {
-    expect(moveColumn(["person", "a", "b", "c"], "c", -1)).toEqual(["a", "c", "b"]);
-    expect(moveColumn(["a", "b"], "a", -1)).toEqual(["a", "b"]);
-    expect(moveColumn(["a", "b"], "a", 1)).toEqual(["b", "a"]);
   });
 });
 
