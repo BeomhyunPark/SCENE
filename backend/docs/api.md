@@ -3229,8 +3229,7 @@ audit `ROOMS_PUBLISHED`: detail은 `publicationId`, `boardVersion`, `assignedCou
   "updatedByDisplayName": "김OO",
   "publishState": "CHANGED",
   "outOfPeriod": false,
-  "autoFilled": false,
-  "slotRemoved": false
+  "autoFilled": false
 }
 ```
 
@@ -3247,7 +3246,7 @@ audit `ROOMS_PUBLISHED`: detail은 `publicationId`, `boardVersion`, `assignedCou
 | `slotId` | 선택. `opt_d{일차}_{breakfast\|lunch\|dinner\|worship}` 또는 `null`. 앞의 일차가 `day`와 같아야 하고, `breakfast`·`lunch`·`dinner`는 `category: MEAL`, `worship`은 `category: WORSHIP`일 때만 받는다. 한 일정표에 같은 `slotId`는 한 항목뿐이다(`409 SLOT_ALREADY_LINKED`). 신청서 설정에 없는 칸이어도 저장된다 |
 | `sortOrder` | 같은 일차·같은 시작 시각 안의 순서(작은 값이 앞). 만들 때는 받지 않고 그 시각의 맨 뒤다. `PATCH`로 0–100,000을 준다. `PATCH`로 일차나 시작 시각을 바꾸고 `sortOrder`를 안 보내면 새 시각의 맨 뒤로 간다 |
 
-읽기 전용: `date`(시작일이 없으면 `null`), `startsAt`·`endsAt`(`+09:00` 시각, `endTime`이 없거나 시작일이 없으면 `null`), `leadersOnly`(대상이 `LEADERS`), `version`(만들면 1, 내용이 바뀔 때 +1), `updatedAt`·`updatedByDisplayName`, `publishState`, `outOfPeriod`, `autoFilled`(서버가 칸을 채우며 넣은 항목, DEC-090 §1. 고쳐도 `true`로 남는다), `slotRemoved`(`slotId`가 있는데 신청서 설정에 그 칸이 없다, DEC-090 §5).
+읽기 전용: `date`(시작일이 없으면 `null`), `startsAt`·`endsAt`(`+09:00` 시각, `endTime`이 없거나 시작일이 없으면 `null`), `leadersOnly`(대상이 `LEADERS`), `version`(만들면 1, 내용이 바뀔 때 +1), `updatedAt`·`updatedByDisplayName`, `publishState`, `outOfPeriod`, `autoFilled`(서버가 칸을 채우며 넣은 항목, DEC-090 §1. 고쳐도 `true`로 남는다).
 
 - `publishState`: 가장 최근 공개본과 내용으로 비교한다. `UNCHANGED`, `ADDED`(공개본에 없음. 공개한 적이 없으면 모두), `CHANGED`. 비교하는 필드는 `day`·`startTime`·`endTime`·`title`·`place`·`description`·`category`·`audience`·`slotId`·`sortOrder`다. 고쳤다가 되돌리면 `UNCHANGED`다.
 - `outOfPeriod`: 행사 기간이 줄어 `day`가 기간 밖이거나 기간이 없다. 이런 항목이 있으면 공개할 수 없다(아래 공개 3번). `PATCH`로 `day`를 보내 옮기거나 지운다(`day`를 보내지 않는 `PATCH`는 일차 범위를 보지 않는다).
@@ -3298,7 +3297,7 @@ audit `ROOMS_PUBLISHED`: detail은 `publicationId`, `boardVersion`, `assignedCou
 - `items`는 위 순서이고 페이지가 없다.
 - `days`는 행사 기간의 모든 날이다. 기간이 없으면 `[]`다. 끝나는 날이 없으면 시작일 하루다.
 - `publication`: 공개한 적이 없으면 `last…`가 `null`이고 `hasUnpublishedChanges`는 `true`(첫 공개는 항목이 없어도 된다), `pendingChanges.added`는 항목 수다. 그 뒤에는 작업본이 가장 최근 공개본과 다를 때만 `true`다. `removed`는 공개본에만 있고 작업본에서 지운 항목 수다.
-- `slots`는 신청서 설정의 식사·집회 칸이다. 편성판 `slots`와 같은 코드(`MealSlots`)라 id·순서·이름이 같다. `linkedItemId`는 그 칸 id를 가진 항목이고 없으면 `null`이다. 설정이 없으면 `slots: null`이다. 항목의 `slotId`가 이 목록에 없으면 항목의 `slotRemoved`가 `true`이고 화면은 "신청서 설정에서 빠진 식사·집회"로 보인다. 칸은 늘 항목이 있으므로(DEC-090) `linkedItemId: null`은 운영자가 그 항목을 지웠거나 칸 연결을 끊었다는 뜻이다. 화면은 그 수와 "식사·집회 다시 넣기"를 보인다.
+- `slots`는 신청서 설정의 식사·집회 칸이다. 편성판 `slots`와 같은 코드(`MealSlots`)라 id·순서·이름이 같다. `linkedItemId`는 그 칸 id를 가진 항목이고 없으면 `null`이다. 설정이 없으면 `slots: null`이다. 항목의 `slotId`가 이 목록에 없으면 화면은 "신청서에 없는 칸"으로 보인다. 칸은 늘 항목이 있으므로(DEC-090) `linkedItemId: null`은 운영자가 그 항목을 지웠거나 칸 연결을 끊었다는 뜻이다.
 
 ### `POST /api/v1/operator/events/{eventId}/schedule/items`
 
@@ -3347,21 +3346,9 @@ audit `ROOMS_PUBLISHED`: detail은 `publicationId`, `boardVersion`, `assignedCou
 
 1. **설정 저장이 채운다.** 신청서 설정 저장(`PUT …/forms/{formId}/setup`, `FORM_WRITE`)이 끝나면 같은 트랜잭션에서 행사 행을 잠그고, 설정의 칸(`slots`와 같은 `MealSlots`) 중 항목이 없고 운영자가 빼지 않은 칸마다 항목을 만든다: `day`는 칸의 일차, `startTime`은 기본 시각(아침 `08:00`·점심 `12:00`·저녁 `18:00`·집회 `19:30`), `endTime`·`place`·`description`은 `null`, `title`은 칸 이름(`MEALS` 보기 이름, 없으면 `아침`·`점심`·`저녁`·`집회`), `category`는 식사 `MEAL`·집회 `WORSHIP`, `audience`는 `[{ "type": "ALL" }]`, `slotId`는 칸 id, `autoFilled: true`, 만든 사람은 설정을 저장한 운영자다. `SCHEDULE_WRITE`는 보지 않는다(설정 저장의 일부다). 행사 기간 밖 일차의 칸, `ENDED`·`ARCHIVED` 행사, 기간이 없는 행사는 채우지 않는다. 항목 한도(300)를 넘기지 않는다. 무엇이든 바뀌면 `boardVersion`이 한 번 오른다. 다시 저장해도 이미 항목이 있는 칸은 건드리지 않는다(운영자가 고친 시각·제목·장소가 그대로다).
 2. **작업본뿐이다.** 공개·참가자 피드 버전·알림·audit가 없다. 참가자는 운영자가 공개한 뒤에 본다(`publishState: ADDED`로 "공개하지 않은 변경"에 센다).
-3. **지우거나 연결을 끊으면 다시 생기지 않는다.** `slotId`가 있는 항목을 `DELETE`하거나 `PATCH`로 `slotId`를 바꾸거나 `null`로 하면 그 칸을 기억한다(`schedule_slot_dismissals`). 설정을 다시 저장해도 그 칸은 채우지 않는다. 다른 항목에 그 `slotId`를 붙이면 기억을 지운다.
-4. **설정에서 칸이 빠지면** 서버가 넣고 아무도 고치지 않은 항목(`autoFilled`이고 `version` 1)만 작업본에서 뺀다(기억하지 않는다). 고친 항목은 남기고 `slotRemoved: true`다.
+3. **지우거나 연결을 끊으면 다시 생기지 않는다.** `slotId`가 있는 항목을 `DELETE`하거나 `PATCH`로 `slotId`를 바꾸거나 `null`로 하면 그 칸을 기억한다(`schedule_slot_dismissals`). 설정을 다시 저장해도 그 칸은 채우지 않는다. 다시 넣으려면 항목을 만들거나 고쳐 그 `slotId`를 붙인다(`POST`·`PATCH …/items`). 그러면 기억을 지운다. 따로 "다시 넣기" 경로는 없다.
+4. **설정에서 칸이 빠지면** 서버가 넣고 아무도 고치지 않은 항목(`autoFilled`이고 `version` 1)만 작업본에서 뺀다(기억하지 않는다). 고친 항목은 일반 항목으로 남는다.
 5. **이미 있던 행사**는 `V29`가 한 번 채웠다: `DRAFT`·`ACTIVE`이고 기간과 설정이 있는 행사에 1번과 같은 규칙으로(만든 사람은 그 행사의 `OWNER`), 칸을 가진 항목이 이미 있으면 그대로 두고, 채운 행사의 `boardVersion`을 한 번 올렸다.
-
-### `POST /api/v1/operator/events/{eventId}/schedule/slot-items`
-
-"식사·집회 다시 넣기"(DEC-090 §4). 본문이 없다. `SCHEDULE_WRITE`. 판정 순서는 다른 쓰기와 같다(행사 상태 `409 EVENT_ENDED`·`EVENT_ARCHIVED`, 기간 없음 `409 EVENT_PERIOD_REQUIRED`). 3번의 기억을 모두 지우고, 칸 중 항목이 없는 칸을 1번 규칙으로 채운다. 칸을 가진 항목은 건드리지 않는다. 작업본만 바뀐다.
-
-`200`
-
-```json
-{ "added": 2, "boardVersion": 34 }
-```
-
-빠진 칸이 없으면 `added: 0`이고 `boardVersion`은 그대로다.
 
 ### `POST /api/v1/operator/events/{eventId}/schedule/publish`
 

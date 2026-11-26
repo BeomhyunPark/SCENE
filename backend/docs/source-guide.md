@@ -57,7 +57,7 @@
 | 체크인 명단의 도착 상태(왔어야 함·올 예정·지남·예정 모름, E4) | 규칙은 `MealTally.standing`, 읽기는 `ArrivalRoster`(식수 현황과 같은 입력 `ArrivalSource`) |
 | 사람마다 도착 예정 칸(식수 현황·E4 도착 명단 공용) | `event/form/ArrivalSlots` |
 | 다른 기능이 읽는 일정 칸별 시작 시각 | `event/schedule/ScheduleSlotTimes` |
-| 식사·집회 칸을 일정표 작업본에 저절로 채움(설정 저장 뒤), 지운 칸 기억, "식사·집회 다시 넣기" (DEC-090) | `event/schedule/ScheduleSlotFill`(설정 저장은 `OperatorFormService.putSetup`이 부른다), 기본 시각·분류 `event/form/MealSlots.defaultStart`·`category` |
+| 식사·집회 칸을 일정표 작업본에 저절로 채움(설정 저장 뒤), 지운 칸 기억 (DEC-090) | `event/schedule/ScheduleSlotFill`(설정 저장은 `OperatorFormService.putSetup`이 부른다), 기본 시각·분류 `event/form/MealSlots.defaultStart`·`category` |
 | 참가자 공지 목록·상세 | `event/notice/ParticipantNoticeService` |
 | 운영자가 대신 고치기·직접 추가(검사 차이, 임시 번호, 전화번호 바꾸기) | `event/application/OperatorApplicationEditService`, 운영자 검사 `AnswerEvaluator.evaluateForOperator`, 동의·숨긴 답 옮기기 `ApplicationRevisions.revise` |
 | 운영자 공지 갱신 값(`notice_boards`) | `event/notice/NoticeBoardVersions` |
@@ -201,7 +201,7 @@ CSRF 쿠키는 `XSRF-TOKEN`, 헤더는 `X-XSRF-TOKEN`이다. 변경 요청은 �
 | 편성판, 조 만들기·수정·삭제·순서, 배정, 조장, 공개, 공개본 조회 | `event/group/GroupController` |
 | 참가자 설정(조원 명단 공개 스위치, 숙소 공개 범위) | `event/participantsettings/ParticipantSettingsController` |
 | 숙소 배정판, 방 만들기·고치기·지우기·순서, 배정, 공개, 공개본 조회 | `event/room/RoomController` |
-| 일정표 작업본, 항목 만들기·고치기·지우기, 공개, 저장하고 바로 공개, 공개본 조회, 식사·집회 다시 넣기(`POST …/schedule/slot-items`) | `event/schedule/ScheduleController` |
+| 일정표 작업본, 항목 만들기·고치기·지우기, 공개, 저장하고 바로 공개, 공개본 조회 | `event/schedule/ScheduleController` |
 | 공지 목록·상세·만들기·고치기·지우기·발행·보관·보관 해제 | `event/notice/NoticeController` |
 | 식수 현황(끼니별 예정·도착 반영 식수, DEC-089) | `event/application/MealCountController` |
 | 운영자의 신청 고치기·참가자 직접 추가(DEC-088, A12) | `event/application/OperatorApplicationEditController` |
@@ -293,7 +293,7 @@ Flyway만 스키마를 쓴다. `V1__baseline.sql`이 제품 테이블이고, `V2
 | 참가자 홈, 갱신 값, 대상 판정, 알림 | `event/home/ParticipantHomeHttpIT` |
 | `updates` 한 요청의 SQL 문장 수 | `event/home/ParticipantUpdatesCostIT` |
 | 일정표 작업본·공개·저장하고 바로 공개·참가자 일정·알림 | `event/schedule/ScheduleHttpIT`, 변경 표시 `ScheduleChangeTest` |
-| 식사·집회 칸 자동 채움, 고친 항목 유지, 지운 칸이 되살아나지 않음, 다시 넣기, 식수 현황 시각·"지남", V29 기존 행사 채움 | `event/schedule/ScheduleSlotFillHttpIT` |
+| 식사·집회 칸 자동 채움, 고친 항목 유지, 지운 칸이 되살아나지 않음(칸 연결로 돌아옴), 식수 현황 시각·"지남", V29 기존 행사 채움 | `event/schedule/ScheduleSlotFillHttpIT` |
 | 참가자 일정 한 요청의 SQL 문장 수, 200명 읽기 | `event/schedule/ParticipantScheduleCostIT` |
 | 공지 운영자·참가자 경로, 갱신 값, 알림, audit | `event/notice/NoticeHttpIT` |
 | 참가자 공지 목록 한 요청의 SQL 문장 수(200명) | `event/notice/NoticeCostIT` |
