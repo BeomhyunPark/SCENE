@@ -1,0 +1,72 @@
+--- 11-states-390 (390) ---
+chips: ["전체 6명","미도착 2명","도착 예정 2명","도착 2명"]
+rows:
+  97 네온: 미도착 끝자리 0004
+  95 두리: 도착 끝자리 0002
+  96 세나: 미도착 끝자리 0003
+  96 세찬: 도착 예정 2일차 점심 · 끝자리 0005
+  99 여섯: 도착 예정 2일차 아침 · 끝자리 0006
+  94 하나: 도착 끝자리 0001
+11-states-390 has "왔어야 함": false
+11-states-390 has "올 예정": false
+11-states-390 has "참석 칸": false
+11-states-390 has "예정 모름": false
+11-states-390 has "체크인 완료": false
+11-states-390 has "미완료": false
+11-states-390 has "끼니": false
+11-states-390 has "기준": false
+11-states-390 has "식수 현황 보기": false
+11-states-390 horizontal overflow: false
+--- 12-states-1440 (1440) ---
+chips: ["전체 6명","미도착 2명","도착 예정 2명","도착 2명"]
+rows:
+  97 네온: 미도착 끝자리 0004
+  95 두리: 도착 끝자리 0002
+  96 세나: 미도착 끝자리 0003
+  96 세찬: 도착 예정 2일차 점심 · 끝자리 0005
+  99 여섯: 도착 예정 2일차 아침 · 끝자리 0006
+  94 하나: 도착 끝자리 0001
+12-states-1440 has "왔어야 함": false
+12-states-1440 has "올 예정": false
+12-states-1440 has "참석 칸": false
+12-states-1440 has "예정 모름": false
+12-states-1440 has "체크인 완료": false
+12-states-1440 has "미완료": false
+12-states-1440 has "끼니": false
+12-states-1440 has "기준": false
+12-states-1440 has "식수 현황 보기": false
+12-states-1440 horizontal overflow: false
+--- 13-no-expected-390 (390) ---
+chips: ["전체 4명","미도착 2명","도착 2명"]
+rows:
+  97 네온: 미도착 끝자리 0004
+  95 두리: 도착 끝자리 0002
+  96 세나: 미도착 끝자리 0003
+  94 하나: 도착 끝자리 0001
+13-no-expected-390 has "왔어야 함": false
+13-no-expected-390 has "올 예정": false
+13-no-expected-390 has "참석 칸": false
+13-no-expected-390 has "예정 모름": false
+13-no-expected-390 has "체크인 완료": false
+13-no-expected-390 has "미완료": false
+13-no-expected-390 has "끼니": false
+13-no-expected-390 has "기준": false
+13-no-expected-390 has "식수 현황 보기": false
+13-no-expected-390 horizontal overflow: false
+--- 14-no-expected-1440 (1440) ---
+chips: ["전체 4명","미도착 2명","도착 2명"]
+rows:
+  97 네온: 미도착 끝자리 0004
+  95 두리: 도착 끝자리 0002
+  96 세나: 미도착 끝자리 0003
+  94 하나: 도착 끝자리 0001
+14-no-expected-1440 has "왔어야 함": false
+14-no-expected-1440 has "올 예정": false
+14-no-expected-1440 has "참석 칸": false
+14-no-expected-1440 has "예정 모름": false
+14-no-expected-1440 has "체크인 완료": false
+14-no-expected-1440 has "미완료": false
+14-no-expected-1440 has "끼니": false
+14-no-expected-1440 has "기준": false
+14-no-expected-1440 has "식수 현황 보기": false
+14-no-expected-1440 horizontal overflow: false
