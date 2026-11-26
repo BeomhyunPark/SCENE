@@ -14,15 +14,18 @@ import { assignParticipants, assignmentConflicts, getGroupBoard } from "../api/g
 import { getMyPermissions } from "../api/operators";
 import { queryKeys } from "../api/queryKeys";
 import { getMe } from "../api/session";
-import { buildColumns, slotSummary } from "./applicantTable/model";
+import { buildColumns, rowState, slotSummary } from "./applicantTable/model";
 import { Button } from "./Button";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { formatSubmittedAt } from "./eventFormat";
+import { FIELD_STATE_LABELS } from "./fieldState";
 import { PinReset } from "./PinReset";
 import { Select } from "./Select";
 import { WithdrawApplication } from "./ApplicationWithdraw";
 import { statusChangeBlocked } from "./applicationStatus";
 import "./OperationDrawer.css";
+
+const STATE_LABEL = new Map(FIELD_STATE_LABELS);
 
 const UNASSIGNED = "";
 
@@ -235,7 +238,7 @@ export function OperationDrawer({
           <div className="operation-drawer__field">
             <span className="operation-drawer__label">현재 참가 상태</span>
             <p className="operation-drawer__value">
-              신청 접수 · {row.checkedInAt ? `도착 완료 (${formatSubmittedAt(row.checkedInAt)})` : "도착 전"}
+              신청 접수 · {row.checkedInAt ? `도착 (${formatSubmittedAt(row.checkedInAt)})` : STATE_LABEL.get(rowState(row))}
             </p>
             <WithdrawApplication
               eventId={eventId}

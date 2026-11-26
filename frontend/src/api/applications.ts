@@ -2,6 +2,7 @@ import { apiDownload, apiRequest } from "./client";
 import { ApiError } from "./errors";
 import type { AnswerType, FieldConfig, FormField } from "./forms";
 import type { ItemPage } from "./types";
+import { parseRosterArrival, type RosterArrival } from "./checkIns";
 import { parseLodging, parseTableRoom, type Lodging, type TableRoom } from "./deskRoom";
 
 export type PublicForm = {
@@ -232,6 +233,8 @@ export type TableRow = {
   room: TableRoom | null;
   /** Lodging state now, so a blank room can read as 숙박 안 함; null from an older server. */
   lodging: Lodging | null;
+  /** The 현장 운영 roster's arrival standing (DEC-091 Follow-up 3); null without slots or from an older server. */
+  arrival: RosterArrival | null;
 };
 
 /** One meal or service slot, the same shape as the group board's `slots`. */
@@ -647,6 +650,7 @@ function parseTable(value: unknown): ApplicationTable {
       revisedBy: row.revisedBy === "PARTICIPANT" || row.revisedBy === "OPERATOR" ? row.revisedBy : null,
       room: parseTableRoom(row.room),
       lodging: parseLodging(row.lodging),
+      arrival: row.arrival === null || row.arrival === undefined ? null : parseRosterArrival(row.arrival),
     });
   }
   return {

@@ -14,6 +14,7 @@ import {
   isActive,
   NONE,
   readView,
+  rowState,
   sortRows,
   toggleSort,
   visibleColumns,
@@ -24,6 +25,7 @@ import {
 } from "./model";
 import { SheetGrid } from "./SheetGrid";
 import { RulesPanel } from "./RulesPanel";
+import { FIELD_STATE_LABELS } from "../fieldState";
 import { operatorColumns, operatorKey, participantKey, placeOperatorColumns, Workbook, type SheetRowRef } from "./sheet";
 import { useRosterSheet } from "./useRosterSheet";
 import "./ApplicantTable.css";
@@ -354,12 +356,13 @@ function chipsFor(table: ApplicationTable, columns: ColumnDef[], filters: Record
   const status = selectedKey("status");
   const group = selectedKey("group");
   const edited = selectedKey(EDITED);
-  const arrived = table.rows.filter((row) => row.checkedInAt).length;
-  const chips: Chip[] = [
-    { label: "전체 참가자", count: table.rows.length, selected: !status && !group && !edited, filter: null },
-    { label: "도착 완료", count: arrived, selected: status === "arrived" && !group && !edited, filter: { id: "status", key: "arrived" } },
-    { label: "도착 전", count: table.rows.length - arrived, selected: status === "waiting" && !group && !edited, filter: { id: "status", key: "waiting" } },
-  ];
+  const chips: Chip[] = [{ label: "전체 참가자", count: table.rows.length, selected: !status && !group && !edited, filter: null }];
+  // The 현장 운영 chips (DEC-091 Follow-up 3); 도착 예정 only when someone is still due, as there.
+  for (const [key, label] of FIELD_STATE_LABELS) {
+    const count = table.rows.filter((row) => rowState(row) === key).length;
+    if (key === "expected" && count === 0 && status !== key) continue;
+    chips.push({ label, count, selected: status === key && !group && !edited, filter: { id: "status", key } });
+  }
   if (columns.some((column) => column.id === "group")) {
     chips.push({
       label: "미배정",

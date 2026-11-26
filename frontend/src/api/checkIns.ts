@@ -229,7 +229,7 @@ function parseSummaryArrival(value: unknown): SummaryArrival {
 
 const ARRIVAL_STATUSES: readonly ArrivalStatus[] = ["ARRIVED", "OVERDUE", "COMING", "PASSED", "UNKNOWN"];
 
-function parseRosterArrival(value: unknown): RosterArrival {
+export function parseRosterArrival(value: unknown): RosterArrival {
   if (!isRecord(value) || !ARRIVAL_STATUSES.includes(value.status as ArrivalStatus)) unexpected();
   return {
     status: value.status as ArrivalStatus,

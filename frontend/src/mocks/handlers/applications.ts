@@ -28,6 +28,7 @@ import { csrfMatches } from "../csrf";
 import { operationOf, writeOperation } from "../operationStore";
 import { applicationSummary } from "../applicationSummary";
 import { roomCell, roomPublishedAt, tableStay } from "../deskRooms";
+import { arrivalStandings } from "../mealCounts";
 
 const DEFAULT_SIZE = 50;
 const MAX_SIZE = 100;
@@ -94,6 +95,7 @@ export const applicationHandlers = [
     const contact = effective.includes("PARTICIPANT_CONTACT_READ");
     const groupVisible = effective.includes("GROUP_WRITE");
     const rows = tableApplications(eventId);
+    const standings = arrivalStandings(eventId);
     const formId = rows[0]?.formId ?? formOf(eventId);
     const fields = formId ? formFields(eventId, formId) : [];
     const columns = fields
@@ -132,6 +134,7 @@ export const applicationHandlers = [
           revision: row.revision,
           revisedBy: row.revisedBy,
           ...tableStay(eventId, row.participantId),
+          arrival: standings.byParticipant.get(row.participantId) ?? null,
         })),
         slots,
         withdrawn: withdrawnApplications(eventId).map((row) => ({

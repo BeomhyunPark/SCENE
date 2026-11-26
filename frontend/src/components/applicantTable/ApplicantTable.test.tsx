@@ -61,7 +61,7 @@ describe("참가 현황 table at retreat size", () => {
     ]);
     const totals = within(grid).getAllByRole("row").at(-1)!;
     expect(totals).toHaveTextContent("200명");
-    expect(totals).toHaveTextContent(/도착 \d+ · 전 \d+/);
+    expect(totals).toHaveTextContent(/미도착 \d+ · (도착 예정 \d+ · )?도착 \d+/);
     expect(totals).toHaveTextContent(/응답 \d+ · 고유 \d+/);
   });
 

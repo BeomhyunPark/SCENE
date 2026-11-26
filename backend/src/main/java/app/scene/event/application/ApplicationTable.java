@@ -77,7 +77,9 @@ public record ApplicationTable(
    * PARTICIPANT} or {@code OPERATOR}; null for revision 1). {@code room} is the published room,
    * null before publication or when unassigned; {@code lodging} is the lodging state now ({@code
    * LODGING}, {@code NOT_LODGING}, {@code UNKNOWN}, the room board's rule), so a blank room can be
-   * told apart from "숙박 안 함".
+   * told apart from "숙박 안 함". {@code arrival} is the arrival standing of the 현장 운영 roster ({@link
+   * ArrivalRoster}, the same value as the roster item's), so the table says 도착, 미도착 or 도착 예정 like
+   * the roster; null when the form has no slots.
    */
   public record Row(
       UUID applicationId,
@@ -91,7 +93,8 @@ public record ApplicationTable(
       int revision,
       String revisedBy,
       Room room,
-      Lodging lodging) {}
+      Lodging lodging,
+      ArrivalRoster.Arrival arrival) {}
 
   /** A room of the latest room publication (DEC-085 §10). */
   public record Room(UUID roomId, String name) {}

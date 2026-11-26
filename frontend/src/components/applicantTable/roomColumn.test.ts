@@ -17,6 +17,7 @@ function row(id: string, extra: Partial<TableRow>): TableRow {
     revisedBy: null,
     room: null,
     lodging: "LODGING",
+    arrival: null,
     ...extra,
   };
 }

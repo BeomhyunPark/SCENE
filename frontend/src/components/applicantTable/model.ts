@@ -3,6 +3,7 @@ import { cohortSortKey, compareCohort } from "../cohort";
 import type { AnswerType, FieldOption } from "../../api/forms";
 import { formatAnswer, HIDDEN_MARK } from "../answerDisplay";
 import { participantLabel } from "../participantLabel";
+import { arrivalState, FIELD_STATE_LABELS, type FieldState } from "../fieldState";
 import { roomColumn, summarizeRooms } from "./roomColumn";
 
 /**
@@ -126,6 +127,13 @@ const CHOICE_TYPES: AnswerType[] = ["SINGLE_CHOICE", "DROPDOWN", "MULTI_CHOICE",
 
 // --- columns ---
 
+/** 도착 / 미도착 / 도착 예정 of a row, the 현장 운영 rule (fieldState). */
+export function rowState(row: TableRow): FieldState {
+  return arrivalState(row.checkedInAt !== null, row.arrival);
+}
+
+const STATE_LABEL = new Map(FIELD_STATE_LABELS);
+
 /**
  * Columns in screen order. The design's fixed columns come first (참가자, 소속, 연락처, 현재 상태, 조
  * 배정, 참석 범위); every other question follows in form order, hidden by default. 이름 lives in the
@@ -180,13 +188,11 @@ export function buildColumns(table: ApplicationTable): ColumnDef[] {
     type: "status",
     defaultVisible: true,
     countable: true,
-    options: [
-      { key: "arrived", label: "도착 완료" },
-      { key: "waiting", label: "도착 전" },
-    ],
-    text: (row) => (row.checkedInAt ? "도착 완료" : "도착 전"),
-    buckets: (row) => [row.checkedInAt ? "arrived" : "waiting"],
-    sortValue: (row) => (row.checkedInAt ? 1 : 0),
+    // The 현장 운영 words (DEC-091 Follow-up 3): 도착, 미도착, 도착 예정 by the roster's own rule.
+    options: FIELD_STATE_LABELS.map(([key, label]) => ({ key, label })),
+    text: (row) => STATE_LABEL.get(rowState(row))!,
+    buckets: (row) => [rowState(row)],
+    sortValue: (row) => FIELD_STATE_LABELS.findIndex(([key]) => key === rowState(row)),
   });
   if (table.groupVisible) {
     const groups = new Map<string, string>();
@@ -648,7 +654,12 @@ export function crossCount(rows: readonly TableRow[], a: ColumnDef, b: ColumnDef
  */
 export function summarize(rows: readonly TableRow[], column: ColumnDef): string {
   if (column.type === "person") return `${rows.length}명`;
-  if (column.type === "status") return `도착 ${rows.filter((row) => row.checkedInAt).length} · 전 ${rows.filter((row) => !row.checkedInAt).length}`;
+  if (column.type === "status") {
+    return FIELD_STATE_LABELS.map(([key, label]) => [label, rows.filter((row) => rowState(row) === key).length] as const)
+      .filter(([label, count]) => count > 0 || label !== "도착 예정")
+      .map(([label, count]) => `${label} ${count}`)
+      .join(" · ");
+  }
   if (column.type === "memo") return `메모 ${rows.filter((row) => row.operation.memo.trim()).length}`;
   if (column.type === "room") return summarizeRooms(rows);
   if (column.type === "group") {
