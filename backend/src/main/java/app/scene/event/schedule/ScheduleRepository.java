@@ -80,7 +80,7 @@ class ScheduleRepository {
     schedule.insertDismissal(ScheduleParam.of(spaceId, eventId).slot(slotId).actor(actorId, at));
   }
 
-  /** Forgets the dismissal of {@code slotId}, or of every slot when it is null. */
+  /** Forgets the dismissal of {@code slotId}: an item holds the slot again. */
   void forgetDismissals(UUID spaceId, UUID eventId, String slotId) {
     schedule.deleteDismissals(ScheduleParam.of(spaceId, eventId).slot(slotId));
   }

@@ -32,9 +32,10 @@ import tools.jackson.databind.json.JsonMapper;
  *   <li>An item that already holds the slot is never touched, so the operator's time, title and
  *       place stay.
  *   <li>A slot whose item the operator deleted or unlinked is remembered ({@code
- *       schedule_slot_dismissals}) and is not filled again until "식사·집회 다시 넣기".
+ *       schedule_slot_dismissals}) and is not filled again. The operator puts it back with "+ 일정
+ *       추가" and the item editor's slot link, which forgets the dismissal.
  *   <li>An item the server put in and nobody changed (version 1) leaves when its slot leaves the
- *       setup. A changed one stays and the board marks it {@code slotRemoved}.
+ *       setup. A changed one stays as an ordinary item.
  * </ul>
  *
  * Everything lands in the working copy only. Participants see it after a publication, and the fill

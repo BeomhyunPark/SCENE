@@ -5,7 +5,6 @@ import app.scene.event.schedule.ScheduleResponses.ItemDeleted;
 import app.scene.event.schedule.ScheduleResponses.ItemWritten;
 import app.scene.event.schedule.ScheduleResponses.PublishResult;
 import app.scene.event.schedule.ScheduleResponses.Published;
-import app.scene.event.schedule.ScheduleResponses.SlotsRefilled;
 import app.scene.identity.OperatorPrincipal;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
@@ -70,12 +69,6 @@ public class ScheduleController {
   @PostMapping(BASE + "/publish")
   PublishResult publish(@PathVariable UUID eventId, @RequestBody(required = false) JsonNode body) {
     return schedule.publish(actor(), eventId, body);
-  }
-
-  /** "식사·집회 다시 넣기" (DEC-090 §4). */
-  @PostMapping(BASE + "/slot-items")
-  SlotsRefilled refillSlots(@PathVariable UUID eventId) {
-    return schedule.refillSlots(actor(), eventId);
   }
 
   @GetMapping(BASE + "/published")

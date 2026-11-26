@@ -36,7 +36,6 @@ import app.scene.event.schedule.ScheduleResponses.Published;
 import app.scene.event.schedule.ScheduleResponses.PublishedItem;
 import app.scene.event.schedule.ScheduleResponses.PublishedRemoved;
 import app.scene.event.schedule.ScheduleResponses.Slot;
-import app.scene.event.schedule.ScheduleResponses.SlotsRefilled;
 import app.scene.space.EventUserPermissionRepository;
 import java.time.Clock;
 import java.time.Duration;
@@ -141,10 +140,9 @@ public class ScheduleService {
     ScheduleSnapshot previous = latest.map(LatestPublication::snapshot).orElse(null);
     Map<UUID, ItemContent> published = publishedContent(previous);
     List<MealSlots.Day> setupDays = slotFill.setupDays(spaceId, eventId);
-    Set<String> slotIds = slotIds(setupDays);
     List<OperatorItem> items = new ArrayList<>();
     for (ScheduleItemRow row : rows) {
-      items.add(operatorItem(row, profile.startDate(), dayCount, previous, published, slotIds));
+      items.add(operatorItem(row, profile.startDate(), dayCount, previous, published));
     }
     ScheduleChanges pending = pending(rows, previous);
     Publication publication =
@@ -367,22 +365,6 @@ public class ScheduleService {
     return new ItemDeleted(boardVersion, publication);
   }
 
-  /**
-   * {@code POST …/schedule/slot-items}: "식사·집회 다시 넣기" (DEC-090 §4). Forgets every slot the operator
-   * took off the schedule and fills each setup slot no item holds. Items that hold a slot stay as
-   * they are. Working copy only.
-   */
-  @Transactional
-  public SlotsRefilled refillSlots(UUID actorId, UUID eventId) {
-    UUID spaceId = openForWrite(actorId, eventId);
-    Locked locked = lockWritable(spaceId, eventId);
-    requirePeriod(locked);
-    schedule.forgetDismissals(spaceId, eventId, null);
-    ScheduleSlotFill.Result result =
-        slotFill.fillLocked(spaceId, eventId, actorId, locked.dayCount());
-    return new SlotsRefilled(result.added(), schedule.boardVersion(spaceId, eventId));
-  }
-
   /** {@code POST …/schedule/publish}. */
   @Transactional
   public PublishResult publish(UUID actorId, UUID eventId, JsonNode body) {
@@ -424,12 +406,7 @@ public class ScheduleService {
             .orElseThrow(() -> new IllegalStateException("schedule item row is missing"));
     OperatorItem item =
         operatorItem(
-            row,
-            locked.startDate(),
-            locked.dayCount(),
-            snapshot,
-            publishedContent(snapshot),
-            slotIds(slotFill.setupDays(spaceId, eventId)));
+            row, locked.startDate(), locked.dayCount(), snapshot, publishedContent(snapshot));
     return new ItemWritten(item, boardVersion, publication);
   }
 
@@ -900,8 +877,7 @@ public class ScheduleService {
       LocalDate start,
       int dayCount,
       ScheduleSnapshot snapshot,
-      Map<UUID, ItemContent> published,
-      Set<String> slotIds) {
+      Map<UUID, ItemContent> published) {
     ItemContent content = schedule.content(row);
     String state;
     if (snapshot == null || !published.containsKey(row.itemId())) {
@@ -934,8 +910,7 @@ public class ScheduleService {
         row.updatedByDisplayName(),
         state,
         row.day() > dayCount,
-        row.autoFilled(),
-        row.slotId() != null && !slotIds.contains(row.slotId()));
+        row.autoFilled());
   }
 
   /** The current item for {@code 409 CONCURRENT_MODIFICATION}. */
@@ -943,21 +918,7 @@ public class ScheduleService {
     ScheduleSnapshot snapshot =
         snapshotOf(schedule.latestPublication(locked.spaceId(), locked.eventId()));
     return operatorItem(
-        row,
-        locked.startDate(),
-        locked.dayCount(),
-        snapshot,
-        publishedContent(snapshot),
-        slotIds(slotFill.setupDays(locked.spaceId(), locked.eventId())));
-  }
-
-  /** Slot ids of the setup, for {@code slotRemoved}. */
-  private static Set<String> slotIds(List<MealSlots.Day> days) {
-    Set<String> out = new HashSet<>();
-    for (MealSlots.Day day : days) {
-      day.slots().forEach(slot -> out.add(slot.optionId()));
-    }
-    return out;
+        row, locked.startDate(), locked.dayCount(), snapshot, publishedContent(snapshot));
   }
 
   private static List<Slot> slots(List<MealSlots.Day> days, List<ScheduleItemRow> rows) {

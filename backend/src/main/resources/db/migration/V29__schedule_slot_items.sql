@@ -6,8 +6,8 @@
 ALTER TABLE schedule_items
   ADD COLUMN auto_filled boolean NOT NULL DEFAULT false;
 
--- Slots whose item the operator deleted or unlinked. The automatic fill skips them until the
--- operator asks to put the meals and services back (DEC-090 §4).
+-- Slots whose item the operator deleted or unlinked. The automatic fill skips them; linking an
+-- item to the slot again forgets the row (DEC-090 §4).
 CREATE TABLE schedule_slot_dismissals (
   space_id uuid NOT NULL,
   event_id uuid NOT NULL,

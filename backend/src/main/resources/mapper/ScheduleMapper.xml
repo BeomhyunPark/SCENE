@@ -81,11 +81,9 @@
     ON CONFLICT (space_id, event_id, slot_id) DO NOTHING
   </insert>
 
-  <!-- One slot when slotId is set, every slot of the event otherwise. -->
   <delete id="deleteDismissals">
     DELETE FROM schedule_slot_dismissals
-    WHERE space_id = #{spaceId} AND event_id = #{eventId}
-    <if test="slotId != null">AND slot_id = #{slotId}</if>
+    WHERE space_id = #{spaceId} AND event_id = #{eventId} AND slot_id = #{slotId}
   </delete>
 
   <select id="findLatestPublication" resultType="app.scene.event.schedule.SchedulePublicationRow">

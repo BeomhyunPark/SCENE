@@ -2,9 +2,7 @@ package app.scene.event.schedule;
 
 import static app.scene.event.schedule.ScheduleFixture.write;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import app.scene.event.schedule.ScheduleFixture.Person;
@@ -95,7 +93,6 @@ class ScheduleSlotFillHttpIT {
     assertThat(dinner.get("audience").toString()).isEqualTo("[{\"type\":\"ALL\"}]");
     assertThat(dinner.get("day").asInt()).isEqualTo(1);
     assertThat(dinner.get("autoFilled").asBoolean()).isTrue();
-    assertThat(dinner.get("slotRemoved").asBoolean()).isFalse();
     assertThat(dinner.get("publishState").asString()).isEqualTo("ADDED");
     JsonNode worship = items.get("opt_d1_worship");
     assertThat(worship.get("title").asString()).isEqualTo("집회");
@@ -195,7 +192,7 @@ class ScheduleSlotFillHttpIT {
   }
 
   @Test
-  void aDeletedOrUnlinkedSlotStaysOffUntilPutBack() throws Exception {
+  void aDeletedOrUnlinkedSlotStaysOffUntilAnItemTakesItAgain() throws Exception {
     World w = f.world();
     saveSetup(w, SCHEDULE);
     Map<String, JsonNode> items = bySlot(w.board());
@@ -217,33 +214,25 @@ class ScheduleSlotFillHttpIT {
     assertThat(lunch.get("startTime").asString()).isEqualTo("12:00");
     assertThat(lunch.get("timeFromSchedule").asBoolean()).isFalse();
 
-    // "식사·집회 다시 넣기" fills both slots again; the unlinked item stays as it is.
-    long version = w.boardVersion();
-    JsonNode refilled =
-        f.body(
-            f.mvc
-                .perform(write(post(w.path("/schedule/slot-items")), w.owner))
-                .andExpect(status().isOk()));
-    assertThat(refilled.get("added").asInt()).isEqualTo(2);
-    assertThat(refilled.get("boardVersion").asLong()).isEqualTo(version + 1);
+    // The operator puts lunch back with an ordinary item linked to the slot ("+ 일정 추가"): the
+    // dismissal is forgotten, the meal counts follow it, and a later save adds no second lunch.
+    Map<String, Object> lunchBack = new HashMap<>(ScheduleFixture.item(2, "12:30", "점심", "ALL"));
+    lunchBack.put("category", "MEAL");
+    lunchBack.put("slotId", "opt_d2_lunch");
+    w.create(lunchBack);
+    assertThat(
+            w.count(
+                "SELECT count(*) FROM schedule_slot_dismissals WHERE event_id = ?"
+                    + " AND slot_id = 'opt_d2_lunch'"))
+        .isZero();
+    assertThat(mealSlot(w, "opt_d2_lunch").get("startTime").asString()).isEqualTo("12:30");
+    saveSetup(w, SCHEDULE);
     Map<String, JsonNode> back = bySlot(w.board());
-    assertThat(back.keySet()).containsExactlyInAnyOrderElementsOf(SLOTS);
-    assertThat(back.get("opt_d2_lunch").get("startTime").asString()).isEqualTo("12:00");
-    assertThat(w.board().get("items").size()).isEqualTo(SLOTS.size() + 1);
-
-    // Nothing missing: a second press adds nothing and leaves the version.
-    JsonNode again =
-        f.body(
-            f.mvc
-                .perform(write(post(w.path("/schedule/slot-items")), w.owner))
-                .andExpect(status().isOk()));
-    assertThat(again.get("added").asInt()).isZero();
-    assertThat(again.get("boardVersion").asLong()).isEqualTo(version + 1);
-
-    // A staff member without SCHEDULE_WRITE cannot press it.
-    f.mvc
-        .perform(write(post(w.path("/schedule/slot-items")), w.operator("STAFF")))
-        .andExpect(status().isForbidden());
+    assertThat(back.get("opt_d2_lunch").get("startTime").asString()).isEqualTo("12:30");
+    assertThat(back.get("opt_d2_lunch").get("autoFilled").asBoolean()).isFalse();
+    // Breakfast stays off: its item is unlinked, not linked again.
+    assertThat(back).doesNotContainKey("opt_d2_breakfast");
+    assertThat(w.board().get("items").size()).isEqualTo(SLOTS.size());
   }
 
   @Test
@@ -259,21 +248,19 @@ class ScheduleSlotFillHttpIT {
     assertThat(items).doesNotContainKey("opt_d3_breakfast");
     JsonNode kept = items.get("opt_d1_worship");
     assertThat(kept.get("place").asString()).isEqualTo("대강당");
-    assertThat(kept.get("slotRemoved").asBoolean()).isTrue();
-    assertThat(items.get("opt_d1_dinner").get("slotRemoved").asBoolean()).isFalse();
+    assertThat(kept.get("autoFilled").asBoolean()).isTrue();
     assertThat(w.board().get("items").size()).isEqualTo(SLOTS.size() - 1);
   }
 
   @Test
-  void anEndedEventIsNotFilledAndCannotBeRefilled() throws Exception {
+  void anEndedEventIsNotFilled() throws Exception {
     World w = f.world();
     saveSetup(w, SCHEDULE);
     jdbc.update("DELETE FROM schedule_items WHERE event_id = ?", w.eventId);
     w.lifecycle("ENDED");
-    f.mvc
-        .perform(write(post(w.path("/schedule/slot-items")), w.owner))
-        .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.code").value("EVENT_ENDED"));
+    // Whatever the setup save answers for an ended event, the schedule stays as it is.
+    f.mvc.perform(
+        write(put(w.path("/forms/" + w.formId + "/setup")), w.owner).content(setup(SHORTER)));
     assertThat(w.count("SELECT count(*) FROM schedule_items WHERE event_id = ?")).isZero();
   }
 
