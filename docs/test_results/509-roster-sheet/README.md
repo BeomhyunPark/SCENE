@@ -62,6 +62,23 @@
 - 미도착 1은 직접 추가한 임현장이다. 참석 칸 답이 없어 서버 `arrival`이 `UNKNOWN`이고, 현장 운영과 같은 규칙으로 "미도착"이다.
 - 날짜가 미래인 행사라 체크인하지 않은 신청자는 서버가 `COMING`으로 보아 "도착 예정"이다.
 
+## 남은 겹침 정리 뒤 — 2026-11-26
+
+사용자 승인("추천대로 정리하고 병합해"): 툴바 쪽을 남기고 같은 일을 하는 메뉴 항목을 뺐다(DEC-091 Follow-up 표).
+
+| 구분 | 무엇 | 결과 |
+|---|---|---|
+| 서버 검사 | `./gradlew check` — 서버 변경 없음, 직전 실행 그대로(up-to-date) | 614개 통과, 실패 0 |
+| 화면 검사 | `pnpm lint`·`typecheck`·`test`·`build` | 모두 통과, 106파일 812개 |
+| 실제 클릭 | 빈 PostgreSQL 17 V1~V30 + Vite(mock 끔). [polish-click.cjs](polish-click.cjs), 기록 [polish-click-log.txt](polish-click-log.txt) | 통과, 콘솔 오류 없음, 390 가로 넘침 없음 |
+
+남은 메뉴 항목
+- 열 메뉴: 왼쪽에 열 삽입 · 오른쪽에 열 삽입(쓸 권한이 있을 때) · 열 이름 바꾸기(운영 열) · 오름차순 정렬 · 내림차순 정렬 · 정렬 해제(정렬됐을 때) · 필터 · 필터 해제(필터가 있을 때) · 열 숨기기 · 숨긴 열 보이기 (N) · 열 삭제(운영 열)
+- 칸 메뉴(참가자 행): 잘라내기 · 복사 · (붙여넣기는 Ctrl(⌘)+V 안내) · 값 지우기 · 신청 상세 보기 · 운영 정보 수정 (E)
+- 칸 메뉴(운영 줄): 잘라내기 · 복사 · (붙여넣기 안내) · 값 지우기 · 위에 행 삽입 · 아래에 행 삽입 · 행 삭제
+
+캡처: p1-sheet-1440, p2-column-menu-1440, p3-cell-menu-1440, p4-sheet-390.
+
 ## 다시 돌리기
 
 ```bash
@@ -70,4 +87,5 @@ docker run -d --name scene-pg -e POSTGRES_DB=scene -e POSTGRES_USER=scene -e POS
 (cd frontend && VITE_API_MOCK=0 pnpm dev --port 5173) &
 node docs/test_results/509-roster-sheet/merge-click.cjs docs/test_results/509-roster-sheet
 node docs/test_results/509-roster-sheet/followup-click.cjs docs/test_results/509-roster-sheet
+node docs/test_results/509-roster-sheet/polish-click.cjs docs/test_results/509-roster-sheet
 ```
