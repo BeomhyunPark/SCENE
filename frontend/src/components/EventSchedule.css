@@ -44,25 +44,6 @@
   font: var(--scene-label-m);
 }
 
-/* 식사·집회 칸 (DEC-090): one quiet line under the status. */
-.event-schedule__slots {
-  display: grid;
-  gap: 4px;
-  color: var(--color-text-secondary);
-  font: var(--scene-body-s);
-}
-
-.event-schedule__slots p {
-  margin: 0;
-}
-
-.event-schedule__slots-action {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-
 .event-schedule__plain {
   margin: 0 0 6px;
 }

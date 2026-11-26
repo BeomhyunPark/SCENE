@@ -8,7 +8,6 @@ import {
   publishSchedule,
   readParticipantSchedule,
   readScheduleBoard,
-  refillScheduleSlots,
   updateScheduleItem,
   type ScheduleFailure,
 } from "../scheduleStore";
@@ -47,12 +46,6 @@ export const scheduleHandlers = [
     const operator = currentOperator();
     if (!operator) return problem(401, "AUTHENTICATION_REQUIRED");
     return reply(publishSchedule(String(params.eventId), operator.userId, await readJson(request)));
-  }),
-  http.post(`${base}/slot-items`, ({ params, request, cookies }) => {
-    if (!csrfMatches(request, cookies)) return problem(403, "FORBIDDEN");
-    const operator = currentOperator();
-    if (!operator) return problem(401, "AUTHENTICATION_REQUIRED");
-    return reply(refillScheduleSlots(String(params.eventId), operator.userId));
   }),
   http.get("/api/v1/participant/schedule", () => {
     const participant = currentParticipant();

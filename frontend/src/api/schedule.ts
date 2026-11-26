@@ -56,10 +56,6 @@ export type ScheduleItem = {
   updatedByDisplayName: string | null;
   publishState: SchedulePublishState;
   outOfPeriod: boolean;
-  /** The server put it in for a 식사·집회 칸 (DEC-090). */
-  autoFilled: boolean;
-  /** It holds a 칸 the form setup no longer has (DEC-090 §5). */
-  slotRemoved: boolean;
 };
 
 export type ScheduleSlot = {
@@ -170,14 +166,6 @@ export function publishSchedule(eventId: string, expectedBoardVersion: number, n
     const parsed = parsePublish(value);
     if (!parsed) throw unexpected();
     return parsed;
-  });
-}
-
-/** "식사·집회 다시 넣기" (DEC-090 §4): puts back every 식사·집회 칸 that has no item. Working copy only. */
-export function refillScheduleSlots(eventId: string): Promise<{ added: number; boardVersion: number }> {
-  return apiRequest<unknown>(`${base(eventId)}/slot-items`, { method: "POST" }).then((value) => {
-    if (!isRecord(value) || !isCount(value.added) || !isCount(value.boardVersion)) throw unexpected();
-    return { added: value.added, boardVersion: value.boardVersion };
   });
 }
 
@@ -295,8 +283,6 @@ function parseItem(value: unknown): ScheduleItem | null {
     updatedByDisplayName: stringOrNull(value.updatedByDisplayName),
     publishState: value.publishState === "ADDED" || value.publishState === "CHANGED" ? value.publishState : "UNCHANGED",
     outOfPeriod: value.outOfPeriod === true,
-    autoFilled: value.autoFilled === true,
-    slotRemoved: value.slotRemoved === true,
   };
 }
 

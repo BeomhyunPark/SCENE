@@ -60,14 +60,12 @@ const SLOT_STARTS: Record<string, string> = { BREAKFAST: "08:00", LUNCH: "12:00"
 
 /**
  * DEC-090 (the server's ScheduleSlotFill): one working-copy item per 식사·집회 칸 no item holds and the
- * operator did not take off. The mock form-setup save calls it, and `POST …/schedule/slot-items`
- * ("식사·집회 다시 넣기") calls it with `refill` after forgetting the dismissed slots. Returns the count added.
+ * operator did not take off (deleted or unlinked). The mock form-setup save calls it. Returns the count added.
  */
-export function fillScheduleSlots(eventId: string, actorId: string, refill = false): number {
+export function fillScheduleSlots(eventId: string, actorId: string): number {
   const slots = boardSlotsOf(eventId);
   const days = daysOf(eventId).length;
   if (!slots || days === 0) return 0;
-  if (refill) dismissedOf(eventId).clear();
   const board = boardOf(eventId);
   let added = 0;
   for (const slot of slots) {
@@ -97,15 +95,6 @@ export function fillScheduleSlots(eventId: string, actorId: string, refill = fal
   return added;
 }
 
-export function refillScheduleSlots(eventId: string, actorId: string) {
-  const gate = writeGate(eventId, actorId);
-  if (gate) return gate;
-  const state = stateGate(eventId);
-  if (state) return state;
-  if (daysOf(eventId).length === 0) return { status: 409, code: "CONFLICT", reason: "EVENT_PERIOD_REQUIRED" };
-  const added = fillScheduleSlots(eventId, actorId, true);
-  return { status: 200, body: { added, boardVersion: boardOf(eventId).version } };
-}
 
 function boardOf(eventId: string): Board {
   let board = boards.get(eventId);
@@ -263,7 +252,6 @@ function operatorItem(eventId: string, board: Board, item: Item) {
     publishState: !published ? "ADDED" : sameContent(published, item) ? "UNCHANGED" : "CHANGED",
     outOfPeriod: outOfPeriod(eventId, item.day),
     autoFilled: item.autoFilled === true,
-    slotRemoved: item.slotId !== null && !(boardSlotsOf(eventId) ?? []).some((slot) => slot.slotId === item.slotId),
   };
 }
 

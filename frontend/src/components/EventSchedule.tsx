@@ -17,7 +17,6 @@ import {
 import { Button } from "./Button";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { EventScreen } from "./EventScreen";
-import { SlotFillNote } from "./EventScheduleSlots";
 import { eventContext, formatPublishedAt } from "./eventFormat";
 import { readEventAreas } from "./eventLocalState";
 import { OperatorShell } from "./OperatorShell";
@@ -237,15 +236,6 @@ function Board({ eventId, context, board, fetching }: { eventId: string; context
         </span>
         {fetching ? <span className="event-groups__fetching">새로 읽는 중</span> : null}
       </p>
-      <SlotFillNote
-        eventId={eventId}
-        board={board}
-        editable={editable}
-        onDone={(next) => {
-          setNotice(next);
-          void reload();
-        }}
-      />
       {notice ? (
         <p className={`event-groups__notice event-groups__notice--${notice.tone}`} role={notice.tone === "error" ? "alert" : "status"}>
           {notice.text}
