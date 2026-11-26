@@ -11,9 +11,6 @@ import app.scene.event.audience.AudienceType;
 import app.scene.event.audience.ParticipantAudience;
 import app.scene.event.feed.FeedArea;
 import app.scene.event.feed.ParticipantFeedVersions;
-import app.scene.event.form.FormFieldRow;
-import app.scene.event.form.FormRepository;
-import app.scene.event.form.FormRow;
 import app.scene.event.form.MealSlots;
 import app.scene.event.lifecycle.EventAccessGate;
 import app.scene.event.lifecycle.EventLocation;
@@ -95,13 +92,13 @@ public class ScheduleService {
   private final ScheduleRepository schedule;
   private final EventUserPermissionRepository permissions;
   private final AuditLogRepository auditLogs;
-  private final FormRepository forms;
   private final JsonMapper json;
   private final Clock clock;
   private final ParticipantFeedVersions feedVersions;
   private final ParticipantAudience audiences;
   private final Notifications notifications;
   private final ParticipantProperties properties;
+  private final ScheduleSlotFill slotFill;
 
   public ScheduleService(
       EventAccessGate gate,
@@ -109,25 +106,25 @@ public class ScheduleService {
       ScheduleRepository schedule,
       EventUserPermissionRepository permissions,
       AuditLogRepository auditLogs,
-      FormRepository forms,
       JsonMapper json,
       Clock clock,
       ParticipantFeedVersions feedVersions,
       ParticipantAudience audiences,
       Notifications notifications,
-      ParticipantProperties properties) {
+      ParticipantProperties properties,
+      ScheduleSlotFill slotFill) {
     this.gate = gate;
     this.events = events;
     this.schedule = schedule;
     this.permissions = permissions;
     this.auditLogs = auditLogs;
-    this.forms = forms;
     this.json = json;
     this.clock = clock;
     this.feedVersions = feedVersions;
     this.audiences = audiences;
     this.notifications = notifications;
     this.properties = properties;
+    this.slotFill = slotFill;
   }
 
   // ---------------------------------------------------------------- operator reads
@@ -142,6 +139,7 @@ public class ScheduleService {
     Optional<LatestPublication> latest = schedule.latestPublication(spaceId, eventId);
     ScheduleSnapshot previous = latest.map(LatestPublication::snapshot).orElse(null);
     Map<UUID, ItemContent> published = publishedContent(previous);
+    List<MealSlots.Day> setupDays = slotFill.setupDays(spaceId, eventId);
     List<OperatorItem> items = new ArrayList<>();
     for (ScheduleItemRow row : rows) {
       items.add(operatorItem(row, profile.startDate(), dayCount, previous, published));
@@ -164,7 +162,7 @@ public class ScheduleService {
         ScheduleViews.days(profile.startDate(), profile.endDate()),
         items,
         publication,
-        slots(spaceId, eventId, rows));
+        slots(setupDays, rows));
   }
 
   /** {@code GET …/schedule/published}: the latest publication with every item and audience. */
@@ -255,6 +253,10 @@ public class ScheduleService {
     }
     ItemContent draft = input.create(0);
     requireFreeSlot(spaceId, eventId, draft.slotId(), null);
+    if (draft.slotId() != null) {
+      // The operator put the slot back by hand (DEC-090 §4).
+      schedule.forgetDismissals(spaceId, eventId, draft.slotId());
+    }
     Optional<LatestPublication> latest = schedule.latestPublication(spaceId, eventId);
     if (options.publish()) {
       confirmOthers(options, pending(rows, snapshotOf(latest)));
@@ -306,6 +308,16 @@ public class ScheduleService {
                     schedule.nextSortOrder(spaceId, eventId, merged.day(), merged.startTime())));
       }
       Instant now = now();
+      if (!Objects.equals(merged.slotId(), base.slotId())) {
+        // Unlinking takes the slot off the schedule like a delete; linking puts it back (DEC-090
+        // §4).
+        if (base.slotId() != null) {
+          schedule.dismissSlot(spaceId, eventId, base.slotId(), actorId, now);
+        }
+        if (merged.slotId() != null) {
+          schedule.forgetDismissals(spaceId, eventId, merged.slotId());
+        }
+      }
       schedule.update(spaceId, eventId, itemId, merged, actorId, now);
       boardVersion = schedule.bumpBoardVersion(spaceId, eventId, now);
     }
@@ -339,6 +351,10 @@ public class ScheduleService {
     }
     Instant now = now();
     schedule.delete(spaceId, eventId, itemId);
+    if (current.slotId() != null) {
+      // A deleted meal or worship item does not come back by itself (DEC-090 §4).
+      schedule.dismissSlot(spaceId, eventId, current.slotId(), actorId, now);
+    }
     long boardVersion = schedule.bumpBoardVersion(spaceId, eventId, now);
     PublishResult publication =
         options.publish()
@@ -893,7 +909,8 @@ public class ScheduleService {
         row.updatedAt(),
         row.updatedByDisplayName(),
         state,
-        row.day() > dayCount);
+        row.day() > dayCount,
+        row.autoFilled());
   }
 
   /** The current item for {@code 409 CONCURRENT_MODIFICATION}. */
@@ -904,19 +921,7 @@ public class ScheduleService {
         row, locked.startDate(), locked.dayCount(), snapshot, publishedContent(snapshot));
   }
 
-  private List<Slot> slots(UUID spaceId, UUID eventId, List<ScheduleItemRow> rows) {
-    FormRow form = forms.findByEvent(spaceId, eventId).orElse(null);
-    if (form == null || form.setup() == null) {
-      return null;
-    }
-    JsonNode setup = json.readTree(form.setup());
-    JsonNode meals = null;
-    for (FormFieldRow field : forms.findFields(spaceId, eventId, form.id())) {
-      if ("MEALS".equals(field.presetKey())) {
-        meals = field.config() == null ? null : json.readTree(field.config());
-      }
-    }
-    List<MealSlots.Day> days = MealSlots.days(setup, MealSlots.labels(meals));
+  private static List<Slot> slots(List<MealSlots.Day> days, List<ScheduleItemRow> rows) {
     if (days.isEmpty()) {
       return null;
     }

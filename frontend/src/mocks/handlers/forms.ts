@@ -16,6 +16,7 @@ import {
 } from "../formStore";
 import { operatorRequests } from "../operatorStore";
 import { problem } from "../problem";
+import { fillScheduleSlots } from "../scheduleStore";
 
 const PAGE_SIZE = 50;
 
@@ -115,6 +116,8 @@ export const formHandlers = [
     operatorRequests.push({ method: "PUT", url: new URL(request.url).pathname, body });
     const updated = applySetup(String(params.eventId), String(params.formId), operator.userId, body);
     if (isFailure(updated)) return fail(updated);
+    // DEC-090: the schedule working copy gets the 식사·집회 칸 by itself.
+    fillScheduleSlots(String(params.eventId), operator.userId);
     return HttpResponse.json(updated);
   }),
 

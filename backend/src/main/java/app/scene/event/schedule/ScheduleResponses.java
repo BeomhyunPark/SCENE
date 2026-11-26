@@ -18,7 +18,10 @@ public final class ScheduleResponses {
   static final String ADDED = "ADDED";
   static final String CHANGED = "CHANGED";
 
-  /** One working-copy item for operators. */
+  /**
+   * One working-copy item for operators. {@code autoFilled}: the server put it in for a form slot
+   * (DEC-090 §1).
+   */
   public record OperatorItem(
       UUID itemId,
       int day,
@@ -40,7 +43,8 @@ public final class ScheduleResponses {
       Instant updatedAt,
       String updatedByDisplayName,
       String publishState,
-      boolean outOfPeriod) {}
+      boolean outOfPeriod,
+      boolean autoFilled) {}
 
   /** {@code GET …/schedule}. */
   public record Board(

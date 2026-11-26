@@ -119,8 +119,9 @@ class MealCountHttpIT {
     assertThat(numbers(slot(counts, "opt_d1_dinner"))).containsExactly(1L, 0L, 1L, 0L, 1L);
     assertThat(numbers(slot(counts, "opt_d2_lunch"))).containsExactly(2L, 0L, 2L, 0L, 2L);
     JsonNode dinner = slot(counts, "opt_d1_dinner");
+    // DEC-090: the setup save put the slot's schedule item in, at the default time.
     assertThat(dinner.get("startTime").asString()).isEqualTo("18:00");
-    assertThat(dinner.get("timeFromSchedule").asBoolean()).isFalse();
+    assertThat(dinner.get("timeFromSchedule").asBoolean()).isTrue();
     assertThat(dinner.get("passed").asBoolean()).isFalse();
     // Numbers only: no names, phones or ids.
     assertThat(counts.toString()).doesNotContain("가람", "나래", "010-", garam);
@@ -177,13 +178,8 @@ class MealCountHttpIT {
     Held event = openEvent("Meal time owner", 2030);
     Form form = setupForm(event);
     form.submit("가람", 1, values("ATTENDANCE", opt("opt_full")));
-    created(
-        write(
-            post(base(event) + "/schedule/items"),
-            event.owner,
-            "{\"day\":2,\"startTime\":\"07:30\",\"title\":\"아침 식사\","
-                + "\"category\":\"MEAL\",\"audience\":[{\"type\":\"ALL\"}],"
-                + "\"slotId\":\"opt_d2_breakfast\"}"));
+    // DEC-090: the slot already has its item; moving it moves the meal.
+    moveSlot(event, "opt_d2_breakfast", "07:30");
 
     JsonNode breakfast = slot(counts(event), "opt_d2_breakfast");
     assertThat(breakfast.get("startTime").asString()).isEqualTo("07:30");
@@ -273,13 +269,8 @@ class MealCountHttpIT {
                 opt("opt_d1_dinner")));
     form.dropAnswer("미르", "DEPARTURE_SLOT");
     String nuri = form.submit("누리", 6, values("ATTENDANCE", opt("opt_full")));
-    created(
-        write(
-            post(base(event) + "/schedule/items"),
-            event.owner,
-            "{\"day\":2,\"startTime\":\"23:30\",\"title\":\"늦은 아침\","
-                + "\"category\":\"MEAL\",\"audience\":[{\"type\":\"ALL\"}],"
-                + "\"slotId\":\"opt_d2_breakfast\"}"));
+    // DEC-090: the slot's item is already there; move it.
+    moveSlot(event, "opt_d2_breakfast", "23:30");
     checkIn(event, bada);
 
     JsonNode counts = counts(event);
@@ -379,6 +370,23 @@ class MealCountHttpIT {
       }
     }
     throw new AssertionError("no roster item " + participantId);
+  }
+
+  /** Moves the slot's schedule item, which the setup save put in (DEC-090), to {@code start}. */
+  private void moveSlot(Held event, String slotId, String start) throws Exception {
+    String itemId = null;
+    for (JsonNode item :
+        json.readTree(ok(get(base(event) + "/schedule").cookie(event.owner))).get("items")) {
+      if (slotId.equals(item.get("slotId").asString())) {
+        itemId = item.get("itemId").asString();
+      }
+    }
+    assertThat(itemId).as(slotId).isNotNull();
+    ok(
+        write(
+            patch(base(event) + "/schedule/items/" + itemId),
+            event.owner,
+            "{\"expectedVersion\":1,\"startTime\":\"" + start + "\"}"));
   }
 
   private void checkIn(Held event, String participantId) throws Exception {

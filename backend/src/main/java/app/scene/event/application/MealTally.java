@@ -13,24 +13,17 @@ import java.util.Map;
 
 /**
  * The counting rule of the meal counts (DEC-089 §5–§7), apart from reading, so it is tested with
- * any time. Each slot starts at its schedule item's time, or the meal's default time, on its day in
- * the event zone, and has passed {@link #GRACE} later. The first slot that has not passed (worship
- * included) is the cursor. For each meal slot a person attends: checked in is {@code arrived}; not
- * checked in is {@code coming} when their due slot ({@link ArrivalSlots#dueSlot}) is the cursor or
- * later, {@code missing} otherwise. A person with unknown slots counts in no slot.
+ * any time. Each slot starts at its schedule item's time (DEC-090 §3: every slot has one unless the
+ * operator removed it), or the meal's default time, on its day in the event zone, and has passed
+ * {@link #GRACE} later. The first slot that has not passed (worship included) is the cursor. For
+ * each meal slot a person attends: checked in is {@code arrived}; not checked in is {@code coming}
+ * when their due slot ({@link ArrivalSlots#dueSlot}) is the cursor or later, {@code missing}
+ * otherwise. A person with unknown slots counts in no slot.
  */
 final class MealTally {
 
   /** A slot stays current until this long after it starts (DEC-089 §5). */
   static final Duration GRACE = Duration.ofHours(1);
-
-  /** Start time when no schedule item holds the slot (DEC-089 §5). */
-  static final Map<String, LocalTime> DEFAULT_TIMES =
-      Map.of(
-          "BREAKFAST", LocalTime.of(8, 0),
-          "LUNCH", LocalTime.of(12, 0),
-          "DINNER", LocalTime.of(18, 0),
-          "WORSHIP", LocalTime.of(19, 30));
 
   private static final String WORSHIP = "WORSHIP";
 
@@ -57,7 +50,9 @@ final class MealTally {
     for (MealSlots.Day day : days) {
       for (MealSlots.Slot slot : day.slots()) {
         String time = scheduled.get(slot.optionId());
-        LocalTime start = time == null ? DEFAULT_TIMES.get(slot.meal()) : LocalTime.parse(time);
+        // No item holds the slot only when the operator took it off the schedule (DEC-090 §3).
+        LocalTime start =
+            LocalTime.parse(time == null ? MealSlots.defaultStart(slot.meal()) : time);
         starts.put(slot.optionId(), start);
         Instant over = day.date().atTime(start).atZone(zone).toInstant().plus(GRACE);
         boolean gone = !now.isBefore(over);
