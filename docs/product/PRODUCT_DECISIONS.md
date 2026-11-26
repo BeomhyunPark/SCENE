@@ -4291,8 +4291,24 @@ DEC-078 §4(사용자 결정 2026-11-19의 추천안 채택), 로드맵 A12, #33
 
 - 셀 병합, 차트, 여러 시트(탭), 숫자 표시 형식(통화·날짜), 행 숨김, 데이터 유효성(운영 열의 드롭다운)은 아직 없다. 필요하면 별도 이슈로 나눈다.
 - 실시간 동시 편집 표시(다른 운영자 커서)는 없다. 다른 운영자의 칸은 20초마다 다시 읽는다.
-- 실제 서버 클릭 검증은 남았다. 저장된 프로토타입(mock) 클릭 캡처는 `docs/test_results/509-roster-sheet/`에 있다.
+- 저장된 프로토타입(mock) 클릭 캡처와 main 병합 뒤 로컬 실제 API 클릭 캡처는 `docs/test_results/509-roster-sheet/`에 있다. 운영 서버 확인은 남았다.
 
 ### Evidence
 
 사용자 대화 2026-11-26(열 = 운영자 전용, 행 = 참가자 아래 운영 줄, 답 칸 바로 고침, 편집 기본기·틀 고정·수식·서식 모두). 서버 `event/rostersheet/*`, `RosterSheetHttpIT`. 화면 `applicantTable/SheetGrid.tsx`·`formula.ts`·`sheet.ts`·`useRosterSheet.ts`·`answerEdit.ts`, 테스트 `formula.test.ts`·`sheet.test.ts`·`SheetEditing.test.tsx`.
+
+### Follow-up (2026-11-26)
+
+main 병합 뒤 캡처와 화면 요소 목록을 본 사용자 결정(조율 세션 전달, 그대로):
+
+> "1. 처음 제출한 순서로 고정.
+> 2. 아래쪽 도움말은 그래 일단 빼고, 왼쪽가운데오른쪽 버튼 유지. 행마다 있는 상세 수정버튼 빼고, 그래 상단 정렬 필터 버튼 빼고 겹치는건 다 빼 ㅋㅋ 그래
+> 3. 같은말로 맞춰줘"
+
+1. **행 순서는 처음 제출한 순서다.** 답을 고치면(A4·A12) 새 revision의 `submittedAt`이 고친 시각이라 그 사람이 맨 아래로 가고 뒤 사람들의 행 번호가 당겨졌다(§5와 어긋남). 표와 CSV가 함께 쓰는 순서를 그 참가자의 revision 1 제출 시각으로 바꿨다. 취소·되돌리기·재신청도 같은 참가자라 자리가 그대로이고, 직접 추가한 사람은 추가한 시각 자리다. `submittedAt`의 뜻과 응답 모양은 그대로이고 마이그레이션은 없다.
+2. **겹치는 것은 스프레드시트 쪽만 남긴다.** 뺀 것: 시트 아래 "도움말", 행마다 "상세"·"수정"(작업 열)과 그 버튼이 없다는 안내 문장, 상단 "정렬"·"필터" 버튼과 정렬 패널, "+ 열 보기"와 열 보기 패널(열 목록·순서 화살표·기본 열로·보기 저장). 남은 길: 칸 메뉴의 "신청 상세 보기"·"운영 정보 수정 (E)", 이름 링크(휴대폰에서 누르면 상세), 열 메뉴의 정렬·필터·열 숨기기에 더한 "정렬 해제"·"필터 해제"·"숨긴 열 보이기 (N)", 필터가 걸린 머리글의 깔때기 표시(정렬은 기존 ▲▼), 필터 패널의 "닫기", 휴대폰에서 보이는 머리글 ▾. 왼쪽·가운데·오른쪽 맞춤은 사용자 말대로 둔다.
+3. **상태 말은 현장 운영과 같다.** 칩·"현재 상태" 열·합계 줄·세기·운영 정보 서랍이 도착 / 미도착 / 도착 예정을 쓴다. 표의 행은 현장 운영 명단 항목과 같은 서버 값 `arrival`(`ArrivalRoster`)을 더해 받고, 화면은 현장 운영과 같은 `fieldState.arrivalState`·`FIELD_STATE_LABELS`로 말을 정한다. 도착 예정 칩은 현장 운영처럼 그런 사람이 있을 때만 보인다. CSV에는 상태 열이 없다.
+
+버린 안: 행 순서를 화면에서만 다시 맞추기(CSV와 달라진다), 숨긴 열 보이기를 위 버튼으로 남기기(열 메뉴와 겹친다), "도착 예정"을 빼고 두 말만 맞추기(현장 운영과 칩 수가 달라진다).
+
+근거: 사용자 결정 2026-11-26. 서버 `ApplicationQueryMapper.findSubmitted`·`ApplicationTableService`, 화면 `ApplicantTable.tsx`·`SheetGrid.tsx`·`fieldState.ts`·`model.ts`. 테스트 `OperatorApplicationEditHttpIT.tableAndCsvKeepEachPersonWhereTheyFirstApplied`, `MealCountHttpIT`(표의 `arrival`), `ApplicantTable.test.tsx`·`EventParticipation.test.tsx`·`OperationDrawer.test.tsx`·`model.test.ts`.

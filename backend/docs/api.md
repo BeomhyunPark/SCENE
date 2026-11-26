@@ -1584,7 +1584,8 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
       "slotIds": ["opt_d1_dinner", "opt_d1_worship"],
       "operation": { "memo": "토 저녁 잠시 외출", "version": 1, "updatedAt": "…", "updatedByDisplayName": "김운영" },
       "room": { "roomId": "…", "name": "301호" },
-      "lodging": "LODGING"
+      "lodging": "LODGING",
+      "arrival": { "status": "COMING", "slot": { "slotId": "opt_d1_dinner", "day": 1, "dayLabel": "1월 22일 (금)", "label": "저녁" } }
     }
   ],
   "roomPublishedAt": "2027-01-20T03:00:00Z",
@@ -1603,7 +1604,7 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
 ```
 
 - `columns`는 신청서 질문을 position 순으로 준다. 모양은 상세의 답 항목에서 `value`를 뺀 것과 같다. `presetKey`는 자동 질문의 키(`ATTENDANCE`, `MIDDLE_GROUP`, `CELL` 등, DEC-070)이고 아니면 `null`이다. `contact`는 전화 질문이면 `true`다. 숨긴 질문도 열로 남는다(`hidden: true`, DEC-068 §6). 신청서가 없으면 `formId`는 `null`, `columns`는 빈 배열이다.
-- `rows`는 `SUBMITTED` 신청만, CSV와 같은 순서(`submittedAt`, 그다음 신청 id)다. `answers`는 field id를 키로 저장된 값을 그대로 준다(DEC-068 §1). 답이 없는 질문(조건에 맞지 않아 보이지 않은 질문 포함)은 키가 없다. 화면은 이것을 "응답 없음"으로 센다.
+- `rows`는 `SUBMITTED` 신청만, CSV와 같은 순서다. 순서는 그 참가자가 **처음 제출한 시각**(revision 1의 `submittedAt`), 그다음 참가자 id·신청 id다(DEC-091 Follow-up 1). 참가자·운영자가 고쳐 새 revision이 생겨도, 취소 뒤 되돌리거나 다시 신청해도 자리가 그대로다. 직접 추가한 사람은 추가한 시각 자리다. 행의 `submittedAt`은 지금 revision의 시각 그대로다. `answers`는 field id를 키로 저장된 값을 그대로 준다(DEC-068 §1). 답이 없는 질문(조건에 맞지 않아 보이지 않은 질문 포함)은 키가 없다. 화면은 이것을 "응답 없음"으로 센다.
 - `group`은 작업본 배정이다. 미배정이면 `null`이다. 공개본이 아니다.
 - `checkedInAt`은 도착 체크인 시각이다. 체크인이 없거나 취소됐으면 `null`이다.
 - `slots`·`rows[].slotIds`(DEC-074)는 [조 편성판](#get-apiv1operatoreventseventidgroup-board)의 `slots`·`slotIds`와 같은 모양·같은 규칙이다. 신청서가 없거나 설정이 없거나 칸이 하나도 없으면 `slots`와 모든 `slotIds`가 `null`이다. `slotIds: null`은 "모름"이다. 전화 열을 볼 수 없어도 `slotIds`는 같은 값이다.
@@ -1611,6 +1612,7 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
 - `participantId`는 조 편성판·`group-assignments`가 쓰는 참가자 id다. 서랍에서 조를 바꿀 때 쓴다(#335).
 - `operation`은 운영 정보다(#335, DEC-075). 모양은 [운영 정보 저장](#put-apiv1operatoreventseventidapplicationsapplicationidoperation)의 응답과 같고, 저장된 것이 없으면 `{ "memo": "", "version": 0, "updatedAt": null, "updatedByDisplayName": null }`이다. 표를 읽을 수 있으면 모두 본다. `answers`는 언제나 참가자가 낸 원본이다.
 - `room`·`lodging`·`roomPublishedAt`(#460, DEC-085 §10)은 숙소 **가장 최근 공개본**의 방, 지금 숙박 상태(`LODGING`·`NOT_LODGING`·`UNKNOWN`, 배정판과 같은 규칙), 그 공개 시각이다. 공개 전이면 `roomPublishedAt`과 모든 `room`이 `null`이고, 미배정도 `null`이다. 작업본의 방은 배정판에서만 보인다. 표를 읽을 수 있으면 모두 본다(조와 달리 공개된 값이다). 화면은 공개본이 있으면 `방` 열을 기본으로 보이고, `room`이 없고 `NOT_LODGING`이면 "숙박 안 함"으로 거른다. `withdrawn`에는 방이 없다.
+- `arrival`은 [현장 운영 명단](#get-apiv1operatoreventseventidcheck-in-roster) 항목의 `arrival`과 같은 값·같은 모양이다(`ArrivalRoster`, DEC-091 Follow-up 3). 화면은 체크인이면 "도착", `status`가 `COMING`이면 "도착 예정", 나머지는 "미도착"으로 현장 운영과 같은 말을 쓴다. 신청서에 칸이 없으면 `null`이다.
 - `withdrawn`은 취소된 신청자다(DEC-084 §9). `rows`와 따로 있어 표의 어떤 숫자에도 들어가지 않는다. 최근 취소가 먼저다. 화면은 기본으로 숨기고 "취소 N"으로 연다.
 
 ```json
@@ -1628,6 +1630,46 @@ CUSTOM 필드를 맨 뒤에 추가한다. `label`만 필수이고 앞뒤 공백�
 ```
 
   `previousGroup`은 취소가 지운 조이고, 조가 지워졌거나 `groupVisible`이 `false`면 `null`이다. 전화·답은 없다. 사유는 운영 메모처럼 표를 읽는 운영자 모두 본다.
+
+### 운영 시트 (참가 현황 스프레드시트)
+
+참가 현황 표의 운영자 전용 열·운영 줄·칸 값·서식·조건부 서식(#508, DEC-091). 참가자는 읽지 않는다. 행사마다 문서 하나(`event_roster_sheets`, V30)다. 컨트롤러는 `RosterSheetController`, 서비스는 `RosterSheetService`, 문서 검사·연산은 `RosterSheetDoc`이다.
+
+**`GET /api/v1/operator/events/{eventId}/roster-sheet`** — 권한은 표와 같다(`EVENT_READ` 또는 활성 공간 `OWNER`·`ADMIN`, 아니면 `403 FORBIDDEN`). 저장된 것이 없으면 빈 문서와 `version: 0`이다.
+
+```json
+{
+  "doc": {
+    "columns": [{ "id": "pay", "label": "회비", "after": "status" }],
+    "rows": [{ "id": "sum" }],
+    "cells": {
+      "p:<participantId>|c:pay": { "v": "50000" },
+      "r:sum|c:pay": { "v": "=SUM([[c:pay]]:[[c:pay]])", "f": { "b": true, "fill": "#fef7e0" } }
+    },
+    "rules": [{ "id": "r1", "col": "c:pay", "op": "empty", "value": "", "color": "#c5221f" }]
+  },
+  "version": 3,
+  "updatedAt": "…",
+  "updatedByDisplayName": "김운영"
+}
+```
+
+**`POST /api/v1/operator/events/{eventId}/roster-sheet/ops`** — `PARTICIPANT_WRITE`. CSRF가 필요하다. 본문은 `{ "ops": [ … ] }`(1~5000개)이고 응답은 위 `GET`과 같다. 행사 행을 잠그고 연산을 차례로 적용하므로, 서로 다른 칸을 고친 두 운영자는 충돌하지 않고 같은 칸은 나중 쓰기가 이긴다. `version`은 비교하지 않는다(보내지 않는다).
+
+| `op` | 필드 | 하는 일 |
+|---|---|---|
+| `addColumn` | `id`, `label`, `after`(열 키 또는 `null`) | 운영 열을 더한다 |
+| `updateColumn` | `id`, `label` | 이름을 바꾼다 |
+| `deleteColumn` | `id` | 열과 그 칸·규칙을 지운다 |
+| `addRow` | `id`, `index`(선택) | 운영 줄을 더한다 |
+| `deleteRow` | `id` | 줄과 그 칸을 지운다 |
+| `setCell` | `row`, `col`, `value`(선택, `null`이면 지움), `format`(선택: `b`·`i`·`u`·`s`, `color`·`fill` `#rrggbb`, `align` `left`·`center`·`right`) | 칸 값·서식 |
+| `setRules` | `rules`: `{ id, col, op, value?, color?, fill?, b? }` 목록 | 조건부 서식 전체를 바꾼다(100개까지). `op`는 `empty`·`notEmpty`·`eq`·`neq`·`contains`·`notContains`·`gt`·`gte`·`lt`·`lte` |
+
+- 행 키는 `p:<participantId>`(참가자, revision이 바뀌어도 같음) 또는 `r:<id>`(운영 줄), 열 키는 `c:<id>`(운영 열) 또는 화면의 열 id(field id, `status` 등)다. **참가자 행은 운영 열에만 값을 받는다**(답은 [운영자의 신청 고치기](#운영자의-신청-고치기직접-추가)로 고친다). 서식은 어느 칸에나 둔다.
+- 수식은 화면이 보낸 그대로(`[[열 키@행 키]]` 꼴의 id 참조) 저장하고 화면이 계산한다.
+- 검사 실패는 `400 VALIDATION_FAILED`(`field`: `ops`, `op`, `id`, `col`, `value`, `rules` …), 없는 열·줄은 `404 RESOURCE_NOT_FOUND`, `ARCHIVED` 행사는 `409 EVENT_ARCHIVED`다. 한도: 열 100, 줄 2000, 칸 100000, 값 5000자, 문서 4MB.
+- audit `ROSTER_SHEET_UPDATED` 한 줄을 남긴다. detail은 `{ "version", "ops" }`(연산 수)뿐이고 값은 남기지 않는다.
 
 ## 공개 신청서
 
