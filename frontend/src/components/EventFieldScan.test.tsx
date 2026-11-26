@@ -134,8 +134,7 @@ describe("field QR scan", () => {
     expect(keys[0]).not.toBe("");
     expect(keys[0]).not.toBe(keys[1]);
     await waitFor(() => {
-      const region = screen.getByRole("region", { name: "체크인 현황" });
-      expect(within(region).getByText("체크인 완료").closest("p")!.querySelector("strong")).toHaveTextContent("2");
+      expect(screen.getByRole("button", { name: "완료 2명" })).toBeInTheDocument();
     }, WAIT);
   });
 

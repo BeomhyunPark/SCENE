@@ -158,7 +158,7 @@ describe("식수 현황 screen", () => {
     expect(await screen.findByRole("heading", { name: "식수 현황을 볼 권한이 없어요" })).toBeInTheDocument();
   });
 
-  it("is in the event menu and linked from 현장 운영", async () => {
+  it("is in the event menu, not a second link on 현장 운영", async () => {
     seedThree();
     await login({ userId: OWNER });
     render(
@@ -166,8 +166,9 @@ describe("식수 현황 screen", () => {
         <App />
       </MemoryRouter>,
     );
-    const link = await screen.findByRole("link", { name: "식수 현황 보기" });
-    expect(link).toHaveAttribute("href", `/events/${RETREAT}/meals`);
-    expect(screen.getAllByRole("link", { name: "식수 현황" })[0]).toHaveAttribute("href", `/events/${RETREAT}/meals`);
+    const menu = await screen.findAllByRole("link", { name: "식수 현황" });
+    expect(menu[0]).toHaveAttribute("href", `/events/${RETREAT}/meals`);
+    // The 식수 현황 보기 link on 현장 운영 was taken out (2026-11-26): the menu has it.
+    expect(screen.queryByRole("link", { name: "식수 현황 보기" })).not.toBeInTheDocument();
   });
 });

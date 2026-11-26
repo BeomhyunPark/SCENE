@@ -17,6 +17,7 @@ import {
   ROSTER_QUERY_MAX,
   type CancelResult,
   type CheckInResult,
+  type CheckInSummary,
   type RosterItem,
 } from "../api/checkIns";
 import { isApiError } from "../api/errors";
@@ -377,61 +378,53 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
               </button>
             </div>
 
-            {/* OM01 622:21 "전체 104명 · 미도착 24명", in the product's words, with 식수 현황 at the line's end. */}
-            <div className="event-field__status">
-            <section className="event-field__summary" aria-label="체크인 현황">
-              {summary.data ? (
-                <>
-                  <p className="event-field__count">
-                    <span>전체</span> <strong>{summary.data.total.toLocaleString("ko-KR")}</strong>명
-                  </p>
-                  <p className="event-field__count">
-                    <span>미완료</span> <strong>{summary.data.notCheckedIn.toLocaleString("ko-KR")}</strong>명
-                  </p>
-                  <p className="event-field__count event-field__count--done">
-                    <span>체크인 완료</span> <strong>{summary.data.checkedIn.toLocaleString("ko-KR")}</strong>명
-                  </p>
-                </>
-              ) : summary.isError ? (
-                <div className="event-field__inline-error">
-                  <p>현황을 불러오지 못했어요.</p>
-                  <Button type="button" variant="secondary" size={32} onClick={() => reloadQuery(summary)}>
-                    다시 시도
-                  </Button>
-                </div>
-              ) : (
-                <p className="event-field__muted">현황을 불러오는 중이에요.</p>
-              )}
-            </section>
-            {/* 식수 현황 바로 가기 (#454, DEC-089 §11). */}
-            <Link className="event-field__meals-link scene-press scene-press--text" to={`${eventHref}/meals`}>
-              식수 현황 보기
-            </Link>
-            </div>
-
-            {/* TL01 filter chips (620:19); the count (620:17) only for a search. */}
+            {/* TL01 filter chips (620:19) carry the 체크인 현황 counts (2026-11-26), so the numbers are said once; the
+                count (620:17) shows only for a search. 조별 has no chips, so it keeps the one count line. */}
             <div className="event-field__controls">
               {view === "all" ? (
                 <div className="event-field__filters" role="group" aria-label="체크인 상태로 보기">
-                  {FILTERS.map(([value, label]) => (
-                    <button
-                      key={value}
-                      type="button"
-                      className="event-field__filter scene-press scene-press--chip"
-                      aria-pressed={filter === value}
-                      onClick={() => setFilter(value)}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                  {/* Without a search the count repeats the 체크인 현황 line above, so it shows only for a search (#495). */}
+                  {FILTERS.map(([value, label]) => {
+                    const number = summary.data ? filterCount(summary.data, value) : null;
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        className="event-field__filter scene-press scene-press--chip"
+                        aria-pressed={filter === value}
+                        aria-label={number === null ? label : `${label} ${number}명`}
+                        onClick={() => setFilter(value)}
+                      >
+                        {label}
+                        {number === null ? null : <span className="event-field__filter-count"> {number}</span>}
+                      </button>
+                    );
+                  })}
+                  <SummaryState summary={summary} />
                   {roster.data && items.length > 0 && q !== "" ? (
                     <span className="event-field__count-text" aria-live="polite">
                       {total.toLocaleString("ko-KR")}명
                     </span>
                   ) : null}
                 </div>
-              ) : null}
+              ) : (
+                <section className="event-field__summary" aria-label="체크인 현황">
+                  {summary.data ? (
+                    <>
+                      <p className="event-field__count">
+                        <span>전체</span> <strong>{summary.data.total.toLocaleString("ko-KR")}</strong>명
+                      </p>
+                      <p className="event-field__count">
+                        <span>미완료</span> <strong>{summary.data.notCheckedIn.toLocaleString("ko-KR")}</strong>명
+                      </p>
+                      <p className="event-field__count event-field__count--done">
+                        <span>완료</span> <strong>{summary.data.checkedIn.toLocaleString("ko-KR")}</strong>명
+                      </p>
+                    </>
+                  ) : (
+                    <SummaryState summary={summary} />
+                  )}
+                </section>
+              )}
             </div>
 
             <div className="event-field__notice-slot" aria-live="polite">
@@ -642,6 +635,28 @@ const FILTERS: readonly (readonly [Filter, string])[] = [
   ["pending", "미완료"],
   ["done", "완료"],
 ];
+
+/** A chip's number: the 체크인 현황 counts, which do not follow the search. */
+function filterCount(summary: CheckInSummary, filter: Filter): string {
+  const value = filter === "all" ? summary.total : filter === "pending" ? summary.notCheckedIn : summary.checkedIn;
+  return value.toLocaleString("ko-KR");
+}
+
+/** While the 체크인 현황 is loading or failed, in the place of the numbers. */
+function SummaryState({ summary }: { summary: UseQueryResult<CheckInSummary> }) {
+  if (summary.data) return null;
+  if (summary.isError) {
+    return (
+      <span className="event-field__inline-error">
+        <span>현황을 불러오지 못했어요.</span>
+        <Button type="button" variant="secondary" size={32} onClick={() => reloadQuery(summary)}>
+          다시 시도
+        </Button>
+      </span>
+    );
+  }
+  return <span className="event-field__muted">현황을 불러오는 중이에요.</span>;
+}
 
 function GroupsSection({
   published,

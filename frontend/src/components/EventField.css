@@ -195,7 +195,7 @@
   cursor: default;
 }
 
-/* OM01 622:21: one SCENE/Title line. */
+/* 조별 only: the counts as one SCENE/Title line (the 전체 view carries them on the chips). */
 .event-field__summary {
   display: flex;
   flex-wrap: wrap;
@@ -250,6 +250,10 @@
   color: var(--color-chip-default-text);
   font: var(--scene-label-s);
   cursor: pointer;
+}
+
+.event-field__filter-count {
+  font-variant-numeric: tabular-nums;
 }
 
 .event-field__filter[aria-pressed="true"] {
@@ -342,7 +346,7 @@
   gap: 8px;
 }
 
-.event-field__inline-error p {
+.event-field__inline-error > span:first-child {
   margin: 0;
   color: var(--color-danger-fg);
   font: var(--scene-body-s);
@@ -944,17 +948,3 @@ button.event-field__row-main {
   min-width: 50%;
 }
 
-/* The count line, with 식수 현황 바로 가기 (#454, DEC-089 §11) at its end. */
-.event-field__status {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 4px 12px;
-}
-
-.event-field__meals-link {
-  color: var(--color-text-brand);
-  font: var(--scene-label-m);
-  text-underline-offset: 3px;
-}

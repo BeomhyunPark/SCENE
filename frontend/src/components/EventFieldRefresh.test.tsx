@@ -27,9 +27,11 @@ async function open() {
   await screen.findByRole("list", { name: "체크인 명단" }, WAIT);
 }
 
+/** The 체크인 현황 count on a filter chip ("전체", "미완료", "완료"), as the chip's name says it. */
 function summaryValue(label: string): string {
-  const region = screen.getByRole("region", { name: "체크인 현황" });
-  return within(region).getByText(label).closest("p")!.querySelector("strong")!.textContent ?? "";
+  const filters = screen.getByRole("group", { name: "체크인 상태로 보기" });
+  const chip = within(filters).getByRole("button", { name: new RegExp(`^${label} [\\d,]+명$`) });
+  return chip.getAttribute("aria-label")!.slice(label.length + 1, -1);
 }
 
 function rowBadge(name: string): string | null {
@@ -59,7 +61,7 @@ describe("field refresh on the page (#408)", () => {
 
     // Another desk checks 김하늘 in on the server.
     seedCheckIn(EVENT, participant("김하늘").participantId);
-    await waitFor(() => expect(summaryValue("체크인 완료")).toBe("1"), WAIT);
+    await waitFor(() => expect(summaryValue("완료")).toBe("1"), WAIT);
     await waitFor(() => expect(rowBadge("94 김하늘")).toBe("체크인 완료"), WAIT);
   });
 
@@ -68,7 +70,7 @@ describe("field refresh on the page (#408)", () => {
     const input = screen.getByLabelText("이름 또는 전화 끝 4자리");
     fireEvent.focus(input);
     seedCheckIn(EVENT, participant("김하늘").participantId);
-    await waitFor(() => expect(summaryValue("체크인 완료")).toBe("1"), WAIT);
+    await waitFor(() => expect(summaryValue("완료")).toBe("1"), WAIT);
     await sleep(fieldRefresh.intervalMs * 2);
     expect(rowBadge("94 김하늘")).toBe("미완료");
 
@@ -83,7 +85,7 @@ describe("field refresh on the page (#408)", () => {
     expect(await screen.findByRole("dialog", {}, WAIT)).toBeInTheDocument();
 
     seedCheckIn(EVENT, participant("김하늘").participantId);
-    await waitFor(() => expect(summaryValue("체크인 완료")).toBe("2"), WAIT);
+    await waitFor(() => expect(summaryValue("완료")).toBe("2"), WAIT);
     await sleep(fieldRefresh.intervalMs * 2);
     expect(rowBadge("94 김하늘")).toBe("미완료");
 
@@ -97,6 +99,6 @@ describe("field refresh on the page (#408)", () => {
     seedCheckIn(EVENT, participant("김하늘").participantId);
     fireEvent.click(screen.getByRole("button", { name: "새로 고침" }));
     await waitFor(() => expect(rowBadge("94 김하늘")).toBe("체크인 완료"), WAIT);
-    expect(summaryValue("체크인 완료")).toBe("1");
+    expect(summaryValue("완료")).toBe("1");
   });
 });

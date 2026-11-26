@@ -48,7 +48,7 @@ function names(): string[] {
  * taken off this screen; the server still sends `arrival`, the screen does not read it.
  */
 describe("현장 운영 counts only", () => {
-  it("shows 전체·미완료·완료 and no arrival split, even with meal slots and a late attendee", async () => {
+  it("shows 전체·미완료·완료 with their counts and no arrival split, even with meal slots and a late attendee", async () => {
     seedThree();
     // 19:10 on day 1: the full attendee who has not come would have been 왔어야 함 before.
     setMealCountsNow(new Date("2027-01-22T19:10:00+09:00"));
@@ -57,14 +57,15 @@ describe("현장 운영 counts only", () => {
 
     await screen.findByRole("listitem", { name: "95 두리" }, WAIT);
     const filters = screen.getByRole("group", { name: "체크인 상태로 보기" });
-    expect(within(filters).getAllByRole("button").map((button) => button.textContent)).toEqual(["전체", "미완료", "완료"]);
+    expect(within(filters).getAllByRole("button").map((button) => button.getAttribute("aria-label"))).toEqual(["전체 3명", "미완료 2명", "완료 1명"]);
+    expect(within(filters).getAllByRole("button").map((button) => button.textContent)).toEqual(["전체 3", "미완료 2", "완료 1"]);
     expect(screen.queryByRole("region", { name: "미완료 도착 예정" })).not.toBeInTheDocument();
     for (const gone of ["왔어야 함", "올 예정", "도착 예정", "참석 칸", "예정 모름", "끼니", "기준"]) {
       expect(screen.queryByText(new RegExp(gone))).not.toBeInTheDocument();
     }
 
     // 미완료 still lists everyone who has not checked in.
-    fireEvent.click(within(filters).getByRole("button", { name: "미완료" }));
+    fireEvent.click(within(filters).getByRole("button", { name: "미완료 2명" }));
     await waitFor(() => expect(names()).toEqual(["95 두리", "96 세찬"]), WAIT);
   });
 });

@@ -51,9 +51,11 @@ async function rosterRow(name: string): Promise<HTMLElement> {
   return found!;
 }
 
+/** The 체크인 현황 count on a filter chip ("전체", "미완료", "완료"), as the chip's name says it. */
 function summaryValue(label: string): string {
-  const region = screen.getByRole("region", { name: "체크인 현황" });
-  return within(region).getByText(label).closest("p")!.querySelector("strong")!.textContent ?? "";
+  const filters = screen.getByRole("group", { name: "체크인 상태로 보기" });
+  const chip = within(filters).getByRole("button", { name: new RegExp(`^${label} [\\d,]+명$`) });
+  return chip.getAttribute("aria-label")!.slice(label.length + 1, -1);
 }
 
 function pendingRegion() {
@@ -85,7 +87,7 @@ describe("field check-in retry", () => {
     expect(await screen.findByText("94 김하늘 님을 체크인했어요.", {}, WAIT)).toBeInTheDocument();
     expect(keys).toHaveLength(3);
     expect(new Set(keys).size).toBe(1);
-    await waitFor(() => expect(summaryValue("체크인 완료")).toBe("1"), WAIT);
+    await waitFor(() => expect(summaryValue("완료")).toBe("1"), WAIT);
     expect(checkInLogsOf(EVENT)).toHaveLength(1);
     expect(pendingRegion()).not.toBeInTheDocument();
   });
@@ -109,7 +111,7 @@ describe("field check-in retry", () => {
     expect(keys).toHaveLength(2);
     expect(keys[0]).toBe(keys[1]);
     expect(checkInLogsOf(EVENT)).toEqual([{ participantId: participant("박서준").participantId, action: "CHECKED_IN" }]);
-    await waitFor(() => expect(summaryValue("체크인 완료")).toBe("1"), WAIT);
+    await waitFor(() => expect(summaryValue("완료")).toBe("1"), WAIT);
   });
 
   it("shows 확인 안 됨 after the retry limit and resends the same key on 다시 시도", async () => {
@@ -174,7 +176,7 @@ describe("field check-in retry", () => {
     expect(await screen.findByText("98 최예린 님을 체크인했어요.", {}, WAIT)).toBeInTheDocument();
     expect(keys).toHaveLength(1);
     expect(screen.queryByText(/오프라인이에요. 연결되면 확인 안 된/)).not.toBeInTheDocument();
-    await waitFor(() => expect(summaryValue("체크인 완료")).toBe("2"), WAIT);
+    await waitFor(() => expect(summaryValue("완료")).toBe("2"), WAIT);
     expect(pendingRegion()).not.toBeInTheDocument();
   });
 
