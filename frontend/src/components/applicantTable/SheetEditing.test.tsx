@@ -104,6 +104,48 @@ describe("참가 현황 as a spreadsheet (#509)", () => {
     expect(await screen.findByText(/보기 중에서 골라 주세요/)).toBeInTheDocument();
   });
 
+  it("leaves 조건부 서식, 서식 지우기, 틀 고정 and 행 추가 to the toolbar, and the toolbar still does them (DEC-091 Follow-up)", async () => {
+    seedDemoRoster(3);
+    await login({ userId: OWNER });
+    openApp();
+    const grid = await screen.findByRole("grid", { name: "신청자 명단" });
+
+    // Column menu: no 조건부 서식 and no 고정.
+    fireEvent.click(within(grid).getByRole("button", { name: "현재 상태 열 메뉴" }));
+    let menu = screen.getByRole("menu", { name: "칸 메뉴" });
+    expect(within(menu).queryByRole("menuitem", { name: "조건부 서식" })).not.toBeInTheDocument();
+    expect(within(menu).queryByRole("menuitem", { name: /고정/ })).not.toBeInTheDocument();
+    fireEvent.keyDown(menu, { key: "Escape" });
+    // Cell menu: no 서식 지우기, no 운영 줄 추가, no 고정; 신청 상세 보기 stays.
+    fireEvent.contextMenu(cellAt(grid, 0, 0));
+    menu = screen.getByRole("menu", { name: "칸 메뉴" });
+    expect(within(menu).queryByRole("menuitem", { name: "서식 지우기" })).not.toBeInTheDocument();
+    expect(within(menu).queryByRole("menuitem", { name: /운영 줄 추가/ })).not.toBeInTheDocument();
+    expect(within(menu).queryByRole("menuitem", { name: /고정/ })).not.toBeInTheDocument();
+    expect(within(menu).getByRole("menuitem", { name: "신청 상세 보기" })).toBeInTheDocument();
+    fireEvent.keyDown(menu, { key: "Escape" });
+    // No row-count box under the sheet.
+    expect(screen.queryByLabelText("더할 행 수")).not.toBeInTheDocument();
+
+    // The toolbar: 굵게, then 서식 지우기.
+    const key = `p:${tableApplications(EVENT)[0].participantId}|person`;
+    fireEvent.mouseDown(cellAt(grid, 0, 0));
+    fireEvent.click(screen.getByRole("button", { name: "굵게 (Ctrl+B)" }));
+    await waitFor(() => expect(sheetDoc().cells[key]?.f?.b).toBe(true));
+    fireEvent.click(screen.getByRole("button", { name: "서식 지우기" }));
+    await waitFor(() => expect(sheetDoc().cells[key]?.f?.b).toBeFalsy());
+    // 틀 고정 from the toolbar.
+    fireEvent.click(screen.getByRole("button", { name: "틀 고정" }));
+    fireEvent.click(within(screen.getByRole("menu", { name: "틀 고정" })).getByRole("menuitem", { name: "열 2개" }));
+    expect(within(grid).getAllByRole("columnheader")[1]).toHaveClass("roster__sticky");
+    // 조건부 서식 from the toolbar.
+    fireEvent.click(screen.getByRole("button", { name: "조건부 서식" }));
+    expect(screen.getByRole("group", { name: "조건부 서식" })).toBeInTheDocument();
+    // + 행 adds one operator row.
+    fireEvent.click(screen.getByRole("button", { name: "+ 행" }));
+    await waitFor(() => expect(sheetDoc().rows).toHaveLength(1));
+  });
+
   it("keeps cells read-only for an operator who cannot change participants", async () => {
     seedDemoRoster(3);
     await login({ userId: localUsers[2].userId });

@@ -937,7 +937,6 @@ export function SheetGrid({
           </tfoot>
         </table>
         {rows.length === 0 && operatorRows.length === 0 ? <p className="roster__empty">조건에 맞는 신청자가 없어요.</p> : null}
-        {editor.mayWrite ? <AddRows onAdd={(count) => editor.addRows(count)} /> : null}
       </div>
 
       {menu ? (
@@ -946,8 +945,6 @@ export function SheetGrid({
           column={columns[menu.c]}
           rowRef={flat[menu.r]}
           editor={editor}
-          frozenCols={frozenCols}
-          frozenRows={frozenRows}
           selectedOperatorRows={flat
             .slice(range.top, range.bottom + 1)
             .filter((ref): ref is Extract<SheetRowRef, { kind: "operator" }> => ref.kind === "operator")
@@ -960,8 +957,6 @@ export function SheetGrid({
           onHide={() => onHide(columns[menu.c].id)}
           onShow={(id) => onShow(id, columns[menu.c].id)}
           onFilter={(clear) => onFilter(columns[menu.c].id, clear)}
-          onRules={() => onRules(columns[menu.c].id)}
-          onFreeze={onFreeze}
           onOpen={() => {
             const ref = flat[menu.r];
             if (ref?.kind === "participant") onOpen(ref.row);
@@ -977,7 +972,6 @@ export function SheetGrid({
           onCopy={() => void copy()}
           onCut={() => void copy(true)}
           onClear={clearValues}
-          onClearFormat={() => formatRange(null)}
           operatorIndex={(id) => operatorRows.findIndex((ref) => ref.kind === "operator" && ref.id === id)}
         />
       ) : null}
@@ -1135,26 +1129,11 @@ function FreezeMenu({
   );
 }
 
-function AddRows({ onAdd }: { onAdd: (count: number) => void }) {
-  const [count, setCount] = useState("1");
-  return (
-    <div className="sheet-addrows">
-      <button type="button" className="sheet-toolbar__text" onClick={() => onAdd(Math.max(1, Math.min(500, Number(count) || 1)))}>
-        추가
-      </button>
-      <input aria-label="더할 행 수" inputMode="numeric" value={count} onChange={(event) => setCount(event.target.value.replace(/\D/g, ""))} />
-      <span>개 행을 맨 아래에 (운영 줄)</span>
-    </div>
-  );
-}
-
 function SheetMenu({
   menu,
   column,
   rowRef,
   editor,
-  frozenCols,
-  frozenRows,
   selectedOperatorRows,
   sorted,
   filtered,
@@ -1164,22 +1143,17 @@ function SheetMenu({
   onHide,
   onShow,
   onFilter,
-  onRules,
-  onFreeze,
   onOpen,
   onEditRow,
   onCopy,
   onCut,
   onClear,
-  onClearFormat,
   operatorIndex,
 }: {
   menu: NonNullable<Menu>;
   column: ColumnDef | undefined;
   rowRef: SheetRowRef | undefined;
   editor: SheetEditor;
-  frozenCols: number;
-  frozenRows: number;
   selectedOperatorRows: string[];
   sorted: boolean;
   filtered: boolean;
@@ -1189,14 +1163,11 @@ function SheetMenu({
   onHide: () => void;
   onShow: (id: string) => void;
   onFilter: (clear?: boolean) => void;
-  onRules: () => void;
-  onFreeze: (freeze: Freeze) => void;
   onOpen: () => void;
   onEditRow?: () => void;
   onCopy: () => void;
   onCut: () => void;
   onClear: () => void;
-  onClearFormat: () => void;
   operatorIndex: (id: string) => number;
 }) {
   const [renaming, setRenaming] = useState(false);
@@ -1245,11 +1216,7 @@ function SheetMenu({
           {sorted ? item("정렬 해제", () => onSort(null)) : null}
           {item("필터", () => onFilter())}
           {filtered ? item("필터 해제", () => onFilter(true)) : null}
-          {item("조건부 서식", onRules)}
           <hr />
-          {item(frozenCols === menu.c + 1 ? "열 고정 해제" : `${columnLetter(menu.c)}열까지 고정`, () =>
-            onFreeze({ cols: frozenCols === menu.c + 1 ? 0 : menu.c + 1, rows: frozenRows }),
-          )}
           {column.id !== "person" ? item("열 숨기기", onHide) : null}
           {hiddenColumns.length > 0 ? (
             <button type="button" role="menuitem" aria-expanded={showing} onClick={() => setShowing(!showing)}>
@@ -1277,13 +1244,11 @@ function SheetMenu({
           {item("복사 (Ctrl+C)", onCopy)}
           <span className="sheet-menu__note">붙여넣기는 Ctrl(⌘)+V</span>
           {item("값 지우기", onClear, !may)}
-          {item("서식 지우기", onClearFormat, !may)}
           <hr />
           {rowRef?.kind === "participant" ? (
             <>
               {item("신청 상세 보기", onOpen)}
               {onEditRow ? item("운영 정보 수정 (E)", onEditRow) : null}
-              {may ? item("맨 아래에 운영 줄 추가", () => editor.addRows(1)) : null}
             </>
           ) : rowRef?.kind === "operator" && may ? (
             <>
@@ -1294,10 +1259,6 @@ function SheetMenu({
               )}
             </>
           ) : null}
-          <hr />
-          {item(frozenRows === menu.r + 1 ? "행 고정 해제" : `${rowRef?.number ?? menu.r + 1}행까지 고정`, () =>
-            onFreeze({ cols: frozenCols, rows: frozenRows === menu.r + 1 ? 0 : menu.r + 1 }),
-          )}
         </>
       )}
     </div>
@@ -1507,7 +1468,7 @@ function HeaderCell({
         <button
           type="button"
           className="roster__sort"
-          title="누르면 정렬, Shift를 누른 채 누르면 정렬 기준을 더해요. 오른쪽 클릭으로 열 메뉴"
+          aria-label={`${column.label} 열, ${sort ? (sort.dir === "asc" ? "오름차순" : "내림차순") : "정렬 안 됨"}${filtered ? ", 필터 걸림" : ""}`}
           onClick={(event) => onSort(event.shiftKey)}
         >
           <span className="roster__label">{column.label}</span>

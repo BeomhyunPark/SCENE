@@ -448,7 +448,6 @@ function FilterPanel({
   const available = columns.filter((column) => column.type !== "person" && !ids.includes(column.id));
   return (
     <div className="roster__panel" role="group" aria-label="필터">
-      <p className="roster__hint">여러 조건을 걸면 모두 맞는 사람만 남아요. 한 질문 안에서 여러 보기를 고르면 그중 하나라도 맞으면 돼요.</p>
       <div className="roster__filters">
         {ids.map((id) => {
           const column = columns.find((item) => item.id === id)!;

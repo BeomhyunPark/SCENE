@@ -102,6 +102,10 @@ describe("참가 현황 table at retreat size", () => {
     const grid = await screen.findByRole("grid", { name: "신청자 명단" });
     const gender = within(grid).getByRole("columnheader", { name: /성별/ });
     expect(within(gender).getByRole("img", { name: "필터 걸림" })).toBeInTheDocument();
+    // A short state name and no tooltip (DEC-091 Follow-up).
+    const sortButton = within(gender).getByRole("button", { name: "성별 열, 정렬 안 됨, 필터 걸림" });
+    expect(sortButton).not.toHaveAttribute("title");
+    expect(within(grid).getByRole("button", { name: "현재 상태 열, 오름차순" })).toBeInTheDocument();
     expect(summary()).toBe(`${countGender(options[0].optionId)}명`);
 
     fireEvent.click(within(grid).getByRole("button", { name: "성별 열 메뉴" }));
