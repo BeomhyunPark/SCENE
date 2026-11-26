@@ -1,0 +1,12 @@
+행사 만들기 — 2026-11-25~2026-11-27, 오늘이 1일차
+설정 저장 전 일정표 — 항목 0개
+설정 카드 저장 — 1일차 저녁, 1일차 집회, 2일차 아침, 2일차 점심, 2일차 저녁, 2일차 집회, 3일차 아침
+일정표 안내 — 식사·집회 8개가 신청서 설정에서 자동으로 들어왔어요. 공개하면 참가자에게 보여요.
+일정표 작업본 — 1일차 18:00 저녁 (MEAL, opt_d1_dinner, auto=true, ADDED) | 1일차 19:30 집회 (WORSHIP, opt_d1_worship, auto=true, ADDED) | 2일차 08:00 아침 (MEAL, opt_d2_breakfast, auto=true, ADDED) | 2일차 12:00 점심 (MEAL, opt_d2_lunch, auto=true, ADDED) | 2일차 18:00 저녁 (MEAL, opt_d2_dinner, auto=true, ADDED) | 2일차 19:30 집회 (WORSHIP, opt_d2_worship, auto=true, ADDED) | 3일차 08:00 아침 (MEAL, opt_d3_breakfast, auto=true, ADDED) | 3일차 12:00 점심 (MEAL, opt_d3_lunch, auto=true, ADDED)
+식수 현황 (고치기 전) — 다음 끼니 · 11월 25일 (수) 저녁 18:00 (일정표)
+일정표 저녁 고침 — 18:00 → 18:30 (저장만)
+식수 현황 (고친 뒤) — 다음 끼니 · 11월 25일 (수) 저녁 18:30 (일정표) · API startTime=18:30 timeFromSchedule=true passed=false
+공개 전 공개본 — NOT_PUBLISHED
+점심 지우고 설정 다시 저장 — 점심 항목 없음, 저녁 18:30
+다시 넣기 — 식사·집회 1개를 다시 넣었어요 · 2일차 12:00 점심
+가로 넘침 — 일정표 1440px false, 식수 현황 390px false

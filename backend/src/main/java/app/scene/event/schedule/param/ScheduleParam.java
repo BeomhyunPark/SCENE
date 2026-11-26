@@ -19,6 +19,7 @@ public final class ScheduleParam {
   private String audience;
   private String slotId;
   private int sortOrder;
+  private boolean autoFilled;
   private UUID actorUserId;
   private Instant at;
   private UUID publicationId;
@@ -78,6 +79,12 @@ public final class ScheduleParam {
     this.audience = audience;
     this.slotId = slotId;
     this.sortOrder = sortOrder;
+    return this;
+  }
+
+  /** Marks an inserted item as put in by the server for a form slot (DEC-090). */
+  public ScheduleParam autoFilled(boolean value) {
+    this.autoFilled = value;
     return this;
   }
 
