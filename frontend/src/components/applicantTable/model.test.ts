@@ -422,6 +422,8 @@ describe("address", () => {
       widths: { person: 220, age: 96 },
       density: "compact" as const,
       groupBy: "gender",
+      hidden: ["c:pay"],
+      freeze: { cols: 2, rows: 1 },
     };
     expect(readView(new URLSearchParams(writeView(view).toString()))).toEqual(view);
   });
@@ -437,6 +439,8 @@ describe("address", () => {
       widths: {},
       density: "comfortable",
       groupBy: null,
+      hidden: [],
+      freeze: { cols: 1, rows: 0 },
     });
     expect(params.toString()).toBe("");
   });

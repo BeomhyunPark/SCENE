@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import type { ApplicationTable, TableRow } from "../../api/applications";
 import { Button } from "../Button";
@@ -26,12 +26,15 @@ import {
   type ViewState,
 } from "./model";
 import { SheetGrid } from "./SheetGrid";
+import { RulesPanel } from "./RulesPanel";
+import { operatorColumns, operatorKey, participantKey, placeOperatorColumns, Workbook, type SheetRowRef } from "./sheet";
+import { useRosterSheet } from "./useRosterSheet";
 import "./ApplicantTable.css";
 
 /** A text column offers value checkboxes when it has at most this many distinct answers (또래, 셀). */
 const VALUE_LIST_MAX = 40;
 
-type Panel = "sort" | "filter" | "columns" | "withdrawn" | null;
+type Panel = "sort" | "filter" | "columns" | "withdrawn" | "rules" | null;
 
 /**
  * 참가 현황 (#308, Figma P03-01 1325:5059). One table of every applicant: filter by any question,
@@ -45,9 +48,12 @@ export function ApplicantTable({
   onEdit,
   editNote,
   withdrawnPanel,
+  mayWrite = false,
 }: {
   eventId: string;
   table: ApplicationTable;
+  /** Effective PARTICIPANT_WRITE on an event that is not archived: cells, columns and rows can change (#509). */
+  mayWrite?: boolean;
   actions?: ReactNode;
   /** Opens the 현재 운영 정보 수정 drawer (#337). Without it the row has no 수정 button. */
   onEdit?: (row: TableRow) => void;
@@ -63,7 +69,35 @@ export function ApplicantTable({
   const [textFilters, setTextFilters] = useState<Record<string, Filter>>({});
   const [panel, setPanel] = useState<Panel>(null);
 
-  const columns = useMemo(() => buildColumns(table), [table]);
+  const [rulesFor, setRulesFor] = useState<string | null>(null);
+  const base = useMemo(() => buildColumns(table), [table]);
+  const findRow = useCallback(
+    (rowKey: string) => table.rows.find((row) => participantKey(row) === rowKey),
+    [table.rows],
+  );
+  const editor = useRosterSheet({ eventId, table, mayWrite, findRow });
+  const doc = editor.doc;
+  // The sheet (#509): operator columns read their values from the workbook, and the workbook reads
+  // every column, so both are made together. Letters follow the reader's columns; row numbers are fixed.
+  const { columns, book, shownIds, operatorRows } = useMemo(() => {
+    let workbook: Workbook | null = null;
+    const operators = operatorColumns(doc, () => workbook!);
+    const all = [...base, ...operators];
+    const defaults = visibleColumns(base, view.visible).map((column) => column.id);
+    const explicit = view.visible ? ["person", ...view.visible.filter((id) => id !== "person")] : defaults;
+    const known = new Set(all.map((column) => column.id));
+    const ids = placeOperatorColumns(explicit.filter((id) => known.has(id)), doc, view.hidden);
+    const order = [...ids, ...all.map((column) => column.id).filter((id) => !ids.includes(id))];
+    const participants: SheetRowRef[] = table.rows.map((row, index) => ({ kind: "participant", key: participantKey(row), row, number: index + 1 }));
+    const operatorRefs: SheetRowRef[] = doc.rows.map((row, index) => ({
+      kind: "operator",
+      key: operatorKey(row.id),
+      id: row.id,
+      number: table.rows.length + index + 1,
+    }));
+    workbook = new Workbook(doc, all, order, [...participants, ...operatorRefs]);
+    return { columns: all, book: workbook, shownIds: ids, operatorRows: operatorRefs };
+  }, [base, doc, view.visible, view.hidden, table.rows]);
   const phoneId = table.contactVisible ? (table.columns.find((column) => column.systemKey === "PHONE")?.fieldId ?? null) : null;
   // A shared address can name a question that is gone or that this reader cannot see; ignore it.
   const filters = useMemo(
@@ -78,7 +112,8 @@ export function ApplicantTable({
     [table.rows, columns, filters, search, phoneId],
   );
   const sorted = useMemo(() => sortRows(filtered, columns, view.sorts), [filtered, columns, view.sorts]);
-  const shown = visibleColumns(columns, view.visible);
+  const byId = new Map(columns.map((column) => [column.id, column]));
+  const shown = shownIds.map((id) => byId.get(id)).filter((column): column is ColumnDef => column !== undefined);
   const groupBy = columns.find((column) => column.id === view.groupBy && column.countable) ?? null;
   const activeCount = Object.values(filters).filter(isActive).length;
 
@@ -208,7 +243,12 @@ export function ApplicantTable({
           eventId={eventId}
           columns={columns}
           visible={shown.map((column) => column.id)}
-          onChange={(visible) => update({ visible })}
+          onChange={(visible) =>
+            update({
+              visible,
+              hidden: doc.columns.map((column) => `c:${column.id}`).filter((id) => !visible.includes(id)),
+            })
+          }
           params={params}
           onApply={(saved) => setParams(new URLSearchParams(saved), { replace: true })}
         />
@@ -256,19 +296,49 @@ export function ApplicantTable({
             </div>
           </div>
           {editNote ? <p className="roster__hint">{editNote}</p> : null}
+          {panel === "rules" ? (
+            <RulesPanel
+              columns={shown}
+              rules={doc.rules}
+              initial={rulesFor}
+              mayWrite={editor.mayWrite}
+              onChange={editor.setRules}
+              onClose={() => setPanel(null)}
+            />
+          ) : null}
           <SheetGrid
             eventId={eventId}
             onEdit={onEdit}
             columns={shown}
             rows={sorted}
+            operatorRows={operatorRows}
+            book={book}
+            editor={editor}
             summaryRows={filtered}
             sorts={view.sorts}
             widths={view.widths}
             density={view.density}
             groupBy={groupBy}
-            onSort={(id, add) => update({ sorts: toggleSort(view.sorts, id, add) })}
+            freeze={view.freeze}
+            onFreeze={(freeze) => update({ freeze })}
+            onSort={(id, add, dir) => update({ sorts: dir ? [{ id, dir }] : toggleSort(view.sorts, id, add) })}
             onResize={(id, width) => update({ widths: { ...view.widths, [id]: width } })}
             onOpen={(row) => navigate(`/events/${eventId}/participants/${row.applicationId}`)}
+            onHide={(id) => {
+              const visible = shown.map((column) => column.id).filter((item) => item !== id);
+              update({ visible, hidden: id.startsWith("c:") ? [...view.hidden, id] : view.hidden });
+            }}
+            onMove={(id, before) => {
+              const visible = shown.map((column) => column.id).filter((item) => item !== id);
+              const at = before ? visible.indexOf(before) : visible.length;
+              visible.splice(at < 0 ? visible.length : at, 0, id);
+              update({ visible });
+            }}
+            onFilter={() => setPanel("filter")}
+            onRules={(colId) => {
+              setRulesFor(colId);
+              setPanel("rules");
+            }}
           />
         </>
       ) : (

@@ -14,6 +14,7 @@ import { resetParticipantFeedStore } from "../mocks/participantFeedStore";
 import { resetParticipantRoomStore } from "../mocks/participantRoomStore";
 import { resetParticipantCheckInStore } from "../mocks/participantCheckInStore";
 import { resetRetrospectiveStore } from "../mocks/retrospectiveStore";
+import { resetRosterSheetStore } from "../mocks/rosterSheetStore";
 import { resetOperationStore } from "../mocks/operationStore";
 import { resetCheckInStore } from "../mocks/checkInStore";
 import { resetGroupStore } from "../mocks/groupStore";
@@ -41,6 +42,7 @@ afterEach(() => {
   resetOperatorStore();
   resetTaskStore();
   resetRetrospectiveStore();
+  resetRosterSheetStore();
   resetOperationStore();
   resetCheckInStore();
   resetGroupStore();

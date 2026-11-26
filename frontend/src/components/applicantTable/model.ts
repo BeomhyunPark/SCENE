@@ -25,7 +25,9 @@ export type ColumnType =
   | "group"
   | "room"
   | "status"
-  | "memo";
+  | "memo"
+  /** An operator column of the sheet (#509). */
+  | "sheet";
 
 /** Id of the 수정 column (#437): rows the participant (or an operator) changed after applying. */
 export const EDITED = "edited";
@@ -97,6 +99,10 @@ export type ViewState = {
   density: Density;
   /** Rows grouped by this column, or null. */
   groupBy: string | null;
+  /** Operator columns (#509) the reader hid; table columns hide by leaving `visible`. */
+  hidden: string[];
+  /** Frozen columns (참가자 by default) and rows at the top of the sheet. */
+  freeze: { cols: number; rows: number };
 };
 
 export const EMPTY_VIEW: ViewState = {
@@ -109,6 +115,8 @@ export const EMPTY_VIEW: ViewState = {
   widths: {},
   density: "comfortable",
   groupBy: null,
+  hidden: [],
+  freeze: { cols: 1, rows: 0 },
 };
 
 export const MIN_WIDTH = 64;
@@ -722,6 +730,7 @@ export function defaultWidth(column: ColumnDef): number {
   // 방: room names are short, but the summary "배정 N · M개 방 · 숙박 안 함 K" needs room.
   if (column.type === "room") return 200;
   if (column.type === "memo") return 220;
+  if (column.type === "sheet") return 140;
   if (column.type === "date") return 150;
   if (column.type === "multi") return 220;
   return 170;
@@ -774,6 +783,8 @@ export function readView(params: URLSearchParams): ViewState {
     widths,
     density: params.get("density") === "compact" ? "compact" : "comfortable",
     groupBy: params.get("group"),
+    hidden: (params.get("hide") ?? "").split(",").filter(Boolean),
+    freeze: readFreeze(params.get("fz")),
   };
 }
 
@@ -793,7 +804,18 @@ export function writeView(view: ViewState): URLSearchParams {
   if (widths.length > 0) params.set("w", widths.map(([id, px]) => `${id}:${px}`).join(","));
   if (view.density === "compact") params.set("density", "compact");
   if (view.groupBy) params.set("group", view.groupBy);
+  if (view.hidden?.length) params.set("hide", view.hidden.join(","));
+  if (view.freeze && (view.freeze.cols !== 1 || view.freeze.rows !== 0)) params.set("fz", `${view.freeze.cols},${view.freeze.rows}`);
   return params;
+}
+
+function readFreeze(text: string | null): { cols: number; rows: number } {
+  if (!text) return { cols: 1, rows: 0 };
+  const [cols, rows] = text.split(",").map(Number);
+  return {
+    cols: Number.isInteger(cols) && cols >= 0 && cols <= 20 ? cols : 1,
+    rows: Number.isInteger(rows) && rows >= 0 && rows <= 50 ? rows : 0,
+  };
 }
 
 /** Visible columns: 참가자 first, then the explicit order, or the default set in canonical order. */

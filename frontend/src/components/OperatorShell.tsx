@@ -54,6 +54,7 @@ export function OperatorShell({
   participantsHref,
   tasksHref,
   framed,
+  wide,
   spaceName,
   children,
 }: {
@@ -66,6 +67,8 @@ export function OperatorShell({
   participantsHref?: string;
   tasksHref?: string;
   framed?: boolean;
+  /** The body uses the whole window width instead of the 1128px column (참가 현황 sheet, #509). */
+  wide?: boolean;
   spaceName?: string;
   children: ReactNode;
 }) {
@@ -120,7 +123,9 @@ export function OperatorShell({
         <OperatorNav {...menu} />
       </aside>
       <main
-        className={framed ? "operator-shell__main operator-shell__main--framed" : "operator-shell__main"}
+        className={
+          framed ? `operator-shell__main operator-shell__main--framed${wide ? " operator-shell__main--wide" : ""}` : "operator-shell__main"
+        }
         inert={menuOpen}
       >
         <header className="operator-shell__header">

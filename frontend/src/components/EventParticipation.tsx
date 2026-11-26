@@ -104,6 +104,7 @@ function Applicants({
       <ApplicantTable
         eventId={eventId}
         table={table.data}
+        mayWrite={effective.includes("PARTICIPANT_WRITE") && eventStatus !== "ARCHIVED"}
         onEdit={mayEdit ? (row: TableRow) => setEditing(row.applicationId) : undefined}
         editNote={
           permissions.isSuccess && !mayEdit
@@ -179,6 +180,7 @@ function ParticipationBody({ event, spaceName }: { event: EventDetail; spaceName
       eventAreas={["participants"]}
       participantsHref={eventId ? `/events/${eventId}/participants` : undefined}
       framed
+      wide
       leading={
         <Link className="event-home__back scene-press scene-press--text" to="/events" aria-label="행사 목록">
           <img src={arrowLeft} alt="" />

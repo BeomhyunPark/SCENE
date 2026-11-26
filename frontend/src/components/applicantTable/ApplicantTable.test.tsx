@@ -112,7 +112,7 @@ describe("참가 현황 table at retreat size", () => {
     const table = await screen.findByRole("grid", { name: "신청자 명단" });
 
     const header = within(table).getByRole("columnheader", { name: /조 배정/ });
-    fireEvent.click(within(header).getByRole("button"));
+    fireEvent.click(header.querySelector<HTMLElement>(".roster__sort")!);
     expect(header).toHaveAttribute("aria-sort", "ascending");
     // Numeric order: 1조, 2조, … 10조, then 미배정 last.
     expect(within(within(table).getAllByRole("row")[1]).getAllByRole("cell")[4].textContent).toMatch(/^1조/);
