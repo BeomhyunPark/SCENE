@@ -55,7 +55,7 @@ export function FieldGroups({
         {stats.map((group) => {
           const expanded = open.has(group.key);
           const panelId = `field-group-${group.key}`;
-          const complete = group.missing.length === 0;
+          const complete = group.missing.length === 0 && group.expected === 0;
           const shown = group.missing.slice(0, MISSING_SHOWN).map(participantLabel).join(", ");
           const more = group.missing.length - MISSING_SHOWN;
           return (
@@ -78,10 +78,12 @@ export function FieldGroups({
                 ) : group.key !== NO_GROUP ? (
                   <span className="field-groups__line">조장 없음</span>
                 ) : null}
-                <span className={complete ? "field-groups__line" : "field-groups__line field-groups__missing"}>
-                  {complete
-                    ? "모두 도착했어요"
-                    : `미도착 ${shown}${more > 0 ? ` 외 ${more.toLocaleString("ko-KR")}명` : ""}`}
+                <span className={group.missing.length === 0 ? "field-groups__line" : "field-groups__line field-groups__missing"}>
+                  {group.missing.length > 0
+                    ? `미도착 ${shown}${more > 0 ? ` 외 ${more.toLocaleString("ko-KR")}명` : ""}`
+                    : group.expected > 0
+                      ? `도착 예정 ${group.expected.toLocaleString("ko-KR")}명`
+                      : "모두 도착했어요"}
                 </span>
                 <span className="field-groups__toggle" aria-hidden="true">
                   {expanded ? "접기" : "조원 보기"}

@@ -1,0 +1,28 @@
+--- 9-chip-counts-390 (390) ---
+chips: ["전체 6","미완료 4","완료 2"]
+summary: aria: ["전체 6명","미완료 4명","완료 2명"]
+9-chip-counts-390 has "식수 현황 보기": false
+9-chip-counts-390 has "체크인 완료 2명": false
+9-chip-counts-390 has "왔어야 함": false
+9-chip-counts-390 has "올 예정": false
+9-chip-counts-390 has "도착 예정": false
+9-chip-counts-390 has "참석 칸": false
+9-chip-counts-390 has "예정 모름": false
+9-chip-counts-390 has "끼니": false
+9-chip-counts-390 has "기준": false
+9-chip-counts-390 has room 301호: true
+9-chip-counts-390 horizontal overflow: false
+--- 10-chip-counts-1440 (1440) ---
+chips: ["전체 6","미완료 4","완료 2"]
+summary: aria: ["전체 6명","미완료 4명","완료 2명"]
+10-chip-counts-1440 has "식수 현황 보기": false
+10-chip-counts-1440 has "체크인 완료 2명": false
+10-chip-counts-1440 has "왔어야 함": false
+10-chip-counts-1440 has "올 예정": false
+10-chip-counts-1440 has "도착 예정": false
+10-chip-counts-1440 has "참석 칸": false
+10-chip-counts-1440 has "예정 모름": false
+10-chip-counts-1440 has "끼니": false
+10-chip-counts-1440 has "기준": false
+10-chip-counts-1440 has room 301호: true
+10-chip-counts-1440 horizontal overflow: false

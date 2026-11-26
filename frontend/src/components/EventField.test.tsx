@@ -28,10 +28,11 @@ async function openAs(userIndex: number, status: "DRAFT" | "ACTIVE" | "ENDED" | 
   );
 }
 
+/** The 체크인 현황 count on a filter chip ("전체", "미도착", "도착 예정", "도착"), as the chip's name says it. */
 function summaryValue(label: string): string {
-  const region = screen.getByRole("region", { name: "체크인 현황" });
-  const item = within(region).getByText(label).closest("p")!;
-  return item.querySelector("strong")!.textContent ?? "";
+  const filters = screen.getByRole("group", { name: "체크인 상태로 보기" });
+  const chip = within(filters).getByRole("button", { name: new RegExp(`^${label} [\\d,]+명$`) });
+  return chip.getAttribute("aria-label")!.slice(label.length + 1, -1);
 }
 
 async function rosterRow(name: string): Promise<HTMLElement> {
@@ -63,24 +64,26 @@ describe("field check-in", () => {
     seedCheckIn(EVENT, participant("박서준").participantId);
     await openAs(2);
 
-    const region = await screen.findByRole("region", { name: "체크인 현황" }, WAIT);
-    await within(region).findByText("전체", {}, WAIT);
-    expect(summaryValue("체크인 완료")).toBe("1");
-    expect(summaryValue("미완료")).toBe("7");
+    await screen.findByRole("button", { name: "전체 8명" }, WAIT);
+    expect(summaryValue("도착")).toBe("1");
+    expect(summaryValue("미도착")).toBe("7");
     expect(summaryValue("전체")).toBe("8");
     await expectRows(8);
-    // The summary already says 전체 8명: no second count without a search.
+    // The chips carry the counts (2026-11-26): no count line above them, no second count without a search,
+    // and no 식수 현황 link (it is in the menu).
+    expect(screen.queryByRole("region", { name: "체크인 현황" })).not.toBeInTheDocument();
     expect(screen.queryByText("8명")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "식수 현황 보기" })).not.toBeInTheDocument();
 
     const done = await rosterRow("96 박서준");
     expect(within(done).getByText(/Local staff · QR/)).toBeInTheDocument();
     expect(within(done).getByRole("button", { name: "96 박서준 체크인 취소" })).toBeEnabled();
 
-    fireEvent.click(screen.getByRole("button", { name: "완료" }));
+    fireEvent.click(screen.getByRole("button", { name: "도착 1명" }));
     await expectRows(1);
-    expect(screen.getByRole("button", { name: "완료" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "도착 1명" })).toHaveAttribute("aria-pressed", "true");
 
-    fireEvent.click(screen.getByRole("button", { name: "미완료" }));
+    fireEvent.click(screen.getByRole("button", { name: "미도착 7명" }));
     await expectRows(7);
     expect(screen.queryByText("96 박서준")).not.toBeInTheDocument();
   });
@@ -121,8 +124,8 @@ describe("field check-in", () => {
 
     expect(await screen.findByRole("status", {}, WAIT)).toHaveTextContent("94 김하늘 님을 체크인했어요.");
     expect(await screen.findByRole("button", { name: "94 김하늘 체크인 취소" }, WAIT)).toBeInTheDocument();
-    await screen.findByText("1", { selector: "strong" }, WAIT);
-    expect(summaryValue("체크인 완료")).toBe("1");
+    await screen.findByRole("button", { name: "도착 1명" }, WAIT);
+    expect(summaryValue("도착")).toBe("1");
 
     await search("김하람");
     const next = await rosterRow("95 김하람");
@@ -219,7 +222,7 @@ describe("field check-in", () => {
     expect(await screen.findByRole("note", {}, WAIT)).toHaveTextContent(copy);
     expect(within(row).getByRole("button", { name: "94 김하늘 체크인" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "96 박서준 체크인 취소" })).toBeDisabled();
-    expect(summaryValue("체크인 완료")).toBe("1");
+    expect(summaryValue("도착")).toBe("1");
   });
 
   it("says the event ended when the server refuses a check-in", async () => {

@@ -1,5 +1,6 @@
 import type { RosterItem } from "../api/checkIns";
 import type { PublishedGroups } from "../api/groups";
+import { fieldState } from "./fieldState";
 import { participantLabel } from "./participantLabel";
 import { targetOf, type PendingRequest } from "./useCheckInQueue";
 
@@ -12,7 +13,10 @@ export type GroupStat = {
   leaders: string[];
   members: { item: RosterItem; leader: boolean }[];
   arrived: number;
+  /** 미도착: not checked in and not 도착 예정 (fieldState.ts). */
   missing: RosterItem[];
+  /** 도착 예정: not checked in, due later. */
+  expected: number;
 };
 
 /**
@@ -54,14 +58,16 @@ export function publishedGroupNames(published: PublishedGroups): Map<string, str
 }
 
 function stat(key: string, name: string, leaders: string[], members: GroupStat["members"]): GroupStat {
-  const missing = members.filter(({ item }) => item.checkIn?.status !== "CHECKED_IN").map(({ item }) => item);
+  const missing = members.filter(({ item }) => fieldState(item) === "absent").map(({ item }) => item);
+  const expected = members.filter(({ item }) => fieldState(item) === "expected").length;
   return {
     key,
     name,
     leaders,
     members,
-    arrived: members.length - missing.length,
+    arrived: members.length - missing.length - expected,
     missing,
+    expected,
   };
 }
 

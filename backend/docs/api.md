@@ -2284,7 +2284,7 @@ CSRF가 필요하다.
 
 `total`은 `SUBMITTED` 신청이 있는 참가자 수다. `checkedIn`은 그중 `CHECKED_IN`인 수다. 취소는 미완료다.
 
-**도착 예정 (E4 [#456](https://github.com/BeomhyunPark/SCENE/issues/456), DEC-089 Follow-up, 더하기만).** 응답에 `arrival`이 더해진다.
+**도착 예정 (E4 [#456](https://github.com/BeomhyunPark/SCENE/issues/456), DEC-089 Follow-up, 더하기만).** 응답에 `arrival`이 더해진다. 현장 운영 화면(2026-11-26부터, DEC-089 Follow-up 현장 운영)은 `coming`으로 "도착 예정" 수를, 명단 항목의 `arrival.status`(`COMING`이면 도착 예정, 그 밖의 미체크인은 미도착)와 `slot`(도착 예정 줄의 "2일차 저녁")을 쓰고, 도착 예정 거르기에 `arrival=COMING` 쿼리를 쓴다. `nextMeal`·`overdue`·`passed`·`unknown`은 화면이 쓰지 않는다.
 
 ```json
 {
