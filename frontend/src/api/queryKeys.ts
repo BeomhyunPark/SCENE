@@ -21,7 +21,7 @@ export const queryKeys = {
     ["events", eventId, "operators", userId, "permissions"] as const,
   checkInSummary: (eventId: string) => ["events", eventId, "check-ins", "summary"] as const,
   checkIns: (eventId: string) => ["events", eventId, "check-ins"] as const,
-  checkInRoster: (eventId: string, query: { q: string; checkedIn: boolean | null }) =>
+  checkInRoster: (eventId: string, query: { q: string; filter: string }) =>
     ["events", eventId, "check-ins", "roster", query] as const,
   /** Every roster page at once for the 조별 view (#288); under checkIns so a check-in reloads it. */
   checkInRosterAll: (eventId: string) => ["events", eventId, "check-ins", "roster-all"] as const,

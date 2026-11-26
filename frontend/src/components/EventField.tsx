@@ -51,11 +51,14 @@ import {
 } from "./useCheckInQueue";
 import { useWideField } from "./useWideField";
 import "./EventField.css";
+import { expectedWhen, fieldCounts, fieldState, type FieldCounts } from "./fieldState";
+import type { ItemPage } from "../api/types";
 
 const PAGE_SIZE = 50;
 const SEARCH_DELAY_MS = 250;
 
-type Filter = "all" | "pending" | "done";
+/** The three states of fieldState.ts, plus 전체. */
+type Filter = "all" | "absent" | "expected" | "arrived";
 type View = "all" | "groups";
 type Notice = { tone: "success" | "info" | "error"; text: string };
 
@@ -107,20 +110,22 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
     queryKey: queryKeys.checkInSummary(eventId),
     queryFn: ({ signal }) => getCheckInSummary(eventId, signal),
   });
-  const checkedIn = filter === "done" ? true : filter === "pending" ? false : null;
   const roster = useInfiniteQuery({
-    queryKey: queryKeys.checkInRoster(eventId, { q, checkedIn }),
+    queryKey: queryKeys.checkInRoster(eventId, { q, filter }),
     queryFn: ({ pageParam, signal }) =>
-      listCheckInRoster(
-        eventId,
-        {
-          q: q || undefined,
-          checkedIn: checkedIn ?? undefined,
-          page: pageParam,
-          size: PAGE_SIZE,
-        },
-        signal,
-      ),
+      filter === "absent"
+        ? listAbsent(eventId, q, signal)
+        : listCheckInRoster(
+            eventId,
+            {
+              q: q || undefined,
+              checkedIn: filter === "arrived" ? true : undefined,
+              arrival: filter === "expected" ? "COMING" : undefined,
+              page: pageParam,
+              size: PAGE_SIZE,
+            },
+            signal,
+          ),
     initialPageParam: 0,
     placeholderData: keepPreviousData,
     getNextPageParam: (last) => (last.page.number + 1 < last.page.totalPages ? last.page.number + 1 : undefined),
@@ -383,8 +388,8 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
             <div className="event-field__controls">
               {view === "all" ? (
                 <div className="event-field__filters" role="group" aria-label="체크인 상태로 보기">
-                  {FILTERS.map(([value, label]) => {
-                    const number = summary.data ? filterCount(summary.data, value) : null;
+                  {visibleFilters(summary.data ? fieldCounts(summary.data) : null, filter).map(([value, label]) => {
+                    const number = summary.data ? fieldCounts(summary.data)[value].toLocaleString("ko-KR") : null;
                     return (
                       <button
                         key={value}
@@ -414,10 +419,15 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
                         <span>전체</span> <strong>{summary.data.total.toLocaleString("ko-KR")}</strong>명
                       </p>
                       <p className="event-field__count">
-                        <span>미완료</span> <strong>{summary.data.notCheckedIn.toLocaleString("ko-KR")}</strong>명
+                        <span>미도착</span> <strong>{fieldCounts(summary.data).absent.toLocaleString("ko-KR")}</strong>명
                       </p>
+                      {fieldCounts(summary.data).expected > 0 ? (
+                        <p className="event-field__count event-field__count--done">
+                          <span>도착 예정</span> <strong>{fieldCounts(summary.data).expected.toLocaleString("ko-KR")}</strong>명
+                        </p>
+                      ) : null}
                       <p className="event-field__count event-field__count--done">
-                        <span>완료</span> <strong>{summary.data.checkedIn.toLocaleString("ko-KR")}</strong>명
+                        <span>도착</span> <strong>{summary.data.checkedIn.toLocaleString("ko-KR")}</strong>명
                       </p>
                     </>
                   ) : (
@@ -584,9 +594,13 @@ function SelectedDetail({
         <h3 className="event-field__detail-name" id="field-detail-name">
           {label}
         </h3>
-        <StatusChip done={done} unknown={unknown} />
+        <StatusChip state={fieldState(item)} unknown={unknown} />
       </div>
-      {item.phoneLast4 ? <p className="event-field__detail-meta">끝자리 {item.phoneLast4}</p> : null}
+      {expectedWhen(item) || item.phoneLast4 ? (
+        <p className="event-field__detail-meta">
+          {[expectedWhen(item) ?? "", item.phoneLast4 ? `끝자리 ${item.phoneLast4}` : ""].filter(Boolean).join(" · ")}
+        </p>
+      ) : null}
       {/* Read-only values as label-value rows, not field boxes (SCENE DS 05 참가자 상세 172:7, #485). The
           check-in state is the chip beside the name, so it is not repeated here. */}
       <dl className="event-field__detail-fields">
@@ -630,16 +644,31 @@ function QrIcon() {
   );
 }
 
+/** 미도착 first: it is what the desk acts on. 도착 예정 hides when nobody is expected later (unless chosen). */
 const FILTERS: readonly (readonly [Filter, string])[] = [
   ["all", "전체"],
-  ["pending", "미완료"],
-  ["done", "완료"],
+  ["absent", "미도착"],
+  ["expected", "도착 예정"],
+  ["arrived", "도착"],
 ];
 
-/** A chip's number: the 체크인 현황 counts, which do not follow the search. */
-function filterCount(summary: CheckInSummary, filter: Filter): string {
-  const value = filter === "all" ? summary.total : filter === "pending" ? summary.notCheckedIn : summary.checkedIn;
-  return value.toLocaleString("ko-KR");
+function visibleFilters(counts: FieldCounts | null, filter: Filter): (readonly [Filter, string])[] {
+  return FILTERS.filter(([value]) => value !== "expected" || filter === "expected" || (counts?.expected ?? 0) > 0);
+}
+
+/**
+ * 미도착 is "not checked in and not 도착 예정"; the roster query takes one arrival state, so this reads every
+ * not-checked-in page (a few hundred people at most, as the 조별 view does) and drops the 도착 예정 people.
+ */
+async function listAbsent(eventId: string, q: string, signal?: AbortSignal): Promise<ItemPage<RosterItem>> {
+  const items: RosterItem[] = [];
+  for (let page = 0; ; page += 1) {
+    const result = await listCheckInRoster(eventId, { q: q || undefined, checkedIn: false, page, size: PAGE_SIZE }, signal);
+    items.push(...result.items.filter((item) => fieldState(item) === "absent"));
+    if (page + 1 >= result.page.totalPages) {
+      return { items, page: { number: 0, size: items.length, totalItems: items.length, totalPages: 1 } };
+    }
+  }
 }
 
 /** While the 체크인 현황 is loading or failed, in the place of the numbers. */
@@ -768,7 +797,7 @@ function CancelDialog({
         </>
       }
     >
-      <p>취소하면 미완료로 돌아가고, 다시 체크인할 수 있어요.</p>
+      <p>취소하면 도착 전으로 돌아가고, 다시 체크인할 수 있어요.</p>
       <label className="event-field__reason-label" htmlFor="field-cancel-reason">
         취소 사유 (선택)
       </label>
@@ -888,7 +917,8 @@ function failureCopy(error: unknown, name: string): string {
 
 function emptyCopy(q: string, filter: Filter): string {
   if (q) return `'${q}'에 맞는 참가자가 없어요.`;
-  if (filter === "pending") return "체크인하지 않은 참가자가 없어요.";
-  if (filter === "done") return "아직 체크인한 참가자가 없어요.";
+  if (filter === "absent") return "미도착 참가자가 없어요.";
+  if (filter === "expected") return "도착 예정인 참가자가 없어요.";
+  if (filter === "arrived") return "아직 도착한 참가자가 없어요.";
   return "신청을 마친 참가자가 아직 없어요.";
 }

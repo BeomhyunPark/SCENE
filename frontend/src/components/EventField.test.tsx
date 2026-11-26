@@ -28,7 +28,7 @@ async function openAs(userIndex: number, status: "DRAFT" | "ACTIVE" | "ENDED" | 
   );
 }
 
-/** The 체크인 현황 count on a filter chip ("전체", "미완료", "완료"), as the chip's name says it. */
+/** The 체크인 현황 count on a filter chip ("전체", "미도착", "도착 예정", "도착"), as the chip's name says it. */
 function summaryValue(label: string): string {
   const filters = screen.getByRole("group", { name: "체크인 상태로 보기" });
   const chip = within(filters).getByRole("button", { name: new RegExp(`^${label} [\\d,]+명$`) });
@@ -65,8 +65,8 @@ describe("field check-in", () => {
     await openAs(2);
 
     await screen.findByRole("button", { name: "전체 8명" }, WAIT);
-    expect(summaryValue("완료")).toBe("1");
-    expect(summaryValue("미완료")).toBe("7");
+    expect(summaryValue("도착")).toBe("1");
+    expect(summaryValue("미도착")).toBe("7");
     expect(summaryValue("전체")).toBe("8");
     await expectRows(8);
     // The chips carry the counts (2026-11-26): no count line above them, no second count without a search,
@@ -79,11 +79,11 @@ describe("field check-in", () => {
     expect(within(done).getByText(/Local staff · QR/)).toBeInTheDocument();
     expect(within(done).getByRole("button", { name: "96 박서준 체크인 취소" })).toBeEnabled();
 
-    fireEvent.click(screen.getByRole("button", { name: "완료 1명" }));
+    fireEvent.click(screen.getByRole("button", { name: "도착 1명" }));
     await expectRows(1);
-    expect(screen.getByRole("button", { name: "완료 1명" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "도착 1명" })).toHaveAttribute("aria-pressed", "true");
 
-    fireEvent.click(screen.getByRole("button", { name: "미완료 7명" }));
+    fireEvent.click(screen.getByRole("button", { name: "미도착 7명" }));
     await expectRows(7);
     expect(screen.queryByText("96 박서준")).not.toBeInTheDocument();
   });
@@ -124,8 +124,8 @@ describe("field check-in", () => {
 
     expect(await screen.findByRole("status", {}, WAIT)).toHaveTextContent("94 김하늘 님을 체크인했어요.");
     expect(await screen.findByRole("button", { name: "94 김하늘 체크인 취소" }, WAIT)).toBeInTheDocument();
-    await screen.findByRole("button", { name: "완료 1명" }, WAIT);
-    expect(summaryValue("완료")).toBe("1");
+    await screen.findByRole("button", { name: "도착 1명" }, WAIT);
+    expect(summaryValue("도착")).toBe("1");
 
     await search("김하람");
     const next = await rosterRow("95 김하람");
@@ -222,7 +222,7 @@ describe("field check-in", () => {
     expect(await screen.findByRole("note", {}, WAIT)).toHaveTextContent(copy);
     expect(within(row).getByRole("button", { name: "94 김하늘 체크인" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "96 박서준 체크인 취소" })).toBeDisabled();
-    expect(summaryValue("완료")).toBe("1");
+    expect(summaryValue("도착")).toBe("1");
   });
 
   it("says the event ended when the server refuses a check-in", async () => {

@@ -27,7 +27,7 @@ async function open() {
   await screen.findByRole("list", { name: "체크인 명단" }, WAIT);
 }
 
-/** The 체크인 현황 count on a filter chip ("전체", "미완료", "완료"), as the chip's name says it. */
+/** The 체크인 현황 count on a filter chip ("전체", "미도착", "도착 예정", "도착"), as the chip's name says it. */
 function summaryValue(label: string): string {
   const filters = screen.getByRole("group", { name: "체크인 상태로 보기" });
   const chip = within(filters).getByRole("button", { name: new RegExp(`^${label} [\\d,]+명$`) });
@@ -57,12 +57,12 @@ describe("field refresh on the page (#408)", () => {
   it("shows another desk's check-in without a reload and says when it read", async () => {
     await open();
     expect(screen.getByText(/에 읽음$/)).toBeInTheDocument();
-    expect(rowBadge("94 김하늘")).toBe("미완료");
+    expect(rowBadge("94 김하늘")).toBe("미도착");
 
     // Another desk checks 김하늘 in on the server.
     seedCheckIn(EVENT, participant("김하늘").participantId);
-    await waitFor(() => expect(summaryValue("완료")).toBe("1"), WAIT);
-    await waitFor(() => expect(rowBadge("94 김하늘")).toBe("체크인 완료"), WAIT);
+    await waitFor(() => expect(summaryValue("도착")).toBe("1"), WAIT);
+    await waitFor(() => expect(rowBadge("94 김하늘")).toBe("도착"), WAIT);
   });
 
   it("keeps the roster still while the search box is focused, and reads it when focus leaves", async () => {
@@ -70,12 +70,12 @@ describe("field refresh on the page (#408)", () => {
     const input = screen.getByLabelText("이름 또는 전화 끝 4자리");
     fireEvent.focus(input);
     seedCheckIn(EVENT, participant("김하늘").participantId);
-    await waitFor(() => expect(summaryValue("완료")).toBe("1"), WAIT);
+    await waitFor(() => expect(summaryValue("도착")).toBe("1"), WAIT);
     await sleep(fieldRefresh.intervalMs * 2);
-    expect(rowBadge("94 김하늘")).toBe("미완료");
+    expect(rowBadge("94 김하늘")).toBe("미도착");
 
     fireEvent.blur(input);
-    await waitFor(() => expect(rowBadge("94 김하늘")).toBe("체크인 완료"), WAIT);
+    await waitFor(() => expect(rowBadge("94 김하늘")).toBe("도착"), WAIT);
   });
 
   it("keeps the roster still behind the cancel dialog", async () => {
@@ -85,12 +85,12 @@ describe("field refresh on the page (#408)", () => {
     expect(await screen.findByRole("dialog", {}, WAIT)).toBeInTheDocument();
 
     seedCheckIn(EVENT, participant("김하늘").participantId);
-    await waitFor(() => expect(summaryValue("완료")).toBe("2"), WAIT);
+    await waitFor(() => expect(summaryValue("도착")).toBe("2"), WAIT);
     await sleep(fieldRefresh.intervalMs * 2);
-    expect(rowBadge("94 김하늘")).toBe("미완료");
+    expect(rowBadge("94 김하늘")).toBe("미도착");
 
     fireEvent.click(screen.getByRole("button", { name: "돌아가기" }));
-    await waitFor(() => expect(rowBadge("94 김하늘")).toBe("체크인 완료"), WAIT);
+    await waitFor(() => expect(rowBadge("94 김하늘")).toBe("도착"), WAIT);
   });
 
   it("새로 고침 reads at once", async () => {
@@ -98,7 +98,7 @@ describe("field refresh on the page (#408)", () => {
     await open();
     seedCheckIn(EVENT, participant("김하늘").participantId);
     fireEvent.click(screen.getByRole("button", { name: "새로 고침" }));
-    await waitFor(() => expect(rowBadge("94 김하늘")).toBe("체크인 완료"), WAIT);
-    expect(summaryValue("완료")).toBe("1");
+    await waitFor(() => expect(rowBadge("94 김하늘")).toBe("도착"), WAIT);
+    expect(summaryValue("도착")).toBe("1");
   });
 });

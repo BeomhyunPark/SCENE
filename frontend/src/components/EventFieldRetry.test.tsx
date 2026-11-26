@@ -51,7 +51,7 @@ async function rosterRow(name: string): Promise<HTMLElement> {
   return found!;
 }
 
-/** The 체크인 현황 count on a filter chip ("전체", "미완료", "완료"), as the chip's name says it. */
+/** The 체크인 현황 count on a filter chip ("전체", "미도착", "도착 예정", "도착"), as the chip's name says it. */
 function summaryValue(label: string): string {
   const filters = screen.getByRole("group", { name: "체크인 상태로 보기" });
   const chip = within(filters).getByRole("button", { name: new RegExp(`^${label} [\\d,]+명$`) });
@@ -87,7 +87,7 @@ describe("field check-in retry", () => {
     expect(await screen.findByText("94 김하늘 님을 체크인했어요.", {}, WAIT)).toBeInTheDocument();
     expect(keys).toHaveLength(3);
     expect(new Set(keys).size).toBe(1);
-    await waitFor(() => expect(summaryValue("완료")).toBe("1"), WAIT);
+    await waitFor(() => expect(summaryValue("도착")).toBe("1"), WAIT);
     expect(checkInLogsOf(EVENT)).toHaveLength(1);
     expect(pendingRegion()).not.toBeInTheDocument();
   });
@@ -111,7 +111,7 @@ describe("field check-in retry", () => {
     expect(keys).toHaveLength(2);
     expect(keys[0]).toBe(keys[1]);
     expect(checkInLogsOf(EVENT)).toEqual([{ participantId: participant("박서준").participantId, action: "CHECKED_IN" }]);
-    await waitFor(() => expect(summaryValue("완료")).toBe("1"), WAIT);
+    await waitFor(() => expect(summaryValue("도착")).toBe("1"), WAIT);
   });
 
   it("shows 확인 안 됨 after the retry limit and resends the same key on 다시 시도", async () => {
@@ -124,7 +124,7 @@ describe("field check-in retry", () => {
     expect(keys).toHaveLength(4);
     const row = await rosterRow("95 한지우");
     expect(within(row).getByText("확인 안 됨")).toBeInTheDocument();
-    expect(within(row).queryByText("체크인 완료")).not.toBeInTheDocument();
+    expect(within(row).queryByText("도착")).not.toBeInTheDocument();
     const pending = pendingRegion()!;
     expect(pending).toHaveTextContent("확인 안 된 요청 1건");
     expect(pending).toHaveTextContent("이 화면을 닫거나 새로 고치면 이 목록은 사라져요.");
@@ -176,7 +176,7 @@ describe("field check-in retry", () => {
     expect(await screen.findByText("98 최예린 님을 체크인했어요.", {}, WAIT)).toBeInTheDocument();
     expect(keys).toHaveLength(1);
     expect(screen.queryByText(/오프라인이에요. 연결되면 확인 안 된/)).not.toBeInTheDocument();
-    await waitFor(() => expect(summaryValue("완료")).toBe("2"), WAIT);
+    await waitFor(() => expect(summaryValue("도착")).toBe("2"), WAIT);
     expect(pendingRegion()).not.toBeInTheDocument();
   });
 
