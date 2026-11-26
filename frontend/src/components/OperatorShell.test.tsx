@@ -34,11 +34,15 @@ const orgMenus = [
   ["행사", "/events"],
   ["알림", "/notifications"],
   ["멤버", "/members"],
+  ["설정", "/settings"],
+] as const;
+
+/** Menus that would only open "준비 중": hidden until their screens exist; their addresses stay (#495). */
+const pendingOrgMenus = [
   ["기록", "/history"],
   ["안내", "/guides"],
   ["일정", "/schedule"],
   ["연동", "/integrations"],
-  ["설정", "/settings"],
 ] as const;
 
 /** Event operation menus live only inside an event (#376). */
@@ -101,6 +105,15 @@ describe("operator shell", () => {
     expect(sidebar().getAllByRole("link")).toHaveLength(orgMenus.length);
   });
 
+  it("hides the not-ready organization menus, and marks none current at their addresses (#495)", () => {
+    for (const [label, href] of pendingOrgMenus) {
+      renderOrgAt(href);
+      expect(sidebar().queryByRole("link", { name: label })).not.toBeInTheDocument();
+      expect(sidebar().getAllByRole("link").filter((link) => link.getAttribute("aria-current") === "page")).toHaveLength(0);
+      cleanup();
+    }
+  });
+
   it("shows no event operation menu outside an event (#376)", () => {
     renderOrgAt("/members");
     for (const label of eventOnlyMenus) {
@@ -120,9 +133,9 @@ describe("operator shell", () => {
     }
   });
 
-  it("links the event sidebar's 다른 기능 시작 and 설정 to this event", () => {
+  it("links the event sidebar's 설정 to this event and hides 다른 기능 시작 until it is ready (#495)", () => {
     renderAt("/events/e1");
-    expect(sidebar().getByRole("link", { name: "다른 기능 시작" })).toHaveAttribute("href", "/events/e1/areas");
+    expect(sidebar().queryByRole("link", { name: "다른 기능 시작" })).not.toBeInTheDocument();
     expect(sidebar().getByRole("link", { name: "설정" })).toHaveAttribute("href", "/events/e1/settings");
     cleanup();
     renderAt("/events/e1/settings");
@@ -130,7 +143,8 @@ describe("operator shell", () => {
     expect(sidebar().getByRole("link", { name: "Local event" })).not.toHaveAttribute("aria-current");
     cleanup();
     renderAt("/events/e1/areas");
-    expect(sidebar().getByRole("link", { name: "다른 기능 시작" })).toHaveAttribute("aria-current", "page");
+    expect(sidebar().queryByRole("link", { name: "다른 기능 시작" })).not.toBeInTheDocument();
+    expect(sidebar().getAllByRole("link").filter((link) => link.getAttribute("aria-current") === "page")).toHaveLength(0);
   });
 
   it("offers 로그아웃 in the organization and event sidebars", () => {
@@ -158,7 +172,7 @@ describe("sidebar collapse", () => {
     fireEvent.click(toggle);
     expect(screen.getByRole("button", { name: "사이드바 펼치기" })).toHaveAttribute("aria-expanded", "false");
     expect(document.querySelector(".operator-shell")).toHaveClass("operator-shell--collapsed");
-    expect(sidebar().getByRole("link", { name: "일정" })).toHaveAttribute("title", "일정");
+    expect(sidebar().getByRole("link", { name: "멤버" })).toHaveAttribute("title", "멤버");
     cleanup();
 
     renderOrgAt("/events");
@@ -295,9 +309,10 @@ describe("phone menu drawer (#368)", () => {
     renderDrawerAt("/events/e1", true);
     const dialog = openDrawer();
     expect(within(dialog).getByRole("link", { name: "Local event" })).toHaveAttribute("aria-current", "page");
-    for (const label of ["준비 업무", "참가 현황", "현장 운영", "조 편성", "운영 멤버", "다른 기능 시작", "설정"]) {
+    for (const label of ["준비 업무", "참가 현황", "현장 운영", "조 편성", "운영 멤버", "설정"]) {
       expect(within(dialog).getByRole("link", { name: label })).toBeInTheDocument();
     }
+    expect(within(dialog).queryByRole("link", { name: "다른 기능 시작" })).not.toBeInTheDocument();
     fireEvent.click(within(dialog).getByRole("link", { name: "운영 멤버" }));
     expect(screen.getByTestId("where")).toHaveTextContent("/events/e1/operators");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -312,7 +327,7 @@ describe("phone menu drawer (#368)", () => {
     renderDrawerAt("/events");
     const dialog = openDrawer();
     expect(dialog.closest(".operator-shell__sidebar")).toBeNull();
-    expect(within(dialog).getByRole("link", { name: "일정" })).toBeVisible();
+    expect(within(dialog).getByRole("link", { name: "멤버" })).toBeVisible();
   });
 });
 

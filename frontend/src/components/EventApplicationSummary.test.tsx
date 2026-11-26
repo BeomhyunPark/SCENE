@@ -197,6 +197,18 @@ describe("신청 집계 screen", () => {
     expect(screen.queryByRole("button", { name: "인쇄" })).not.toBeInTheDocument();
   });
 
+  it("goes back up to 참가 현황, the screen it sits under (#497)", async () => {
+    seedRetreat();
+    await login({ userId: OWNER });
+    openSummary();
+
+    await screen.findByRole("heading", { name: "아직 들어온 신청이 없어요" });
+    // The sidebar also links 참가 현황; the back arrow is the header's .event-home__back.
+    const back = document.querySelector<HTMLAnchorElement>(".event-home__back")!;
+    expect(back).toHaveAccessibleName("참가 현황");
+    expect(back).toHaveAttribute("href", `/events/${RETREAT}/participants`);
+  });
+
   it("says when the event has no form yet", async () => {
     seedRetreat();
     server.use(

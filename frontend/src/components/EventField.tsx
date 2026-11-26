@@ -279,7 +279,7 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
       tasksHref={`${eventHref}/tasks`}
       framed
       leading={
-        <Link className="event-home__back" to={eventHref} aria-label="행사 홈">
+        <Link className="event-home__back scene-press scene-press--text" to={eventHref} aria-label="행사 홈">
           <img src={arrowLeft} alt="" />
         </Link>
       }
@@ -325,7 +325,7 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
               <button
                 key={value}
                 type="button"
-                className="event-field__view"
+                className="event-field__view scene-press scene-press--quiet"
                 aria-pressed={view === value}
                 onClick={() => setView(value)}
               >
@@ -404,12 +404,12 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
               )}
             </section>
             {/* 식수 현황 바로 가기 (#454, DEC-089 §11). */}
-            <Link className="event-field__meals-link" to={`${eventHref}/meals`}>
+            <Link className="event-field__meals-link scene-press scene-press--text" to={`${eventHref}/meals`}>
               식수 현황 보기
             </Link>
             </div>
 
-            {/* TL01 filter chips (620:19) and count chip (620:17). */}
+            {/* TL01 filter chips (620:19); the count (620:17) only for a search. */}
             <div className="event-field__controls">
               {view === "all" ? (
                 <div className="event-field__filters" role="group" aria-label="체크인 상태로 보기">
@@ -417,14 +417,15 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
                     <button
                       key={value}
                       type="button"
-                      className="event-field__filter"
+                      className="event-field__filter scene-press scene-press--chip"
                       aria-pressed={filter === value}
                       onClick={() => setFilter(value)}
                     >
                       {label}
                     </button>
                   ))}
-                  {roster.data && items.length > 0 ? (
+                  {/* Without a search the count repeats the 체크인 현황 line above, so it shows only for a search (#495). */}
+                  {roster.data && items.length > 0 && q !== "" ? (
                     <span className="event-field__count-text" aria-live="polite">
                       {total.toLocaleString("ko-KR")}명
                     </span>

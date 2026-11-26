@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import { createQueryClient } from "../api/queryClient";
 import { login } from "../api/session";
 import { localEvent, localUsers } from "../mocks/fixtures/seed";
+import { operatorRequests } from "../mocks/operatorStore";
 import { server } from "../mocks/server";
 import { EventList } from "./EventList";
 import { TaskDetail } from "./TaskDetail";
@@ -52,9 +53,17 @@ function problem(status: number, code: string, extra: Record<string, unknown> = 
 
 async function enableComplete() {
   fireEvent.click(await screen.findByRole("checkbox", { name: "출력" }));
-  expect(await screen.findByRole("button", { name: "완료" })).toBeEnabled();
+  expect(await screen.findByRole("button", { name: "업무 완료" })).toBeEnabled();
   // Only the action that can be used now is shown (#483): 다시 진행 waits until the task is done.
   expect(screen.queryByRole("button", { name: "다시 진행" })).not.toBeInTheDocument();
+}
+
+/** The title saves on its own when the field is left (#493, Figma P07-D01 has no save button). */
+async function renameTo(value: string) {
+  const input = await screen.findByRole("textbox", { name: "업무 제목" });
+  fireEvent.change(input, { target: { value } });
+  fireEvent.blur(input);
+  return input;
 }
 
 describe("task detail", () => {
@@ -67,7 +76,7 @@ describe("task detail", () => {
     await login({ userId: localUsers[0].userId });
     renderDetail();
     await enableComplete();
-    fireEvent.click(screen.getByRole("button", { name: "완료" }));
+    fireEvent.click(screen.getByRole("button", { name: "업무 완료" }));
     expect(await screen.findByRole("status")).toHaveTextContent("이미 완료된 업무예요.");
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
@@ -83,7 +92,7 @@ describe("task detail", () => {
     await login({ userId: localUsers[0].userId });
     renderDetail();
     await enableComplete();
-    fireEvent.click(screen.getByRole("button", { name: "완료" }));
+    fireEvent.click(screen.getByRole("button", { name: "업무 완료" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("다른 사람이 먼저 이 업무를 바꿨어요");
     expect(screen.getByText("진행 중")).toBeInTheDocument();
     expect(screen.queryByText("hidden")).not.toBeInTheDocument();
@@ -98,7 +107,7 @@ describe("task detail", () => {
     await login({ userId: localUsers[0].userId });
     renderDetail();
     await enableComplete();
-    fireEvent.click(screen.getByRole("button", { name: "완료" }));
+    fireEvent.click(screen.getByRole("button", { name: "업무 완료" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("체크 항목을 모두 확인해야 완료할 수 있어요.");
     expect(screen.queryByText("hidden")).not.toBeInTheDocument();
   });
@@ -112,7 +121,7 @@ describe("task detail", () => {
     await login({ userId: localUsers[0].userId });
     renderDetail();
     await enableComplete();
-    fireEvent.click(screen.getByRole("button", { name: "완료" }));
+    fireEvent.click(screen.getByRole("button", { name: "업무 완료" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("취소된 업무예요.");
   });
 
@@ -125,10 +134,10 @@ describe("task detail", () => {
     await login({ userId: localUsers[0].userId });
     renderDetail();
     await enableComplete();
-    fireEvent.click(screen.getByRole("button", { name: "완료" }));
+    fireEvent.click(screen.getByRole("button", { name: "업무 완료" }));
     expect(await screen.findByText("완료")).toBeInTheDocument();
     const reopen = await screen.findByRole("button", { name: "다시 진행" });
-    expect(screen.queryByRole("button", { name: "완료" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "업무 완료" })).not.toBeInTheDocument();
     fireEvent.click(reopen);
     expect(await screen.findByRole("alert")).toHaveTextContent("완료된 업무예요. 다시 진행한 뒤 바꿀 수 있어요.");
   });
@@ -150,9 +159,9 @@ describe("task detail", () => {
     );
     await login({ userId: localUsers[0].userId });
     renderDetail();
-    fireEvent.click(await screen.findByRole("button", { name: "제목 저장" }));
+    await renameTo("다른 제목");
     expect(await screen.findByRole("alert")).toHaveTextContent("이 업무를 바꿀 권한이 없어요.");
-    expect(screen.getByRole("heading", { name: "안내문 출력" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "준비 업무" })).toBeInTheDocument();
   });
 
   it("leaves the event when membership is gone", async () => {
@@ -161,7 +170,7 @@ describe("task detail", () => {
     );
     await login({ userId: localUsers[0].userId });
     renderDetail();
-    fireEvent.click(await screen.findByRole("button", { name: "제목 저장" }));
+    await renameTo("다른 제목");
     expect(await screen.findByRole("heading", { name: "Local space의 행사" })).toBeInTheDocument();
   });
 
@@ -174,9 +183,9 @@ describe("task detail", () => {
     await login({ userId: localUsers[0].userId });
     renderDetail();
     await enableComplete();
-    fireEvent.click(screen.getByRole("button", { name: "완료" }));
+    fireEvent.click(screen.getByRole("button", { name: "업무 완료" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("보관된 행사는 바꿀 수 없어요.");
-    expect(screen.queryByRole("button", { name: "삭제" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "업무 삭제" })).not.toBeInTheDocument();
   });
 
   it("points a title error at the field", async () => {
@@ -187,7 +196,7 @@ describe("task detail", () => {
     );
     await login({ userId: localUsers[0].userId });
     renderDetail();
-    fireEvent.click(await screen.findByRole("button", { name: "제목 저장" }));
+    await renameTo("바꾼 제목");
     expect(await screen.findByRole("alert")).toHaveTextContent("제목을 확인해 주세요.");
     expect(screen.queryByText("hidden")).not.toBeInTheDocument();
   });
@@ -196,11 +205,38 @@ describe("task detail", () => {
     server.use(http.patch("/api/v1/operator/events/:eventId/tasks/:taskId", () => HttpResponse.error()));
     await login({ userId: localUsers[0].userId });
     renderDetail();
-    const input = await screen.findByRole("textbox", { name: "업무 제목" });
-    fireEvent.change(input, { target: { value: "바꾼 제목" } });
-    fireEvent.click(screen.getByRole("button", { name: "제목 저장" }));
+    const input = await renameTo("바꾼 제목");
     expect(await screen.findByRole("alert")).toHaveTextContent("저장하지 못했어요. 다시 시도해 주세요.");
     expect(input).toHaveValue("바꾼 제목");
+  });
+
+  it("saves a changed title on Enter and leaves an unchanged one alone", async () => {
+    await login({ userId: localUsers[0].userId });
+    renderDetail();
+    const input = await screen.findByRole("textbox", { name: "업무 제목" });
+    fireEvent.blur(input);
+    expect(operatorRequests.some((request) => request.method === "PATCH")).toBe(false);
+    fireEvent.change(input, { target: { value: "안내문 인쇄" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    await waitFor(() => expect(operatorRequests.find((request) => request.method === "PATCH")?.body).toEqual({ title: "안내문 인쇄" }));
+    expect(screen.queryByRole("button", { name: /저장/ })).not.toBeInTheDocument();
+  });
+
+  it("saves the period when both date fields are left, and waits for a due date after a start", async () => {
+    await login({ userId: localUsers[0].userId });
+    renderDetail();
+    const start = await screen.findByLabelText("시작일");
+    const due = screen.getByLabelText("마감일");
+    fireEvent.change(start, { target: { value: "2027-01-11" } });
+    fireEvent.blur(start, { relatedTarget: due });
+    expect(operatorRequests.some((request) => request.method === "PATCH")).toBe(false);
+    fireEvent.blur(due, { relatedTarget: null });
+    expect(screen.getByRole("alert")).toHaveTextContent("마감일을 확인해 주세요.");
+    expect(operatorRequests.some((request) => request.method === "PATCH")).toBe(false);
+    fireEvent.change(due, { target: { value: "2027-01-13" } });
+    fireEvent.blur(due, { relatedTarget: null });
+    expect(await screen.findByRole("status")).toHaveTextContent("기간을 저장했어요.");
+    expect(operatorRequests.find((request) => request.method === "PATCH")?.body).toEqual({ startDate: "2027-01-11", dueDate: "2027-01-13" });
   });
 
   it("applies a no-change check without an alert", async () => {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState, type ReactNode } from "react";
 import type { AttendanceMode, FormSetup, SetupDay } from "../../api/forms";
 import { Button } from "../Button";
 
@@ -182,12 +182,13 @@ export function SetupCard({
     setDraft(next);
     setTouched(true);
   };
+  // A hint explains what a choice adds, so it shows only while the choice is on (#498).
   const check = (label: string, checked: boolean, onChange: (next: boolean) => void, hint?: string, disabled = false) => (
     <label className="setup-card__check">
       <input type="checkbox" checked={checked} disabled={disabled} onChange={(event) => onChange(event.target.checked)} />
       <span>
         {label}
-        {hint ? <small>{hint}</small> : null}
+        {hint && checked ? <small>{hint}</small> : null}
       </span>
     </label>
   );
@@ -229,7 +230,7 @@ export function SetupCard({
         {draft.cell ? (
           <NameList label="셀 목록" names={draft.cells} onChange={(cells) => change({ ...draft, cells })} />
         ) : null}
-        <p className="registration-setup__note">{newcomerNote(draft)}</p>
+        {draft.middleGroup || draft.cell ? <p className="registration-setup__note">{newcomerNote(draft)}</p> : null}
       </fieldset>
 
       <fieldset className="setup-card__group">
@@ -277,9 +278,9 @@ export function SetupCard({
 
       <fieldset className="setup-card__group">
         <legend>일차별 식사·집회</legend>
-        <p className="registration-setup__note">
+        <GroupHelp label="일차별 식사·집회">
           실제로 있는 칸만 체크해 주세요. 부분 참석·집회만 참석자가 이 중에서 골라요. 전체 참석자는 모두 참석으로 세요.
-        </p>
+        </GroupHelp>
         <table className="setup-card__table">
           <thead>
             <tr>
@@ -320,6 +321,10 @@ export function SetupCard({
 
       <fieldset className="setup-card__group">
         <legend>운영하는 이동 수단</legend>
+        <GroupHelp label="운영하는 이동 수단">
+          가는 길과 오는 길을 따로 물어요. 자차로 가는 사람에게는 오는 길을 묻지 않아요. 출발 장소와 시간은 만들어진 질문의
+          설명에 적어 주세요.
+        </GroupHelp>
         <div className="setup-card__checks">
           {TRANSPORTS.map((item) => (
             <span key={item.key}>
@@ -338,13 +343,8 @@ export function SetupCard({
           fixed={modeFixed}
           onChange={(partialByTime) => change({ ...draft, transport: { ...draft.transport, partialByTime } })}
         />
-        <p className="registration-setup__note">
-          가는 길과 오는 길을 따로 물어요. 자차로 가는 사람에게는 오는 길을 묻지 않아요. 출발 장소와 시간은 만들어진 질문의
-          설명에 적어 주세요.
-        </p>
       </fieldset>
 
-      <p className="registration-setup__note">개인정보 수집·이용 동의는 항상 마지막에 들어가요.</p>
       {error ? (
         <p className="registration-setup__alert" role="alert">
           {error}
@@ -397,7 +397,7 @@ function ModePicker({
             />
             <span>
               {item.label}
-              <small>{item.hint}</small>
+              {mode === item.mode ? <small>{item.hint}</small> : null}
             </span>
           </label>
         ))}
@@ -482,7 +482,7 @@ function VehicleTiming({
         />
         <span>
           부분 참석자는 도착·출발 시점에 맞는 차량만 보여 주기
-          <small>{partial ? hint : "부분 참석을 받을 때만 쓸 수 있어요."}</small>
+          {!partial ? <small>부분 참석을 받을 때만 쓸 수 있어요.</small> : on ? <small>{hint}</small> : null}
         </span>
       </label>
       {fixed && partial ? (
@@ -538,5 +538,33 @@ function NameList({ label, names, onChange }: { label: string; names: string[]; 
       />
       <small>목록이 있으면 참가자가 목록에서 골라요. 신청이 들어온 뒤에도 이름을 더하거나 뺄 수 있지만, 비워 둔 목록을 새로 채우거나 다 지울 수는 없어요.</small>
     </label>
+  );
+}
+
+/**
+ * A group's background notes, folded under a small 설명 button (#498, 제안 #8). The settings
+ * themselves stay open; only the always-on explanation waits until it is asked for.
+ */
+function GroupHelp({ label, children }: { label: string; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const id = useId();
+  return (
+    <div className="setup-card__help">
+      <Button
+        type="button"
+        variant="tertiary"
+        size={32}
+        className="setup-card__help-toggle"
+        aria-expanded={open}
+        aria-controls={id}
+        aria-label={`${label} 설명`}
+        onClick={() => setOpen((current) => !current)}
+      >
+        설명
+      </Button>
+      <p id={id} className="registration-setup__note" hidden={!open}>
+        {children}
+      </p>
+    </div>
   );
 }

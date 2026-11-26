@@ -15,10 +15,9 @@ import { getMe } from "../api/session";
 import { OperationDrawer } from "./OperationDrawer";
 import { WithdrawnList } from "./ApplicationWithdraw";
 import { statusChangeBlocked } from "./applicationStatus";
-import { ParticipantAddress } from "./ParticipantAddress";
+import { AddressButton } from "./ParticipantAddress";
 import { ApplicantTable } from "./applicantTable/ApplicantTable";
 import type { EventDetail } from "../api/events";
-import { listForms } from "../api/forms";
 import { reloadQuery } from "../api/queryClient";
 import { queryKeys } from "../api/queryKeys";
 import { EventScreen } from "./EventScreen";
@@ -38,53 +37,6 @@ export function EventParticipation() {
     <EventScreen eventId={eventId}>
       {(event, spaceName) => <ParticipationBody event={event} spaceName={spaceName} />}
     </EventScreen>
-  );
-}
-
-function ApplyAddress({ eventId }: { eventId: string }) {
-  const forms = useQuery({
-    queryKey: queryKeys.forms(eventId, 0),
-    queryFn: () => listForms(eventId, { page: 0, size: 20 }),
-    enabled: eventId.length > 0,
-  });
-  const [copied, setCopied] = useState(false);
-  const open = forms.data?.items.find((item) => item.acceptingApplications);
-  const address = open ? `${window.location.origin}/apply/${eventId}/${open.formId}` : "";
-
-  return (
-    <section className="event-home__apply">
-      <h2>신청 주소</h2>
-      {forms.isPending ? <p>불러오는 중이에요.</p> : null}
-      {forms.isError ? (
-        <>
-          <p>불러오지 못했어요.</p>
-          <Button type="button" variant="secondary" size={40} onClick={() => reloadQuery(forms)}>
-            다시 시도
-          </Button>
-        </>
-      ) : null}
-      {forms.isSuccess && open ? (
-        <>
-          <p>이 주소를 보내면 참가자가 신청할 수 있어요.</p>
-          <input className="event-home__address" readOnly aria-label="신청 주소" value={address} />
-          {copied ? <p>복사했어요.</p> : null}
-          <Button
-            type="button"
-            variant="secondary"
-            size={40}
-            onClick={() => {
-              void navigator.clipboard.writeText(address).then(
-                () => setCopied(true),
-                () => setCopied(false),
-              );
-            }}
-          >
-            복사
-          </Button>
-        </>
-      ) : null}
-      {forms.isSuccess && !open ? <p>신청을 열면 주소를 복사할 수 있어요.</p> : null}
-    </section>
   );
 }
 
@@ -174,7 +126,16 @@ function Applicants({
             >
               신청 집계
             </Link>
+            {/* 신청서 설정 (#497): the way to open/close applications and edit questions, in sight on the toolbar. */}
+            <Link
+              className="scene-button scene-button--secondary scene-button--size-40 event-home__summary-link"
+              to={`/events/${eventId}/participants/setup`}
+            >
+              신청서 설정
+            </Link>
             <ApplicantsExport eventId={eventId} total={total} />
+            {/* 신청 주소·참가자 주소와 QR (#497): behind one button instead of under the roster. */}
+            <AddressButton eventId={eventId} />
             {/* 참가자 직접 추가 (DEC-088 §3): also after applications close and at the 현장 desk. */}
             {effective.includes("PARTICIPANT_WRITE") && eventStatus !== "ENDED" && eventStatus !== "ARCHIVED" ? (
               <Link
@@ -219,7 +180,7 @@ function ParticipationBody({ event, spaceName }: { event: EventDetail; spaceName
       participantsHref={eventId ? `/events/${eventId}/participants` : undefined}
       framed
       leading={
-        <Link className="event-home__back" to="/events" aria-label="행사 목록">
+        <Link className="event-home__back scene-press scene-press--text" to="/events" aria-label="행사 목록">
           <img src={arrowLeft} alt="" />
         </Link>
       }
@@ -235,57 +196,61 @@ function ParticipationBody({ event, spaceName }: { event: EventDetail; spaceName
             {context ? <p className="event-home__facts">{context}</p> : null}
             <p className="event-home__state">{draftStatus ? "새로 만든 행사" : lifecycleLabel(event.lifecycleStatus)}</p>
           </div>
-          <span className="event-home__badge">참가 운영</span>
         </div>
+        {/* 참가자를 받는 방법 (#497, #483 제안 3): only while nobody has applied. With applicants the
+            table toolbar carries 신청서 설정 and 주소·QR. */}
         <Applicants
           eventId={eventId}
           eventStatus={event.lifecycleStatus}
           empty={
-            <section className="event-home__welcome">
-              <span className="event-home__mark" aria-hidden="true">
-                <img src={calendarCheck} alt="" />
-              </span>
-              <div className="event-home__welcome-copy">
-                <h2>아직 참가자가 없어요.</h2>
-                <p>신청을 열거나 운영자가 직접 추가할 수 있어요.</p>
+            <>
+              <section className="event-home__welcome">
+                <span className="event-home__mark" aria-hidden="true">
+                  <img src={calendarCheck} alt="" />
+                </span>
+                <div className="event-home__welcome-copy">
+                  <h2>아직 참가자가 없어요.</h2>
+                  <p>신청을 열거나 운영자가 직접 추가할 수 있어요.</p>
+                </div>
+                <div className="event-home__welcome-actions">
+                  <AddressButton eventId={eventId} />
+                  <Button type="button" variant="primary" size={40} onClick={() => navigate(setupPath)}>
+                    참가 신청 준비
+                  </Button>
+                </div>
+              </section>
+              <div className="event-home__work-intro">
+                <h2>참가자를 받는 방법</h2>
+                <p>행사에 맞는 방법으로 시작해 보세요.</p>
               </div>
-              <Button type="button" variant="primary" size={40} onClick={() => setupPath && navigate(setupPath)}>
-                참가 신청 준비
-              </Button>
-            </section>
+              <div className="event-home__cards">
+                {ways.map((item) => (
+                  <button
+                    key={item.title}
+                    className="event-home__card scene-press scene-press--card"
+                    type="button"
+                    aria-label={item.title}
+                    onClick={() => navigate(setupPath)}
+                  >
+                    <span className="event-home__chip">{item.badge}</span>
+                    <span className="event-home__card-title">{item.title}</span>
+                    <span className="event-home__card-meta">
+                      <span>
+                        <img src={dateIcon} alt="" />
+                        {item.detail}
+                      </span>
+                      <span>
+                        <img src={checklist} alt="" />
+                        {item.action}
+                      </span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <p className="event-home__note">참가자는 링크나 QR로 신청하며 SCENE 계정이 필요하지 않아요.</p>
+            </>
           }
         />
-        <ApplyAddress eventId={eventId} />
-        <ParticipantAddress eventId={eventId} />
-        <div className="event-home__work-intro">
-          <h2>참가자를 받는 방법</h2>
-          <p>행사에 맞는 방법으로 시작해 보세요.</p>
-        </div>
-        <div className="event-home__cards">
-          {ways.map((item) => (
-            <button
-              key={item.title}
-              className="event-home__card"
-              type="button"
-              aria-label={item.title}
-              onClick={() => navigate(setupPath)}
-            >
-              <span className="event-home__chip">{item.badge}</span>
-              <span className="event-home__card-title">{item.title}</span>
-              <span className="event-home__card-meta">
-                <span>
-                  <img src={dateIcon} alt="" />
-                  {item.detail}
-                </span>
-                <span>
-                  <img src={checklist} alt="" />
-                  {item.action}
-                </span>
-              </span>
-            </button>
-          ))}
-        </div>
-        <p className="event-home__note">참가자는 링크나 QR로 신청하며 SCENE 계정이 필요하지 않아요.</p>
       </div>
     </OperatorShell>
   );

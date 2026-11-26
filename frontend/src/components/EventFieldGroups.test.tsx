@@ -151,8 +151,8 @@ describe("field check-in by group", () => {
     expect(screen.queryByLabelText("이름 또는 전화 끝 4자리")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "전체 명단" }));
-    expect(await screen.findByRole("list", { name: "체크인 명단" }, WAIT)).toBeInTheDocument();
-    expect(screen.getByText("8명")).toBeInTheDocument();
+    const list = await screen.findByRole("list", { name: "체크인 명단" }, WAIT);
+    await waitFor(() => expect(within(list).getAllByRole("listitem")).toHaveLength(8), WAIT);
   });
 
   it("is read-only without CHECKIN_WRITE", async () => {

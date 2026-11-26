@@ -49,7 +49,7 @@ export function NoticeShell({
       tasksHref={`${eventHref}/tasks`}
       framed
       leading={
-        <Link className="event-home__back" to={back} aria-label={backLabel}>
+        <Link className="event-home__back scene-press scene-press--text" to={back} aria-label={backLabel}>
           <img src={arrowLeft} alt="" />
         </Link>
       }
@@ -88,9 +88,8 @@ function NoticeList({ event, spaceName }: { event: EventDetail; spaceName?: stri
     <NoticeShell event={event} spaceName={spaceName} title="공지" back={`/events/${eventId}`} backLabel="행사 홈">
       <div className="notices">
         <div className="notices__head">
-          <p className="notices__support">
-            참가자와 운영진에게 보이는 공지예요. 고정 {pinnedCount}/3
-          </p>
+          {/* Only the pinned count; who sees a notice is chosen per notice (#495). */}
+          <p className="notices__support">고정 {pinnedCount}/3</p>
           {access.canWrite ? (
             <Button type="button" variant="primary" size={40} onClick={() => navigate(noticesHref(eventId, "new"))}>
               공지 쓰기
@@ -103,7 +102,7 @@ function NoticeList({ event, spaceName }: { event: EventDetail; spaceName?: stri
             <button
               key={item.status}
               type="button"
-              className="notices__filter"
+              className="notices__filter scene-press scene-press--chip"
               aria-pressed={item.status === filter.status}
               onClick={() => setSearch(item.status === "PUBLISHED" ? {} : { status: item.status }, { replace: true })}
             >
@@ -167,7 +166,7 @@ function NoticeRow({ eventId, notice }: { eventId: string; notice: OperatorNotic
         ? `발행 ${noticeStamp(notice.publishedAt)}`
         : `보관 ${noticeStamp(notice.archivedAt)}`;
   return (
-    <Link className={`notice-row${notice.important ? " notice-row--important" : ""}`} to={noticesHref(eventId, notice.noticeId)}>
+    <Link className={`notice-row scene-press scene-press--card${notice.important ? " notice-row--important scene-press--keep-border" : ""}`} to={noticesHref(eventId, notice.noticeId)}>
       <NoticeBadges notice={notice} />
       <span className="notice-row__title">{notice.title}</span>
       <span className="notice-row__preview">{notice.body}</span>

@@ -77,7 +77,7 @@ export function ParticipantNoticeBadges({ notice }: { notice: ParticipantNotice 
 export function ParticipantNoticeRow({ eventId, notice, compact = false }: { eventId: string; notice: ParticipantNotice; compact?: boolean }) {
   return (
     <Link
-      className={`notice-row${notice.important ? " notice-row--important" : ""}`}
+      className={`notice-row scene-press scene-press--card${notice.important ? " notice-row--important scene-press--keep-border" : ""}`}
       to={participantPath(eventId, "notices", notice.noticeId)}
     >
       <ParticipantNoticeBadges notice={notice} />

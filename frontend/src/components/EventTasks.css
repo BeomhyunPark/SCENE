@@ -11,26 +11,21 @@
   font: var(--scene-body-m);
 }
 
-.event-tasks__create {
+/* 보기 전환과 "+ 업무 추가"가 한 줄 (#493, Figma P07-01 Work View Toolbar). */
+.event-tasks__toolbar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
+  gap: 8px 12px;
 }
 
-.event-tasks__create label {
-  font: var(--scene-label-m);
+.event-tasks__add {
+  margin-left: auto;
 }
 
-.event-tasks__create input {
-  min-width: 240px;
-  height: 40px;
-  padding: 0 12px;
-  border: 1px solid var(--color-border-default);
-  border-radius: 8px;
-  background: var(--color-bg-surface);
-  color: var(--color-text-primary);
-  font: var(--scene-body-m);
+.event-tasks__plus {
+  margin-right: 6px;
 }
 
 .event-tasks__rows {
@@ -42,14 +37,17 @@
   list-style: none;
 }
 
+/* 업무 한 건 = 눌리는 카드 하나 (Figma SCENE / Work / List Row 177:13571, 54px). */
 .event-tasks__rows button {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
+  gap: 4px 12px;
   width: 100%;
-  padding: 12px 16px;
+  min-height: 54px;
+  padding: 10px 14px;
   border: 1px solid var(--color-border-default);
-  border-radius: 12px;
+  border-radius: 8px;
   background: var(--color-bg-surface);
   color: var(--color-text-primary);
   font: var(--scene-body-m);
@@ -63,16 +61,16 @@
   font: var(--scene-label-s);
 }
 
-.event-tasks__date {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--color-text-secondary);
+.event-tasks__title {
+  flex: 1 1 200px;
+  min-width: 0;
   font: var(--scene-label-m);
 }
 
-.event-tasks__date input {
-  min-width: 0;
+.event-tasks__meta {
+  color: var(--color-text-secondary);
+  font: var(--scene-caption-m);
+  font-variant-numeric: tabular-nums;
 }
 
 .event-tasks__views {
@@ -81,7 +79,6 @@
 }
 
 .event-tasks__period {
-  margin-left: auto;
   color: var(--color-text-secondary);
   font: var(--scene-caption-m);
   font-variant-numeric: tabular-nums;

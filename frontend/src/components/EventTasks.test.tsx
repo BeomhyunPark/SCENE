@@ -28,22 +28,61 @@ describe("event tasks", () => {
     renderTasks();
     expect(await screen.findByRole("button", { name: /안내문 출력/ }, { timeout: 4000 })).toBeInTheDocument();
     expect(screen.getByText("1/2")).toBeInTheDocument();
-    fireEvent.change(await screen.findByRole("textbox", { name: "업무 제목" }), {
+    // The create form waits behind "+ 업무 추가" (#493, Figma P07-D02).
+    expect(screen.queryByRole("textbox", { name: "업무명" })).not.toBeInTheDocument();
+    const opener = await screen.findByRole("button", { name: "업무 추가" });
+    opener.focus();
+    fireEvent.click(opener);
+    const drawer = screen.getByRole("dialog", { name: "새 업무 만들기" });
+    expect(within(drawer).getByRole("textbox", { name: "업무명" })).toHaveFocus();
+    fireEvent.change(within(drawer).getByRole("textbox", { name: "업무명" }), {
       target: { value: "간식 구매" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "업무 추가" }));
+    fireEvent.click(within(drawer).getByRole("button", { name: "업무 만들기" }));
     expect(await screen.findByRole("button", { name: /간식 구매/ })).toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "새 업무 만들기" })).not.toBeInTheDocument();
+    expect(opener).toHaveFocus();
     const listed = operatorRequests.find((request) => request.method === "GET" && request.url.includes("/tasks"));
     expect(listed?.url).not.toContain("sort");
     const created = operatorRequests.find((request) => request.method === "POST" && request.url.endsWith("/tasks"));
     expect(created?.body).toEqual({ title: "간식 구매" });
   });
 
-  it("hides the composer when the operator cannot write tasks", async () => {
+  it("hides the add button when the operator cannot write tasks", async () => {
     await login({ userId: localUsers[2].userId });
     renderTasks();
     expect(await screen.findByRole("button", { name: /안내문 출력/ })).toBeInTheDocument();
-    expect(screen.queryByRole("textbox", { name: "업무 제목" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "업무 추가" })).not.toBeInTheDocument();
+  });
+
+  it("creates a task with an assignee picked in the drawer", async () => {
+    await login({ userId: localUsers[0].userId });
+    renderTasks();
+    fireEvent.click(await screen.findByRole("button", { name: "업무 추가" }, { timeout: 4000 }));
+    const drawer = screen.getByRole("dialog", { name: "새 업무 만들기" });
+    fireEvent.change(within(drawer).getByRole("textbox", { name: "업무명" }), { target: { value: "현수막 주문" } });
+    const assignee = within(drawer).getByRole("combobox", { name: "담당자" });
+    fireEvent.click(assignee);
+    fireEvent.click(await screen.findByRole("option", { name: "Local manager" }));
+    fireEvent.click(within(drawer).getByRole("button", { name: "업무 만들기" }));
+    expect(await screen.findByRole("button", { name: /현수막 주문/ })).toBeInTheDocument();
+    const created = operatorRequests.filter((request) => request.method === "POST" && request.url.endsWith("/tasks")).at(-1);
+    expect(created?.body).toEqual({ title: "현수막 주문", assigneeUserId: localUsers[1].userId });
+  });
+
+  it("asks for a title, then closes with Esc or 취소 without creating", async () => {
+    await login({ userId: localUsers[0].userId });
+    renderTasks();
+    fireEvent.click(await screen.findByRole("button", { name: "업무 추가" }, { timeout: 4000 }));
+    const drawer = screen.getByRole("dialog", { name: "새 업무 만들기" });
+    fireEvent.click(within(drawer).getByRole("button", { name: "업무 만들기" }));
+    expect(within(drawer).getByRole("alert")).toHaveTextContent("업무 제목을 입력해 주세요.");
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "업무 추가" }));
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "취소" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(operatorRequests.some((request) => request.method === "POST" && request.url.endsWith("/tasks"))).toBe(false);
   });
 });
 
@@ -58,10 +97,12 @@ describe("task month (#475)", () => {
   }
 
   async function addDated(title: string, startDate: string, dueDate: string) {
-    fireEvent.change(await screen.findByRole("textbox", { name: "업무 제목" }), { target: { value: title } });
-    fireEvent.change(screen.getByLabelText("시작일 (선택)"), { target: { value: startDate } });
-    fireEvent.change(screen.getByLabelText("마감일 (선택)"), { target: { value: dueDate } });
-    fireEvent.click(screen.getByRole("button", { name: "업무 추가" }));
+    fireEvent.click(await screen.findByRole("button", { name: "업무 추가" }, { timeout: 4000 }));
+    const drawer = screen.getByRole("dialog", { name: "새 업무 만들기" });
+    fireEvent.change(within(drawer).getByRole("textbox", { name: "업무명" }), { target: { value: title } });
+    fireEvent.change(within(drawer).getByLabelText("시작일"), { target: { value: startDate } });
+    fireEvent.change(within(drawer).getByLabelText("마감일"), { target: { value: dueDate } });
+    fireEvent.click(within(drawer).getByRole("button", { name: "업무 만들기" }));
     await screen.findByRole("button", { name: new RegExp(title) });
   }
 
@@ -91,20 +132,26 @@ describe("task month (#475)", () => {
     expect(screen.getByRole("grid", { name: "2027년 2월" })).toBeInTheDocument();
   });
 
-  it("fills the new task's period when days are pressed on the month", async () => {
+  it("opens the create drawer with the period when days are pressed on the month", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2027-01-05T03:00:00Z"));
     wideScreen();
     await login({ userId: localUsers[0].userId });
     renderTasks();
     fireEvent.click(await screen.findByRole("button", { name: "월" }, { timeout: 4000 }));
-    await screen.findByRole("textbox", { name: "업무 제목" });
+    await screen.findByRole("button", { name: "업무 추가" });
     const grid = screen.getByRole("grid", { name: "2027년 1월" });
     fireEvent.pointerDown(within(grid).getByRole("gridcell", { name: /^1월 14일/ }));
     fireEvent.pointerEnter(within(grid).getByRole("gridcell", { name: /^1월 16일/ }));
     fireEvent.pointerUp(within(grid).getByRole("gridcell", { name: /^1월 16일/ }));
-    expect(screen.getByLabelText("시작일 (선택)")).toHaveValue("2027-01-14");
-    expect(screen.getByLabelText("마감일 (선택)")).toHaveValue("2027-01-16");
+    const drawer = screen.getByRole("dialog", { name: "새 업무 만들기" });
+    expect(within(drawer).getByLabelText("시작일")).toHaveValue("2027-01-14");
+    expect(within(drawer).getByLabelText("마감일")).toHaveValue("2027-01-16");
+    fireEvent.change(within(drawer).getByRole("textbox", { name: "업무명" }), { target: { value: "차량 배차표" } });
+    fireEvent.click(within(drawer).getByRole("button", { name: "업무 만들기" }));
+    expect((await within(grid).findAllByRole("button", { name: "차량 배차표" }, { timeout: 4000 })).length).toBeGreaterThan(0);
+    const created = operatorRequests.filter((request) => request.method === "POST" && request.url.endsWith("/tasks")).at(-1);
+    expect(created?.body).toEqual({ title: "차량 배차표", startDate: "2027-01-14", dueDate: "2027-01-16" });
   });
 
   it("shows the month as a list by day on a phone", async () => {
@@ -123,12 +170,14 @@ describe("task month (#475)", () => {
   it("refuses a start date after the due date", async () => {
     await login({ userId: localUsers[0].userId });
     renderTasks();
-    fireEvent.change(await screen.findByRole("textbox", { name: "업무 제목" }, { timeout: 4000 }), { target: { value: "거꾸로" } });
-    fireEvent.change(screen.getByLabelText("시작일 (선택)"), { target: { value: "2027-01-20" } });
-    fireEvent.change(screen.getByLabelText("마감일 (선택)"), { target: { value: "2027-01-10" } });
+    fireEvent.click(await screen.findByRole("button", { name: "업무 추가" }, { timeout: 4000 }));
+    const drawer = screen.getByRole("dialog", { name: "새 업무 만들기" });
+    fireEvent.change(within(drawer).getByRole("textbox", { name: "업무명" }), { target: { value: "거꾸로" } });
+    fireEvent.change(within(drawer).getByLabelText("시작일"), { target: { value: "2027-01-20" } });
+    fireEvent.change(within(drawer).getByLabelText("마감일"), { target: { value: "2027-01-10" } });
     // The date fields bound each other, so the browser stops the form before it is sent.
-    expect(screen.getByLabelText("시작일 (선택)")).toBeInvalid();
-    fireEvent.click(screen.getByRole("button", { name: "업무 추가" }));
+    expect(within(drawer).getByLabelText("시작일")).toBeInvalid();
+    fireEvent.click(within(drawer).getByRole("button", { name: "업무 만들기" }));
     expect(operatorRequests.some((request) => request.method === "POST" && (request.body as { title?: string } | undefined)?.title === "거꾸로")).toBe(false);
   });
 

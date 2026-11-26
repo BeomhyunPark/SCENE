@@ -108,7 +108,7 @@ export function ScheduleTab() {
         {todayDay !== null ? (
           <button
             type="button"
-            className="participant-schedule__today"
+            className="participant-schedule__today scene-press scene-press--quiet"
             onClick={() => {
               setPicked(todayDay);
               setJumps((count) => count + 1);
@@ -125,7 +125,7 @@ export function ScheduleTab() {
                 type="button"
                 role="tab"
                 aria-selected={entry.day === day}
-                className={`participant-schedule__day${entry.day === day ? " participant-schedule__day--current" : ""}`}
+                className={`participant-schedule__day scene-press scene-press--quiet${entry.day === day ? " participant-schedule__day--current" : ""}`}
                 onClick={() => setPicked(entry.day)}
               >
                 <span>{entry.day}일차</span>

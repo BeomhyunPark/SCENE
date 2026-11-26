@@ -46,6 +46,14 @@ async function rosterRow(name: string): Promise<HTMLElement> {
   return found!;
 }
 
+/** Rows the roster shows now; the count beside the chips appears only for a search (#495). */
+async function expectRows(count: number) {
+  await waitFor(
+    () => expect(within(screen.getByRole("list", { name: "체크인 명단" })).getAllByRole("listitem")).toHaveLength(count),
+    WAIT,
+  );
+}
+
 async function search(value: string) {
   fireEvent.change(await screen.findByLabelText(SEARCH, {}, WAIT), { target: { value } });
 }
@@ -60,24 +68,26 @@ describe("field check-in", () => {
     expect(summaryValue("체크인 완료")).toBe("1");
     expect(summaryValue("미완료")).toBe("7");
     expect(summaryValue("전체")).toBe("8");
-    expect(await screen.findByText("8명", {}, WAIT)).toBeInTheDocument();
+    await expectRows(8);
+    // The summary already says 전체 8명: no second count without a search.
+    expect(screen.queryByText("8명")).not.toBeInTheDocument();
 
     const done = await rosterRow("96 박서준");
     expect(within(done).getByText(/Local staff · QR/)).toBeInTheDocument();
     expect(within(done).getByRole("button", { name: "96 박서준 체크인 취소" })).toBeEnabled();
 
     fireEvent.click(screen.getByRole("button", { name: "완료" }));
-    expect(await screen.findByText("1명", {}, WAIT)).toBeInTheDocument();
+    await expectRows(1);
     expect(screen.getByRole("button", { name: "완료" })).toHaveAttribute("aria-pressed", "true");
 
     fireEvent.click(screen.getByRole("button", { name: "미완료" }));
-    expect(await screen.findByText("7명", {}, WAIT)).toBeInTheDocument();
+    await expectRows(7);
     expect(screen.queryByText("96 박서준")).not.toBeInTheDocument();
   });
 
   it("finds by name or phone last 4 and shows last 4 to tell same names apart", async () => {
     await openAs(2);
-    await screen.findByText("8명", {}, WAIT);
+    await expectRows(8);
 
     await search("이수아");
     expect(await screen.findByText("2명", {}, WAIT)).toBeInTheDocument();

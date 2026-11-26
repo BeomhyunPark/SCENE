@@ -55,3 +55,9 @@
   color: var(--color-text-secondary);
   font: var(--scene-body-s);
 }
+
+/* Member count in the members card head; the page head already says 멤버 (#494). */
+.space-settings__count {
+  color: var(--color-text-secondary);
+  font: var(--scene-label-m);
+}

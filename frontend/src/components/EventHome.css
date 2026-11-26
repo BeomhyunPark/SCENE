@@ -87,6 +87,13 @@
   min-width: 0;
 }
 
+/* 참가 현황 빈 상태 (#497): 주소·QR next to 참가 신청 준비. */
+.event-home__welcome-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .event-home__welcome-copy h2,
 .event-home__work-intro h2 {
   margin: 0;
@@ -125,7 +132,6 @@
   background: var(--color-bg-surface);
   color: var(--color-text-primary);
   text-align: left;
-  cursor: pointer;
 }
 
 .event-home__card:focus {
@@ -342,31 +348,43 @@
   font: var(--scene-body-m);
 }
 
-.event-home__answers dl {
-  display: flex;
-  flex-direction: column;
-  margin: 0;
-  border: 1px solid var(--color-border-default);
-  border-radius: 4px;
-}
-
-.event-home__answers dl > div {
-  display: grid;
-  grid-template-columns: minmax(96px, 160px) 1fr;
-  gap: 12px;
-  padding: 14px 18px;
-}
-
-.event-home__answers dl > div + div {
+/*
+ * 신청자 상세 (#497): 운영 메모·신청 내용·변경 이력 are plain sections split by a hairline, and the
+ * answers are label-value rows without an outer box (Figma O05 390:30881, fe-handoff "박스를 쓰는 때").
+ * `>` keeps the rules off the 변경 전후 list nested in 변경 이력.
+ */
+.event-home__answers + .event-home__answers {
+  padding-top: 24px;
   border-top: 1px solid var(--color-border-default);
 }
 
-.event-home__answers dt {
-  color: var(--color-text-secondary);
-  font: var(--scene-label-m);
+.event-home__answers .event-home__applicants-head h2 {
+  font: var(--scene-body-m-strong);
 }
 
-.event-home__answers dd {
+.event-home__answers > dl {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+
+.event-home__answers > dl > div {
+  display: grid;
+  grid-template-columns: minmax(96px, 160px) 1fr;
+  gap: 12px;
+  padding: 10px 0;
+}
+
+.event-home__answers > dl > div + div {
+  border-top: 1px solid var(--color-border-default);
+}
+
+.event-home__answers > dl dt {
+  color: var(--color-text-tertiary);
+  font: var(--scene-body-m);
+}
+
+.event-home__answers > dl dd {
   margin: 0;
   color: var(--color-text-primary);
   font: var(--scene-body-m);
@@ -381,34 +399,122 @@
     gap: 4px;
   }
 
-  .event-home__answers dl > div {
+  .event-home__answers > dl > div {
     grid-template-columns: 1fr;
     gap: 4px;
   }
+}
+
+/* Member and invitation lists (#494): one row per person, divider lines between rows instead of a box
+   per row (fe-handoff "박스(테두리 컨테이너)"), name and a secondary line on the left, role, then actions. */
+.event-home__member-rows {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--color-border-default);
 }
 
 .event-home__member {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
+  gap: 8px 16px;
   box-sizing: border-box;
   width: 100%;
-  padding: 12px 18px;
-  border: 1px solid var(--color-border-default);
-  border-radius: 4px;
-  background: var(--color-bg-surface);
+  min-height: 56px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--color-border-default);
   color: var(--color-text-primary);
 }
 
-.event-home__member .event-home__applicant-name {
-  flex: 1 1 160px;
+.event-home__member-main {
+  display: flex;
+  flex: 1 1 200px;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.event-home__member-sub,
+.event-home__member-main .operator-permissions__summary {
+  overflow-wrap: anywhere;
+  flex: none;
+  order: 0;
+  color: var(--color-text-tertiary);
+  font: var(--scene-caption-m);
+}
+
+.event-home__member-role {
+  flex: none;
+  min-width: 64px;
+  color: var(--color-text-secondary);
+  font: var(--scene-body-m);
+}
+
+.event-home__member-menu-space {
+  flex: none;
+  width: 40px;
 }
 
 .event-home__member-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-left: auto;
+}
+
+.event-home__head-action {
+  margin-left: auto;
+}
+
+.event-home__segments {
+  display: flex;
+  flex-wrap: wrap;
+  grid-column: 1 / -1;
+  gap: 8px;
+}
+
+.event-home__segment {
+  position: relative;
+  display: flex;
+  flex: 1 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 6px 12px;
+  border: 1px solid var(--color-chip-default-border);
+  border-radius: 8px;
+  background: var(--color-chip-default-bg);
+  color: var(--color-chip-default-text);
+  font: var(--scene-label-m);
+  cursor: pointer;
+}
+
+.event-home__segment input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.event-home__segment:has(input:focus-visible) {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.event-home__segment--on {
+  border-color: var(--color-chip-selected-border);
+  background: var(--color-chip-selected-bg);
+  color: var(--color-chip-selected-text);
+}
+
+.event-home__invite-full {
+  grid-column: 1 / -1;
+}
+
+.event-home__invite p {
+  margin: 0;
 }
 
 .event-home__invite {
@@ -484,6 +590,7 @@
 }
 
 .event-home__apply .event-home__applicant-rows,
+.event-home__apply .event-home__member-rows,
 .event-home__apply .event-home__issued {
   align-self: stretch;
 }
@@ -505,17 +612,7 @@
   color: var(--color-text-primary);
 }
 
-/* 참가자 주소와 QR (DEC-078 §8). */
-.event-home__qr {
-  border: 1px solid var(--color-border-default);
-  border-radius: 12px;
-}
-
-.event-home__address-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
+/* 참가자 주소와 QR (DEC-078 §8) moved into the 주소·QR dialog: ParticipantAddress.css (#497). */
 
 /*
  * Event home dashboard (#467, boxes cut down in #485). Layout from SCENE 「02 행사 홈 · v2.0 Candidate」

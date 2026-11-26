@@ -219,7 +219,7 @@ export function OperationDrawer({
     <div className="operation-drawer" onMouseDown={(event) => event.target === event.currentTarget && requestClose()}>
       <div ref={panel} className="operation-drawer__panel" role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}>
         <header className="operation-drawer__head">
-          <button type="button" className="operation-drawer__back" aria-label="닫기" onClick={requestClose}>
+          <button type="button" className="operation-drawer__back scene-press scene-press--quiet" aria-label="닫기" onClick={requestClose}>
             ‹
           </button>
           <div>

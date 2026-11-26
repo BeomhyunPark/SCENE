@@ -18,6 +18,7 @@ export function OperatorAnswerForm({
   fields,
   initial,
   lead,
+  after,
   submitLabel,
   pending,
   failure,
@@ -28,6 +29,8 @@ export function OperatorAnswerForm({
   fields: FormField[];
   initial: RawAnswers;
   lead: ReactNode;
+  /** A note that belongs after the questions (the consent question the operator does not answer). */
+  after?: ReactNode;
   submitLabel: string;
   pending: boolean;
   failure: ReactNode;
@@ -61,6 +64,7 @@ export function OperatorAnswerForm({
           />
         ))}
       </div>
+      {after ? <div className="operator-answers__lead">{after}</div> : null}
       {draft.showAll && draft.firstProblem ? (
         <p className="participant-gate__error">확인이 필요한 질문이 있어요.</p>
       ) : null}

@@ -25,7 +25,6 @@ export function FormPreview({ fields, completionNotice = null }: { fields: FormF
   const [values, setValues] = useState<RawAnswers>({});
   const pruned = prune(shownFields, values);
   const shown = visibleFields(shownFields, pruned);
-  const waiting = shownFields.length - shown.length;
   const departureId = departureFieldId(shownFields);
 
   function change(fieldId: string, next: RawAnswer) {
@@ -40,10 +39,8 @@ export function FormPreview({ fields, completionNotice = null }: { fields: FormF
           처음부터
         </Button>
       </div>
-      <p className="registration-setup__note">
-        답을 눌러 보면 이어지는 질문이 바뀌어요. 여기서 고른 답은 저장되지 않아요.
-        {waiting > 0 ? ` 지금 ${shown.length}개가 보이고, ${waiting}개는 답에 따라 나타나요.` : ""}
-      </p>
+      {/* One line (#498): the count of waiting questions was a calculation, not something to act on. */}
+      <p className="registration-setup__note">여기서 고른 답은 저장되지 않아요.</p>
       <div className="participant-gate__fields form-preview__fields">
         {shown.map((field) => (
           <AnswerInput

@@ -50,7 +50,8 @@ export function CompletionNoticeEditor({
   return (
     <section className="registration-setup__inert completion-notice-editor" aria-labelledby="completion-notice-title">
       <h3 id="completion-notice-title">완료 안내</h3>
-      <p>신청을 마친 사람에게 보여요. 참가비 계좌, 문의처, 다음에 할 일을 적어 주세요. 신청이 들어온 뒤에도 고칠 수 있어요.</p>
+      {/* One line (#498): the placeholder already shows what to write. */}
+      <p>신청을 마친 사람에게 보여요.</p>
       {canWrite ? (
         <>
         <textarea

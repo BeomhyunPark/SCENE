@@ -22,9 +22,13 @@ function openApp(path: string) {
   );
 }
 
+/** "멤버 초대" opens the invite dialog (P14 초대, #494). */
 async function invite(email: string) {
-  fireEvent.change(await screen.findByLabelText("이메일"), { target: { value: email } });
-  fireEvent.click(screen.getByRole("button", { name: "초대 메일 보내기" }));
+  fireEvent.click(await screen.findByRole("button", { name: "멤버 초대" }));
+  const dialog = await screen.findByRole("dialog", { name: "멤버 초대" });
+  fireEvent.change(within(dialog).getByLabelText("이메일"), { target: { value: email } });
+  fireEvent.click(within(dialog).getByRole("button", { name: "초대 메일 보내기" }));
+  return dialog;
 }
 
 describe("organization members page (#376)", () => {
@@ -142,9 +146,9 @@ describe("organization members page (#376)", () => {
     await login({ userId: OWNER });
     openApp("/members");
 
-    await invite("not-an-email");
+    const dialog = await invite("not-an-email");
 
-    expect(await screen.findByText("이메일을 확인해 주세요.")).toBeInTheDocument();
+    expect(await within(dialog).findByText("이메일을 확인해 주세요.")).toBeInTheDocument();
     expect(screen.queryByLabelText("초대 링크")).not.toBeInTheDocument();
   });
 
@@ -152,7 +156,7 @@ describe("organization members page (#376)", () => {
     await login({ userId: ADMIN });
     openApp("/members");
 
-    expect(await screen.findByRole("heading", { name: "멤버 초대하기" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "멤버 초대" })).toBeInTheDocument();
     const members = await screen.findByRole("list", { name: "멤버" });
     expect(await within(members).findByText("owner@example.com")).toBeInTheDocument();
     await invite("helper@example.com");
@@ -168,8 +172,8 @@ describe("organization members page (#376)", () => {
     expect(within(members).getByText("Admin")).toBeInTheDocument();
     expect(members.textContent ?? "").not.toContain("@");
     expect(screen.queryByRole("heading", { name: "조직에서 나가기" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "멤버 초대하기" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "초대 메일 보내기" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "멤버 초대" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "대기 중인 초대" })).not.toBeInTheDocument();
     await waitFor(() => expect(operatorRequests.some((request) => request.url.includes("/invitations"))).toBe(false));
   });
 });

@@ -7,7 +7,8 @@ import "./MenuPending.css";
 
 /**
  * "준비 중" page inside an event, for event sidebar menus without a screen yet.
- * - 다른 기능 시작 (#266): picking areas (A02) needs an API to store the choice.
+ * - 다른 기능 시작 (#266): picking areas (A02) needs an API to store the choice. The menu is hidden
+ *   until then (#495); this page answers a typed or saved address.
  * - 현장 운영 (#268) now has its own screen (EventField, #285).
  */
 export function EventMenuPending({ title, message }: { title: string; message: string }) {
@@ -46,7 +47,7 @@ function Body({
         <section className="menu-pending__card">
           <h2 className="menu-pending__title">아직 준비 중이에요</h2>
           <p className="menu-pending__body">{message}</p>
-          <Link className="menu-pending__link" to={eventHref}>
+          <Link className="menu-pending__link scene-press scene-press--text" to={eventHref}>
             행사로 돌아가기
           </Link>
         </section>
