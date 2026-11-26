@@ -195,7 +195,7 @@
   cursor: default;
 }
 
-/* OM01 622:21: one SCENE/Title line. */
+/* 조별 only: the counts as one SCENE/Title line (the 전체 view carries them on the chips). */
 .event-field__summary {
   display: flex;
   flex-wrap: wrap;
@@ -250,6 +250,10 @@
   color: var(--color-chip-default-text);
   font: var(--scene-label-s);
   cursor: pointer;
+}
+
+.event-field__filter-count {
+  font-variant-numeric: tabular-nums;
 }
 
 .event-field__filter[aria-pressed="true"] {
@@ -342,7 +346,7 @@
   gap: 8px;
 }
 
-.event-field__inline-error p {
+.event-field__inline-error > span:first-child {
   margin: 0;
   color: var(--color-danger-fg);
   font: var(--scene-body-s);
@@ -479,6 +483,13 @@ button.event-field__row-main {
 .event-field__badge--done {
   background: var(--color-badge-attendance-full-bg);
   color: var(--color-badge-attendance-full-fg);
+}
+
+/* 도착 예정: not late yet, so quieter than 미도착 and with no mark. */
+.event-field__badge--expected {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--color-border-default);
+  color: var(--color-text-tertiary);
 }
 
 /* #287: a request whose result is not known is never shown as done. */
@@ -944,82 +955,3 @@ button.event-field__row-main {
   min-width: 50%;
 }
 
-/* The count line, with 식수 현황 바로 가기 (#454, DEC-089 §11) at its end. */
-.event-field__status {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 4px 12px;
-}
-
-.event-field__meals-link {
-  color: var(--color-text-brand);
-  font: var(--scene-label-m);
-  text-underline-offset: 3px;
-}
-
-/* 도착 예정 (E4 #456): the summary split of 미완료 and the line under each name. */
-.event-field__arrivals {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.event-field__arrivals-basis {
-  margin: 0;
-  color: var(--color-text-secondary);
-  font: var(--scene-body-s);
-}
-
-.event-field__arrivals-line {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 12px;
-  margin: 0;
-  color: var(--color-text-primary);
-  font: var(--scene-body-s);
-}
-
-/* 왔어야 함 opens that filter: a text button in the warning colour, not a filled pill (#485). */
-.event-field__arrivals-overdue {
-  position: relative;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--color-warning-fg);
-  font: var(--scene-label-m);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  cursor: pointer;
-}
-
-.event-field__arrivals-overdue::after {
-  content: "";
-  position: absolute;
-  inset: -12px -6px;
-}
-
-.event-field__arrivals-overdue:focus-visible {
-  outline: 2px solid var(--color-focus-ring);
-  outline-offset: 2px;
-}
-
-.event-field__arrival {
-  margin: 0;
-  font: var(--scene-body-s);
-}
-
-.event-field__arrival--overdue {
-  color: var(--color-warning-fg);
-  font-weight: 600;
-}
-
-.event-field__arrival--coming {
-  color: var(--color-text-primary);
-}
-
-.event-field__arrival--muted {
-  color: var(--color-text-secondary);
-}

@@ -15,11 +15,10 @@ import {
   listAllCheckInRoster,
   listCheckInRoster,
   ROSTER_QUERY_MAX,
-  type ArrivalStatus,
   type CancelResult,
   type CheckInResult,
+  type CheckInSummary,
   type RosterItem,
-  type SummaryArrival,
 } from "../api/checkIns";
 import { isApiError } from "../api/errors";
 import type { EventDetail, LifecycleStatus } from "../api/events";
@@ -31,7 +30,6 @@ import { getMe } from "../api/session";
 import { Button } from "./Button";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { FieldScan } from "./EventFieldScan";
-import { arrivalBasis } from "./fieldArrival";
 import { useFieldRefresh } from "./fieldRefresh";
 import { buildGroupStats, pendingFor, publishedGroupNames } from "./fieldGroupStats";
 import { FieldGroups } from "./FieldGroups";
@@ -53,12 +51,14 @@ import {
 } from "./useCheckInQueue";
 import { useWideField } from "./useWideField";
 import "./EventField.css";
+import { expectedWhen, fieldCounts, fieldState, type FieldCounts } from "./fieldState";
+import type { ItemPage } from "../api/types";
 
 const PAGE_SIZE = 50;
 const SEARCH_DELAY_MS = 250;
 
-/** "overdue" and "unknown" filter by arrival standing (E4 #456); the others by check-in. */
-type Filter = "all" | "pending" | "overdue" | "unknown" | "done";
+/** The three states of fieldState.ts, plus 전체. */
+type Filter = "all" | "absent" | "expected" | "arrived";
 type View = "all" | "groups";
 type Notice = { tone: "success" | "info" | "error"; text: string };
 
@@ -74,9 +74,9 @@ type Notice = { tone: "success" | "info" | "error"; text: string };
  * "확인 HH:MM" chip in the head shows when they were read and reads at once when tapped (#408, fieldRefresh.ts).
  * Layout (#468): the phone follows Figma OM01 Field Home (622:7), one column of search, one status line and
  * participant cards; from 1024px it follows TL01 (620:7), the queue on the left and the picked participant
- * on the right, where the QR scanner also opens. Each row shows the 도착 예정 칸 and the room (G5 #460), and
- * the summary splits 미완료 into 왔어야 함·올 예정·지남·예정 모름 by the next meal (E4 #456, DEC-089
- * Follow-up); "왔어야 함" lists the same people as 식수 현황's 아직 안 옴. Copy is a draft.
+ * on the right, where the QR scanner also opens. Each row shows the room (G5 #460). The 도착 예정 split by the
+ * next meal (E4 #456) was taken off this screen by the user (2026-11-25): it shows how many have come, no more.
+ * The server still sends `arrival`. Copy is a draft.
  */
 export function EventField() {
   const { eventId = "" } = useParams();
@@ -110,22 +110,22 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
     queryKey: queryKeys.checkInSummary(eventId),
     queryFn: ({ signal }) => getCheckInSummary(eventId, signal),
   });
-  const checkedIn = filter === "done" ? true : filter === "pending" ? false : null;
-  const arrival: ArrivalStatus | null = filter === "overdue" ? "OVERDUE" : filter === "unknown" ? "UNKNOWN" : null;
   const roster = useInfiniteQuery({
-    queryKey: queryKeys.checkInRoster(eventId, { q, checkedIn, arrival }),
+    queryKey: queryKeys.checkInRoster(eventId, { q, filter }),
     queryFn: ({ pageParam, signal }) =>
-      listCheckInRoster(
-        eventId,
-        {
-          q: q || undefined,
-          checkedIn: checkedIn ?? undefined,
-          arrival: arrival ?? undefined,
-          page: pageParam,
-          size: PAGE_SIZE,
-        },
-        signal,
-      ),
+      filter === "absent"
+        ? listAbsent(eventId, q, signal)
+        : listCheckInRoster(
+            eventId,
+            {
+              q: q || undefined,
+              checkedIn: filter === "arrived" ? true : undefined,
+              arrival: filter === "expected" ? "COMING" : undefined,
+              page: pageParam,
+              size: PAGE_SIZE,
+            },
+            signal,
+          ),
     initialPageParam: 0,
     placeholderData: keepPreviousData,
     getNextPageParam: (last) => (last.page.number + 1 < last.page.totalPages ? last.page.number + 1 : undefined),
@@ -383,71 +383,58 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
               </button>
             </div>
 
-            {/* OM01 622:21 "전체 104명 · 미도착 24명", in the product's words, with 식수 현황 at the line's end. */}
-            <div className="event-field__status">
-            <section className="event-field__summary" aria-label="체크인 현황">
-              {summary.data ? (
-                <>
-                  <p className="event-field__count">
-                    <span>전체</span> <strong>{summary.data.total.toLocaleString("ko-KR")}</strong>명
-                  </p>
-                  <p className="event-field__count">
-                    <span>미완료</span> <strong>{summary.data.notCheckedIn.toLocaleString("ko-KR")}</strong>명
-                  </p>
-                  <p className="event-field__count event-field__count--done">
-                    <span>체크인 완료</span> <strong>{summary.data.checkedIn.toLocaleString("ko-KR")}</strong>명
-                  </p>
-                </>
-              ) : summary.isError ? (
-                <div className="event-field__inline-error">
-                  <p>현황을 불러오지 못했어요.</p>
-                  <Button type="button" variant="secondary" size={32} onClick={() => reloadQuery(summary)}>
-                    다시 시도
-                  </Button>
-                </div>
-              ) : (
-                <p className="event-field__muted">현황을 불러오는 중이에요.</p>
-              )}
-            </section>
-            {/* 식수 현황 바로 가기 (#454, DEC-089 §11). */}
-            <Link className="event-field__meals-link scene-press scene-press--text" to={`${eventHref}/meals`}>
-              식수 현황 보기
-            </Link>
-            </div>
-
-            {summary.data?.arrival ? (
-              <ArrivalSummary
-                arrival={summary.data.arrival}
-                onOverdue={() => {
-                  setView("all");
-                  setFilter("overdue");
-                }}
-              />
-            ) : null}
-
-            {/* TL01 filter chips (620:19); the count (620:17) only for a search. */}
+            {/* TL01 filter chips (620:19) carry the 체크인 현황 counts (2026-11-26), so the numbers are said once; the
+                count (620:17) shows only for a search. 조별 has no chips, so it keeps the one count line. */}
             <div className="event-field__controls">
               {view === "all" ? (
                 <div className="event-field__filters" role="group" aria-label="체크인 상태로 보기">
-                  {filterChoices(summary.data?.arrival ?? null, filter).map(([value, label]) => (
-                    <button
-                      key={value}
-                      type="button"
-                      className="event-field__filter scene-press scene-press--chip"
-                      aria-pressed={filter === value}
-                      onClick={() => setFilter(value)}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                  {/* Without a search the count repeats the 체크인 현황 line above, so it shows only for a search (#495). */}
+                  {visibleFilters(summary.data ? fieldCounts(summary.data) : null, filter).map(([value, label]) => {
+                    const number = summary.data ? fieldCounts(summary.data)[value].toLocaleString("ko-KR") : null;
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        className="event-field__filter scene-press scene-press--chip"
+                        aria-pressed={filter === value}
+                        aria-label={number === null ? label : `${label} ${number}명`}
+                        onClick={() => setFilter(value)}
+                      >
+                        {label}
+                        {number === null ? null : <span className="event-field__filter-count"> {number}</span>}
+                      </button>
+                    );
+                  })}
+                  <SummaryState summary={summary} />
                   {roster.data && items.length > 0 && q !== "" ? (
                     <span className="event-field__count-text" aria-live="polite">
                       {total.toLocaleString("ko-KR")}명
                     </span>
                   ) : null}
                 </div>
-              ) : null}
+              ) : (
+                <section className="event-field__summary" aria-label="체크인 현황">
+                  {summary.data ? (
+                    <>
+                      <p className="event-field__count">
+                        <span>전체</span> <strong>{summary.data.total.toLocaleString("ko-KR")}</strong>명
+                      </p>
+                      <p className="event-field__count">
+                        <span>미도착</span> <strong>{fieldCounts(summary.data).absent.toLocaleString("ko-KR")}</strong>명
+                      </p>
+                      {fieldCounts(summary.data).expected > 0 ? (
+                        <p className="event-field__count event-field__count--done">
+                          <span>도착 예정</span> <strong>{fieldCounts(summary.data).expected.toLocaleString("ko-KR")}</strong>명
+                        </p>
+                      ) : null}
+                      <p className="event-field__count event-field__count--done">
+                        <span>도착</span> <strong>{summary.data.checkedIn.toLocaleString("ko-KR")}</strong>명
+                      </p>
+                    </>
+                  ) : (
+                    <SummaryState summary={summary} />
+                  )}
+                </section>
+              )}
             </div>
 
             <div className="event-field__notice-slot" aria-live="polite">
@@ -607,9 +594,13 @@ function SelectedDetail({
         <h3 className="event-field__detail-name" id="field-detail-name">
           {label}
         </h3>
-        <StatusChip done={done} unknown={unknown} />
+        <StatusChip state={fieldState(item)} unknown={unknown} />
       </div>
-      {item.phoneLast4 ? <p className="event-field__detail-meta">끝자리 {item.phoneLast4}</p> : null}
+      {expectedWhen(item) || item.phoneLast4 ? (
+        <p className="event-field__detail-meta">
+          {[expectedWhen(item) ?? "", item.phoneLast4 ? `끝자리 ${item.phoneLast4}` : ""].filter(Boolean).join(" · ")}
+        </p>
+      ) : null}
       {/* Read-only values as label-value rows, not field boxes (SCENE DS 05 참가자 상세 172:7, #485). The
           check-in state is the chip beside the name, so it is not repeated here. */}
       <dl className="event-field__detail-fields">
@@ -653,34 +644,47 @@ function QrIcon() {
   );
 }
 
-/** 미완료 by standing against the next meal (E4 #456). The 왔어야 함 count opens that list. */
-function ArrivalSummary({ arrival, onOverdue }: { arrival: SummaryArrival; onOverdue: () => void }) {
-  const n = (value: number) => `${value.toLocaleString("ko-KR")}명`;
-  return (
-    <section className="event-field__arrivals" aria-label="미완료 도착 예정">
-      <p className="event-field__arrivals-basis">{arrivalBasis(arrival)}</p>
-      <p className="event-field__arrivals-line">
-        <button type="button" className="event-field__arrivals-overdue scene-press scene-press--text" onClick={onOverdue}>
-          왔어야 함 <strong>{n(arrival.overdue)}</strong>
-        </button>
-        <span>올 예정 {n(arrival.coming)}</span>
-        {arrival.passed > 0 ? <span>참석 칸 지남 {n(arrival.passed)}</span> : null}
-        {arrival.unknown > 0 ? <span>예정 모름 {n(arrival.unknown)}</span> : null}
-      </p>
-    </section>
-  );
+/** 미도착 first: it is what the desk acts on. 도착 예정 hides when nobody is expected later (unless chosen). */
+const FILTERS: readonly (readonly [Filter, string])[] = [
+  ["all", "전체"],
+  ["absent", "미도착"],
+  ["expected", "도착 예정"],
+  ["arrived", "도착"],
+];
+
+function visibleFilters(counts: FieldCounts | null, filter: Filter): (readonly [Filter, string])[] {
+  return FILTERS.filter(([value]) => value !== "expected" || filter === "expected" || (counts?.expected ?? 0) > 0);
 }
 
-/** "예정 모름" shows only when someone is unknown, or while it is the chosen filter. */
-function filterChoices(arrival: SummaryArrival | null, filter: Filter): (readonly [Filter, string])[] {
-  const choices: (readonly [Filter, string])[] = [
-    ["all", "전체"],
-    ["pending", "미완료"],
-  ];
-  if (arrival || filter === "overdue") choices.push(["overdue", "왔어야 함"]);
-  if ((arrival && arrival.unknown > 0) || filter === "unknown") choices.push(["unknown", "예정 모름"]);
-  choices.push(["done", "완료"]);
-  return choices;
+/**
+ * 미도착 is "not checked in and not 도착 예정"; the roster query takes one arrival state, so this reads every
+ * not-checked-in page (a few hundred people at most, as the 조별 view does) and drops the 도착 예정 people.
+ */
+async function listAbsent(eventId: string, q: string, signal?: AbortSignal): Promise<ItemPage<RosterItem>> {
+  const items: RosterItem[] = [];
+  for (let page = 0; ; page += 1) {
+    const result = await listCheckInRoster(eventId, { q: q || undefined, checkedIn: false, page, size: PAGE_SIZE }, signal);
+    items.push(...result.items.filter((item) => fieldState(item) === "absent"));
+    if (page + 1 >= result.page.totalPages) {
+      return { items, page: { number: 0, size: items.length, totalItems: items.length, totalPages: 1 } };
+    }
+  }
+}
+
+/** While the 체크인 현황 is loading or failed, in the place of the numbers. */
+function SummaryState({ summary }: { summary: UseQueryResult<CheckInSummary> }) {
+  if (summary.data) return null;
+  if (summary.isError) {
+    return (
+      <span className="event-field__inline-error">
+        <span>현황을 불러오지 못했어요.</span>
+        <Button type="button" variant="secondary" size={32} onClick={() => reloadQuery(summary)}>
+          다시 시도
+        </Button>
+      </span>
+    );
+  }
+  return <span className="event-field__muted">현황을 불러오는 중이에요.</span>;
 }
 
 function GroupsSection({
@@ -793,7 +797,7 @@ function CancelDialog({
         </>
       }
     >
-      <p>취소하면 미완료로 돌아가고, 다시 체크인할 수 있어요.</p>
+      <p>취소하면 도착 전으로 돌아가고, 다시 체크인할 수 있어요.</p>
       <label className="event-field__reason-label" htmlFor="field-cancel-reason">
         취소 사유 (선택)
       </label>
@@ -913,9 +917,8 @@ function failureCopy(error: unknown, name: string): string {
 
 function emptyCopy(q: string, filter: Filter): string {
   if (q) return `'${q}'에 맞는 참가자가 없어요.`;
-  if (filter === "pending") return "체크인하지 않은 참가자가 없어요.";
-  if (filter === "done") return "아직 체크인한 참가자가 없어요.";
-  if (filter === "overdue") return "지금까지 왔어야 하는데 아직 안 온 참가자가 없어요.";
-  if (filter === "unknown") return "도착 예정을 모르는 미완료 참가자가 없어요.";
+  if (filter === "absent") return "미도착 참가자가 없어요.";
+  if (filter === "expected") return "도착 예정인 참가자가 없어요.";
+  if (filter === "arrived") return "아직 도착한 참가자가 없어요.";
   return "신청을 마친 참가자가 아직 없어요.";
 }

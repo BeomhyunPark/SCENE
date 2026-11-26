@@ -2,10 +2,10 @@ import { useId } from "react";
 import type { RosterItem } from "../api/checkIns";
 import { Button } from "./Button";
 import { FieldRoomLine } from "./FieldRoomLine";
-import { arrivalLine } from "./fieldArrival";
 import { checkInRecord } from "./fieldCheckInRecord";
 import { participantLabel } from "./participantLabel";
 import type { PendingRequest } from "./useCheckInQueue";
+import { expectedWhen, fieldState, type FieldState } from "./fieldState";
 
 /**
  * One participant card of 현장 운영 (#285), shared by the 전체 list and the 조별 view (#288). Follows
@@ -45,12 +45,11 @@ export function FieldRosterRow({
   const done = item.checkIn?.status === "CHECKED_IN";
   // 또래 is in the title ("94 김하늘"), so the line below keeps only phone last 4.
   const label = participantLabel(item);
-  const meta = [note, item.phoneLast4 ? `끝자리 ${item.phoneLast4}` : ""].filter(Boolean).join(" · ");
+  // A 도착 예정 person also says when they come ("2일차 저녁"); the badge says 도착 예정, so it is not repeated.
+  const meta = [note, expectedWhen(item) ?? "", item.phoneLast4 ? `끝자리 ${item.phoneLast4}` : ""].filter(Boolean).join(" · ");
   const record = checkInRecord(item);
   const labelId = useId();
-  // 도착 예정 칸 (E4 #456): a partial attendee due later reads as 올 예정, not as late.
-  const arrival = arrivalLine(item.arrival);
-  // Spans only: on desktop this sits inside a <button>. Room (G5 #460) under the name, arrival (E4) under meta.
+  // Spans only: on desktop this sits inside a <button>. Room (G5 #460) under the name.
   const identity = (
     <>
       <span className="event-field__name" id={labelId}>
@@ -58,9 +57,6 @@ export function FieldRosterRow({
       </span>
       <FieldRoomLine room={item.room} lodging={item.lodging} />
       {meta ? <span className="event-field__meta">{meta}</span> : null}
-      {arrival ? (
-        <span className={`event-field__arrival event-field__arrival--${arrival.tone}`}>{arrival.text}</span>
-      ) : null}
       {record ? <span className="event-field__meta event-field__record">{record}</span> : null}
     </>
   );
@@ -77,7 +73,7 @@ export function FieldRosterRow({
         <div className="event-field__row-main">{identity}</div>
       )}
       <div className="event-field__row-side">
-        <StatusChip done={done} unknown={unknown} />
+        <StatusChip state={fieldState(item)} unknown={unknown} />
         <div className="event-field__row-action">
           <RowAction
             label={label}
@@ -96,13 +92,25 @@ export function FieldRosterRow({
   );
 }
 
-/** Pill chip of the participant item: an empty circle for 미완료, a check for 체크인 완료. */
-export function StatusChip({ done, unknown }: { done: boolean; unknown: boolean }) {
+/**
+ * Pill chip of the participant item: a check for 도착, an empty circle for 미도착, and a quieter pill with no
+ * mark for 도착 예정 (not late yet). Checked in is always 도착, early or not (user decision 2026-11-26).
+ */
+export function StatusChip({ state, unknown }: { state: FieldState; unknown: boolean }) {
   if (unknown) return <span className="event-field__badge event-field__badge--unknown">확인 안 됨</span>;
+  if (state === "arrived") {
+    return (
+      <span className="event-field__badge event-field__badge--done">
+        <span className="event-field__badge-check" aria-hidden="true" />
+        도착
+      </span>
+    );
+  }
+  if (state === "expected") return <span className="event-field__badge event-field__badge--expected">도착 예정</span>;
   return (
-    <span className={done ? "event-field__badge event-field__badge--done" : "event-field__badge"}>
-      <span className={done ? "event-field__badge-check" : "event-field__badge-dot"} aria-hidden="true" />
-      {done ? "체크인 완료" : "미완료"}
+    <span className="event-field__badge">
+      <span className="event-field__badge-dot" aria-hidden="true" />
+      미도착
     </span>
   );
 }

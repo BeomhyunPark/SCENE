@@ -30,7 +30,28 @@ public final class MealSlots {
           new String[] {"dinner", "DINNER", "저녁"},
           new String[] {"worship", "WORSHIP", "집회"});
 
+  /**
+   * Start time ({@code HH:mm}) a new schedule item of a slot gets, and the time of a slot no item
+   * holds (DEC-089 §5, DEC-090 §3), by {@code meal}.
+   */
+  private static final Map<String, String> DEFAULT_STARTS =
+      Map.of("BREAKFAST", "08:00", "LUNCH", "12:00", "DINNER", "18:00", "WORSHIP", "19:30");
+
   private MealSlots() {}
+
+  /** {@code HH:mm} default start of a {@code meal} (BREAKFAST, LUNCH, DINNER or WORSHIP). */
+  public static String defaultStart(String meal) {
+    String start = DEFAULT_STARTS.get(meal);
+    if (start == null) {
+      throw new IllegalArgumentException(meal);
+    }
+    return start;
+  }
+
+  /** Schedule item category of a {@code meal}: WORSHIP for worship, MEAL otherwise (DEC-090 §1). */
+  public static String category(String meal) {
+    return "WORSHIP".equals(meal) ? "WORSHIP" : "MEAL";
+  }
 
   /** {@code meal} is BREAKFAST, LUNCH, DINNER or WORSHIP. */
   public record Slot(String optionId, String meal, String label) {}

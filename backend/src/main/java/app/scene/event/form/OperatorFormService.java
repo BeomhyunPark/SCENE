@@ -14,6 +14,7 @@ import app.scene.event.lifecycle.EventAccessGate;
 import app.scene.event.lifecycle.EventLocation;
 import app.scene.event.lifecycle.EventProfile;
 import app.scene.event.lifecycle.EventRepository;
+import app.scene.event.schedule.ScheduleSlotFill;
 import app.scene.space.EventUserPermissionRepository;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -57,6 +58,7 @@ public class OperatorFormService {
   private final EventRepository events;
   private final JsonMapper json;
   private final ParticipantFeedVersions feedVersions;
+  private final ScheduleSlotFill slotFill;
 
   public OperatorFormService(
       EventAccessGate gate,
@@ -64,13 +66,15 @@ public class OperatorFormService {
       EventUserPermissionRepository permissions,
       EventRepository events,
       JsonMapper json,
-      ParticipantFeedVersions feedVersions) {
+      ParticipantFeedVersions feedVersions,
+      ScheduleSlotFill slotFill) {
     this.gate = gate;
     this.forms = forms;
     this.events = events;
     this.permissions = permissions;
     this.json = json;
     this.feedVersions = feedVersions;
+    this.slotFill = slotFill;
   }
 
   public ItemPage<FormListItem> list(
@@ -410,6 +414,9 @@ public class OperatorFormService {
       throw new SceneException(ErrorCode.RESOURCE_NOT_FOUND);
     }
     requireFormWrite(opened, actorId);
+    // The event row first, as every schedule write takes it: the save below fills the schedule
+    // (DEC-090 §1).
+    events.getForUpdate(spaceId, eventId);
     EventProfile profile =
         events
             .findProfile(eventId)
@@ -486,6 +493,8 @@ public class OperatorFormService {
         != 1) {
       throw new IllegalStateException("form setup was not stored");
     }
+    // DEC-090 §1: the schedule working copy gets an item for every new meal and worship slot.
+    slotFill.afterSetupSaved(spaceId, eventId, actorId);
     return detail(spaceId, eventId, formId);
   }
 

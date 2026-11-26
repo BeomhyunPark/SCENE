@@ -57,6 +57,7 @@
 | 체크인 명단의 도착 상태(왔어야 함·올 예정·지남·예정 모름, E4) | 규칙은 `MealTally.standing`, 읽기는 `ArrivalRoster`(식수 현황과 같은 입력 `ArrivalSource`) |
 | 사람마다 도착 예정 칸(식수 현황·E4 도착 명단 공용) | `event/form/ArrivalSlots` |
 | 다른 기능이 읽는 일정 칸별 시작 시각 | `event/schedule/ScheduleSlotTimes` |
+| 식사·집회 칸을 일정표 작업본에 저절로 채움(설정 저장 뒤), 지운 칸 기억 (DEC-090) | `event/schedule/ScheduleSlotFill`(설정 저장은 `OperatorFormService.putSetup`이 부른다), 기본 시각·분류 `event/form/MealSlots.defaultStart`·`category` |
 | 참가자 공지 목록·상세 | `event/notice/ParticipantNoticeService` |
 | 운영자가 대신 고치기·직접 추가(검사 차이, 임시 번호, 전화번호 바꾸기) | `event/application/OperatorApplicationEditService`, 운영자 검사 `AnswerEvaluator.evaluateForOperator`, 동의·숨긴 답 옮기기 `ApplicationRevisions.revise` |
 | 운영자 공지 갱신 값(`notice_boards`) | `event/notice/NoticeBoardVersions` |
@@ -259,7 +260,7 @@ Flyway만 스키마를 쓴다. `V1__baseline.sql`이 제품 테이블이고, `V2
 
 `local` 프로파일만 `db/seed/R__local_seed.sql`을 넣는다. dev, stg, prod와 테스트는 이 시드를 쓰지 않는다. 테스트는 Testcontainers의 PostgreSQL을 띄운다.
 
-`audit_logs`는 쓰이지만 읽는 URL이 없다. `V20__participant_feed_and_notifications.sql`이 `participant_feed_versions`와 `notifications`를, `V22__notices.sql`이 `notices`와 `notice_boards`를, `V23__schedule.sql`이 일정표의 `schedule_boards`·`schedule_items`·`schedule_publications`를 더한다. 어떤 명령이 어떤 `action`을 남기는지는 [API의 기록 절](api.md#응답에-안-나오는-기록)에 있다. `V24__operator_notices_to_notifications.sql`(#436)이 `operator_notices`의 행을 `notifications`로 옮겼고, 코드는 더 이상 `operator_notices`에 쓰지 않는다. 그 테이블은 되돌림에 대비해 남겼고 나중 마이그레이션에서 지운다. `V26__participant_settings_and_privacy_logs.sql`(#452, DEC-083)이 행사 참가자 설정 `event_participant_settings`와 참가자 행위자도 받는 열람 기록 `privacy_logs`를 더한다. `privacy_logs`도 읽는 URL이 없다. `V27__rooms.sql`(#457, DEC-085)이 숙소의 `room_boards`·`rooms`·`room_assignments`·`room_assignment_logs`·`room_publications`와 `event_participant_settings.room_roster_scope`를 더한다. `room_assignment_logs`도 읽는 URL이 없다. `V28__operator_added_application.sql`(#462, DEC-088)이 `applications_revision_shape` 제약을 넓혀, 운영자가 직접 추가한 첫 revision이 `revised_by = 'OPERATOR'`와 `revised_by_user_id`를 갖게 한다.
+`audit_logs`는 쓰이지만 읽는 URL이 없다. `V20__participant_feed_and_notifications.sql`이 `participant_feed_versions`와 `notifications`를, `V22__notices.sql`이 `notices`와 `notice_boards`를, `V23__schedule.sql`이 일정표의 `schedule_boards`·`schedule_items`·`schedule_publications`를 더한다. 어떤 명령이 어떤 `action`을 남기는지는 [API의 기록 절](api.md#응답에-안-나오는-기록)에 있다. `V24__operator_notices_to_notifications.sql`(#436)이 `operator_notices`의 행을 `notifications`로 옮겼고, 코드는 더 이상 `operator_notices`에 쓰지 않는다. 그 테이블은 되돌림에 대비해 남겼고 나중 마이그레이션에서 지운다. `V26__participant_settings_and_privacy_logs.sql`(#452, DEC-083)이 행사 참가자 설정 `event_participant_settings`와 참가자 행위자도 받는 열람 기록 `privacy_logs`를 더한다. `privacy_logs`도 읽는 URL이 없다. `V27__rooms.sql`(#457, DEC-085)이 숙소의 `room_boards`·`rooms`·`room_assignments`·`room_assignment_logs`·`room_publications`와 `event_participant_settings.room_roster_scope`를 더한다. `room_assignment_logs`도 읽는 URL이 없다. `V28__operator_added_application.sql`(#462, DEC-088)이 `applications_revision_shape` 제약을 넓혀, 운영자가 직접 추가한 첫 revision이 `revised_by = 'OPERATOR'`와 `revised_by_user_id`를 갖게 한다. `V29__schedule_slot_items.sql`(DEC-090)이 `schedule_items.auto_filled`와 운영자가 뺀 칸 `schedule_slot_dismissals`를 더하고, 이미 있던 `DRAFT`·`ACTIVE` 행사의 작업본에 빠진 식사·집회 칸 항목을 한 번 채운다.
 
 설계 문서의 참가자, 신청, 재정, 조, 방, 차량, 체크인 테이블은 이 마이그레이션에 없다.
 
@@ -292,6 +293,7 @@ Flyway만 스키마를 쓴다. `V1__baseline.sql`이 제품 테이블이고, `V2
 | 참가자 홈, 갱신 값, 대상 판정, 알림 | `event/home/ParticipantHomeHttpIT` |
 | `updates` 한 요청의 SQL 문장 수 | `event/home/ParticipantUpdatesCostIT` |
 | 일정표 작업본·공개·저장하고 바로 공개·참가자 일정·알림 | `event/schedule/ScheduleHttpIT`, 변경 표시 `ScheduleChangeTest` |
+| 식사·집회 칸 자동 채움, 고친 항목 유지, 지운 칸이 되살아나지 않음(칸 연결로 돌아옴), 식수 현황 시각·"지남", V29 기존 행사 채움 | `event/schedule/ScheduleSlotFillHttpIT` |
 | 참가자 일정 한 요청의 SQL 문장 수, 200명 읽기 | `event/schedule/ParticipantScheduleCostIT` |
 | 공지 운영자·참가자 경로, 갱신 값, 알림, audit | `event/notice/NoticeHttpIT` |
 | 참가자 공지 목록 한 요청의 SQL 문장 수(200명) | `event/notice/NoticeCostIT` |
