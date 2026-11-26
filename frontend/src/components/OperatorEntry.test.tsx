@@ -9,6 +9,7 @@ import { getMe, login } from "../api/session";
 import { localUsers } from "../mocks/fixtures/seed";
 import { server } from "../mocks/server";
 import { operatorRequests } from "../mocks/operatorStore";
+import { chooseOption } from "../test/select";
 
 function renderAt(path: string) {
   return render(
@@ -35,15 +36,17 @@ describe("operator entry", () => {
     await signIn();
     expect(await screen.findByText("1개의 행사")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Local event/ })).toBeInTheDocument();
+    // The line that repeated the "행사" title is gone (#483).
+    expect(screen.queryByText("준비 중인 행사와 종료된 기록을 한곳에서 관리해요.")).toBeNull();
   });
 
   it("creates an event with the retreat code and shows the server dates", async () => {
     await signIn();
     fireEvent.click(screen.getByRole("button", { name: "새 행사" }));
     expect(await screen.findByRole("heading", { name: "새 행사 만들기" })).toBeInTheDocument();
-    fireEvent.change(screen.getByRole("combobox", { name: "행사 유형 (선택)" }), {
-      target: { value: "RETREAT" },
-    });
+    // No guidance line under 기본 정보 that Figma P02-02 does not have (#495).
+    expect(screen.queryByText(/최소 정보만/)).not.toBeInTheDocument();
+    chooseOption(screen.getByRole("combobox", { name: "행사 유형 (선택)" }), "RETREAT");
     fireEvent.change(screen.getByRole("textbox", { name: "행사명" }), { target: { value: "가을 수련회" } });
     fireEvent.change(document.getElementById("event-start-picker")!, { target: { value: "2026-10-24" } });
     fireEvent.change(document.getElementById("event-end-picker")!, { target: { value: "2026-10-25" } });

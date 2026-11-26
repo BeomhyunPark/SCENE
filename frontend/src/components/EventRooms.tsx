@@ -34,6 +34,7 @@ import {
 } from "../api/rooms";
 import { getMe } from "../api/session";
 import { Button } from "./Button";
+import { Select, type SelectOption } from "./Select";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { EventScreen } from "./EventScreen";
 import { eventContext, formatPublishedAt } from "./eventFormat";
@@ -118,7 +119,7 @@ function RoomsBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
       tasksHref={`${eventHref}/tasks`}
       framed
       leading={
-        <Link className="event-home__back" to={eventHref} aria-label="행사 홈으로">
+        <Link className="event-home__back scene-press scene-press--text" to={eventHref} aria-label="행사 홈으로">
           <img src={arrowLeft} alt="" />
         </Link>
       }
@@ -127,7 +128,6 @@ function RoomsBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
         {board.data ? (
           <Board
             eventId={eventId}
-            eventHref={eventHref}
             context={context}
             board={board.data}
             fetching={board.isFetching}
@@ -137,7 +137,7 @@ function RoomsBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
           />
         ) : (
           <>
-            <PageHead context={context} eventHref={eventHref} chip={null} primary={null} />
+            <PageHead context={context} chip={null} primary={null} />
             {isApiError(board.error) && board.error.status === 403 ? (
               <p className="event-groups__blocked" role="note">
                 숙소 배정판을 볼 권한이 없어요. 행사 OWNER에게 숙소 권한을 요청해 주세요.
@@ -159,7 +159,7 @@ function RoomsBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
   );
 }
 
-function PageHead({ context, eventHref, chip, primary }: { context: string; eventHref: string; chip: ReactNode; primary: ReactNode }) {
+function PageHead({ context, chip, primary }: { context: string; chip: ReactNode; primary: ReactNode }) {
   return (
     <section className="event-groups__head" aria-label="숙소 현황">
       <div className="event-groups__head-text">
@@ -168,9 +168,6 @@ function PageHead({ context, eventHref, chip, primary }: { context: string; even
       </div>
       <div className="event-groups__head-actions">
         {chip}
-        <Link className="scene-button scene-button--secondary scene-button--size-40 event-groups__home" to={eventHref}>
-          <span className="scene-button__label">행사 홈</span>
-        </Link>
         <div className="event-groups__primary-slot">{primary}</div>
       </div>
     </section>
@@ -179,7 +176,6 @@ function PageHead({ context, eventHref, chip, primary }: { context: string; even
 
 function Board({
   eventId,
-  eventHref,
   context,
   board,
   fetching,
@@ -188,7 +184,6 @@ function Board({
   permissionsPending,
 }: {
   eventId: string;
-  eventHref: string;
   context: string;
   board: RoomBoard;
   fetching: boolean;
@@ -483,13 +478,13 @@ function Board({
     start(event, { kind: "people", ids, label }, fromGrip);
   }
 
+  const hint = publicationHint(board);
   const targetId = target && board.rooms.some((room) => room.roomId === target) ? target : "";
 
   return (
     <>
       <PageHead
         context={context}
-        eventHref={eventHref}
         chip={
           <p className="event-groups__chip" aria-live="polite">
             배정 {count(assigned)} · 미배정 {count(board.publication.unassignedCount)}
@@ -512,14 +507,13 @@ function Board({
           </Button>
         }
       />
-      <p className="event-groups__hint">
-        바꾼 내용은 바로 저장되지만, 참가자에게는 공개해야 보여요. 정원·성별이 맞지 않아도 막지 않고 경고만 보여요.{" "}
-        <span className="event-groups__published">{publishedText(board)}</span>
-        {board.publication.hasUnpublishedChanges ? (
-          <span className="event-groups__unpublished"> 참가자에게 아직 공개하지 않은 변경이 있어요.</span>
-        ) : null}
-        {fetching ? <span className="event-groups__fetching"> 최신 상태를 확인하는 중…</span> : null}
-      </p>
+      {/* 저장·공개 안내는 한 문장만(#496): 공개 안 한 변경이 있으면 그 문장, 없으면 마지막 공개(D04 v2 머리와 같은 정보). */}
+      {hint || fetching ? (
+        <p className={`event-groups__hint${board.publication.hasUnpublishedChanges ? " event-groups__hint--unpublished" : ""}`}>
+          {hint}
+          {fetching ? <span className="event-groups__fetching"> 최신 상태를 확인하는 중…</span> : null}
+        </p>
+      ) : null}
 
       {blocked ? (
         <p className="event-groups__blocked" id="rooms-blocked" role="note">
@@ -571,7 +565,8 @@ function Board({
         ) : null}
         {board.rooms.length > 0 ? <SlotLegend slots={board.slots} /> : null}
         {board.rooms.length === 0 ? (
-          <p className="event-groups__empty">{editable ? "아직 방이 없어요. 위의 + 방 추가로 방을 만들어 주세요." : "아직 만든 방이 없어요."}</p>
+          // 놓을 곳이 없는 빈 점선 박스와, 위 제목 "아직 방이 없어요"의 되풀이를 걷었다(#483). 할 일 한 줄만 남긴다.
+          editable ? <p className="event-groups__muted">위의 + 방 추가로 방을 만들어 주세요.</p> : null
         ) : (
           <ol className="event-rooms__grid">
             {board.rooms.map((room, index) => (
@@ -642,7 +637,7 @@ function Board({
         {notLodging.some((person) => person.roomId === null) && filters.lodging !== "NOT_LODGING" ? (
           <p className="event-rooms__not-lodging-note">
             숙박하지 않는 {notLodging.filter((person) => person.roomId === null).length}명(집회만·통근·당일)은 방에 넣지 않아요. 미배정 수에도 들지 않아요.{" "}
-            <button type="button" className="event-rooms__link" onClick={() => setFilters({ ...filters, lodging: "NOT_LODGING", assignment: "all" })}>
+            <button type="button" className="event-rooms__link scene-press scene-press--text" onClick={() => setFilters({ ...filters, lodging: "NOT_LODGING", assignment: "all" })}>
               명단 보기
             </button>
           </p>
@@ -714,15 +709,13 @@ function Board({
           <label className="event-groups__visually-hidden" htmlFor="rooms-target">
             보낼 방
           </label>
-          <select id="rooms-target" className="event-groups__select" value={targetId} onChange={(change) => setTarget(change.target.value)}>
-            <option value="">보낼 방 고르기</option>
-            {board.rooms.map((room) => (
-              <option key={room.roomId} value={room.roomId}>
-                {room.name} ({room.memberCount}
-                {room.capacity !== null ? `/${room.capacity}` : ""}명)
-              </option>
-            ))}
-          </select>
+          <Select
+            id="rooms-target"
+            className="event-groups__select"
+            value={targetId}
+            options={[{ value: "", label: "보낼 방 고르기" }, ...board.rooms.map((room) => ({ value: room.roomId, label: roomOptionLabel(room) }))]}
+            onChange={setTarget}
+          />
           <Button type="button" variant="primary" size={40} disabled={busy || !targetId} onClick={() => move(targetId, chosen)}>
             보내기
           </Button>
@@ -1114,14 +1107,12 @@ function RoomForm({
       </label>
       <label className="event-groups__field">
         <span className="event-groups__field-label">성별 구분</span>
-        <select className="event-groups__select" value={gender} onChange={(change) => setGender(change.target.value)}>
-          <option value="">구분 없음</option>
-          {genderOptions.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+        <Select
+          className="event-groups__select"
+          value={gender}
+          options={[{ value: "", label: "구분 없음" }, ...genderOptions.map((option) => ({ value: option.value, label: option.label }))]}
+          onChange={setGender}
+        />
       </label>
       <label className="event-groups__field event-rooms__field--wide">
         <span className="event-groups__field-label">위치 메모 (참가자에게 보여요)</span>
@@ -1247,14 +1238,12 @@ function AddRooms({
           </label>
           <label className="event-groups__field">
             <span className="event-groups__field-label">성별 구분</span>
-            <select className="event-groups__select" value={gender} onChange={(change) => setGender(change.target.value)}>
-              <option value="">구분 없음</option>
-              {genderOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+            <Select
+              className="event-groups__select"
+              value={gender}
+              options={[{ value: "", label: "구분 없음" }, ...genderOptions.map((option) => ({ value: option.value, label: option.label }))]}
+              onChange={setGender}
+            />
           </label>
           <label className="event-groups__field event-rooms__field--wide">
             <span className="event-groups__field-label">위치 메모 (참가자에게 보여요)</span>
@@ -1331,41 +1320,40 @@ function GroupBatch({
         {hasDraft ? (
           <label className="event-groups__field">
             <span className="event-groups__field-label">조 기준</span>
-            <select
+            <Select
               className="event-groups__select"
               value={source}
-              onChange={(change) => {
-                setSource(change.target.value as "published" | "draft");
+              options={[
+                { value: "published", label: "공개된 조" },
+                { value: "draft", label: "작업 중인 조" },
+              ]}
+              onChange={(value) => {
+                setSource(value as "published" | "draft");
                 setGroupId("");
               }}
-            >
-              <option value="published">공개된 조</option>
-              <option value="draft">작업 중인 조</option>
-            </select>
+            />
           </label>
         ) : null}
         <label className="event-groups__field">
           <span className="event-groups__field-label">조</span>
-          <select className="event-groups__select" value={group ? groupId : ""} onChange={(change) => setGroupId(change.target.value)}>
-            <option value="">조 고르기</option>
-            {groups.map((item) => (
-              <option key={item.groupId} value={item.groupId}>
-                {item.name} ({groupMembers(board.participants, item.groupId, source).length}명)
-              </option>
-            ))}
-          </select>
+          <Select
+            className="event-groups__select"
+            value={group ? groupId : ""}
+            options={[
+              { value: "", label: "조 고르기" },
+              ...groups.map((item) => ({ value: item.groupId, label: `${item.name} (${groupMembers(board.participants, item.groupId, source).length}명)` })),
+            ]}
+            onChange={setGroupId}
+          />
         </label>
         <label className="event-groups__field">
           <span className="event-groups__field-label">방</span>
-          <select className="event-groups__select" value={room ? roomId : ""} onChange={(change) => setRoomId(change.target.value)}>
-            <option value="">방 고르기</option>
-            {board.rooms.map((item) => (
-              <option key={item.roomId} value={item.roomId}>
-                {item.name} ({item.memberCount}
-                {item.capacity !== null ? `/${item.capacity}` : ""}명)
-              </option>
-            ))}
-          </select>
+          <Select
+            className="event-groups__select"
+            value={room ? roomId : ""}
+            options={[{ value: "", label: "방 고르기" }, ...board.rooms.map((item) => ({ value: item.roomId, label: roomOptionLabel(item) }))]}
+            onChange={setRoomId}
+          />
         </label>
         <Button
           type="button"
@@ -1550,20 +1538,30 @@ function Filters({
           onChange={(change) => set({ q: change.target.value })}
         />
       </label>
-      <Select label="배정 상태" value={filters.assignment} onChange={(value) => set({ assignment: value as RoomAssignmentFilter })}>
-        <option value="unassigned">미배정</option>
-        <option value="assigned">배정됨</option>
-        <option value="review">다시 볼 것</option>
-        <option value="all">전체</option>
-      </Select>
+      <FilterSelect
+        label="배정 상태"
+        value={filters.assignment}
+        options={[
+          { value: "unassigned", label: "미배정" },
+          { value: "assigned", label: "배정됨" },
+          { value: "review", label: "다시 볼 것" },
+          { value: "all", label: "전체" },
+        ]}
+        onChange={(value) => set({ assignment: value as RoomAssignmentFilter })}
+      />
       <AnswerSelect label="성별" value={filters.gender} options={options.gender} onChange={(gender) => set({ gender })} />
       <AnswerSelect label="또래" value={filters.cohort} options={options.cohort} onChange={(cohort) => set({ cohort })} />
-      <Select label="참석 방식" value={filters.attendance} onChange={(attendance) => set({ attendance })}>
-        <option value={ANY}>전체</option>
-        <option value="FULL">전체 참석</option>
-        <option value="PARTIAL">부분 참석</option>
-        <option value="WORSHIP_ONLY">집회만</option>
-      </Select>
+      <FilterSelect
+        label="참석 방식"
+        value={filters.attendance}
+        options={[
+          { value: ANY, label: "전체" },
+          { value: "FULL", label: "전체 참석" },
+          { value: "PARTIAL", label: "부분 참석" },
+          { value: "WORSHIP_ONLY", label: "집회만" },
+        ]}
+        onChange={(attendance) => set({ attendance })}
+      />
       <AnswerSelect label="숙박" value={filters.lodging} options={options.lodging} onChange={(lodging) => set({ lodging })} />
       {options.group.length > 0 ? <AnswerSelect label="조" value={filters.group} options={options.group} onChange={(group) => set({ group })} /> : null}
       {active ? (
@@ -1575,13 +1573,16 @@ function Filters({
   );
 }
 
-function Select({ label, value, onChange, children }: { label: string; value: string; onChange: (value: string) => void; children: ReactNode }) {
+/** "301호 (2/4명)": 방 고르기 목록의 한 줄. */
+function roomOptionLabel(room: { name: string; memberCount: number; capacity: number | null }): string {
+  return `${room.name} (${room.memberCount}${room.capacity !== null ? `/${room.capacity}` : ""}명)`;
+}
+
+function FilterSelect({ label, value, options, onChange }: { label: string; value: string; options: SelectOption[]; onChange: (value: string) => void }) {
   return (
     <label className="event-groups__field">
       <span className="event-groups__field-label">{label}</span>
-      <select className="event-groups__select" value={value} onChange={(change) => onChange(change.target.value)}>
-        {children}
-      </select>
+      <Select className="event-groups__select" value={value} options={options} onChange={onChange} />
     </label>
   );
 }
@@ -1598,14 +1599,12 @@ function AnswerSelect({
   onChange: (value: string) => void;
 }) {
   return (
-    <Select label={label} value={value} onChange={onChange}>
-      <option value={ANY}>전체</option>
-      {options.map((option) => (
-        <option key={option.value} value={option.value}>
-          {option.label} ({option.count})
-        </option>
-      ))}
-    </Select>
+    <FilterSelect
+      label={label}
+      value={value}
+      options={[{ value: ANY, label: "전체" }, ...options.map((option) => ({ value: option.value, label: `${option.label} (${option.count})` }))]}
+      onChange={onChange}
+    />
   );
 }
 
@@ -1676,7 +1675,9 @@ function PoolCard({
         ) : null}
         {canPick ? <Grip label={`${label} 끌어서 옮기기`} onStart={(event) => onStart(event, true)} /> : null}
       </span>
-      <AttendanceBar slots={board.slots} person={person} />
+      <span className="event-groups__pool-slots">
+        <AttendanceBar slots={board.slots} person={person} />
+      </span>
       <span className="event-groups__pool-meta">
         <span className={`event-rooms__tag event-rooms__tag--${person.lodging.toLowerCase().replace("_", "-")}`}>
           {person.lodging === "LODGING" ? nightsText(person) : LODGING_LABEL[person.lodging]}
@@ -1689,7 +1690,7 @@ function PoolCard({
   if (!canPick) return <div className={`event-groups__pool-card${blockedHere ? " event-rooms__pool-card--blocked" : ""}`}>{body}</div>;
   return (
     <label
-      className={`event-groups__pool-card event-groups__pool-card--selectable${checked ? " event-groups__pool-card--checked" : ""}${dragging ? " event-groups__pool-card--dragging" : ""}`}
+      className={`event-groups__pool-card event-groups__pool-card--selectable scene-press scene-press--row${checked ? " event-groups__pool-card--checked" : ""}${dragging ? " event-groups__pool-card--dragging" : ""}`}
       onPointerDown={(event) => onStart(event, false)}
     >
       {body}
@@ -1743,9 +1744,11 @@ function count(value: number): string {
   return value.toLocaleString("ko-KR");
 }
 
-function publishedText(board: RoomBoard): string {
-  const { lastPublishedAt, lastPublishedByDisplayName } = board.publication;
-  if (!lastPublishedAt) return "아직 공개하지 않았어요.";
+/** The one line under the head (#496): unpublished changes first, otherwise when it was last published. */
+function publicationHint(board: RoomBoard): string | null {
+  const { lastPublishedAt, lastPublishedByDisplayName, hasUnpublishedChanges } = board.publication;
+  if (hasUnpublishedChanges) return "참가자에게 아직 공개하지 않은 변경이 있어요.";
+  if (!lastPublishedAt) return null;
   return `마지막 공개 ${formatPublishedAt(lastPublishedAt)}${lastPublishedByDisplayName ? ` · ${lastPublishedByDisplayName}` : ""}.`;
 }
 

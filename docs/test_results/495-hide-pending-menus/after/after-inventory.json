@@ -1,0 +1,1152 @@
+{
+ "event-new": {
+  "390": {
+   "buttons": [
+    {
+     "t": "메뉴 열기",
+     "disabled": false
+    },
+    {
+     "t": "시작일 선택",
+     "disabled": false
+    },
+    {
+     "t": "종료일 선택",
+     "disabled": false
+    },
+    {
+     "t": "취소",
+     "disabled": false
+    },
+    {
+     "t": "행사 만들기",
+     "disabled": false
+    }
+   ],
+   "links": [
+    {
+     "t": "행사 목록",
+     "href": "/events"
+    }
+   ],
+   "inputs": [
+    {
+     "t": "행사명",
+     "type": "text"
+    },
+    {
+     "t": "시작일",
+     "type": "text"
+    },
+    {
+     "t": "date",
+     "type": "date"
+    },
+    {
+     "t": "종료일",
+     "type": "text"
+    },
+    {
+     "t": "date",
+     "type": "date"
+    },
+    {
+     "t": "장소",
+     "type": "text"
+    },
+    {
+     "t": "행사 유형 (선택)",
+     "type": "select-one"
+    }
+   ],
+   "headings": [
+    "H1: 새 행사 만들기",
+    "H2: 기본 정보"
+   ],
+   "texts": [],
+   "title": "새 행사 만들기"
+  },
+  "1440": {
+   "buttons": [
+    {
+     "t": "시작일 선택",
+     "disabled": false
+    },
+    {
+     "t": "종료일 선택",
+     "disabled": false
+    },
+    {
+     "t": "취소",
+     "disabled": false
+    },
+    {
+     "t": "행사 만들기",
+     "disabled": false
+    }
+   ],
+   "links": [
+    {
+     "t": "행사 목록",
+     "href": "/events"
+    }
+   ],
+   "inputs": [
+    {
+     "t": "행사명",
+     "type": "text"
+    },
+    {
+     "t": "시작일",
+     "type": "text"
+    },
+    {
+     "t": "date",
+     "type": "date"
+    },
+    {
+     "t": "종료일",
+     "type": "text"
+    },
+    {
+     "t": "date",
+     "type": "date"
+    },
+    {
+     "t": "장소",
+     "type": "text"
+    },
+    {
+     "t": "행사 유형 (선택)",
+     "type": "select-one"
+    }
+   ],
+   "headings": [
+    "H1: 새 행사 만들기",
+    "H2: 기본 정보"
+   ],
+   "texts": [],
+   "title": "새 행사 만들기"
+  },
+  "path": "/events/new"
+ },
+ "notices": {
+  "390": {
+   "buttons": [
+    {
+     "t": "메뉴 열기",
+     "disabled": false
+    },
+    {
+     "t": "공지 쓰기",
+     "disabled": false
+    },
+    {
+     "t": "발행",
+     "disabled": false
+    },
+    {
+     "t": "초안",
+     "disabled": false
+    },
+    {
+     "t": "보관",
+     "disabled": false
+    }
+   ],
+   "links": [
+    {
+     "t": "행사 홈",
+     "href": "/events/00000000-0000-4000-8000-000000000020"
+    },
+    {
+     "t": "첫째 날 집합 안내 오후 2시 30분까지 로비로 와 주세요. 발행 11월 25일 17:06",
+     "href": "/events/00000000-0000-4000-8000-000000000020/notices/040ec05e-bbae-433b-a9de-ce6e6bb20b62"
+    }
+   ],
+   "inputs": [],
+   "headings": [
+    "H1: 공지"
+   ],
+   "texts": [
+    "고정 0/3"
+   ],
+   "title": "공지"
+  },
+  "1440": {
+   "buttons": [
+    {
+     "t": "공지 쓰기",
+     "disabled": false
+    },
+    {
+     "t": "발행",
+     "disabled": false
+    },
+    {
+     "t": "초안",
+     "disabled": false
+    },
+    {
+     "t": "보관",
+     "disabled": false
+    }
+   ],
+   "links": [
+    {
+     "t": "행사 홈",
+     "href": "/events/00000000-0000-4000-8000-000000000020"
+    },
+    {
+     "t": "첫째 날 집합 안내 오후 2시 30분까지 로비로 와 주세요. 발행 11월 25일 17:05",
+     "href": "/events/00000000-0000-4000-8000-000000000020/notices/0c6f28ce-b7c5-4d3e-ad5c-d337e5785703"
+    }
+   ],
+   "inputs": [],
+   "headings": [
+    "H1: 공지"
+   ],
+   "texts": [
+    "고정 0/3"
+   ],
+   "title": "공지"
+  },
+  "path": "/events/00000000-0000-4000-8000-000000000020/notices"
+ },
+ "notifications": {
+  "390": {
+   "buttons": [
+    {
+     "t": "메뉴 열기",
+     "disabled": false
+    },
+    {
+     "t": "모두 읽음",
+     "disabled": true
+    }
+   ],
+   "links": [],
+   "inputs": [],
+   "headings": [
+    "H1: 알림"
+   ],
+   "texts": [
+    "아직 알림이 없어요. 참가자가 신청을 고치거나 취소하면 여기에 떠요."
+   ],
+   "title": "알림"
+  },
+  "1440": {
+   "buttons": [
+    {
+     "t": "모두 읽음",
+     "disabled": true
+    }
+   ],
+   "links": [],
+   "inputs": [],
+   "headings": [
+    "H1: 알림"
+   ],
+   "texts": [
+    "아직 알림이 없어요. 참가자가 신청을 고치거나 취소하면 여기에 떠요."
+   ],
+   "title": "알림"
+  },
+  "path": "/events/00000000-0000-4000-8000-000000000020/notifications"
+ },
+ "field": {
+  "390": {
+   "buttons": [
+    {
+     "t": "메뉴 열기",
+     "disabled": false
+    },
+    {
+     "t": "새로 고침",
+     "disabled": false
+    },
+    {
+     "t": "전체 명단",
+     "disabled": false
+    },
+    {
+     "t": "조별 명단",
+     "disabled": false
+    },
+    {
+     "t": "QR 스캔",
+     "disabled": false
+    },
+    {
+     "t": "전체",
+     "disabled": false
+    },
+    {
+     "t": "미완료",
+     "disabled": false
+    },
+    {
+     "t": "완료",
+     "disabled": false
+    },
+    {
+     "t": "99 강민준 체크인",
+     "disabled": false
+    },
+    {
+     "t": "91 강서준 체크인",
+     "disabled": false
+    },
+    {
+     "t": "97 강수아 체크인",
+     "disabled": false
+    },
+    {
+     "t": "93 강예린 체크인",
+     "disabled": false
+    },
+    {
+     "t": "95 강하늘 체크인",
+     "disabled": false
+    },
+    {
+     "t": "94 김민준 체크인",
+     "disabled": false
+    },
+    {
+     "t": "96 김서준 체크인",
+     "disabled": false
+    },
+    {
+     "t": "92 김수아 체크인",
+     "disabled": false
+    },
+    {
+     "t": "98 김예린 체크인",
+     "disabled": false
+    },
+    {
+     "t": "94 김하늘 체크인",
+     "disabled": false
+    },
+    {
+     "t": "90 김하늘 체크인",
+     "disabled": false
+    },
+    {
+     "t": "95 김하람 체크인",
+     "disabled": false
+    },
+    {
+     "t": "94 박민준 체크인",
+     "disabled": false
+    },
+    {
+     "t": "96 박서준 체크인",
+     "disabled": false
+    },
+    {
+     "t": "96 박서준 체크인",
+     "disabled": false
+    },
+    {
+     "t": "92 박수아 체크인",
+     "disabled": false
+    },
+    {
+     "t": "98 박예린 체크인",
+     "disabled": false
+    },
+    {
+     "t": "90 박하늘 체크인",
+     "disabled": false
+    },
+    {
+     "t": "99 윤민준 체크인",
+     "disabled": false
+    },
+    {
+     "t": "91 윤서준 체크인",
+     "disabled": false
+    },
+    {
+     "t": "97 윤수아 체크인",
+     "disabled": false
+    },
+    {
+     "t": "93 윤예린 체크인",
+     "disabled": false
+    },
+    {
+     "t": "95 윤하늘 체크인",
+     "disabled": false
+    },
+    {
+     "t": "99 이민준 체크인",
+     "disabled": false
+    },
+    {
+     "t": "91 이서준 체크인",
+     "disabled": false
+    },
+    {
+     "t": "94 이수아 체크인",
+     "disabled": false
+    },
+    {
+     "t": "97 이수아 체크인",
+     "disabled": false
+    },
+    {
+     "t": "97 이수아 체크인",
+     "disabled": false
+    },
+    {
+     "t": "93 이예린 체크인",
+     "disabled": false
+    },
+    {
+     "t": "95 이하늘 체크인",
+     "disabled": false
+    },
+    {
+     "t": "94 정민준 체크인",
+     "disabled": false
+    },
+    {
+     "t": "정민호 체크인",
+     "disabled": false
+    },
+    {
+     "t": "96 정서준 체크인",
+     "disabled": false
+    },
+    {
+     "t": "92 정수아 체크인",
+     "disabled": false
+    },
+    {
+     "t": "98 정예린 체크인",
+     "disabled": false
+    },
+    {
+     "t": "90 정하늘 체크인",
+     "disabled": false
+    },
+    {
+     "t": "94 조민준 체크인",
+     "disabled": false
+    },
+    {
+     "t": "96 조서준 체크인",
+     "disabled": false
+    },
+    {
+     "t": "92 조수아 체크인",
+     "disabled": false
+    },
+    {
+     "t": "98 조예린 체크인",
+     "disabled": false
+    },
+    {
+     "t": "90 조하늘 체크인",
+     "disabled": false
+    },
+    {
+     "t": "99 최민준 체크인",
+     "disabled": false
+    },
+    {
+     "t": "91 최서준 체크인",
+     "disabled": false
+    },
+    {
+     "t": "97 최수아 체크인",
+     "disabled": false
+    },
+    {
+     "t": "98 최예린 체크인",
+     "disabled": false
+    },
+    {
+     "t": "93 최예린 체크인",
+     "disabled": false
+    },
+    {
+     "t": "95 최하늘 체크인",
+     "disabled": false
+    },
+    {
+     "t": "95 한지우 체크인",
+     "disabled": false
+    }
+   ],
+   "links": [
+    {
+     "t": "행사 홈",
+     "href": "/events/00000000-0000-4000-8000-000000000020"
+    },
+    {
+     "t": "식수 현황 보기",
+     "href": "/events/00000000-0000-4000-8000-000000000020/meals"
+    }
+   ],
+   "inputs": [
+    {
+     "t": "이름 또는 전화 끝 4자리",
+     "type": "search"
+    }
+   ],
+   "headings": [
+    "H1: 현장 운영",
+    "H2: Local event"
+   ],
+   "texts": [
+    "Local space · 2027년 1월 22일 – 2027년 1월 24일",
+    "오후 5:06:20에 읽음",
+    "전체 48명",
+    "미완료 48명",
+    "체크인 완료 0명"
+   ],
+   "title": "현장 운영"
+  },
+  "1440": {
+   "buttons": [
+    {
+     "t": "새로 고침",
+     "disabled": false
+    },
+    {
+     "t": "전체 명단",
+     "disabled": false
+    },
+    {
+     "t": "조별 명단",
+     "disabled": false
+    },
+    {
+     "t": "QR 스캔",
+     "disabled": false
+    },
+    {
+     "t": "전체",
+     "disabled": false
+    },
+    {
+     "t": "미완료",
+     "disabled": false
+    },
+    {
+     "t": "완료",
+     "disabled": false
+    },
+    {
+     "t": "99 강민준 끝자리 1029",
+     "disabled": false
+    },
+    {
+     "t": "99 강민준 체크인",
+     "disabled": false
+    },
+    {
+     "t": "91 강서준 끝자리 1021",
+     "disabled": false
+    },
+    {
+     "t": "91 강서준 체크인",
+     "disabled": false
+    },
+    {
+     "t": "97 강수아 끝자리 1037",
+     "disabled": false
+    },
+    {
+     "t": "97 강수아 체크인",
+     "disabled": false
+    },
+    {
+     "t": "93 강예린 끝자리 1013",
+     "disabled": false
+    },
+    {
+     "t": "93 강예린 체크인",
+     "disabled": false
+    },
+    {
+     "t": "95 강하늘 끝자리 1005",
+     "disabled": false
+    },
+    {
+     "t": "95 강하늘 체크인",
+     "disabled": false
+    },
+    {
+     "t": "94 김민준 끝자리 1024",
+     "disabled": false
+    },
+    {
+     "t": "94 김민준 체크인",
+     "disabled": false
+    },
+    {
+     "t": "96 김서준 끝자리 1016",
+     "disabled": false
+    },
+    {
+     "t": "96 김서준 체크인",
+     "disabled": false
+    },
+    {
+     "t": "92 김수아 끝자리 1032",
+     "disabled": false
+    },
+    {
+     "t": "92 김수아 체크인",
+     "disabled": false
+    },
+    {
+     "t": "98 김예린 끝자리 1008",
+     "disabled": false
+    },
+    {
+     "t": "98 김예린 체크인",
+     "disabled": false
+    },
+    {
+     "t": "94 김하늘 끝자리 1234",
+     "disabled": false
+    },
+    {
+     "t": "94 김하늘 체크인",
+     "disabled": false
+    },
+    {
+     "t": "90 김하늘 끝자리 1000",
+     "disabled": false
+    },
+    {
+     "t": "90 김하늘 체크인",
+     "disabled": false
+    },
+    {
+     "t": "95 김하람 끝자리 5678",
+     "disabled": false
+    },
+    {
+     "t": "95 김하람 체크인",
+     "disabled": false
+    },
+    {
+     "t": "94 박민준 끝자리 1034",
+     "disabled": false
+    },
+    {
+     "t": "94 박민준 체크인",
+     "disabled": false
+    },
+    {
+     "t": "96 박서준 끝자리 2468",
+     "disabled": false
+    },
+    {
+     "t": "96 박서준 체크인",
+     "disabled": false
+    },
+    {
+     "t": "96 박서준 끝자리 1026",
+     "disabled": false
+    },
+    {
+     "t": "96 박서준 체크인",
+     "disabled": false
+    },
+    {
+     "t": "92 박수아 끝자리 1002",
+     "disabled": false
+    },
+    {
+     "t": "92 박수아 체크인",
+     "disabled": false
+    },
+    {
+     "t": "98 박예린 끝자리 1018",
+     "disabled": false
+    },
+    {
+     "t": "98 박예린 체크인",
+     "disabled": false
+    },
+    {
+     "t": "90 박하늘 끝자리 1010",
+     "disabled": false
+    },
+    {
+     "t": "90 박하늘 체크인",
+     "disabled": false
+    },
+    {
+     "t": "99 윤민준 끝자리 1039",
+     "disabled": false
+    },
+    {
+     "t": "99 윤민준 체크인",
+     "disabled": false
+    },
+    {
+     "t": "91 윤서준 끝자리 1031",
+     "disabled": false
+    },
+    {
+     "t": "91 윤서준 체크인",
+     "disabled": false
+    },
+    {
+     "t": "97 윤수아 끝자리 1007",
+     "disabled": false
+    },
+    {
+     "t": "97 윤수아 체크인",
+     "disabled": false
+    },
+    {
+     "t": "93 윤예린 끝자리 1023",
+     "disabled": false
+    },
+    {
+     "t": "93 윤예린 체크인",
+     "disabled": false
+    },
+    {
+     "t": "95 윤하늘 끝자리 1015",
+     "disabled": false
+    },
+    {
+     "t": "95 윤하늘 체크인",
+     "disabled": false
+    },
+    {
+     "t": "99 이민준 끝자리 1009",
+     "disabled": false
+    },
+    {
+     "t": "99 이민준 체크인",
+     "disabled": false
+    },
+    {
+     "t": "91 이서준 끝자리 1001",
+     "disabled": false
+    },
+    {
+     "t": "91 이서준 체크인",
+     "disabled": false
+    },
+    {
+     "t": "94 이수아 끝자리 1357",
+     "disabled": false
+    },
+    {
+     "t": "94 이수아 체크인",
+     "disabled": false
+    },
+    {
+     "t": "97 이수아 끝자리 8642",
+     "disabled": false
+    },
+    {
+     "t": "97 이수아 체크인",
+     "disabled": false
+    },
+    {
+     "t": "97 이수아 끝자리 1017",
+     "disabled": false
+    },
+    {
+     "t": "97 이수아 체크인",
+     "disabled": false
+    },
+    {
+     "t": "93 이예린 끝자리 1033",
+     "disabled": false
+    },
+    {
+     "t": "93 이예린 체크인",
+     "disabled": false
+    },
+    {
+     "t": "95 이하늘 끝자리 1025",
+     "disabled": false
+    },
+    {
+     "t": "95 이하늘 체크인",
+     "disabled": false
+    },
+    {
+     "t": "94 정민준 끝자리 1004",
+     "disabled": false
+    },
+    {
+     "t": "94 정민준 체크인",
+     "disabled": false
+    },
+    {
+     "t": "정민호 끝자리 9090",
+     "disabled": false
+    },
+    {
+     "t": "정민호 체크인",
+     "disabled": false
+    },
+    {
+     "t": "96 정서준 끝자리 1036",
+     "disabled": false
+    },
+    {
+     "t": "96 정서준 체크인",
+     "disabled": false
+    },
+    {
+     "t": "92 정수아 끝자리 1012",
+     "disabled": false
+    },
+    {
+     "t": "92 정수아 체크인",
+     "disabled": false
+    },
+    {
+     "t": "98 정예린 끝자리 1028",
+     "disabled": false
+    },
+    {
+     "t": "98 정예린 체크인",
+     "disabled": false
+    },
+    {
+     "t": "90 정하늘 끝자리 1020",
+     "disabled": false
+    },
+    {
+     "t": "90 정하늘 체크인",
+     "disabled": false
+    },
+    {
+     "t": "94 조민준 끝자리 1014",
+     "disabled": false
+    },
+    {
+     "t": "94 조민준 체크인",
+     "disabled": false
+    },
+    {
+     "t": "96 조서준 끝자리 1006",
+     "disabled": false
+    },
+    {
+     "t": "96 조서준 체크인",
+     "disabled": false
+    },
+    {
+     "t": "92 조수아 끝자리 1022",
+     "disabled": false
+    },
+    {
+     "t": "92 조수아 체크인",
+     "disabled": false
+    },
+    {
+     "t": "98 조예린 끝자리 1038",
+     "disabled": false
+    },
+    {
+     "t": "98 조예린 체크인",
+     "disabled": false
+    },
+    {
+     "t": "90 조하늘 끝자리 1030",
+     "disabled": false
+    },
+    {
+     "t": "90 조하늘 체크인",
+     "disabled": false
+    },
+    {
+     "t": "99 최민준 끝자리 1019",
+     "disabled": false
+    },
+    {
+     "t": "99 최민준 체크인",
+     "disabled": false
+    },
+    {
+     "t": "91 최서준 끝자리 1011",
+     "disabled": false
+    },
+    {
+     "t": "91 최서준 체크인",
+     "disabled": false
+    },
+    {
+     "t": "97 최수아 끝자리 1027",
+     "disabled": false
+    },
+    {
+     "t": "97 최수아 체크인",
+     "disabled": false
+    },
+    {
+     "t": "98 최예린 끝자리 1234",
+     "disabled": false
+    },
+    {
+     "t": "98 최예린 체크인",
+     "disabled": false
+    },
+    {
+     "t": "93 최예린 끝자리 1003",
+     "disabled": false
+    },
+    {
+     "t": "93 최예린 체크인",
+     "disabled": false
+    },
+    {
+     "t": "95 최하늘 끝자리 1035",
+     "disabled": false
+    },
+    {
+     "t": "95 최하늘 체크인",
+     "disabled": false
+    },
+    {
+     "t": "95 한지우 끝자리 3141",
+     "disabled": false
+    },
+    {
+     "t": "95 한지우 체크인",
+     "disabled": false
+    },
+    {
+     "t": "99 강민준 체크인",
+     "disabled": false
+    }
+   ],
+   "links": [
+    {
+     "t": "행사 홈",
+     "href": "/events/00000000-0000-4000-8000-000000000020"
+    },
+    {
+     "t": "식수 현황 보기",
+     "href": "/events/00000000-0000-4000-8000-000000000020/meals"
+    }
+   ],
+   "inputs": [
+    {
+     "t": "이름 또는 전화 끝 4자리",
+     "type": "search"
+    }
+   ],
+   "headings": [
+    "H1: 현장 운영",
+    "H2: Local event",
+    "H3: 99 강민준"
+   ],
+   "texts": [
+    "Local space · 2027년 1월 22일 – 2027년 1월 24일",
+    "오후 5:06:05에 읽음",
+    "전체 48명",
+    "미완료 48명",
+    "체크인 완료 0명",
+    "선택한 참가자",
+    "끝자리 1029"
+   ],
+   "title": "현장 운영"
+  },
+  "path": "/events/00000000-0000-4000-8000-000000000020/field"
+ },
+ "areas": {
+  "390": {
+   "buttons": [
+    {
+     "t": "메뉴 열기",
+     "disabled": false
+    }
+   ],
+   "links": [
+    {
+     "t": "행사로 돌아가기",
+     "href": "/events/00000000-0000-4000-8000-000000000020"
+    }
+   ],
+   "inputs": [],
+   "headings": [
+    "H1: 다른 기능 시작",
+    "H2: 아직 준비 중이에요"
+   ],
+   "texts": [
+    "이 행사에서 쓸 기능을 고르는 화면은 아직 만들고 있어요."
+   ],
+   "title": "다른 기능 시작"
+  },
+  "1440": {
+   "buttons": [],
+   "links": [
+    {
+     "t": "행사로 돌아가기",
+     "href": "/events/00000000-0000-4000-8000-000000000020"
+    }
+   ],
+   "inputs": [],
+   "headings": [
+    "H1: 다른 기능 시작",
+    "H2: 아직 준비 중이에요"
+   ],
+   "texts": [
+    "이 행사에서 쓸 기능을 고르는 화면은 아직 만들고 있어요."
+   ],
+   "title": "다른 기능 시작"
+  },
+  "path": "/events/00000000-0000-4000-8000-000000000020/areas"
+ },
+ "history": {
+  "390": {
+   "buttons": [
+    {
+     "t": "메뉴 열기",
+     "disabled": false
+    }
+   ],
+   "links": [
+    {
+     "t": "행사 목록으로",
+     "href": "/events"
+    }
+   ],
+   "inputs": [],
+   "headings": [
+    "H1: 기록",
+    "H2: 아직 준비 중이에요"
+   ],
+   "texts": [],
+   "title": "기록"
+  },
+  "1440": {
+   "buttons": [],
+   "links": [
+    {
+     "t": "행사 목록으로",
+     "href": "/events"
+    }
+   ],
+   "inputs": [],
+   "headings": [
+    "H1: 기록",
+    "H2: 아직 준비 중이에요"
+   ],
+   "texts": [],
+   "title": "기록"
+  },
+  "path": "/history"
+ },
+ "guides": {
+  "390": {
+   "buttons": [
+    {
+     "t": "메뉴 열기",
+     "disabled": false
+    }
+   ],
+   "links": [
+    {
+     "t": "행사 목록으로",
+     "href": "/events"
+    }
+   ],
+   "inputs": [],
+   "headings": [
+    "H1: 안내",
+    "H2: 아직 준비 중이에요"
+   ],
+   "texts": [],
+   "title": "안내"
+  },
+  "1440": {
+   "buttons": [],
+   "links": [
+    {
+     "t": "행사 목록으로",
+     "href": "/events"
+    }
+   ],
+   "inputs": [],
+   "headings": [
+    "H1: 안내",
+    "H2: 아직 준비 중이에요"
+   ],
+   "texts": [],
+   "title": "안내"
+  },
+  "path": "/guides"
+ },
+ "p-me": {
+  "390": {
+   "buttons": [
+    {
+     "t": "숫자 6자리 바꾸기",
+     "disabled": false
+    },
+    {
+     "t": "로그아웃",
+     "disabled": false
+    }
+   ],
+   "links": [
+    {
+     "t": "고치기",
+     "href": "/participate/00000000-0000-4000-8000-000000000020/me/edit"
+    }
+   ],
+   "inputs": [],
+   "headings": [
+    "H1: 내 정보",
+    "H2: 내 신청",
+    "H2: 들어올 때 쓰는 번호"
+   ],
+   "texts": [
+    "2026. 11. 25. 17:06 기준",
+    "이름, 전화번호와 함께 다시 들어올 때 써요."
+   ],
+   "title": "SCENE"
+  },
+  "1440": {
+   "buttons": [
+    {
+     "t": "숫자 6자리 바꾸기",
+     "disabled": false
+    },
+    {
+     "t": "로그아웃",
+     "disabled": false
+    }
+   ],
+   "links": [
+    {
+     "t": "고치기",
+     "href": "/participate/00000000-0000-4000-8000-000000000020/me/edit"
+    }
+   ],
+   "inputs": [],
+   "headings": [
+    "H1: 내 정보",
+    "H2: 내 신청",
+    "H2: 들어올 때 쓰는 번호"
+   ],
+   "texts": [
+    "2026. 11. 25. 17:06 기준",
+    "이름, 전화번호와 함께 다시 들어올 때 써요."
+   ],
+   "title": "SCENE"
+  },
+  "path": "/participate/00000000-0000-4000-8000-000000000020/me"
+ }
+}

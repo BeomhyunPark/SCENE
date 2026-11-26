@@ -95,7 +95,7 @@ export function PublicTermsDialog({ onClose }: PublicTermsDialogProps) {
           <h2 className="public-terms__title" id="terms-title">
             약관 확인
           </h2>
-          <button className="public-terms__dismiss" type="button" aria-label="닫기" onClick={onClose}>
+          <button className="public-terms__dismiss scene-press scene-press--quiet" type="button" aria-label="닫기" onClick={onClose}>
             ×
           </button>
         </div>

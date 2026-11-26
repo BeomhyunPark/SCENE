@@ -77,9 +77,10 @@ function Body({ event, spaceName }: { event: EventDetail; spaceName?: string }) 
       }
     >
       <div className="event-notifications">
-        <p className="event-notifications__lead">
-          {event.name}에서 나에게 온 알림이에요.{unread > 0 ? ` 읽지 않은 알림 ${unread > 99 ? "99+" : unread}개` : ""}
-        </p>
+        {/* The title and the sidebar already name this event's 알림: only the unread count is new (#495). */}
+        {unread > 0 ? (
+          <p className="event-notifications__lead">읽지 않은 알림 {unread > 99 ? "99+" : unread}개</p>
+        ) : null}
         {list.isPending ? (
           <p role="status">불러오는 중이에요.</p>
         ) : list.isError ? (
@@ -145,7 +146,7 @@ function NotificationRow({ item, href, onOpen }: { item: OperatorNotification; h
   if (!href) {
     // Not openable (unknown kind or no screen yet); still marks read when tapped.
     return unread ? (
-      <button type="button" className={className} onClick={onOpen}>
+      <button type="button" className={`${className} scene-press scene-press--row scene-press--inset`} onClick={onOpen}>
         {content}
       </button>
     ) : (
@@ -154,7 +155,7 @@ function NotificationRow({ item, href, onOpen }: { item: OperatorNotification; h
   }
   return (
     <a
-      className={className}
+      className={`${className} scene-press scene-press--row scene-press--inset`}
       href={href}
       onClick={(event) => {
         if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;

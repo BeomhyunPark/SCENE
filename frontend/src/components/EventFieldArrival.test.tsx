@@ -5,7 +5,7 @@ import { App } from "../App";
 import { login } from "../api/session";
 import { seedCheckIn } from "../mocks/checkInStore";
 import { localUsers } from "../mocks/fixtures/seed";
-import { setMealCountsNow } from "../mocks/mealCounts";
+import { mealCounts, setMealCountsNow } from "../mocks/mealCounts";
 import { tableApplications } from "../mocks/participantStore";
 import { RETREAT, seedRetreat } from "../test/summarySeed";
 
@@ -58,7 +58,7 @@ describe("현장 운영 도착 예정 (E4 #456)", () => {
     expect(screen.getByRole("listitem", { name: "94 하나" })).toHaveTextContent("1일차 저녁 도착 예정");
 
     const arrivals = screen.getByRole("region", { name: "미완료 도착 예정" });
-    expect(arrivals).toHaveTextContent("다음 끼니 2일차 아침 기준");
+    expect(arrivals).toHaveTextContent("다음 식사 2일차 아침 기준");
     expect(arrivals).toHaveTextContent("왔어야 함 1명");
     expect(arrivals).toHaveTextContent("올 예정 1명");
 
@@ -69,14 +69,14 @@ describe("현장 운영 도착 예정 (E4 #456)", () => {
     await waitFor(() => expect(names()).toEqual(["95 두리"]), WAIT);
   });
 
-  it("names as many late people as 식수 현황's 아직 안 옴 for the next meal", async () => {
+  it("names as many late people as the meal counts' missing for the next meal", async () => {
     seedThree();
     setMealCountsNow(new Date("2027-01-22T19:10:00+09:00"));
     await login({ userId: OWNER });
-    const meals = open("meals");
-    const next = await screen.findByRole("region", { name: /다음 끼니/ }, WAIT);
-    expect(next).toHaveTextContent("아직 안 옴 1");
-    meals.unmount();
+    // 식수 현황 no longer shows 아직 안 옴 (2026-11-25); the response still carries it as `missing`.
+    const counts = mealCounts(RETREAT);
+    const nextSlot = counts.days.flatMap((day) => day.slots).find((slot) => slot.slotId === counts.nextSlotId);
+    expect(nextSlot?.missing).toBe(1);
 
     open("field");
     const arrivals = await screen.findByRole("region", { name: "미완료 도착 예정" }, WAIT);

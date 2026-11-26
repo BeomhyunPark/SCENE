@@ -143,18 +143,19 @@ function Collaborations({
           <h2 id="collab-title" className={lead ? "event-list__title" : "event-list__collab-title"}>
             협력 중인 행사
           </h2>
-          <p className="event-list__support">
-            {lead
-              ? "조직 멤버가 아니어도, 운영자로 함께하는 행사는 여기서 열 수 있어요."
-              : "다른 조직에서 운영자로 함께하는 행사예요."}
-          </p>
+          {/* 조직 아래에 붙을 때는 제목과 행의 조직 이름으로 충분해 설명을 두지 않는다(#483). */}
+          {lead ? <p className="event-list__support">조직 멤버가 아니어도, 운영자로 함께하는 행사는 여기서 열 수 있어요.</p> : null}
         </div>
         <p className="event-list__count">{`${items.length}개의 행사`}</p>
       </div>
       <ul className="event-list__rows">
         {items.map((event) => (
           <li key={event.eventId}>
-            <button className="event-list__row" type="button" onClick={() => navigate(`/events/${event.eventId}`)}>
+            <button
+              className="event-list__row scene-press scene-press--card"
+              type="button"
+              onClick={() => navigate(`/events/${event.eventId}`)}
+            >
               <span className="event-list__row-main">
                 <span className="event-list__row-name">{event.name}</span>
                 <span className="event-list__row-org">
@@ -163,6 +164,7 @@ function Collaborations({
               </span>
               <span>{eventContext(event)}</span>
               <span className="event-list__badge">{lifecycleLabel(event.lifecycleStatus)}</span>
+              <span className="scene-chevron" aria-hidden="true" />
             </button>
           </li>
         ))}
@@ -225,12 +227,12 @@ function EventRows({
       }
     >
       <div className="event-list__body">
+        {/* 머리 "행사"를 되풀이하던 설명 줄은 뺐다(#483). 어느 조직인지와 개수만 한 번씩 남기고, 빈 목록에서는 개수 대신 빈 상태 안내가 말한다. */}
         <div className="event-list__intro">
-          <div>
-            <h2 className="event-list__title">{spaceName}의 행사</h2>
-            <p className="event-list__support">준비 중인 행사와 종료된 기록을 한곳에서 관리해요.</p>
-          </div>
-          <p className="event-list__count">{events.data ? `${events.data.page.totalItems}개의 행사` : ""}</p>
+          <h2 className="event-list__title">{spaceName}의 행사</h2>
+          {events.data && events.data.page.totalItems > 0 ? (
+            <p className="event-list__count">{`${events.data.page.totalItems}개의 행사`}</p>
+          ) : null}
         </div>
         {events.isPending ? <p className="event-list__support">불러오는 중이에요.</p> : null}
         {events.isError ? (
@@ -266,13 +268,14 @@ function EventRows({
             {events.data.items.map((event) => (
               <li key={event.eventId}>
                 <button
-                  className="event-list__row"
+                  className="event-list__row scene-press scene-press--card"
                   type="button"
                   onClick={() => navigate(`/events/${event.eventId}`)}
                 >
                   <span className="event-list__row-name">{event.name}</span>
                   <span>{eventContext(event)}</span>
                   <span className="event-list__badge">{lifecycleLabel(event.lifecycleStatus)}</span>
+                  <span className="scene-chevron" aria-hidden="true" />
                 </button>
               </li>
             ))}

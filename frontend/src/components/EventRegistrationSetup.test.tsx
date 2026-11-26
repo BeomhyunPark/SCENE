@@ -15,6 +15,7 @@ import { operatorRequests } from "../mocks/operatorStore";
 import { problem } from "../mocks/problem";
 import { server } from "../mocks/server";
 import { EventRegistrationSetup } from "./EventRegistrationSetup";
+import { chooseOption, chooseOptionByLabel, optionLabels } from "../test/select";
 
 function renderSetup(eventId: string = localEvent.eventId) {
   return render(
@@ -45,6 +46,22 @@ async function waitForField(label: string) {
 }
 
 describe("event registration setup", () => {
+  it("opens 행사 설정 from the header button (#483)", async () => {
+    await login({ userId: localUsers[0].userId });
+    render(
+      <QueryClientProvider client={createQueryClient()}>
+        <MemoryRouter initialEntries={[`/events/${localEvent.eventId}/participants/setup`]}>
+          <Routes>
+            <Route path="/events/:eventId/participants/setup" element={<EventRegistrationSetup />} />
+            <Route path="/events/:eventId/settings" element={<p>설정 화면</p>} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "행사 설정" }, { timeout: 4000 }));
+    expect(await screen.findByText("설정 화면")).toBeInTheDocument();
+  });
+
   it("creates a form and shows the system fields", async () => {
     await login({ userId: localUsers[0].userId });
     renderSetup();
@@ -60,7 +77,14 @@ describe("event registration setup", () => {
     expect(screen.getByRole("region", { name: "참가자 화면 미리보기" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "직접 질문 추가" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /삭제$/ })).not.toBeInTheDocument();
-    expect(screen.getAllByText("준비 중")).toHaveLength(1);
+    // No 신청 기간 card that only said "준비 중" (#498): the state above says where applications stand.
+    expect(screen.queryByText("준비 중")).not.toBeInTheDocument();
+    expect(screen.getByText("설정 중")).toBeInTheDocument();
+    // 위로 is not shown on the first question, 아래로 not on the last (#498).
+    expect(list.queryByRole("button", { name: "이름 위로" })).not.toBeInTheDocument();
+    expect(list.getByRole("button", { name: "이름 아래로" })).toBeEnabled();
+    expect(list.getByRole("button", { name: "또래 위로" })).toBeEnabled();
+    expect(list.queryByRole("button", { name: "또래 아래로" })).not.toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "완료 안내 문구" })).toHaveValue("");
     const listed = operatorRequests.find((request) => request.method === "GET" && request.url.includes("/forms?"));
     expect(listed?.url).not.toContain("sort");
@@ -84,7 +108,7 @@ describe("event registration setup", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "직접 질문 추가" }));
     fireEvent.change(screen.getByRole("textbox", { name: "질문" }), { target: { value: "참석 방식" } });
-    fireEvent.change(screen.getByRole("combobox", { name: "답변 유형" }), { target: { value: "SINGLE_CHOICE" } });
+    chooseOption(screen.getByRole("combobox", { name: "답변 유형" }), "SINGLE_CHOICE");
     fireEvent.click(screen.getByRole("checkbox", { name: "필수" }));
     fireEvent.change(screen.getByRole("textbox", { name: "보기 1" }), { target: { value: "전체" } });
     fireEvent.change(screen.getByRole("textbox", { name: "보기 2" }), { target: { value: "부분" } });
@@ -110,7 +134,7 @@ describe("event registration setup", () => {
     fireEvent.click(await screen.findByRole("button", { name: "신청서 만들기" }, { timeout: 4000 }));
     fireEvent.click(await screen.findByRole("button", { name: "직접 질문 추가" }));
     fireEvent.change(screen.getByRole("textbox", { name: "질문" }), { target: { value: "티셔츠" } });
-    fireEvent.change(screen.getByRole("combobox", { name: "답변 유형" }), { target: { value: "DROPDOWN" } });
+    chooseOption(screen.getByRole("combobox", { name: "답변 유형" }), "DROPDOWN");
     fireEvent.click(screen.getByRole("button", { name: "질문 추가" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("보기를 하나 이상 써 주세요.");
     expect(operatorRequests.some((request) => request.method === "POST" && request.url.endsWith("/fields"))).toBe(
@@ -124,16 +148,16 @@ describe("event registration setup", () => {
     fireEvent.click(await screen.findByRole("button", { name: "신청서 만들기" }, { timeout: 4000 }));
     fireEvent.click(await screen.findByRole("button", { name: "직접 질문 추가" }));
     fireEvent.change(screen.getByRole("textbox", { name: "질문" }), { target: { value: "자차로 오나요?" } });
-    fireEvent.change(screen.getByRole("combobox", { name: "답변 유형" }), { target: { value: "YES_NO" } });
+    chooseOption(screen.getByRole("combobox", { name: "답변 유형" }), "YES_NO");
     fireEvent.click(screen.getByRole("button", { name: "질문 추가" }));
     const list = await questionList();
     expect(await list.findByText("자차로 오나요?")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "직접 질문 추가" }));
     fireEvent.change(screen.getByRole("textbox", { name: "질문" }), { target: { value: "몇 명 태울 수 있나요?" } });
-    fireEvent.change(screen.getByRole("combobox", { name: "답변 유형" }), { target: { value: "NUMBER" } });
+    chooseOption(screen.getByRole("combobox", { name: "답변 유형" }), "NUMBER");
     const carId = (await waitForField("자차로 오나요?")).fieldId;
-    fireEvent.change(screen.getByRole("combobox", { name: "조건 질문" }), { target: { value: carId } });
+    chooseOption(screen.getByRole("combobox", { name: "조건 질문" }), carId);
     fireEvent.click(screen.getByRole("button", { name: "질문 추가" }));
     expect(await screen.findByText("'자차로 오나요?'에 예일 때 보여요")).toBeInTheDocument();
     const posted = operatorRequests.filter((request) => request.method === "POST" && request.url.endsWith("/fields"));
@@ -224,6 +248,10 @@ describe("event registration setup", () => {
     expect(await screen.findByText("행사를 시작해야 신청을 열 수 있어요. 지금 시작할까요?")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "시작하기" }));
     expect(await screen.findByText("신청 받는 중")).toBeInTheDocument();
+    // While open, the screen no longer asks to prepare the form or shows 설정 중 (#498).
+    expect(screen.queryByText("참가 신청을 준비해 보세요.")).not.toBeInTheDocument();
+    expect(screen.queryByText("설정 중")).not.toBeInTheDocument();
+    expect(screen.queryByText("공개 전")).not.toBeInTheDocument();
     const writes = operatorRequests.slice(mark).filter((request) => request.method === "POST" || request.method === "PATCH");
     const activateAt = writes.findIndex((request) => request.url.endsWith("/activate"));
     const acceptAt = writes.findIndex(
@@ -303,6 +331,31 @@ describe("event registration setup", () => {
     expect(screen.queryByRole("textbox", { name: "완료 안내 문구" })).not.toBeInTheDocument();
     expect(screen.getByText("아직 안내가 없어요.")).toBeInTheDocument();
   });
+  it("shows a setting's explanation only while it is chosen, and group notes under 설명 (#498)", async () => {
+    await login({ userId: localUsers[0].userId });
+    const retreat = await createEvent(localSpace.spaceId, { name: "겨울 수련회", startDate: "2027-01-22", endDate: "2027-01-24" });
+    renderSetup(retreat.eventId);
+    fireEvent.click(await screen.findByRole("button", { name: "신청서 만들기" }, { timeout: 4000 }));
+    const worship = await screen.findByRole("checkbox", { name: /집회만 받기/ });
+    expect(screen.queryByText(/참석할 집회만 물어요/)).not.toBeInTheDocument();
+    fireEvent.click(worship);
+    expect(screen.getByText(/참석할 집회만 물어요/)).toBeInTheDocument();
+    // Only the chosen way of taking partial attendance is explained.
+    expect(screen.getByText(/언제 도착하고 언제 출발하는지만 골라요/)).toBeInTheDocument();
+    expect(screen.queryByText(/참석하는 식사와 집회를 하나씩 골라요/)).not.toBeInTheDocument();
+    // 새가족 only comes up once a middle group or cell is asked.
+    expect(screen.queryByText(/새가족/)).not.toBeInTheDocument();
+
+    const help = screen.getByRole("button", { name: "일차별 식사·집회 설명" });
+    expect(help).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByText(/실제로 있는 칸만 체크해 주세요/)).not.toBeVisible();
+    fireEvent.click(help);
+    expect(help).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText(/실제로 있는 칸만 체크해 주세요/)).toBeVisible();
+    fireEvent.click(help);
+    expect(screen.getByText(/실제로 있는 칸만 체크해 주세요/)).not.toBeVisible();
+  });
+
   it("builds the form from the setup card and lets the operator click through the branches", async () => {
     await login({ userId: localUsers[0].userId });
     const retreat = await createEvent(localSpace.spaceId, {
@@ -531,12 +584,12 @@ describe("event registration setup", () => {
     expect(sent.at(-1)?.body).not.toHaveProperty("newcomer");
     const preview = within(screen.getByRole("region", { name: "참가자 화면 미리보기" }));
     const middle = await preview.findByRole("combobox", { name: /중그룹/ });
-    expect(within(middle).getByRole("option", { name: "새가족 (등반X)" })).toBeInTheDocument();
+    expect(optionLabels(middle)).toContain("새가족 (등반X)");
     // The cell is asked only after a listed middle group.
     expect(preview.queryByRole("textbox", { name: /^셀/ })).not.toBeInTheDocument();
-    fireEvent.change(middle, { target: { value: within(middle).getByRole("option", { name: "1중그룹" }).getAttribute("value") } });
+    chooseOptionByLabel(middle, "1중그룹");
     expect(await preview.findByRole("textbox", { name: /^셀/ })).toBeInTheDocument();
-    fireEvent.change(middle, { target: { value: "opt_newcomer" } });
+    chooseOption(middle, "opt_newcomer");
     await waitFor(() => expect(preview.queryByRole("textbox", { name: /^셀/ })).not.toBeInTheDocument());
   });
 
@@ -650,9 +703,11 @@ describe("신청 수정 받기 (#427)", () => {
     expect(await screen.findByText("받는 중")).toBeInTheDocument();
     expect(within(editsPanel()).getByText(/참가자가 낸 신청을 직접 고칠 수 있어요/)).toBeInTheDocument();
 
-    // Closing applications keeps edits open.
+    // Closing applications after one came in keeps edits open, and the state says 신청 닫힘 (#498).
+    markSubmitted(localEvent.eventId, form.formId);
     fireEvent.click(screen.getByRole("button", { name: "신청 닫기" }));
-    expect(await screen.findByText("공개 전")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "신청 닫힘" })).toBeInTheDocument();
+    expect(screen.queryByText("설정 중")).not.toBeInTheDocument();
     expect(within(editsPanel()).getByText("받는 중")).toBeInTheDocument();
     expect(within(editsPanel()).getByText(/신청은 닫혔지만 이미 낸 신청은 고칠 수 있어요/)).toBeInTheDocument();
 

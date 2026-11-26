@@ -1,0 +1,82 @@
+/* SCENE DS Menu 37:47: elevated surface, 6px inset, 36px items, a divider before the danger item. */
+.row-menu {
+  position: relative;
+  flex: none;
+}
+
+.row-menu__trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+/* Hover, press and the focus ring come from scene-press (pressable.css, #484). */
+.row-menu__trigger[aria-expanded="true"] {
+  background: var(--color-bg-subtle);
+  color: var(--color-text-primary);
+}
+
+.row-menu__trigger:disabled {
+  color: var(--color-text-disabled, var(--color-text-tertiary));
+  cursor: not-allowed;
+}
+
+.row-menu__menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  box-sizing: border-box;
+  width: 220px;
+  padding: 6px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 8px;
+  background: var(--color-bg-raised);
+  box-shadow: 0 4px 12px -4px var(--color-shadow-popover);
+}
+
+.row-menu__item {
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--color-text-primary);
+  font: var(--scene-body-m);
+  text-align: left;
+  cursor: pointer;
+}
+
+/* The item that has focus from the arrow keys shows like a hovered row. */
+.row-menu__item:focus {
+  background: var(--color-bg-hover-row);
+}
+
+.row-menu__item--danger {
+  color: var(--color-danger-fg);
+}
+
+.row-menu__divider {
+  height: 1px;
+  margin: 2px 0;
+  background: var(--color-border-default);
+}
+
+@media (max-width: 560px) {
+  .row-menu__item {
+    min-height: 40px;
+  }
+}

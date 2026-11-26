@@ -1,40 +1,97 @@
+/*
+ * 업무 상세 (#493, Figma P07-D01 264:26306): 왼쪽은 제목(바로 고치기)과 체크리스트, 오른쪽은 속성 패널
+ * (현재 상태·담당자·시작일·마감일)과 업무 완료. 박스는 입력 칸과 패널을 가르는 세로선 하나뿐이고,
+ * 안쪽은 구분선과 라벨-값으로 나눈다. 휴대폰에선 위아래로 쌓는다.
+ */
 .task-detail {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  flex: 1;
+  align-items: start;
+  background: var(--color-bg-surface);
+}
+
+.task-detail__main {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  min-width: 0;
   padding: 28px 32px 32px;
 }
 
-.task-detail__badge {
+.task-detail__title {
+  box-sizing: border-box;
+  width: 100%;
   margin: 0;
-  color: var(--color-text-secondary);
-  font: var(--scene-label-m);
-}
-
-.task-detail__title,
-.task-detail__actions,
-.task-detail__assignee {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-
-.task-detail input,
-.task-detail select {
-  height: 40px;
-  padding: 0 12px;
-  border: 1px solid var(--color-border-default);
+  padding: 4px 8px;
+  margin-left: -8px;
+  border: 1px solid transparent;
   border-radius: 8px;
-  background: var(--color-bg-surface);
+  background: transparent;
   color: var(--color-text-primary);
-  font: var(--scene-body-m);
+  font: var(--scene-heading-m);
+}
+
+input.task-detail__title:hover {
+  border-color: var(--color-border-default);
+}
+
+input.task-detail__title:focus {
+  outline: none;
+  border-color: var(--color-border-selected);
+}
+
+input.task-detail__title:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 1px;
+}
+
+.task-detail__notice,
+.task-detail__alert,
+.task-detail__hint {
+  margin: 0;
+  font: var(--scene-body-s);
+}
+
+.task-detail__notice,
+.task-detail__hint {
+  color: var(--color-text-secondary);
+}
+
+.task-detail__alert {
+  color: var(--color-danger-fg);
+}
+
+.task-detail__checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border-default);
+}
+
+.task-detail__section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.task-detail__section-head h3 {
+  margin: 0;
+  color: var(--color-text-primary);
+  font: var(--scene-title);
+}
+
+.task-detail__section-head span {
+  color: var(--color-text-brand);
+  font: var(--scene-label-s);
+  font-variant-numeric: tabular-nums;
 }
 
 .task-detail__items {
   display: flex;
   flex-direction: column;
-  gap: 8px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -43,26 +100,57 @@
 .task-detail__items label {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  min-height: 40px;
+  color: var(--color-text-primary);
   font: var(--scene-body-m);
+  cursor: pointer;
+}
+
+.task-detail__items input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--color-accent);
+}
+
+.task-detail__items input:disabled + span {
+  color: var(--color-text-secondary);
+}
+
+.task-detail__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-self: stretch;
+  padding: 28px 20px 32px;
+  border-left: 1px solid var(--color-border-default);
 }
 
 .task-detail__dates {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 8px 12px;
+  display: contents;
 }
 
-.task-detail__dates label {
+.task-detail__prop {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  color: var(--color-text-secondary);
-  font: var(--scene-label-m);
+  align-items: flex-start;
+  gap: 6px;
 }
 
-.task-detail__dates input {
+.task-detail__label {
+  color: var(--color-text-tertiary);
+  font: var(--scene-label-s);
+}
+
+.task-detail__value {
+  color: var(--color-text-primary);
+  font: var(--scene-body-m);
+}
+
+.task-detail__control {
+  box-sizing: border-box;
+  width: 100%;
   height: 40px;
   padding: 0 10px;
   border: 1px solid var(--color-border-control);
@@ -72,8 +160,79 @@
   font: var(--scene-body-m);
 }
 
-.task-detail__period {
-  margin: 0;
+.task-detail__control:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 1px;
+}
+
+.task-detail__status {
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--color-bg-subtle);
   color: var(--color-text-secondary);
-  font: var(--scene-body-m);
+  font: var(--scene-label-s);
+  line-height: 24px;
+}
+
+.task-detail__status--doing,
+.task-detail__status--done {
+  background: var(--color-bg-selected);
+  color: var(--color-text-brand);
+}
+
+.task-detail__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border-default);
+}
+
+.task-detail__actions > .scene-button {
+  width: 100%;
+}
+
+.task-detail__quiet {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+}
+
+.task-detail__period {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 넓은 화면에선 framed 본문이 좌우 여백을 주므로 제목·패널 끝을 머리와 맞춘다. */
+@media (min-width: 1024px) {
+  .task-detail__main {
+    padding-left: 0;
+  }
+
+  .task-detail__panel {
+    padding-right: 0;
+    padding-left: 24px;
+  }
+}
+
+@media (max-width: 720px) {
+  .task-detail {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .task-detail__main {
+    padding: 20px 16px 8px;
+  }
+
+  .task-detail__panel {
+    padding: 16px 16px 24px;
+    border-top: 1px solid var(--color-border-default);
+    border-left: 0;
+  }
+
+  .task-detail__dates {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
 }

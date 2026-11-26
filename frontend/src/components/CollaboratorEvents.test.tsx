@@ -130,7 +130,8 @@ describe("event-only collaborators see and open their events (#387)", () => {
 
     expect(await screen.findByRole("heading", { name: "Local space의 행사" })).toBeInTheDocument();
     const collab = await screen.findByRole("region", { name: "협력 중인 행사" });
-    expect(within(collab).getByText("다른 조직에서 운영자로 함께하는 행사예요.")).toBeInTheDocument();
+    // Under the organization's list the section title and each row's organization say it; no extra line (#483).
+    expect(within(collab).queryByText("다른 조직에서 운영자로 함께하는 행사예요.")).toBeNull();
     expect(within(collab).getByRole("button", { name: /Bravo retreat/ })).toHaveTextContent("Bravo church · Staff");
     // The organization's own event is not repeated below.
     expect(within(collab).queryByText("Local event")).toBeNull();
@@ -186,7 +187,9 @@ describe("event-only collaborators see and open their events (#387)", () => {
     await login({ userId: OWNER.userId });
     openApp(`/events/${event}/operators`);
 
-    expect(await screen.findByRole("region", { name: "조직 멤버 추가" })).toBeInTheDocument();
+    // The member list loads when the 운영자 추가 dialog opens (#494).
+    fireEvent.click(await screen.findByRole("button", { name: "운영자 추가" }));
+    expect(await screen.findByRole("dialog", { name: "운영자 추가" })).toBeInTheDocument();
     await waitFor(() =>
       expect(operatorRequests.map((request) => request.url)).toContain(
         `/api/v1/operator/spaces/${zeta}/members?page=0&size=100`,

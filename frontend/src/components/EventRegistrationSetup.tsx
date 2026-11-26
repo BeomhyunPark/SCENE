@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 import arrowLeft from "../assets/event-create/arrow-left.svg";
 import calendarCheck from "../assets/event-home/calendar-check.svg";
 import type { EventDetail } from "../api/events";
@@ -62,6 +62,7 @@ export function EventRegistrationSetup() {
 function SetupBody({ event, spaceName }: { event: EventDetail; spaceName?: string }) {
   const queryClient = useQueryClient();
   const eventId = event.eventId;
+  const navigate = useNavigate();
   const me = useQuery({ queryKey: queryKeys.me, queryFn: getMe });
   const permissions = useQuery({
     queryKey: queryKeys.permissions(eventId, me.data?.userId ?? ""),
@@ -312,8 +313,7 @@ function SetupBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
     }
   }
 
-  const lead = leadCopy(Boolean(form.data), form.data?.acceptingApplications ?? false, ended);
-  const badge = ended ? lifecycleLabel(event.lifecycleStatus) : "설정 중";
+  const status = statusCopy(form.data ?? null, ended);
 
   return (
     <OperatorShell
@@ -325,12 +325,12 @@ function SetupBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
       participantsHref={eventId ? `/events/${eventId}/participants` : undefined}
       framed
       leading={
-        <Link className="event-home__back" to={eventId ? `/events/${eventId}/participants` : "/events"} aria-label="참가 운영">
+        <Link className="event-home__back scene-press scene-press--text" to={eventId ? `/events/${eventId}/participants` : "/events"} aria-label="참가 운영">
           <img src={arrowLeft} alt="" />
         </Link>
       }
       action={
-        <Button type="button" variant="secondary" size={40}>
+        <Button type="button" variant="secondary" size={40} onClick={() => navigate(`/events/${eventId}/settings`)}>
           행사 설정
         </Button>
       }
@@ -341,45 +341,48 @@ function SetupBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
             {context ? <p className="event-home__facts">{context}</p> : null}
             <p className="event-home__state">{draftStatus ? "새로 만든 행사" : lifecycleLabel(event.lifecycleStatus)}</p>
           </div>
-          <span className="event-home__badge">{badge}</span>
+          {status.badge ? <span className="event-home__badge">{status.badge}</span> : null}
         </div>
-        <section className="event-home__welcome">
-          <span className="event-home__mark" aria-hidden="true">
-            <img src={calendarCheck} alt="" />
-          </span>
-          <div className="event-home__welcome-copy">
-            <h2>참가 신청을 준비해 보세요.</h2>
-            <p>{lead}</p>
-          </div>
-          {!form.data && canWrite ? (
-            <Button type="button" variant="primary" size={40} loading={pending} onClick={() => void makeForm()}>
-              신청서 만들기
-            </Button>
-          ) : null}
-          {form.data && canWrite && !ended ? (
-            form.data.acceptingApplications ? (
-              <Button type="button" variant="secondary" size={40} loading={pending} onClick={() => void closeApplications()}>
-                신청 닫기
+        {/* One block for the application state (#498): 신청 열기·닫기 and 신청 수정 받기 share it, divided by a line. */}
+        <div className="registration-setup__status">
+          <section className="event-home__welcome" aria-labelledby="registration-state-title">
+            <span className="event-home__mark" aria-hidden="true">
+              <img src={calendarCheck} alt="" />
+            </span>
+            <div className="event-home__welcome-copy">
+              <h2 id="registration-state-title">{status.title}</h2>
+              {status.lead ? <p>{status.lead}</p> : null}
+            </div>
+            {!form.data && canWrite ? (
+              <Button type="button" variant="primary" size={40} loading={pending} onClick={() => void makeForm()}>
+                신청서 만들기
               </Button>
-            ) : (
-              <Button
-                type="button"
-                variant="primary"
-                size={40}
-                loading={pending}
-                onClick={() => {
-                  if (event.lifecycleStatus === "DRAFT") setDialog("open");
-                  else void openApplications();
-                }}
-              >
-                신청 열기
-              </Button>
-            )
+            ) : null}
+            {form.data && canWrite && !ended ? (
+              form.data.acceptingApplications ? (
+                <Button type="button" variant="secondary" size={40} loading={pending} onClick={() => void closeApplications()}>
+                  신청 닫기
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  variant="primary"
+                  size={40}
+                  loading={pending}
+                  onClick={() => {
+                    if (event.lifecycleStatus === "DRAFT") setDialog("open");
+                    else void openApplications();
+                  }}
+                >
+                  신청 열기
+                </Button>
+              )
+            ) : null}
+          </section>
+          {form.data ? (
+            <EditsSwitch eventId={eventId} form={form.data} canWrite={canWrite} status={event.lifecycleStatus} onSaved={remember} />
           ) : null}
-        </section>
-        {form.data ? (
-          <EditsSwitch eventId={eventId} form={form.data} canWrite={canWrite} status={event.lifecycleStatus} onSaved={remember} />
-        ) : null}
+        </div>
         {banner ? (
           <p className="registration-setup__alert" role="alert">
             {banner}
@@ -479,26 +482,31 @@ function SetupBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
                       ) : null}
                       {canWrite && editing === null ? (
                         <div className="registration-setup__actions">
-                          <Button
-                            type="button"
-                            variant="tertiary"
-                            size={32}
-                            aria-label={`${field.label} 위로`}
-                            disabled={pending || index === 0}
-                            onClick={() => void move(field, -1)}
-                          >
-                            위로
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="tertiary"
-                            size={32}
-                            aria-label={`${field.label} 아래로`}
-                            disabled={pending || index === fields.length - 1}
-                            onClick={() => void move(field, 1)}
-                          >
-                            아래로
-                          </Button>
+                          {/* The first row has no 위로 and the last no 아래로 (#498): a button that can never work is not shown. */}
+                          {index > 0 ? (
+                            <Button
+                              type="button"
+                              variant="tertiary"
+                              size={32}
+                              aria-label={`${field.label} 위로`}
+                              disabled={pending}
+                              onClick={() => void move(field, -1)}
+                            >
+                              위로
+                            </Button>
+                          ) : null}
+                          {index < fields.length - 1 ? (
+                            <Button
+                              type="button"
+                              variant="tertiary"
+                              size={32}
+                              aria-label={`${field.label} 아래로`}
+                              disabled={pending}
+                              onClick={() => void move(field, 1)}
+                            >
+                              아래로
+                            </Button>
+                          ) : null}
                           <Button
                             type="button"
                             variant="secondary"
@@ -571,7 +579,6 @@ function SetupBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
             ) : null}
             {form.data && canWrite && editing === null ? (
               <div className="registration-setup__manual">
-                <p className="registration-setup__note">설정에 없는 질문이 필요하면 직접 만들 수 있어요.</p>
                 <Button
                   type="button"
                   variant="tertiary"
@@ -587,10 +594,6 @@ function SetupBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
             ) : null}
           </section>
           {form.data ? <FormPreview fields={fields} completionNotice={notice} /> : null}
-          <article className="registration-setup__inert">
-            <h3>신청 기간</h3>
-            <p>준비 중</p>
-          </article>
           {form.data ? (
             <CompletionNoticeEditor
               eventId={eventId}
@@ -648,10 +651,18 @@ function SetupBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
   );
 }
 
-function leadCopy(hasForm: boolean, accepting: boolean, ended: boolean): string {
-  if (ended) return "종료된 행사는 신청을 열 수 없어요.";
-  if (!hasForm) return "신청서를 만들어 시작해 보세요.";
-  return accepting ? "신청 받는 중" : "공개 전";
+/**
+ * The application state in one place (#498). Before anything is received it is the design's
+ * P10 A03-1 copy (설정 중, 참가 신청을 준비해 보세요., 공개 전). Once open it says 신청 받는 중, and
+ * once closed after applications came in it says 신청 닫힘, so the screen never asks to prepare
+ * a form that is already taking or took applications.
+ */
+function statusCopy(form: FormDetail | null, ended: boolean): { title: string; lead?: string; badge?: string } {
+  if (ended) return { title: "종료된 행사는 신청을 열 수 없어요." };
+  if (!form) return { title: "참가 신청을 준비해 보세요.", lead: "신청서를 만들어 시작해 보세요.", badge: "설정 중" };
+  if (form.acceptingApplications) return { title: "신청 받는 중" };
+  if (form.locked) return { title: "신청 닫힘" };
+  return { title: "참가 신청을 준비해 보세요.", lead: "공개 전", badge: "설정 중" };
 }
 
 /** 또래 and generated questions are turned on and off; they are never deleted. */

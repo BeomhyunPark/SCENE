@@ -1,0 +1,61 @@
+/*
+ * 주소·QR 다이얼로그 (#497). Read-only addresses are label-value rows split by a hairline
+ * (fe-handoff "박스를 쓰는 때와 쓰지 않는 때", Figma O05 390:30881 rows), not input boxes.
+ */
+.address-sheet {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+
+.address-sheet__row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 0;
+}
+
+.address-sheet__row:first-child {
+  padding-top: 4px;
+}
+
+.address-sheet__row + .address-sheet__row {
+  border-top: 1px solid var(--color-border-default);
+}
+
+.address-sheet dt {
+  color: var(--color-text-tertiary);
+  font: var(--scene-label-m);
+}
+
+.address-sheet dd {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+}
+
+.address-sheet__value {
+  color: var(--color-text-primary);
+  font: var(--scene-body-m);
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+.address-sheet__hint {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font: var(--scene-body-s);
+}
+
+.address-sheet__qr {
+  border: 1px solid var(--color-border-default);
+  border-radius: 12px;
+}
+
+.address-sheet__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

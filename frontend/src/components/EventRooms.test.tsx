@@ -10,6 +10,7 @@ import { editApplication, placeAsOtherOperator, roomOf, roomPublications, seedRo
 import { server } from "../mocks/server";
 import { revokePermissions } from "../mocks/taskStore";
 import { http, HttpResponse } from "msw";
+import { chooseOption, chooseOptionByLabel } from "../test/select";
 
 const EVENT = localEvent.eventId;
 const WAIT = { timeout: 4000 };
@@ -79,12 +80,21 @@ describe("room board (G3 #458)", () => {
     expect(within(nav).getByRole("link", { name: "숙소" })).toHaveAttribute("aria-current", "page");
     expect(chip()).toBe("배정 0 · 미배정 9 · 숙박 안 함 1");
     expect(screen.getByText(/숙박하지 않는 1명\(집회만·통근·당일\)은 방에 넣지 않아요/)).toBeInTheDocument();
+    // No rooms yet: the title says so once and one line says what to do, without an empty dashed box (#483).
+    expect(screen.getByRole("heading", { name: "아직 방이 없어요" })).toBeInTheDocument();
+    expect(screen.getByText("위의 + 방 추가로 방을 만들어 주세요.")).toBeInTheDocument();
+    expect(screen.queryByText(/아직 방이 없어요\. 위의/)).toBeNull();
+    expect(screen.getAllByText(/아직 방이 없어요/)).toHaveLength(1);
+    // 뒤로 화살표와 같은 곳으로 가던 "행사 홈" 버튼, 같은 뜻을 되풀이하던 저장·경고 안내는 걷었다(#496).
+    expect(screen.getByRole("link", { name: "행사 홈으로" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "행사 홈" })).toBeNull();
+    expect(screen.queryByText(/바로 저장되지만|경고만 보여요/)).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "+ 방 추가" }));
     const form = screen.getByRole("form", { name: "방 만들기" });
     fireEvent.change(within(form).getByLabelText("방 이름"), { target: { value: "301호" } });
     fireEvent.change(within(form).getByLabelText("정원"), { target: { value: "2" } });
-    fireEvent.change(within(form).getByLabelText("성별 구분"), { target: { value: "opt_female" } });
+    chooseOption(within(form).getByLabelText("성별 구분"), "opt_female");
     fireEvent.change(within(form).getByLabelText(/위치 메모/), { target: { value: "본관 3층" } });
     fireEvent.click(within(form).getByRole("button", { name: "방 만들기" }));
     expect(await screen.findByText("301호을 만들었어요.", {}, WAIT)).toBeInTheDocument();
@@ -109,7 +119,7 @@ describe("room board (G3 #458)", () => {
   it("never offers someone who does not sleep over, and explains a NOT_LODGING refusal", async () => {
     const [r1] = seedRooms(EVENT, 1, null);
     await open();
-    fireEvent.change(screen.getByLabelText("숙박"), { target: { value: "NOT_LODGING" } });
+    chooseOption(screen.getByLabelText("숙박"), "NOT_LODGING");
     const card97 = within(pool()).getByText("97 이수아").closest(".event-groups__pool-card") as HTMLElement;
     expect(within(card97).queryByRole("checkbox")).toBeNull();
     expect(within(card97).getByText("방에 넣을 수 없어요")).toBeInTheDocument();
@@ -139,8 +149,8 @@ describe("room board (G3 #458)", () => {
     const [r1] = seedRooms(EVENT, 1, 6);
     await open();
     const batch = screen.getByRole("region", { name: "조 단위로 넣기" });
-    fireEvent.change(within(batch).getByLabelText("조"), { target: { value: group } });
-    fireEvent.change(within(batch).getByLabelText("방"), { target: { value: r1 } });
+    chooseOption(within(batch).getByLabelText("조"), group);
+    chooseOption(within(batch).getByLabelText("방"), r1);
     expect(within(batch).getByText("숙박하지 않는 1명은 빼고 넣어요.")).toBeInTheDocument();
     fireEvent.click(within(batch).getByRole("button", { name: "1조 2명 넣기" }));
     expect(await screen.findByText(/1조 2명을 301호에 넣었어요/, {}, WAIT)).toBeInTheDocument();
@@ -148,8 +158,8 @@ describe("room board (G3 #458)", () => {
     expect(roomOf(EVENT, person("97 이수아").participantId)).toBeNull();
     // The 조 filter reads the same published group.
     const filters = screen.getByRole("group", { name: "참가자 거르기" });
-    fireEvent.change(within(filters).getByLabelText("배정 상태"), { target: { value: "all" } });
-    fireEvent.change(within(filters).getByLabelText("조"), { target: { value: group } });
+    chooseOption(within(filters).getByLabelText("배정 상태"), "all");
+    chooseOption(within(filters).getByLabelText("조"), group);
     expect(screen.getByRole("heading", { name: "참가자 3명" })).toBeInTheDocument();
   });
 
@@ -261,7 +271,7 @@ describe("room board (G3 #458)", () => {
 
     // Everyone visible at once: one request of up to 200.
     fireEvent.click(screen.getByRole("checkbox", { name: "보이는 사람 모두 고르기" }));
-    fireEvent.change(screen.getByLabelText("보낼 방"), { target: { value: screen.getAllByRole("option", { name: /^301호/ })[0].getAttribute("value") } });
+    chooseOptionByLabel(screen.getByLabelText("보낼 방"), /^301호/);
     fireEvent.click(screen.getByRole("button", { name: "보내기" }));
     expect(await findNotice(new RegExp(`${eligible}명을 301호에 넣었어요`))).toBeInTheDocument();
     await idle();

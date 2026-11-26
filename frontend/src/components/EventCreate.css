@@ -32,13 +32,6 @@
   letter-spacing: 0;
 }
 
-.event-create__support {
-  margin: 0;
-  color: var(--color-text-secondary);
-  font: var(--scene-body-m);
-  letter-spacing: 0;
-}
-
 .event-create__form {
   display: flex;
   flex-direction: column;
@@ -132,6 +125,16 @@
 }
 
 .event-create__select:focus {
+  outline: none;
+}
+
+/* 공용 Select가 바깥 상자(.event-create__control) 안에 들어가 테두리·포커스 표시는 바깥 상자가 맡는다. */
+.event-create__control .scene-select .scene-select__trigger {
+  min-height: 0;
+  width: 100%;
+}
+
+.event-create__control .scene-select .scene-select__trigger:focus-visible {
   outline: none;
 }
 

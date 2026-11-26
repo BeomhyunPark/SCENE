@@ -17,6 +17,7 @@ import {
   seedScheduleItem,
   setSchedulePeriod,
 } from "../mocks/scheduleStore";
+import { chooseOption, selectValue } from "../test/select";
 
 const EVENT = localEvent.eventId;
 const OWNER = localUsers[0].userId;
@@ -67,8 +68,8 @@ describe("operator schedule (C4)", () => {
     fireEvent.change(within(form).getByLabelText("끝 (선택)"), { target: { value: "21:30" } });
     fireEvent.change(within(form).getByLabelText("제목"), { target: { value: "저녁 집회" } });
     fireEvent.change(within(form).getByLabelText("장소 (선택)"), { target: { value: "대강당" } });
-    fireEvent.change(within(form).getByLabelText("분류"), { target: { value: "WORSHIP" } });
-    fireEvent.change(within(form).getByLabelText(/집회 칸 연결/), { target: { value: "opt_d1_worship" } });
+    chooseOption(within(form).getByLabelText("분류"), "WORSHIP");
+    chooseOption(within(form).getByLabelText(/집회 칸 연결/), "opt_d1_worship");
     fireEvent.click(within(form).getByRole("button", { name: "저장하고 바로 공개" }));
 
     expect(await screen.findByText(/추가하고 공개했어요\. 추가 1 · 변경 0 · 삭제 0 · 알림 \d+명/, {}, WAIT)).toBeInTheDocument();
@@ -142,8 +143,12 @@ describe("operator schedule (C4)", () => {
     seedScheduleItem(EVENT, { day: 1, startTime: "18:30", title: "간식", category: "MEAL" });
     await openAs(0);
     const form = await editItem(/18:30 간식 고치기/);
-    const option = within(within(form).getByLabelText(/식사 칸 연결/)).getByRole("option", { name: /저녁 · 다른 일정에 연결됨/ });
-    expect(option).toBeDisabled();
+    const slot = within(form).getByLabelText(/식사 칸 연결/);
+    fireEvent.click(slot);
+    const option = screen.getByRole("option", { name: /저녁 · 다른 일정에 연결됨/ });
+    expect(option).toHaveAttribute("aria-disabled", "true");
+    fireEvent.click(option);
+    expect(selectValue(slot)).toBe("");
   });
 
   it("deletes and publishes, and the participant sees it cancelled", async () => {
@@ -254,7 +259,8 @@ describe("ways into the schedule (C4)", () => {
   it("opens the schedule from the event menu and from the event home", async () => {
     period();
     await openAs(0, `/events/${EVENT}`);
-    const shortcuts = await screen.findByRole("navigation", { name: "바로가기" }, WAIT);
+    // The summary strip is the home's way into each area (#485).
+    const shortcuts = await screen.findByRole("region", { name: "운영 요약" }, WAIT);
     const link = within(shortcuts).getByRole("link", { name: /^일정/ });
     expect(link).toHaveAttribute("href", `/events/${EVENT}/schedule`);
     fireEvent.click(link);

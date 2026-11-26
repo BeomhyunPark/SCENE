@@ -33,7 +33,7 @@ export function PublicHeader({ accountActions = false, primaryStart = false, log
       </nav>
       {accountActions ? (
         <div className="public-header__actions">
-          <Link className="public-header__login" to="/login">
+          <Link className="public-header__login scene-press scene-press--text" to="/login">
             로그인
           </Link>
           <Link

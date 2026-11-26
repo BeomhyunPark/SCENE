@@ -175,8 +175,8 @@
   font: var(--scene-label-s);
 }
 
-.roster__field select,
-.roster__panel select,
+.roster__field .scene-select__trigger,
+.roster__panel .scene-select__trigger,
 .roster__panel input:not([type="checkbox"]) {
   box-sizing: border-box;
   min-height: 36px;
@@ -607,6 +607,16 @@ th[aria-sort="descending"] .roster__arrow {
   .roster__chip--add {
     margin-left: 0;
   }
+
+  /* #497: with 신청서 설정·주소·QR the actions wrap; each row fills the width so no button is left alone. */
+  .roster__divider {
+    display: none;
+  }
+
+  .roster__tools > .scene-button,
+  .roster__tools .event-home__export > .scene-button {
+    flex: 1 1 auto;
+  }
 }
 
 /* No CSV button without DATA_EXPORT: drop the divider that would precede it. */
@@ -631,7 +641,7 @@ th[aria-sort="descending"] .roster__arrow {
   font: var(--scene-label-m);
 }
 
-.roster__field--inline select {
+.roster__field--inline .scene-select__trigger {
   box-sizing: border-box;
   min-height: 36px;
   padding: 0 8px;
@@ -830,8 +840,37 @@ th[aria-sort="descending"] .roster__arrow {
   min-width: 40px;
 }
 
+/* Stays in the tree (a live region must exist before it speaks) but takes no room while empty. */
+.roster__live:empty {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+/* 키보드 설명은 도움말을 눌렀을 때만 (#497). summary is the 40px touch target. */
 .roster__keys {
   margin-top: -8px;
+}
+
+.roster__keys summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  color: var(--color-text-secondary);
+  font: var(--scene-label-m);
+  cursor: pointer;
+}
+
+.roster__keys summary:focus {
+  outline: none;
+}
+
+.roster__keys summary:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 .roster__order {
@@ -898,4 +937,13 @@ th[aria-sort="descending"] .roster__arrow {
 .roster__edit:focus-visible {
   outline: 2px solid var(--color-focus-ring);
   outline-offset: 2px;
+}
+
+@media (max-width: 639px) {
+  /* 휴대폰에서 공용 Select 터치 대상은 40px 이상 */
+  .roster__field .scene-select__trigger,
+  .roster__panel .scene-select__trigger,
+  .roster__field--inline .scene-select__trigger {
+    min-height: 40px;
+  }
 }

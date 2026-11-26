@@ -30,6 +30,24 @@ async function operatorsRegion() {
   return region;
 }
 
+/** Opens the row's "⋯" menu and chooses an action (#494). */
+async function choose(region: HTMLElement, name: string, action: string) {
+  fireEvent.click(await within(region).findByRole("button", { name: `${name} 메뉴` }));
+  fireEvent.click(await screen.findByRole("menuitem", { name: action }));
+}
+
+/** Opens a row's menu, reads its items, and closes it with Escape. */
+async function menuOf(region: HTMLElement, name: string) {
+  fireEvent.click(await within(region).findByRole("button", { name: `${name} 메뉴` }));
+  const menu = await screen.findByRole("menu", { name: `${name} 메뉴` });
+  const items = within(menu)
+    .getAllByRole("menuitem")
+    .map((item) => item.textContent);
+  fireEvent.keyDown(menu, { key: "Escape" });
+  expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  return items;
+}
+
 function rowOf(region: HTMLElement, name: string) {
   const row = within(region).getByText(name).closest("li");
   if (!row) throw new Error(`no row for ${name}`);
@@ -42,10 +60,8 @@ describe("event owner changes operator roles and removes operators (#371)", () =
     openApp();
 
     const region = await operatorsRegion();
-    expect(await within(region).findByRole("button", { name: "Local staff Manager로 변경" })).toBeInTheDocument();
-    expect(within(region).getByRole("button", { name: "Local staff 빼기" })).toBeInTheDocument();
-    expect(within(region).getByRole("button", { name: "Local manager Staff로 변경" })).toBeInTheDocument();
-    expect(within(region).getByRole("button", { name: "Local manager 빼기" })).toBeInTheDocument();
+    expect(await menuOf(region, "Local staff")).toEqual(["권한", "Manager로 변경", "빼기"]);
+    expect(await menuOf(region, "Local manager")).toEqual(["권한", "Staff로 변경", "빼기"]);
     expect(within(rowOf(region, "Local owner")).queryByRole("button")).not.toBeInTheDocument();
   });
 
@@ -54,7 +70,7 @@ describe("event owner changes operator roles and removes operators (#371)", () =
     openApp();
 
     const region = await operatorsRegion();
-    await waitFor(() => expect(screen.queryByRole("heading", { name: "외부 협력자 초대" })).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole("button", { name: "운영자 추가" })).not.toBeInTheDocument());
     expect(within(region).queryByRole("button")).not.toBeInTheDocument();
   });
 
@@ -64,7 +80,7 @@ describe("event owner changes operator roles and removes operators (#371)", () =
     openApp();
 
     const region = await operatorsRegion();
-    fireEvent.click(await within(region).findByRole("button", { name: "Local staff Manager로 변경" }));
+    await choose(region, "Local staff", "Manager로 변경");
     const dialog = await screen.findByRole("dialog", { name: "Local staff님을 Manager로 바꿀까요?" });
     expect(dialog).toHaveTextContent("개별 권한은 모두 초기화되고");
     expect(operatorRequests.some((request) => request.method === "PATCH")).toBe(false);
@@ -74,7 +90,7 @@ describe("event owner changes operator roles and removes operators (#371)", () =
     expect(await within(region).findByRole("status")).toHaveTextContent("Local staff님의 역할을 Manager로 바꿨어요.");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(rowOf(region, "Local staff")).toHaveTextContent("Manager");
-    expect(within(region).getByRole("button", { name: "Local staff Staff로 변경" })).toBeInTheDocument();
+    expect(await menuOf(region, "Local staff")).toContain("Staff로 변경");
     expect(operatorRequests.find((request) => request.method === "PATCH")).toEqual({
       method: "PATCH",
       url: STAFF_PATH,
@@ -91,7 +107,7 @@ describe("event owner changes operator roles and removes operators (#371)", () =
     openApp();
 
     const region = await operatorsRegion();
-    fireEvent.click(await within(region).findByRole("button", { name: "Local manager Staff로 변경" }));
+    await choose(region, "Local manager", "Staff로 변경");
     const dialog = await screen.findByRole("dialog");
     fireEvent.click(within(dialog).getByRole("button", { name: "돌아가기" }));
 
@@ -108,7 +124,7 @@ describe("event owner changes operator roles and removes operators (#371)", () =
 
     const region = await operatorsRegion();
     expect(within(region).getByText("3명")).toBeInTheDocument();
-    fireEvent.click(await within(region).findByRole("button", { name: "Local staff 빼기" }));
+    await choose(region, "Local staff", "빼기");
     const dialog = await screen.findByRole("dialog", { name: "Local staff님을 행사에서 뺄까요?" });
     expect(dialog).toHaveTextContent("담당하던 업무는 담당자가 비워지고");
 
@@ -129,7 +145,7 @@ describe("event owner changes operator roles and removes operators (#371)", () =
     openApp();
 
     const region = await operatorsRegion();
-    fireEvent.click(await within(region).findByRole("button", { name: "Local staff 빼기" }));
+    await choose(region, "Local staff", "빼기");
     fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "빼기" }));
 
     expect(await within(region).findByRole("alert")).toHaveTextContent(
@@ -144,7 +160,7 @@ describe("event owner changes operator roles and removes operators (#371)", () =
     openApp();
 
     const region = await operatorsRegion();
-    fireEvent.click(await within(region).findByRole("button", { name: "Local staff Manager로 변경" }));
+    await choose(region, "Local staff", "Manager로 변경");
     fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "역할 바꾸기" }));
 
     expect(await within(region).findByRole("alert")).toHaveTextContent("운영자 역할을 바꿀 권한이 없어요.");
@@ -157,7 +173,7 @@ describe("event owner changes operator roles and removes operators (#371)", () =
     openApp();
 
     const region = await operatorsRegion();
-    fireEvent.click(await within(region).findByRole("button", { name: "Local staff 빼기" }));
+    await choose(region, "Local staff", "빼기");
     fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "빼기" }));
 
     expect(await within(region).findByRole("alert")).toHaveTextContent("운영자를 뺄 권한이 없어요.");
@@ -169,7 +185,7 @@ describe("event owner changes operator roles and removes operators (#371)", () =
     openApp();
 
     const region = await operatorsRegion();
-    fireEvent.click(await within(region).findByRole("button", { name: "Local staff Manager로 변경" }));
+    await choose(region, "Local staff", "Manager로 변경");
     setLifecycle(EVENT, "ARCHIVED", 3);
     fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "역할 바꾸기" }));
 
@@ -184,10 +200,12 @@ describe("event owner changes operator roles and removes operators (#371)", () =
 
     const region = await operatorsRegion();
     expect(
-      await within(region).findByText("보관된 행사에서는 역할을 바꿀 수 없어요. 운영자 빼기는 할 수 있어요."),
+      await within(region).findByText(
+        "보관된 행사에는 운영자를 추가할 수 없어요. 역할은 바꿀 수 없고 운영자 빼기는 할 수 있어요.",
+      ),
     ).toBeInTheDocument();
-    expect(within(region).queryByRole("button", { name: /로 변경$/ })).not.toBeInTheDocument();
-    fireEvent.click(within(region).getByRole("button", { name: "Local manager 빼기" }));
+    expect(await menuOf(region, "Local manager")).toEqual(["권한", "빼기"]);
+    await choose(region, "Local manager", "빼기");
     fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "빼기" }));
 
     expect(await within(region).findByRole("status")).toHaveTextContent("Local manager님을 행사 운영자에서 뺐어요.");
@@ -199,7 +217,7 @@ describe("event owner changes operator roles and removes operators (#371)", () =
     openApp();
 
     const region = await operatorsRegion();
-    fireEvent.click(await within(region).findByRole("button", { name: "Local staff Manager로 변경" }));
+    await choose(region, "Local staff", "Manager로 변경");
     fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "역할 바꾸기" }));
 
     expect(await within(region).findByRole("alert")).toHaveTextContent("역할을 바꾸지 못했어요. 다시 시도해 주세요.");

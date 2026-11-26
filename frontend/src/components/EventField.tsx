@@ -285,7 +285,7 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
       tasksHref={`${eventHref}/tasks`}
       framed
       leading={
-        <Link className="event-home__back" to={eventHref} aria-label="행사 홈">
+        <Link className="event-home__back scene-press scene-press--text" to={eventHref} aria-label="행사 홈">
           <img src={arrowLeft} alt="" />
         </Link>
       }
@@ -331,7 +331,7 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
               <button
                 key={value}
                 type="button"
-                className="event-field__view"
+                className="event-field__view scene-press scene-press--quiet"
                 aria-pressed={view === value}
                 onClick={() => setView(value)}
               >
@@ -383,7 +383,8 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
               </button>
             </div>
 
-            {/* OM01 622:21 "전체 104명 · 미도착 24명", in the product's words. */}
+            {/* OM01 622:21 "전체 104명 · 미도착 24명", in the product's words, with 식수 현황 at the line's end. */}
+            <div className="event-field__status">
             <section className="event-field__summary" aria-label="체크인 현황">
               {summary.data ? (
                 <>
@@ -408,6 +409,11 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
                 <p className="event-field__muted">현황을 불러오는 중이에요.</p>
               )}
             </section>
+            {/* 식수 현황 바로 가기 (#454, DEC-089 §11). */}
+            <Link className="event-field__meals-link scene-press scene-press--text" to={`${eventHref}/meals`}>
+              식수 현황 보기
+            </Link>
+            </div>
 
             {summary.data?.arrival ? (
               <ArrivalSummary
@@ -419,12 +425,7 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
               />
             ) : null}
 
-            {/* 식수 현황 바로 가기 (#454, DEC-089 §11). */}
-            <Link className="event-field__meals-link" to={`${eventHref}/meals`}>
-              식수 현황 보기
-            </Link>
-
-            {/* TL01 filter chips (620:19) and count chip (620:17). */}
+            {/* TL01 filter chips (620:19); the count (620:17) only for a search. */}
             <div className="event-field__controls">
               {view === "all" ? (
                 <div className="event-field__filters" role="group" aria-label="체크인 상태로 보기">
@@ -432,15 +433,16 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
                     <button
                       key={value}
                       type="button"
-                      className="event-field__filter"
+                      className="event-field__filter scene-press scene-press--chip"
                       aria-pressed={filter === value}
                       onClick={() => setFilter(value)}
                     >
                       {label}
                     </button>
                   ))}
-                  {roster.data && items.length > 0 ? (
-                    <span className="event-field__count-chip" aria-live="polite">
+                  {/* Without a search the count repeats the 체크인 현황 line above, so it shows only for a search (#495). */}
+                  {roster.data && items.length > 0 && q !== "" ? (
+                    <span className="event-field__count-text" aria-live="polite">
                       {total.toLocaleString("ko-KR")}명
                     </span>
                   ) : null}
@@ -572,7 +574,7 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
 
 /**
  * TL01 Participant Detail Panel (620:56), desktop only: the picked card in large type with its check-in
- * record and the same action as its card. Figma's 참가 유형·신청 상태 and "확인 보류" have no data or API
+ * record and the main button for it (the row's is a quiet text button). Figma's 참가 유형·신청 상태 and "확인 보류" have no data or API
  * here, so they are left out.
  */
 function SelectedDetail({
@@ -608,6 +610,8 @@ function SelectedDetail({
         <StatusChip done={done} unknown={unknown} />
       </div>
       {item.phoneLast4 ? <p className="event-field__detail-meta">끝자리 {item.phoneLast4}</p> : null}
+      {/* Read-only values as label-value rows, not field boxes (SCENE DS 05 참가자 상세 172:7, #485). The
+          check-in state is the chip beside the name, so it is not repeated here. */}
       <dl className="event-field__detail-fields">
         {group !== null ? (
           <div className="event-field__detail-field">
@@ -615,12 +619,8 @@ function SelectedDetail({
             <dd>{group}</dd>
           </div>
         ) : null}
-        <div className="event-field__detail-field">
-          <dt>체크인</dt>
-          <dd>{unknown ? "확인 안 됨" : done ? "체크인 완료" : "미완료"}</dd>
-        </div>
         {record ? (
-          <div className="event-field__detail-field event-field__detail-field--wide">
+          <div className="event-field__detail-field">
             <dt>기록</dt>
             <dd>{record}</dd>
           </div>
@@ -660,7 +660,7 @@ function ArrivalSummary({ arrival, onOverdue }: { arrival: SummaryArrival; onOve
     <section className="event-field__arrivals" aria-label="미완료 도착 예정">
       <p className="event-field__arrivals-basis">{arrivalBasis(arrival)}</p>
       <p className="event-field__arrivals-line">
-        <button type="button" className="event-field__arrivals-overdue" onClick={onOverdue}>
+        <button type="button" className="event-field__arrivals-overdue scene-press scene-press--text" onClick={onOverdue}>
           왔어야 함 <strong>{n(arrival.overdue)}</strong>
         </button>
         <span>올 예정 {n(arrival.coming)}</span>

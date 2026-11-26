@@ -265,13 +265,11 @@
   inset: -8px -2px;
 }
 
-.event-field__count-chip {
-  margin-left: 2px;
-  padding: 5px 10px;
-  border-radius: 999px;
-  background: var(--color-bg-brand-subtle);
-  color: var(--color-text-brand);
-  font: 700 11px/16px "Noto Sans KR", sans-serif;
+/* How many rows the filter shows: plain text after the chips, not another chip. */
+.event-field__count-text {
+  margin-left: 4px;
+  color: var(--color-text-secondary);
+  font: var(--scene-label-s);
 }
 
 /* 전체/조별 (#288): Venture view tabs (Contact List 20:3612) — text tabs with a 2px selected underline. */
@@ -350,13 +348,20 @@
   font: var(--scene-body-s);
 }
 
-/* SCENE / Field / Participant Item (616:3971): surface, border-default, radius 10, 13/14 padding. */
+/*
+ * The roster (#485): one surface with list rows split by hairlines, like the Venture Contact List and the
+ * SCENE DS Data Workbench (ZFajaGIQ3VneNqkncKYXbJ 50:17), rather than a box per participant. A row keeps the
+ * Participant Item's content (616:3971) and 13/14 padding.
+ */
 .event-field__list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
   margin: 0;
   padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-border-default);
+  border-radius: 10px;
+  background: var(--color-bg-surface);
   list-style: none;
 }
 
@@ -366,15 +371,16 @@
   justify-content: space-between;
   gap: 12px;
   padding: 13px 14px;
-  border: 1px solid var(--color-border-default);
-  border-radius: 10px;
-  background: var(--color-bg-surface);
 }
 
-/* Operational List Item "Selected" (33:28): a tinted fill with a stronger outline. */
+.event-field__row + .event-field__row {
+  border-top: 1px solid var(--color-border-default);
+}
+
+/* Operational List Item "Selected" (33:28): a tinted fill and a bar on the leading edge, no outline. */
 .event-field__row--selected {
-  border-color: var(--color-border-selected);
   background: var(--color-bg-selected);
+  box-shadow: inset 3px 0 0 var(--color-border-selected);
 }
 
 .event-field__row-main {
@@ -394,6 +400,20 @@
 button.event-field__row-main {
   border-radius: 4px;
   cursor: pointer;
+}
+
+/*
+ * 행 전체가 눌리는 자리처럼 보이게 (#484): 버튼(row-main)은 행 안쪽 칸이라, hover·눌림은 행에 깐다.
+ * 선택된 행은 선택 색을 그대로 둔다.
+ */
+@media (hover: hover) {
+  .event-field__row:not(.event-field__row--selected):has(> button.event-field__row-main:hover) {
+    background: var(--color-bg-hover-row);
+  }
+}
+
+.event-field__row:not(.event-field__row--selected):has(> button.event-field__row-main:active) {
+  background: var(--color-bg-subtle);
 }
 
 .event-field__record {
@@ -736,13 +756,16 @@ button.event-field__row-main {
   font: var(--scene-label-s);
 }
 
-/* 조별 (#288): group cards in the participant item's shape. */
+/* 조별 (#288): one surface, groups split by hairlines, members as rows inside (no box in a box, #485). */
 .field-groups {
   display: flex;
   flex-direction: column;
-  gap: 12px;
   margin: 0;
   padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-border-default);
+  border-radius: 10px;
+  background: var(--color-bg-surface);
   list-style: none;
 }
 
@@ -750,11 +773,8 @@ button.event-field__row-main {
   margin-top: -4px;
 }
 
-.field-groups__group {
-  border: 1px solid var(--color-border-default);
-  border-radius: 10px;
-  background: var(--color-bg-surface);
-  overflow: hidden;
+.field-groups__group + .field-groups__group {
+  border-top: 1px solid var(--color-border-default);
 }
 
 .field-groups__head {
@@ -806,13 +826,11 @@ button.event-field__row-main {
   font: var(--scene-label-s);
 }
 
-.field-groups__members {
-  padding: 0 10px 10px;
-}
-
-.field-groups__members .event-field__row {
-  border-color: var(--color-border-default);
-  background: var(--color-bg-surface);
+.field-groups__members.event-field__list {
+  border: 0;
+  border-top: 1px solid var(--color-border-default);
+  border-radius: 0;
+  background: var(--color-bg-subtle);
 }
 
 /* TL01 (620:7): queue 472px on the left, Participant Detail Panel (620:56) on the right. */
@@ -882,58 +900,63 @@ button.event-field__row-main {
   font: var(--scene-body-m);
 }
 
-/* Read-only fields: 48 high, radius 8, border-default (TL01 620:64). */
+/*
+ * Read-only values (#485): label-value rows split by hairlines (SCENE DS 05 참가자 상세 172:7), not the
+ * TL01 field boxes (620:64), which read as inputs.
+ */
 .event-field__detail-fields {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px 28px;
+  display: flex;
+  flex-direction: column;
   margin: 20px 0 0;
-  padding-top: 24px;
-  border-top: 1px solid var(--color-border-default);
+}
+
+.event-field__detail-fields:empty {
+  display: none;
 }
 
 .event-field__detail-field {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  min-width: 0;
-}
-
-.event-field__detail-field--wide {
-  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--color-border-default);
 }
 
 .event-field__detail-field dt {
   color: var(--color-text-tertiary);
-  font: var(--scene-label-s);
+  font: var(--scene-label-m);
 }
 
 .event-field__detail-field dd {
-  box-sizing: border-box;
-  min-height: 48px;
   margin: 0;
-  padding: 13px;
-  border: 1px solid var(--color-border-default);
-  border-radius: 8px;
   color: var(--color-text-primary);
-  font: var(--scene-label-m);
+  font: var(--scene-body-m);
+  overflow-wrap: anywhere;
 }
 
 .event-field__detail-action {
   display: flex;
   justify-content: flex-end;
-  margin-top: 32px;
+  margin-top: 24px;
 }
 
 .event-field__detail-action .scene-button {
   min-width: 50%;
 }
 
-/* 식수 현황 바로 가기 (#454, DEC-089 §11). */
+/* The count line, with 식수 현황 바로 가기 (#454, DEC-089 §11) at its end. */
+.event-field__status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+
 .event-field__meals-link {
-  align-self: flex-start;
   color: var(--color-text-brand);
   font: var(--scene-label-m);
+  text-underline-offset: 3px;
 }
 
 /* 도착 예정 (E4 #456): the summary split of 미완료 and the line under each name. */
@@ -959,15 +982,23 @@ button.event-field__row-main {
   font: var(--scene-body-s);
 }
 
+/* 왔어야 함 opens that filter: a text button in the warning colour, not a filled pill (#485). */
 .event-field__arrivals-overdue {
-  min-height: 44px;
-  padding: 0 12px;
+  position: relative;
+  padding: 0;
   border: 0;
-  border-radius: 999px;
-  background: var(--color-warning-bg);
+  background: transparent;
   color: var(--color-warning-fg);
   font: var(--scene-label-m);
+  text-decoration: underline;
+  text-underline-offset: 3px;
   cursor: pointer;
+}
+
+.event-field__arrivals-overdue::after {
+  content: "";
+  position: absolute;
+  inset: -12px -6px;
 }
 
 .event-field__arrivals-overdue:focus-visible {

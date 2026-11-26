@@ -416,10 +416,16 @@ export function SheetGrid({
         </table>
         {rows.length === 0 ? <p className="roster__empty">조건에 맞는 신청자가 없어요.</p> : null}
       </div>
-      <p className="roster__hint roster__keys" aria-live="polite">
-        {notice ||
-          `칸을 누르고 화살표로 움직여요. Shift로 범위를 넓히고 Ctrl(⌘)+C로 복사, Enter나 두 번 누르기로 상세를 열어요.${onEdit ? " E로 운영 정보를 고쳐요." : ""}`}
+      {/* The copy result is announced here; the key guide waits behind 도움말 (#497, #483 제안 3). */}
+      <p className="roster__hint roster__live" aria-live="polite">
+        {notice}
       </p>
+      <details className="roster__keys">
+        <summary className="scene-press scene-press--text">도움말</summary>
+        <p className="roster__hint">
+          {`칸을 누르고 화살표로 움직여요. Shift로 범위를 넓히고 Ctrl(⌘)+C로 복사, Enter나 두 번 누르기로 상세를 열어요.${onEdit ? " E로 운영 정보를 고쳐요." : ""}`}
+        </p>
+      </details>
     </>
   );
 }
@@ -465,7 +471,7 @@ const SheetRow = memo(function SheetRow({
       ))}
       <td className="roster__actions" aria-colindex={columns.length + 1}>
         <Link
-          className="roster__detail"
+          className="roster__detail scene-press scene-press--text"
           tabIndex={-1}
           to={`/events/${eventId}/participants/${row.applicationId}`}
           aria-label={`${columns[0].text(row)} 상세`}
