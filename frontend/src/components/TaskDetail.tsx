@@ -184,7 +184,7 @@ function Detail({ event, spaceName, taskId }: { event: EventDetail; spaceName?: 
     }
   }
 
-  if (task.isPending) return <OperatorStatus busy message="불러오는 중이에요." spaceName={spaceName} />;
+  if (task.isPending) return <OperatorStatus title="준비 업무" busy message="불러오는 중이에요." spaceName={spaceName} />;
   if (alert === "업무를 찾을 수 없어요." || isApiError(task.error, "RESOURCE_NOT_FOUND")) {
     return (
       <OperatorShell title="준비 업무" spaceName={spaceName} eventName={event.name}>
@@ -198,6 +198,7 @@ function Detail({ event, spaceName, taskId }: { event: EventDetail; spaceName?: 
   if (task.isError || !task.data) {
     return (
       <OperatorStatus
+        title="준비 업무"
         message="불러오지 못했어요."
         spaceName={spaceName}
         action={

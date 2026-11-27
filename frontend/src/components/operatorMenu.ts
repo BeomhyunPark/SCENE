@@ -39,6 +39,15 @@ const system = [
   { key: "settings" as const, label: "설정", icon: gear, to: "/settings" },
 ];
 
+/**
+ * Title for a loading screen before the page knows its own (#524): an organization menu's label on its
+ * exact address, otherwise empty. Event pages are titled after data still loading (the event name, its
+ * menus), so they stay blank rather than flash "행사" and change.
+ */
+export function loadingTitle(pathname: string): string {
+  return [...primary, ...system].find((menu) => menu.to === pathname)?.label ?? "";
+}
+
 /** Leaves out menus marked `pending` and any section they leave empty, so no divider stands alone. */
 function withoutPending(sections: MenuSection[]): MenuSection[] {
   return sections
