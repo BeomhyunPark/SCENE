@@ -1,3 +1,4 @@
+import { withJosa } from "./josa";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, Navigate, useNavigate } from "react-router";
@@ -353,7 +354,7 @@ function PendingInvite({
   return (
     <InvitationFrame
       title={`${eventName} 초대를 받았어요`}
-      body={`${inviterName}님이 ${role}로 초대했어요.`}
+      body={`${inviterName}님이 ${withJosa(role, "으로/로")} 초대했어요.`}
       actions={
         <Button type="button" variant="primary" size={40} loading={loading} onClick={onAccept}>
           초대 수락
@@ -457,9 +458,9 @@ function Accepted({
   const navigate = useNavigate();
   const kept = role.length > 0 && invitedRole.length > 0 && role !== invitedRole;
   const body = kept
-    ? `이미 이 행사에서 ${operatorRoleLabel(role)}로 운영하고 있어서 역할은 그대로예요. 역할을 바꾸려면 행사 Owner에게 요청해 주세요.`
+    ? `이미 이 행사에서 ${withJosa(operatorRoleLabel(role), "으로/로")} 운영하고 있어서 역할은 그대로예요. 역할을 바꾸려면 행사 Owner에게 요청해 주세요.`
     : role
-      ? `이제 ${operatorRoleLabel(role)}로 이 행사를 운영할 수 있어요.`
+      ? `이제 ${withJosa(operatorRoleLabel(role), "으로/로")} 이 행사를 운영할 수 있어요.`
       : "이제 이 행사를 운영할 수 있어요.";
   return (
     <InvitationFrame

@@ -40,6 +40,7 @@ import { EventScreen } from "./EventScreen";
 import { eventContext, formatSubmittedAt } from "./eventFormat";
 import { readEventAreas } from "./eventLocalState";
 import { OperatorShell } from "./OperatorShell";
+import { pickJosa } from "./josa";
 import { participantLabel } from "./participantLabel";
 import {
   isEventBlocked,
@@ -850,8 +851,7 @@ function phaseCopy(phase: PendingRequest["phase"]): string {
 
 function deliveryNotice(action: CheckInAction, delivery: Exclude<ActionDelivery, { kind: "refused" }>): Notice {
   const label = actionLabel(action);
-  // Labels end in 체크인 or 취소, so the particle follows the action.
-  const [object, subject] = action.kind === "cancel" ? ["를", "가"] : ["을", "이"];
+  const [object, subject] = [pickJosa(label, "을/를"), pickJosa(label, "이/가")];
   if (delivery.kind === "offline") {
     return { tone: "info", text: `오프라인이에요. 연결되면 ${label}${object} 다시 보낼게요.` };
   }

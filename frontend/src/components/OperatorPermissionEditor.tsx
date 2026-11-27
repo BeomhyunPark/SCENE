@@ -1,3 +1,4 @@
+import { withJosa } from "./josa";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { isApiError } from "../api/errors";
@@ -121,7 +122,7 @@ export function OperatorPermissionDialog({
       <p>
         {roleLabel} 역할 기본 권한에 더하거나 뺄 수 있어요. 저장하면 이 사람에게 바로 적용돼요.
       </p>
-      {roleSummary ? <p>{roleLabel}는 기본으로 {roleSummary}.</p> : null}
+      {roleSummary ? <p>{withJosa(roleLabel, "은/는")} 기본으로 {roleSummary}.</p> : null}
       {archived ? <p>보관된 행사에서는 권한을 끄기만 할 수 있어요.</p> : null}
       {permissions.isPending ? <p>불러오는 중이에요.</p> : null}
       {permissions.isError ? (

@@ -1,3 +1,4 @@
+import { withJosa } from "./josa";
 import type { ApplicationAnswer, ApplicationDetail, RevisionChange } from "../api/applications";
 import { formatAnswer } from "./answerDisplay";
 
@@ -36,6 +37,6 @@ export function revisedByLabel(
 ): string {
   if (revisedBy === "PARTICIPANT") return "참가자가 고침";
   const who = displayName ? `운영자 ${displayName}` : "운영자";
-  if (revisedBy === "OPERATOR") return revision === 1 ? `${who}가 추가` : `${who}가 고침`;
+  if (revisedBy === "OPERATOR") return revision === 1 ? `${withJosa(who, "이/가")} 추가` : `${withJosa(who, "이/가")} 고침`;
   return "처음 신청";
 }

@@ -1,3 +1,4 @@
+import { withJosa } from "./josa";
 import { useEffect, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router";
@@ -230,7 +231,7 @@ function OperatorRows({
       refresh();
       setAction(null);
       setAlert("");
-      onDone(`${input.target.displayName}님의 역할을 ${operatorRoleLabel(changed.role)}로 바꿨어요.`);
+      onDone(`${input.target.displayName}님의 역할을 ${withJosa(operatorRoleLabel(changed.role), "으로/로")} 바꿨어요.`);
     },
     onError: (caught, input) => fail(caught, input.target, "role"),
   });
@@ -273,7 +274,7 @@ function OperatorRows({
         ? []
         : [
             {
-              label: `${operatorRoleLabel(other)}로 변경`,
+              label: `${withJosa(operatorRoleLabel(other), "으로/로")} 변경`,
               onSelect: () => setAction({ kind: "role", target: item, role: other }),
             },
           ]),
@@ -309,7 +310,7 @@ function OperatorRows({
       {done ? <p role="status">{done}</p> : null}
       {action?.kind === "role" ? (
         <ConfirmDialog
-          title={`${action.target.displayName}님을 ${operatorRoleLabel(action.role)}로 바꿀까요?`}
+          title={`${action.target.displayName}님을 ${withJosa(operatorRoleLabel(action.role), "으로/로")} 바꿀까요?`}
           onClose={() => {
             if (!change.isPending) setAction(null);
           }}
@@ -337,11 +338,11 @@ function OperatorRows({
           }
         >
           <p>
-            {operatorRoleLabel(action.target.role)}에서 {operatorRoleLabel(action.role)}로 바뀌어요. 이 사람에게 따로 준
+            {operatorRoleLabel(action.target.role)}에서 {withJosa(operatorRoleLabel(action.role), "으로/로")} 바뀌어요. 이 사람에게 따로 준
             개별 권한은 모두 초기화되고 {operatorRoleLabel(action.role)} 기본 권한만 남아요.
           </p>
           <p>
-            {operatorRoleLabel(action.role)}는 {ROLE_SUMMARY[action.role]}.
+            {withJosa(operatorRoleLabel(action.role), "은/는")} {ROLE_SUMMARY[action.role]}.
           </p>
         </ConfirmDialog>
       ) : null}
