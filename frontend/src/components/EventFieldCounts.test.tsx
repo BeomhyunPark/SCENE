@@ -106,4 +106,34 @@ describe("현장 운영 도착 · 미도착 · 도착 예정", () => {
     expect(screen.getByRole("listitem", { name: "96 세찬" })).not.toHaveTextContent("일차");
     expect(screen.queryByText("도착 예정")).not.toBeInTheDocument();
   });
+
+  it("says the chips the same way in 전체 명단 and 조별 명단 (#522)", async () => {
+    seedThree();
+    setMealCountsNow(new Date("2027-01-22T19:10:00+09:00"));
+    await login({ userId: OWNER });
+    openField();
+
+    const filters = await screen.findByRole("group", { name: "체크인 상태로 보기" }, WAIT);
+    const all = () => within(filters).getAllByRole("button").map((chip) => chip.textContent);
+    await waitFor(() => expect(all()).toEqual(["전체 3", "미도착 1", "도착 예정 1", "도착 1"]), WAIT);
+
+    fireEvent.click(screen.getByRole("button", { name: "조별 명단" }));
+    const summary = await screen.findByRole("region", { name: "체크인 현황" }, WAIT);
+    const chipsInGroups = [...summary.querySelectorAll(".event-field__filter")].map((chip) => chip.textContent);
+    expect(chipsInGroups).toEqual(["전체 3", "미도착 1", "도착 예정 1", "도착 1"]);
+    expect(summary).not.toHaveTextContent("명");
+    expect(within(summary).queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  it("moves a partial attendee from 도착 예정 to 미도착 once their arrival slot has passed (#522)", async () => {
+    seedThree();
+    // Day 2, 14:30: 세찬's first slot (day 2 lunch, 12:00 by default) is over an hour gone and they have not come.
+    setMealCountsNow(new Date("2027-01-23T14:30:00+09:00"));
+    await login({ userId: OWNER });
+    openField();
+
+    await screen.findByRole("listitem", { name: "96 세찬" }, WAIT);
+    await waitFor(() => expect(chips()).toEqual(["전체 3명", "미도착 2명", "도착 1명"]), WAIT);
+    expect(badge("96 세찬")).toBe("미도착");
+  });
 });

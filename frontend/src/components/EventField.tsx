@@ -384,7 +384,7 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
             </div>
 
             {/* TL01 filter chips (620:19) carry the 체크인 현황 counts (2026-11-26), so the numbers are said once; the
-                count (620:17) shows only for a search. 조별 has no chips, so it keeps the one count line. */}
+                count (620:17) shows only for a search. 조별 shows the same chips, not pressable, so both views read alike (#522). */}
             <div className="event-field__controls">
               {view === "all" ? (
                 <div className="event-field__filters" role="group" aria-label="체크인 상태로 보기">
@@ -412,24 +412,9 @@ function FieldBody({ event, spaceName }: { event: EventDetail; spaceName?: strin
                   ) : null}
                 </div>
               ) : (
-                <section className="event-field__summary" aria-label="체크인 현황">
+                <section className="event-field__filters" aria-label="체크인 현황">
                   {summary.data ? (
-                    <>
-                      <p className="event-field__count">
-                        <span>전체</span> <strong>{summary.data.total.toLocaleString("ko-KR")}</strong>명
-                      </p>
-                      <p className="event-field__count">
-                        <span>미도착</span> <strong>{fieldCounts(summary.data).absent.toLocaleString("ko-KR")}</strong>명
-                      </p>
-                      {fieldCounts(summary.data).expected > 0 ? (
-                        <p className="event-field__count event-field__count--done">
-                          <span>도착 예정</span> <strong>{fieldCounts(summary.data).expected.toLocaleString("ko-KR")}</strong>명
-                        </p>
-                      ) : null}
-                      <p className="event-field__count event-field__count--done">
-                        <span>도착</span> <strong>{summary.data.checkedIn.toLocaleString("ko-KR")}</strong>명
-                      </p>
-                    </>
+                    <FieldCountChips counts={fieldCounts(summary.data)} />
                   ) : (
                     <SummaryState summary={summary} />
                   )}
@@ -647,7 +632,7 @@ function QrIcon() {
 /** 미도착 first: it is what the desk acts on. 도착 예정 hides when nobody is expected later (unless chosen). */
 const FILTERS: readonly (readonly [Filter, string])[] = [["all", "전체"], ...FIELD_STATE_LABELS];
 
-function visibleFilters(counts: FieldCounts | null, filter: Filter): (readonly [Filter, string])[] {
+function visibleFilters(counts: FieldCounts | null, filter: Filter | null): (readonly [Filter, string])[] {
   return FILTERS.filter(([value]) => value !== "expected" || filter === "expected" || (counts?.expected ?? 0) > 0);
 }
 
@@ -664,6 +649,16 @@ async function listAbsent(eventId: string, q: string, signal?: AbortSignal): Pro
       return { items, page: { number: 0, size: items.length, totalItems: items.length, totalPages: 1 } };
     }
   }
+}
+
+/** 조별 (#522): the 전체 chips' words and numbers ("전체 6"), not pressable; the filter is in 전체. */
+function FieldCountChips({ counts }: { counts: FieldCounts }) {
+  return visibleFilters(counts, null).map(([value, label]) => (
+    <span key={value} className="event-field__filter event-field__filter--static">
+      {label}
+      <span className="event-field__filter-count"> {counts[value].toLocaleString("ko-KR")}</span>
+    </span>
+  ));
 }
 
 /** While the 체크인 현황 is loading or failed, in the place of the numbers. */
