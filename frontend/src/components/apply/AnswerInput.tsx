@@ -159,7 +159,7 @@ export function AnswerInput({
         />
       ) : null}
       {field.answerType === "DATE_RANGE" ? (
-        <div className="participant-gate__range">
+        <div className="participant-gate__dates">
           {(["start", "end"] as const).map((key) => (
             <label key={key} className="participant-gate__sublabel">
               {key === "start" ? "시작" : "끝"}
@@ -178,7 +178,7 @@ export function AnswerInput({
         </div>
       ) : null}
       {field.answerType === "NUMBER" ? (
-        <div className="participant-gate__range">
+        <div className="participant-gate__unit-row">
           <input
             id={id}
             className="participant-gate__input participant-gate__number"

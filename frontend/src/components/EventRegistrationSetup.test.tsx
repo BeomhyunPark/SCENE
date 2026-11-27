@@ -142,6 +142,31 @@ describe("event registration setup", () => {
     );
   });
 
+  it("clears the question length message as soon as the question is written (#526)", async () => {
+    await login({ userId: localUsers[0].userId });
+    renderSetup();
+    fireEvent.click(await screen.findByRole("button", { name: "신청서 만들기" }, { timeout: 4000 }));
+    fireEvent.click(await screen.findByRole("button", { name: "직접 질문 추가" }));
+    fireEvent.click(screen.getByRole("button", { name: "질문 추가" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("질문을 1–200자로 써 주세요.");
+    fireEvent.change(screen.getByRole("textbox", { name: "질문" }), { target: { value: "티셔츠 크기" } });
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "질문" })).toHaveAttribute("aria-invalid", "false");
+  });
+
+  it("clears the wording length message as soon as the question is written (#526)", async () => {
+    await login({ userId: localUsers[0].userId });
+    renderSetup();
+    fireEvent.click(await screen.findByRole("button", { name: "신청서 만들기" }, { timeout: 4000 }));
+    const list = await questionList();
+    fireEvent.click(await list.findByRole("button", { name: "전화 수정" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "질문" }), { target: { value: " " } });
+    fireEvent.click(screen.getByRole("button", { name: "문구 저장" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("질문을 1–200자로 써 주세요.");
+    fireEvent.change(screen.getByRole("textbox", { name: "질문" }), { target: { value: "연락처" } });
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
   it("adds a conditional question and edits, moves, and deletes questions", async () => {
     await login({ userId: localUsers[0].userId });
     renderSetup();
@@ -573,6 +598,15 @@ describe("event registration setup", () => {
     expect(screen.queryByRole("checkbox", { name: /새가족/ })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("checkbox", { name: /중그룹/ }));
     fireEvent.click(screen.getByRole("checkbox", { name: /^셀/ }));
+    // Each list shows its own example (#526).
+    expect(screen.getByRole("textbox", { name: /중그룹 목록/ })).toHaveAttribute(
+      "placeholder",
+      "한 줄에 하나씩 적어 주세요\n예) 1중그룹\n2중그룹",
+    );
+    expect(screen.getByRole("textbox", { name: /셀 목록/ })).toHaveAttribute(
+      "placeholder",
+      "한 줄에 하나씩 적어 주세요\n예) 1셀\n2셀",
+    );
     fireEvent.change(screen.getByRole("textbox", { name: /중그룹 목록/ }), { target: { value: "1중그룹\n2중그룹\n" } });
     expect(screen.getByText(/새가족으로 분류되고 셀은 묻지 않아요/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "질문 만들기" }));

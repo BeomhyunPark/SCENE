@@ -1,5 +1,5 @@
 import { withJosa } from "./josa";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router";
 import arrowLeft from "../assets/event-create/arrow-left.svg";
@@ -28,6 +28,7 @@ import { reloadQuery } from "../api/queryClient";
 import { queryKeys } from "../api/queryKeys";
 import { Button } from "./Button";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { isInvitableEmail } from "./inviteEmail";
 import { EventScreen } from "./EventScreen";
 import { formatSubmittedAt, operatorRoleLabel } from "./eventFormat";
 import { markEventArea, readEventAreas } from "./eventLocalState";
@@ -432,6 +433,11 @@ function AddOperatorDialog({
   const [role, setRole] = useState<AddOperatorRole>("STAFF");
   const [alert, setAlert] = useState("");
   const [fieldError, setFieldError] = useState("");
+  // Choosing 외부 협력자 초대 puts the cursor in the email field it reveals (#525).
+  const emailRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (way === "email") emailRef.current?.focus();
+  }, [way]);
 
   const operatorIds = new Set((operators ?? []).map((item) => item.userId));
   const candidates = operators ? (members.data?.items ?? []).filter((item) => !operatorIds.has(item.userId)) : [];
@@ -494,6 +500,10 @@ function AddOperatorDialog({
     }
     if (email.trim().length === 0) {
       setFieldError("이메일을 적어 주세요.");
+      return;
+    }
+    if (!isInvitableEmail(email)) {
+      setFieldError("이메일을 확인해 주세요.");
       return;
     }
     invite.mutate({ email: email.trim(), role });
@@ -585,6 +595,7 @@ function AddOperatorDialog({
             <label htmlFor="operator-add-email">이메일</label>
             <input
               id="operator-add-email"
+              ref={emailRef}
               className="event-home__address"
               type="email"
               autoComplete="off"
