@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { App } from "../../App";
 import { login } from "../../api/session";
 import { localEvent, localUsers } from "../../mocks/fixtures/seed";
@@ -157,6 +157,39 @@ describe("operator notices", () => {
     expect(await screen.findByText("공지를 쓸 권한이 없어 읽기만 할 수 있어요.", {}, WAIT)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "고치기" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "보관" })).not.toBeInTheDocument();
+  });
+
+  it("copies the share text (title, body, participant address) of a published notice (D5)", async () => {
+    if (!navigator.clipboard) {
+      Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: vi.fn() } });
+    }
+    const write = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue(undefined);
+    const notice = seed({ title: "  집회 장소 변경 ", body: "대강당으로 와 주세요.\n7시 50분까지" });
+    await open(`/events/${EVENT}/notices/${notice.noticeId}`);
+    fireEvent.click(await screen.findByRole("button", { name: "공유 문구 복사" }, WAIT));
+    expect(await screen.findByRole("status", {}, WAIT)).toHaveTextContent("공유 문구를 복사했어요.");
+    expect(write).toHaveBeenCalledWith(
+      `집회 장소 변경\n\n대강당으로 와 주세요.\n7시 50분까지\n\n${window.location.origin}/participate/${EVENT}`,
+    );
+    write.mockRestore();
+  });
+
+  it("offers 공유 문구 복사 to a reader, but not on a draft or a staff notice (D5)", async () => {
+    const leaders = seed({ title: "조장 공지", audience: "LEADERS" });
+    const view = await open(`/events/${EVENT}/notices/${leaders.noticeId}`, 2);
+    expect(await screen.findByRole("button", { name: "공유 문구 복사" }, WAIT)).toBeInTheDocument();
+    view.unmount();
+
+    const draft = seed({ title: "초안", publish: false });
+    const second = await open(`/events/${EVENT}/notices/${draft.noticeId}`);
+    expect(await screen.findByRole("button", { name: "발행" }, WAIT)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "공유 문구 복사" })).not.toBeInTheDocument();
+    second.unmount();
+
+    const staff = seed({ title: "운영진 공지", audience: "STAFF" });
+    await open(`/events/${EVENT}/notices/${staff.noticeId}`);
+    expect(await screen.findByRole("button", { name: "고치기" }, WAIT)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "공유 문구 복사" })).not.toBeInTheDocument();
   });
 
   it("hides 공지 쓰기 from a MANAGER whose NOTICE_WRITE is revoked", async () => {

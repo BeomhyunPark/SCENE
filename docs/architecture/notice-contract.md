@@ -65,7 +65,7 @@ DRAFT ──publish──▶ PUBLISHED ──archive──▶ ARCHIVED
 
 1월의 전달은 화면 안 알림뿐이고, 그 기록은 알림 행(`notifications`) 자체다. 공지에는 전달 기록 열을 두지 않는다.
 
-웹 푸시(D7, P2)·알림톡·문자는 DEC-080 §7.6의 `notification_deliveries`를 알림 행에 붙여 더한다. 공지 쪽에서 바꿀 것은 발행 요청의 선택 키 `channels`(예: `["IN_APP", "WEB_PUSH"]`)뿐이다. 1월 서버는 모르는 키를 무시한다. 공유 문구 복사(D5)는 화면이 공지 제목·본문·참가자 주소로 만들고 서버에 저장하지 않는다.
+웹 푸시(D7, P2)·알림톡·문자는 DEC-080 §7.6의 `notification_deliveries`를 알림 행에 붙여 더한다. 공지 쪽에서 바꿀 것은 발행 요청의 선택 키 `channels`(예: `["IN_APP", "WEB_PUSH"]`)뿐이다. 1월 서버는 모르는 키를 무시한다. 공유 문구 복사(D5)는 화면이 공지 제목·본문·참가자 주소로 만들고 서버에 저장하지 않는다. 만든 모양(2026-11-27, [#515](https://github.com/BeomhyunPark/SCENE/issues/515)): 발행된 `ALL`·`LEADERS` 공지 상세에 "공유 문구 복사" 버튼 하나를 두고, 글은 `제목` / 빈 줄 / `본문` / 빈 줄 / `참가자 주소`(`/participate/{eventId}`)다. 머리말·안내 문장은 없다. 쓰기 권한 없이 읽는 운영자도 누른다. 초안·보관·`STAFF` 공지에는 없다.
 
 ## 8. 오류
 

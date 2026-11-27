@@ -21,7 +21,15 @@ import { ConfirmDialog } from "../ConfirmDialog";
 import { EventScreen } from "../EventScreen";
 import { NoticeBadges, NoticeShell } from "./EventNotices";
 import type { NoticeFlash } from "./NoticeEditor";
-import { AUDIENCE_HINT, noticesHref, noticeStamp, notifiedCopy, PIN_LIMIT_COPY } from "./noticeCopy";
+import {
+  AUDIENCE_HINT,
+  noticesHref,
+  noticeShareable,
+  noticeShareText,
+  noticeStamp,
+  notifiedCopy,
+  PIN_LIMIT_COPY,
+} from "./noticeCopy";
 import { useNoticeAccess } from "./noticeAccess";
 import { NoticeText } from "./NoticeText";
 import "./Notices.css";
@@ -103,6 +111,14 @@ function DetailBody({ event, spaceName, noticeId }: { event: EventDetail; spaceN
     }
   }
 
+  function share(current: OperatorNotice) {
+    setAlert(null);
+    void navigator.clipboard.writeText(noticeShareText(current, eventId, window.location.origin)).then(
+      () => setMessage("공유 문구를 복사했어요."),
+      () => setAlert({ text: "복사하지 못했어요." }),
+    );
+  }
+
   let content;
   if (notice.isPending) content = <p className="notices__support">불러오는 중이에요.</p>;
   else if (isApiError(notice.error, "RESOURCE_NOT_FOUND")) {
@@ -159,14 +175,20 @@ function DetailBody({ event, spaceName, noticeId }: { event: EventDetail; spaceN
           </div>
         ) : null}
         {access.readOnlyNote ? <p className="notices__note">{access.readOnlyNote}</p> : null}
-        {access.canWrite ? (
+        {access.canWrite || noticeShareable(current) ? (
           <div className="notice-form__actions">
-            {current.status === "DRAFT" ? (
+            {/* D5: text for the group chat. Reading the notice is enough; it writes nothing. */}
+            {noticeShareable(current) ? (
+              <Button type="button" variant="secondary" size={48} disabled={pending !== null} onClick={() => share(current)}>
+                공유 문구 복사
+              </Button>
+            ) : null}
+            {access.canWrite && current.status === "DRAFT" ? (
               <Button type="button" variant="primary" size={48} loading={pending === "publish"} disabled={pending !== null} onClick={() => void run("publish", current)}>
                 발행
               </Button>
             ) : null}
-            {current.status !== "ARCHIVED" ? (
+            {access.canWrite && current.status !== "ARCHIVED" ? (
               <Button
                 type="button"
                 variant="secondary"
@@ -177,7 +199,7 @@ function DetailBody({ event, spaceName, noticeId }: { event: EventDetail; spaceN
                 고치기
               </Button>
             ) : null}
-            {current.status === "PUBLISHED" ? (
+            {access.canWrite && current.status === "PUBLISHED" ? (
               <Button
                 type="button"
                 variant="secondary"
@@ -189,7 +211,7 @@ function DetailBody({ event, spaceName, noticeId }: { event: EventDetail; spaceN
                 {current.pinned ? "고정 풀기" : "고정"}
               </Button>
             ) : null}
-            {current.status !== "ARCHIVED" ? (
+            {!access.canWrite ? null : current.status !== "ARCHIVED" ? (
               <Button type="button" variant="tertiary" size={48} disabled={pending !== null} onClick={() => setConfirm("archive")}>
                 보관
               </Button>
@@ -198,7 +220,7 @@ function DetailBody({ event, spaceName, noticeId }: { event: EventDetail; spaceN
                 보관 해제
               </Button>
             )}
-            {current.status === "DRAFT" ? (
+            {access.canWrite && current.status === "DRAFT" ? (
               <Button type="button" variant="danger-outline" size={48} disabled={pending !== null} onClick={() => setConfirm("delete")}>
                 지우기
               </Button>

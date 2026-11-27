@@ -62,3 +62,16 @@ export const PIN_LIMIT_COPY = "고정은 3개까지예요. 다른 고정을 풀�
 export function noticesHref(eventId: string, ...rest: string[]): string {
   return [`/events/${eventId}/notices`, ...rest].join("/");
 }
+
+/**
+ * 공유 문구 (D5, notice-contract "공유 문구 복사"): what an operator pastes into the group chat after
+ * publishing. Title, body and the event's one participant address (DEC-078 §8), built here and never
+ * stored. Only for a published notice participants can read (ALL, LEADERS); a STAFF notice has none.
+ */
+export function noticeShareText(notice: { title: string; body: string }, eventId: string, origin: string): string {
+  return [notice.title.trim(), notice.body.trim(), `${origin}/participate/${eventId}`].filter(Boolean).join("\n\n");
+}
+
+export function noticeShareable(notice: { status: NoticeStatus; audience: NoticeAudienceType }): boolean {
+  return notice.status === "PUBLISHED" && notice.audience !== "STAFF";
+}
