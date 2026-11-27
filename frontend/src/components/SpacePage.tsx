@@ -19,11 +19,12 @@ export function SpacePage({ title, children }: { title: string; children: (space
   const spaces = useCurrentSpace();
 
   if (spaces.isPending) {
-    return <OperatorStatus busy message="불러오는 중이에요." />;
+    return <OperatorStatus title={title} busy message="불러오는 중이에요." />;
   }
   if (spaces.isError) {
     return (
       <OperatorStatus
+        title={title}
         message="불러오지 못했어요."
         action={
           <Button type="button" variant="secondary" size={40} onClick={() => reloadQuery(spaces)}>

@@ -7,6 +7,7 @@ import { queryKeys } from "../api/queryKeys";
 import { getMe } from "../api/session";
 import { Button } from "./Button";
 import { OperatorShell } from "./OperatorShell";
+import { loadingTitle } from "./operatorMenu";
 import "./OperatorStatus.css";
 
 export function RequireOperator() {
@@ -39,18 +40,22 @@ export function RequireOperator() {
 }
 
 export function OperatorStatus({
+  title,
   message,
   busy,
   action,
   spaceName,
 }: {
+  /** Defaults to the address's organization menu label, or blank (#524). */
+  title?: string;
   message: string;
   busy?: boolean;
   action?: ReactNode;
   spaceName?: string;
 }) {
+  const location = useLocation();
   return (
-    <OperatorShell title="행사" spaceName={spaceName}>
+    <OperatorShell title={title ?? loadingTitle(location.pathname)} spaceName={spaceName}>
       <div className="operator-status">
         <p role="status" aria-busy={busy || undefined}>
           {message}

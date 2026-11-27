@@ -38,13 +38,14 @@ export function EventCreate() {
   const [formError, setFormError] = useState("");
   const [pending, setPending] = useState(false);
 
-  if (spaces.isPending) return <OperatorStatus busy message="불러오는 중이에요." />;
+  if (spaces.isPending) return <OperatorStatus title="새 행사 만들기" busy message="불러오는 중이에요." />;
   if (!spaces.space) {
-    return <OperatorStatus message="아직 들어간 조직이 없어요" />;
+    return <OperatorStatus title="새 행사 만들기" message="아직 들어간 조직이 없어요" />;
   }
   if (!mayCreateEvents(spaces.space.role)) {
     return (
       <OperatorStatus
+        title="새 행사 만들기"
         spaceName={spaces.space.name}
         message="행사는 조직 관리자가 만들어요. 관리자가 만든 행사에 운영자로 추가되면 행사 목록에 보여요."
         action={
