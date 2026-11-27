@@ -142,13 +142,29 @@ describe("organization members page (#376)", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
-  it("asks for a valid email", async () => {
+  it("puts the cursor in the email field and checks the address before sending (#525)", async () => {
+    let calls = 0;
+    server.use(
+      http.post("/api/v1/operator/spaces/:spaceId/invitations", () => {
+        calls += 1;
+        return problem(400, "VALIDATION_FAILED");
+      }),
+    );
     await login({ userId: OWNER });
     openApp("/members");
 
-    const dialog = await invite("not-an-email");
+    fireEvent.click(await screen.findByRole("button", { name: "멤버 초대" }));
+    const opened = await screen.findByRole("dialog", { name: "멤버 초대" });
+    expect(within(opened).getByLabelText("이메일")).toHaveFocus();
+    fireEvent.click(within(opened).getByRole("button", { name: "돌아가기" }));
 
-    expect(await within(dialog).findByText("이메일을 확인해 주세요.")).toBeInTheDocument();
+    for (const wrong of ["abc", "a@", "@example.com", "a@b@example.com", "a b@example.com"]) {
+      const dialog = await invite(wrong);
+      expect(await within(dialog).findByText("이메일을 확인해 주세요.")).toBeInTheDocument();
+      expect(within(dialog).getByLabelText("이메일")).toHaveAttribute("aria-invalid", "true");
+      fireEvent.click(within(dialog).getByRole("button", { name: "돌아가기" }));
+    }
+    expect(calls).toBe(0);
     expect(screen.queryByLabelText("초대 링크")).not.toBeInTheDocument();
   });
 

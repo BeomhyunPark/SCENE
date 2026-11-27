@@ -9,6 +9,9 @@ import { createInvitation } from "../mocks/invitationStore";
 import { mailedLinks, setMockMailDelivery } from "../mocks/mailOutbox";
 import { setLifecycle } from "../mocks/operatorStore";
 import { chooseOption } from "../test/select";
+import { problem } from "../mocks/problem";
+import { server } from "../mocks/server";
+import { http } from "msw";
 
 const EVENT = localEvent.eventId;
 const OWNER = localUsers[0].userId;
@@ -115,15 +118,29 @@ describe("event operators and invitations", () => {
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
-  it("asks for a valid email", async () => {
+  it("puts the cursor in the email field and checks the address before sending (#525)", async () => {
+    let calls = 0;
+    server.use(
+      http.post("/api/v1/operator/events/:eventId/invitations", () => {
+        calls += 1;
+        return problem(400, "VALIDATION_FAILED");
+      }),
+    );
     await login({ userId: OWNER });
     openApp(`/events/${EVENT}/operators`);
 
-    const dialog = await invite("not-an-email", "STAFF");
+    fireEvent.click(await screen.findByRole("button", { name: "운영자 추가" }));
+    const opened = await screen.findByRole("dialog", { name: "운영자 추가" });
+    fireEvent.click(within(opened).getByRole("radio", { name: "외부 협력자 초대" }));
+    expect(within(opened).getByLabelText("이메일")).toHaveFocus();
+    fireEvent.click(within(opened).getByRole("button", { name: "돌아가기" }));
+
+    const dialog = await invite("abc", "STAFF");
 
     expect(await within(dialog).findByText("이메일을 확인해 주세요.")).toBeInTheDocument();
     expect(screen.getByRole("dialog", { name: "운영자 추가" })).toBeInTheDocument();
     expect(screen.queryByLabelText("초대 링크")).not.toBeInTheDocument();
+    expect(calls).toBe(0);
   });
 
   it("hides invitations from a non-owner", async () => {

@@ -14,6 +14,7 @@ import {
 import type { ItemPage } from "../api/types";
 import { Button } from "./Button";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { isInvitableEmail } from "./inviteEmail";
 import { IssuedInvitationNotice } from "./EventOperators";
 import { formatSubmittedAt, spaceRoleLabel } from "./eventFormat";
 import { SpacePage } from "./SpacePage";
@@ -151,6 +152,10 @@ function SpaceInviteDialog({
       setFieldError("이메일을 적어 주세요.");
       return;
     }
+    if (!isInvitableEmail(email)) {
+      setFieldError("이메일을 확인해 주세요.");
+      return;
+    }
     create.mutate({ email: email.trim() });
   }
 
@@ -179,6 +184,7 @@ function SpaceInviteDialog({
         <label htmlFor="space-invite-email">이메일</label>
         <input
           id="space-invite-email"
+          data-autofocus
           className="event-home__address"
           type="email"
           autoComplete="off"
