@@ -437,6 +437,43 @@ class OperatorApplicationEditHttpIT {
   }
 
   /**
+   * #539: the participant's own edit goes through the same comparison as the operator's (#520).
+   * Saving unchanged number answers makes nothing; changing only the name names only the name, and
+   * the operators' notice does not list the seats question.
+   */
+  @Test
+  void participantEditWithANumberAnswerNamesOnlyWhatChanged() throws Exception {
+    Form form = openForm("참가자 숫자 owner", SETUP.replace("\"car\":false", "\"car\":true"));
+    Map<String, String> carpool = full();
+    carpool.put("TRANSPORT_IN", opt("opt_car"));
+    carpool.put("CARPOOL_OFFER", "{\"value\":true}");
+    carpool.put("CARPOOL_SEATS", "{\"number\":3}");
+    carpool.put("CARPOOL_AREA", "{\"text\":\"수지\"}");
+    Person garam = form.submit("가람", 1, carpool);
+    String self = "/api/v1/participant/application";
+
+    JsonNode same =
+        json.readTree(ok(write(put(self), garam.session, form.body(1, "가람", 1, carpool))));
+    assertThat(same.get("revision").asInt()).isEqualTo(1);
+    assertThat(kinds(notifications(get(eventPath(form) + "/notifications").cookie(form.owner))))
+        .doesNotContain("APPLICATION_REVISED");
+
+    JsonNode renamed =
+        json.readTree(ok(write(put(self), garam.session, form.body(1, "가람이", 1, carpool))));
+    assertThat(renamed.get("revision").asInt()).isEqualTo(2);
+    String changes =
+        jdbc.queryForObject(
+            "SELECT changes::text FROM applications WHERE id = ?::uuid",
+            String.class,
+            renamed.get("applicationId").asString());
+    assertThat(changes).doesNotContain("몇 명까지 태울 수 있어요?", "동승자를 태울 수 있어요?", "어느 동네에서");
+    JsonNode told = notifications(get(eventPath(form) + "/notifications").cookie(form.owner));
+    assertThat(told.get("items").get(0).get("kind").asString()).isEqualTo("APPLICATION_REVISED");
+    assertThat(told.get("items").get(0).get("body").asString())
+        .doesNotContain("몇 명까지 태울 수 있어요?");
+  }
+
+  /**
    * The edit's rules: permission, body, stale and withdrawn rows, archived events, a phone that
    * belongs to someone else, a changed phone signing in, consent carried over, an empty required
    * answer, and an edit that changes nothing.
