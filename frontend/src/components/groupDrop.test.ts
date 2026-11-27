@@ -6,6 +6,7 @@ import { membersOf } from "./groupBoardView";
 function person(id: string, groupId: string | null, position: number | null, leader = false): BoardParticipant {
   return {
     participantId: id,
+    applicationId: null,
     name: id,
     cohort: null,
     gender: null,

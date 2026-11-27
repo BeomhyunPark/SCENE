@@ -654,6 +654,11 @@ export function submittedApplication(
   };
 }
 
+/** The participant's current SUBMITTED application id, or null (roster and boards' `applicationId`, I6 #348). */
+export function submittedApplicationIdOf(eventId: string, participantId: string): string | null {
+  return active(eventId).find((row) => row.participantId === participantId)?.applicationId ?? null;
+}
+
 /** Check-in roster rows for participants who applied through the mock form. Phone keeps only the last 4 digits. */
 export function checkInCandidates(eventId: string): {
   participantId: string;

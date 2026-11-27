@@ -1,0 +1,12 @@
+/* A participant name that opens the 신청 상세 (I6 #348): the name's own look, underlined on hover and focus. */
+.applicant-link {
+  color: inherit;
+  font: inherit;
+  text-decoration: none;
+  text-underline-offset: 2px;
+}
+
+.applicant-link:hover,
+.applicant-link:focus-visible {
+  text-decoration: underline;
+}

@@ -2,6 +2,7 @@ import { localUsers } from "./fixtures/seed";
 import { boardSlotsOf, publishedGroupList, roomBoardPeople } from "./groupStore";
 import { eventById, spacesFor } from "./operatorStore";
 import { publishParticipantRooms, setNotLodging } from "./participantRoomStore";
+import { submittedApplicationIdOf } from "./participantStore";
 import { permissionsFor } from "./taskStore";
 
 /**
@@ -143,6 +144,7 @@ export function readRoomBoard(eventId: string, actorId: string) {
       const assignment = board.assignments.get(person.participantId);
       return {
         participantId: person.participantId,
+        applicationId: submittedApplicationIdOf(eventId, person.participantId),
         name: person.name,
         cohort: person.cohort,
         gender: person.gender,

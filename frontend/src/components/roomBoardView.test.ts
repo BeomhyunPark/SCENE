@@ -5,6 +5,7 @@ import { groupMembers, nextRoomName, nightsText, numberedRoomNames, planRoomMove
 function person(id: string, patch: Partial<RoomParticipant> = {}): RoomParticipant {
   return {
     participantId: id,
+    applicationId: null,
     name: id,
     cohort: null,
     gender: null,

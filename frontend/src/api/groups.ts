@@ -15,6 +15,8 @@ export type Group = { groupId: string; name: string; sortOrder: number; version:
 
 export type BoardParticipant = {
   participantId: string;
+  /** Latest SUBMITTED application, to open the same 신청 상세 from any screen (I6 #348); null from an older server. */
+  applicationId: string | null;
   name: string;
   cohort: string | null;
   gender: { optionId: string; label: string } | null;
@@ -366,6 +368,7 @@ function parseParticipant(value: unknown): BoardParticipant {
     : null;
   return {
     participantId: value.participantId,
+    applicationId: typeof value.applicationId === "string" ? value.applicationId : null,
     name: value.name,
     cohort: trimmedOrNull(value.cohort),
     gender,

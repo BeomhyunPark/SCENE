@@ -36,6 +36,7 @@ import { getMyPermissions } from "../api/operators";
 import { reloadQuery } from "../api/queryClient";
 import { queryKeys } from "../api/queryKeys";
 import { getMe } from "../api/session";
+import { ApplicantLink } from "./ApplicantLink";
 import { Button } from "./Button";
 import { Select, type SelectOption } from "./Select";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -1086,7 +1087,9 @@ function NamePill({ person, compact = false }: { person: BoardParticipant; compa
   const tone = person.gender?.optionId === "opt_male" ? "male" : person.gender?.optionId === "opt_female" ? "female" : "none";
   return (
     <span className={`event-groups__pill-name event-groups__pill-name--${tone}${person.leader ? " event-groups__pill-name--leader" : ""}`}>
-      <span className="event-groups__name">{participantLabel(person)}</span>
+      <ApplicantLink applicationId={person.applicationId} className="event-groups__name">
+        {participantLabel(person)}
+      </ApplicantLink>
       {person.gender ? <span className="event-groups__visually-hidden"> ({person.gender.label})</span> : null}
       {person.newcomer ? (
         compact ? (

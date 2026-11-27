@@ -3,7 +3,7 @@ import { eventById, spacesFor } from "./operatorStore";
 import { requireEventRead } from "./formStore";
 import { checkedInAtOf } from "./checkInStore";
 import { notifyParticipants, type ParticipantNotificationDraft } from "./participantNotificationStore";
-import { checkInCandidates } from "./participantStore";
+import { checkInCandidates, submittedApplicationIdOf } from "./participantStore";
 import { groupRosterVisible } from "./participantSettingsStore";
 import { publishedRoomOf } from "./participantRoomStore";
 import { permissionsFor } from "./taskStore";
@@ -265,6 +265,7 @@ export function readBoard(eventId: string, actorId: string) {
       const place = published.get(person.participantId);
       return {
         participantId: person.participantId,
+        applicationId: submittedApplicationIdOf(eventId, person.participantId),
         name: person.name,
         cohort: person.cohort,
         gender: person.gender,

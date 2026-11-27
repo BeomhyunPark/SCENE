@@ -1,5 +1,6 @@
 import { useId } from "react";
 import type { RosterItem } from "../api/checkIns";
+import { ApplicantLink } from "./ApplicantLink";
 import { Button } from "./Button";
 import { FieldRoomLine } from "./FieldRoomLine";
 import { checkInRecord } from "./fieldCheckInRecord";
@@ -52,9 +53,16 @@ export function FieldRosterRow({
   // Spans only: on desktop this sits inside a <button>. Room (G5 #460) under the name.
   const identity = (
     <>
-      <span className="event-field__name" id={labelId}>
-        {label}
-      </span>
+      {/* On desktop the name is inside the select button, so the detail panel's name opens 신청 상세 (I6). */}
+      {onSelect ? (
+        <span className="event-field__name" id={labelId}>
+          {label}
+        </span>
+      ) : (
+        <ApplicantLink applicationId={item.applicationId} className="event-field__name" id={labelId}>
+          {label}
+        </ApplicantLink>
+      )}
       <FieldRoomLine room={item.room} lodging={item.lodging} />
       {meta ? <span className="event-field__meta">{meta}</span> : null}
       {record ? <span className="event-field__meta event-field__record">{record}</span> : null}

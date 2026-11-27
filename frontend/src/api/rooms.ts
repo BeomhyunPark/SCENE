@@ -35,6 +35,8 @@ export type Room = {
 
 export type RoomParticipant = {
   participantId: string;
+  /** Latest SUBMITTED application, to open the same 신청 상세 from any screen (I6 #348); null from an older server. */
+  applicationId: string | null;
   name: string;
   cohort: string | null;
   gender: { optionId: string; label: string } | null;
@@ -347,6 +349,7 @@ function parseParticipant(value: unknown): RoomParticipant {
     : null;
   return {
     participantId: value.participantId,
+    applicationId: typeof value.applicationId === "string" ? value.applicationId : null,
     name: value.name,
     cohort: typeof value.cohort === "string" && value.cohort.trim().length > 0 ? value.cohort.trim() : null,
     gender,

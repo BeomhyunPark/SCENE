@@ -7,6 +7,7 @@ import { getMyPermissions } from "../api/operators";
 import { getMe } from "../api/session";
 import { OperationDrawer } from "./OperationDrawer";
 import { ApplicationRevisionHistory } from "./ApplicationRevisions";
+import { applicantBack } from "./applicantBack";
 import { useCurrentApplicationId } from "./useCurrentApplicationId";
 import { isApiError } from "../api/errors";
 import type { EventDetail } from "../api/events";
@@ -52,7 +53,10 @@ function Detail({ event, spaceName, applicationId }: { event: EventDetail; space
   const superseded = application.data?.status === "SUPERSEDED";
   const currentId = useCurrentApplicationId(eventId, applicationId, superseded);
   const { effective } = useEffectivePermissions(eventId);
-  const notice = (useLocation().state as EditNotice | null)?.edited ?? null;
+  const location = useLocation();
+  const notice = (location.state as EditNotice | null)?.edited ?? null;
+  // Opened from 현장 운영·조 편성·숙소 (I6 #348): the back arrow returns there.
+  const back = applicantBack(location.state, eventId);
   // 신청 고치기 (DEC-088): shown only when this operator can save it now.
   const mayEdit = application.data ? editBlocked(event, application.data, effective) === null : false;
 
@@ -66,7 +70,7 @@ function Detail({ event, spaceName, applicationId }: { event: EventDetail; space
       participantsHref={listPath}
       framed
       leading={
-        <Link className="event-home__back scene-press scene-press--text" to={listPath} aria-label="신청자 목록">
+        <Link className="event-home__back scene-press scene-press--text" to={back} aria-label={back === listPath ? "신청자 목록" : "이전 화면"}>
           <img src={arrowLeft} alt="" />
         </Link>
       }

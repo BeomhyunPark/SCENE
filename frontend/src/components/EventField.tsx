@@ -27,6 +27,7 @@ import { getMyPermissions } from "../api/operators";
 import { pollQuery, reloadQuery } from "../api/queryClient";
 import { queryKeys } from "../api/queryKeys";
 import { getMe } from "../api/session";
+import { ApplicantLink } from "./ApplicantLink";
 import { Button } from "./Button";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { FieldScan } from "./EventFieldScan";
@@ -592,7 +593,7 @@ function SelectedDetail({
       <p className="event-field__detail-kicker">선택한 참가자</p>
       <div className="event-field__detail-head">
         <h3 className="event-field__detail-name" id="field-detail-name">
-          {label}
+          <ApplicantLink applicationId={item.applicationId}>{label}</ApplicantLink>
         </h3>
         <StatusChip state={fieldState(item)} unknown={unknown} />
       </div>

@@ -2,7 +2,7 @@ import { localEvent, localUsers } from "./fixtures/seed";
 import { requireEventRead } from "./formStore";
 import { arrivalStandings } from "./mealCounts";
 import { eventById } from "./operatorStore";
-import { checkInCandidates } from "./participantStore";
+import { checkInCandidates, submittedApplicationIdOf } from "./participantStore";
 import { permissionsFor } from "./taskStore";
 
 /**
@@ -160,6 +160,7 @@ export function readRoster(eventId: string, actorId: string, url: URL) {
     const row = currentRow(eventId, item.participantId);
     return {
       participantId: item.participantId,
+      applicationId: submittedApplicationIdOf(eventId, item.participantId),
       name: item.name,
       cohort: item.cohort,
       phoneLast4: canWrite ? item.phoneLast4 : null,

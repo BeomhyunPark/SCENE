@@ -33,6 +33,7 @@ import {
   type RoomRosterScope,
 } from "../api/rooms";
 import { getMe } from "../api/session";
+import { ApplicantLink } from "./ApplicantLink";
 import { Button } from "./Button";
 import { Select, type SelectOption } from "./Select";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -1612,7 +1613,9 @@ function NamePill({ person, genderOptions }: { person: RoomParticipant; genderOp
   const tone = genderTone(person.gender?.optionId, genderOptions);
   return (
     <span className={`event-groups__pill-name event-groups__pill-name--${tone}`}>
-      <span className="event-groups__name">{participantLabel(person)}</span>
+      <ApplicantLink applicationId={person.applicationId} className="event-groups__name">
+        {participantLabel(person)}
+      </ApplicantLink>
       {person.gender ? <span className="event-groups__visually-hidden"> ({person.gender.label})</span> : null}
     </span>
   );
