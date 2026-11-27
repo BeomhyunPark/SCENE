@@ -28,8 +28,8 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
   {
     title: "안내",
     items: [
-      { key: "SCHEDULE_WRITE", label: "일정 쓰기", hint: "일정표 기능이 열리면 일정을 고쳐요" },
-      { key: "NOTICE_WRITE", label: "공지 쓰기", hint: "공지 기능이 열리면 공지를 올려요" },
+      { key: "SCHEDULE_WRITE", label: "일정 쓰기", hint: "일정표에서 일정을 만들고 고쳐 공개해요" },
+      { key: "NOTICE_WRITE", label: "공지 쓰기", hint: "공지를 쓰고 올리고 보관해요" },
     ],
   },
   {
