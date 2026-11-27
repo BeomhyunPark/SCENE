@@ -2291,7 +2291,7 @@ CSRF가 필요하다.
 
 `SCENE-CI1.` + base64url(패딩 없음, 참가자 id 16바이트 ‖ HMAC-SHA256(`scene.checkin.code-secret`, `checkin|1|{eventId}|{participantId}|0`) 앞 16바이트)이다. 서버는 값을 저장하지 않는다. 판정은 접두사 → base64url → 길이 32바이트 → 그 행사의 참가자 → 서명 비교(상수 시간) 순이다. 어느 단계에서 틀려도 `404 RESOURCE_NOT_FOUND`이고 어디서 틀렸는지 구분하지 않는다. 로그에 값을 남기지 않는다.
 
-비밀값은 환경 변수 `SCENE_CHECKIN_CODE_SECRET`이다. 비어 있으면 어떤 값도 맞지 않아 QR 체크인은 모두 `404`다. 수동 체크인은 그대로 된다. 바꾸면 이미 보여 준 QR이 모두 무효가 되므로 행사 기간에 바꾸지 않는다.
+비밀값은 환경 변수 `SCENE_CHECKIN_CODE_SECRET`이다. 홈 서버 compose는 이 값이 없으면 서버를 띄우지 않는다(#519). 앱만 따로 띄워 비어 있으면 어떤 값도 맞지 않아 QR 체크인은 모두 `404`다. 수동 체크인은 그대로 된다. 바꾸면 이미 보여 준 QR이 모두 무효가 되므로 행사 기간에 바꾸지 않는다.
 
 ### `GET /api/v1/participant/check-in`
 

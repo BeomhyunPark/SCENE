@@ -155,7 +155,7 @@
 | `SCENE_CORS_ALLOWED_ORIGINS` | 아니오 | 같은 출처로 가면 프런트 출처 1개(예: `https://<도메인>`) | 같음 |
 | `SCENE_GOOGLE_CLIENT_ID` (가칭) | 아니오 | Google OAuth | #232에서 확정 |
 | `SCENE_GOOGLE_CLIENT_SECRET` (가칭) | 예 | Google OAuth | #232에서 확정 |
-| `SCENE_CHECKIN_CODE_SECRET` | 예 | 체크인 QR 서명. 비면 QR 체크인이 꺼진다. 행사 기간에 바꾸지 않는다 | DEC-071, #282 |
+| `SCENE_CHECKIN_CODE_SECRET` | 예 | 체크인 QR 서명. 비면 compose가 서버를 띄우지 않는다(#519). 행사 기간에 바꾸지 않는다 | DEC-071, #282, #519 |
 | 배포용 SSH 키 / 클라우드 자격 | 예 | GitHub Actions → 서버 | GitHub Environment secret |
 
 - 세션 비밀값은 따로 없다. 운영자 세션은 Spring Session JDBC(DB 테이블)에 있고 쿠키 값은 세션 ID다(`SecurityConfiguration.operatorSessionCookie`).
