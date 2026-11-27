@@ -29,7 +29,8 @@ export function ConfirmDialog({
   useEffect(() => {
     const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const dialog = dialogRef.current;
-    dialog?.focus();
+    // A field marked data-autofocus (the invite email) takes the first focus so typing starts at once (#525).
+    (dialog?.querySelector<HTMLElement>("[data-autofocus]") ?? dialog)?.focus();
     function onKey(event: KeyboardEvent) {
       if (event.key === "Escape") {
         onCloseRef.current();
