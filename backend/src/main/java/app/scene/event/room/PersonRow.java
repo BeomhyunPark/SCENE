@@ -8,12 +8,14 @@ import java.util.UUID;
  * application (null answers when {@code submitted} is false). {@code genderLabel} is the chosen
  * GENDER option's current label, hidden or not; {@code genderShown} is whether that option is
  * shown. The {@code …Answer} columns are stored values of the visible questions as JSON text, or
- * null. {@code basis} is the stored assignment basis as JSON text. No phone.
+ * null. {@code applicationId} is that application, null when {@code submitted} is false. {@code
+ * basis} is the stored assignment basis as JSON text. No phone.
  */
 public record PersonRow(
     UUID participantId,
     String name,
     boolean submitted,
+    UUID applicationId,
     String cohort,
     String genderOptionId,
     String genderLabel,

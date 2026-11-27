@@ -163,6 +163,7 @@ public class RoomService {
       participants.add(
           new BoardPerson(
               row.participantId(),
+              row.applicationId(),
               row.name(),
               row.cohort(),
               row.genderOptionId() == null

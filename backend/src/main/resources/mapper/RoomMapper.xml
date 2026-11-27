@@ -122,6 +122,7 @@
   <select id="findPeople" resultType="app.scene.event.room.PersonRow">
     SELECT p.id AS participant_id, p.name,
            (app.id IS NOT NULL) AS submitted,
+           app.id AS application_id,
            nullif(btrim(coh.value ->> 'text'), '') AS cohort,
            gen.value ->> 'optionId' AS gender_option_id,
            (SELECT o ->> 'label'

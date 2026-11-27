@@ -252,6 +252,16 @@ class RoomHttpIT {
     JsonNode leaderView = myGroup(lead).get("leaderView");
     assertThat(leaderView.get("members").get(1).get("room").isNull()).isTrue();
     assertThat(board(w).get("participants").get(0).get("publishedRoomId").isNull()).isTrue();
+    // I6 (#348): the room board names the SUBMITTED application like the roster and group board.
+    for (JsonNode person : board(w).get("participants")) {
+      assertThat(person.get("applicationId").asString())
+          .isEqualTo(
+              jdbc.queryForObject(
+                      "SELECT id FROM applications WHERE participant_id = ? AND status = 'SUBMITTED'",
+                      UUID.class,
+                      UUID.fromString(person.get("participantId").asString()))
+                  .toString());
+    }
     assertThat(board(w).get("publication").get("hasUnpublishedChanges").asBoolean()).isTrue();
 
     JsonNode published = publish(w, true, false);

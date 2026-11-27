@@ -9,10 +9,12 @@ import java.util.UUID;
  * slotIds} are the board's {@code slots} the participant attends, in slot order: every slot for a
  * full attendee, the chosen ones otherwise, and null when unknown (no MEALS answer) or when the
  * board has no slots. {@code position} orders members within the group (smaller first, not
- * necessarily consecutive) and is null when unassigned.
+ * necessarily consecutive) and is null when unassigned. {@code applicationId} is the latest
+ * SUBMITTED application, so every screen opens the same 신청 상세 (I6 #348).
  */
 public record BoardParticipant(
     UUID participantId,
+    UUID applicationId,
     String name,
     String cohort,
     Gender gender,

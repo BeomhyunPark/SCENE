@@ -130,7 +130,7 @@
   <select id="findRoster" resultType="app.scene.event.checkin.RosterRow">
     SELECT p.id AS participant_id, p.name, coh.text AS cohort, p.phone_last4,
            c.id AS check_in_id, c.status, c.method, c.checked_in_at,
-           u.display_name AS checked_in_by_display_name
+           u.display_name AS checked_in_by_display_name, app.id AS application_id
     <include refid="rosterFrom"/>
     LEFT JOIN LATERAL (<include refid="cohort"/>) coh ON true
     LEFT JOIN users u ON u.id = c.checked_in_by

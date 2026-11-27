@@ -2354,6 +2354,7 @@ CSRF가 필요하다.
 ```json
 {
   "participantId": "…",
+  "applicationId": "…",
   "name": "김",
   "cohort": "94",
   "phoneLast4": "1234",
@@ -2361,6 +2362,7 @@ CSRF가 필요하다.
 }
 ```
 
+- `applicationId`(I6, [#348](https://github.com/BeomhyunPark/SCENE/issues/348), 더하기만)는 가장 최근 `SUBMITTED` 신청의 id다. 화면은 이 값으로 [신청 상세](#get-apiv1operatoreventseventidapplicationsapplicationid)를 연다. 편성판·숙소 배정판의 `participants[].applicationId`와 같은 값이다.
 - `cohort`는 `SUBMITTED` 신청의 SYSTEM `COHORT` 답 `value.text`다. 없거나 꺼져 있으면 `null`이다.
 - `phoneLast4`는 `CHECKIN_WRITE`가 있을 때만 값이 있고, 없으면 `null`이다. `CONTACT_VIEW`는 남기지 않는다. 전체 전화는 이 응답에 없다.
 - `checkIn`은 한 번도 체크인하지 않았으면 `null`이다.
@@ -2495,6 +2497,7 @@ CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고
   "participants": [
     {
       "participantId": "…",
+      "applicationId": "…",
       "name": "김",
       "cohort": "94",
       "gender": { "optionId": "opt_female", "label": "여" },
@@ -2532,7 +2535,7 @@ CSRF와 `Idempotency-Key`가 필요하다. 본문은 `{ "reason": "…" }`이고
 }
 ```
 
-- `participants`는 활성 참가자 전원이고 순서는 이름, 그다음 참가자 id다. 페이지는 없다. 전화·접근 키는 없다.
+- `participants`는 활성 참가자 전원이고 순서는 이름, 그다음 참가자 id다. 페이지는 없다. 전화·접근 키는 없다. `applicationId`(I6, #348, 더하기만)는 가장 최근 `SUBMITTED` 신청의 id이고 현장 운영 명단의 값과 같다.
 - `cohort`는 `SUBMITTED` 신청의 `COHORT` 답 `value.text`(앞뒤 공백 자름)다. `middleGroup`·`cell`은 `MIDDLE_GROUP`·`CELL` 답이 자유 입력이면 `value.text`(앞뒤 공백 자름), 목록 보기면 고른 보기의 지금 문구다(새가족이면 `"새가족 (등반X)"` 또는 운영자가 고친 문구). `gender`는 `GENDER` 답의 보기 id와 지금 보기 문구다. 답이 없거나 질문이 없거나 꺼져 있으면 `null`이다.
 - `newcomer`는 새가족 보기(`opt_newcomer`)를 가진 보이는 질문(중그룹이 가지면 중그룹, 아니면 셀)의 답으로 정한다: 그 보기를 골랐으면 `true`, 다른 보기면 `false`, 답이 없거나 그런 질문이 없으면 `null`이고 화면은 "응답 없음"으로 묶는다. 예전 `NEWCOMER` 예/아니오 답은 읽지 않는다. 돌봄 관련 정보라 편성판에만 값으로 있다. 참가자의 내 조 명단과 운영자 공개본 조회에는 없다. 조장은 [조원 상세](#get-apiv1participantgroupmembersparticipantid)의 중그룹·셀 답으로 새가족 보기를 본다(DEC-083 §5). `newcomer` 값은 참가자 응답에 없다.
 - `attendance`는 `ATTENDANCE` 답의 `opt_full`·`opt_partial`·`opt_worship`을 `FULL`·`PARTIAL`·`WORSHIP_ONLY`로 바꾼 값이다. 질문이 없거나 꺼져 있으면 `FULL`이다(DEC-070 §3). 질문이 켜진 뒤 들어온 신청이 아니라서 답이 없을 때도 `FULL`이다. `null`이 아니다.
@@ -2931,7 +2934,7 @@ audit `GROUPS_PUBLISHED`: detail은 `publicationId`, `boardVersion`, `assignedCo
   ],
   "participants": [
     {
-      "participantId": "…", "name": "김", "cohort": "94",
+      "participantId": "…", "applicationId": "…", "name": "김", "cohort": "94",
       "gender": { "optionId": "opt_female", "label": "여성" },
       "attendance": "PARTIAL",
       "slotIds": ["opt_d1_dinner", "opt_d1_worship", "opt_d2_breakfast"],
@@ -2964,7 +2967,7 @@ audit `GROUPS_PUBLISHED`: detail은 `publicationId`, `boardVersion`, `assignedCo
 ```
 
 - `rooms`는 방 순서(`sortOrder`, 그다음 id)다. `gender`는 방의 성별 구분이고 `null`은 구분 없음이다. `label`은 지금 `GENDER` 질문의 보기 문구이고 보기를 찾을 수 없으면 `null`이다. `memberCount`는 활성 배정 인원이다.
-- `participants`는 **활성 참가자 전원**을 이름, 그다음 id 순으로 담는다. 페이지는 없다. 전화·접근 키·숫자 6자리·신청 답 원본·운영 메모는 없다.
+- `participants`는 **활성 참가자 전원**을 이름, 그다음 id 순으로 담는다. 페이지는 없다. 전화·접근 키·숫자 6자리·신청 답 원본·운영 메모는 없다. `applicationId`(I6, #348, 더하기만)는 가장 최근 `SUBMITTED` 신청의 id이고 현장 운영 명단·편성판의 값과 같다.
 - `cohort`·`gender`·`attendance`·`slotIds`·`slots`는 [편성판](#get-apiv1operatoreventseventidgroup-board)과 같은 값·같은 규칙이다(`gender`는 숨긴 보기도 그대로 보인다. 경고에서는 성별 없음으로 본다).
 - `lodging`·`lodgingNights`는 위 표다. `lodgingNights`는 1부터의 밤 번호이고 `null`은 모름이다.
 - `group`은 **가장 최근 조 편성 공개본**의 조이고(공개 전이거나 공개본에 없으면 `null`), `groups`는 그 공개본의 조 목록이다. `draftGroupId`는 요청한 운영자에게 유효한 `GROUP_WRITE`가 있을 때만 조 편성 작업본의 조이고, 없으면 늘 `null`이다. 화면의 "조로 거르기"와 "조 단위 일괄 배정"이 쓴다. 서버에는 조를 받는 배정 경로가 없다(화면이 조원으로 `changes`를 만든다).

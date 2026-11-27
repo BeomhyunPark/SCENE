@@ -843,6 +843,7 @@ public class GroupService {
     String attendance = attendance(row.attendanceAsked(), row.attendanceOptionId());
     return new BoardParticipant(
         row.participantId(),
+        row.applicationId(),
         row.name(),
         row.cohort(),
         gender,

@@ -132,6 +132,7 @@ class GroupHttpIT {
     assertThat(first.propertyNames())
         .containsExactly(
             "participantId",
+            "applicationId",
             "name",
             "cohort",
             "gender",
@@ -157,6 +158,11 @@ class GroupHttpIT {
     assertThat(first.get("publishedGroupId").isNull()).isTrue();
     assertThat(first.get("publishedLeader").asBoolean()).isFalse();
     assertThat(first.toString()).doesNotContain(PHONE).doesNotContain("0001");
+    // I6 (#348): the SUBMITTED application, the same id the 현장 운영 roster gives.
+    for (JsonNode person : b.get("participants")) {
+      assertThat(person.get("applicationId").asString())
+          .isEqualTo(submittedApplication(UUID.fromString(person.get("participantId").asString())));
+    }
 
     JsonNode bare = item(b.get("participants"), none);
     assertThat(bare.get("cohort").isNull()).isTrue();
@@ -1363,5 +1369,13 @@ class GroupHttpIT {
       }
       return id;
     }
+  }
+
+  private String submittedApplication(UUID participantId) {
+    return jdbc.queryForObject(
+            "SELECT id FROM applications WHERE participant_id = ? AND status = 'SUBMITTED'",
+            UUID.class,
+            participantId)
+        .toString();
   }
 }

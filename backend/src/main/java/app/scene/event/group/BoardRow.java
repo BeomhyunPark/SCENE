@@ -10,7 +10,8 @@ import java.util.UUID;
  * app.scene.event.form.FormPreset#newcomer} reads them. {@code mealsAnswer} is the stored value of
  * the visible MEALS question as JSON text, or null. {@code arrivalAnswer} and {@code
  * departureAnswer} are the same for the visible ARRIVAL_SLOT and DEPARTURE_SLOT questions
- * (DEC-074). {@code position} orders members within the group and is null when unassigned.
+ * (DEC-074). {@code applicationId} is the latest SUBMITTED application the answers come from.
+ * {@code position} orders members within the group and is null when unassigned.
  */
 public record BoardRow(
     UUID participantId,
@@ -31,4 +32,5 @@ public record BoardRow(
     Integer position,
     String mealsAnswer,
     String arrivalAnswer,
-    String departureAnswer) {}
+    String departureAnswer,
+    UUID applicationId) {}

@@ -56,10 +56,13 @@ public final class RoomViews {
   /**
    * An active participant on the board. {@code group} is from the latest group publication; {@code
    * draftGroupId} is the group working copy's group, only for a reader with {@code GROUP_WRITE}.
-   * {@code review} is the "다시 볼 것" mark of A11 (#461), null when the basis still holds.
+   * {@code review} is the "다시 볼 것" mark of A11 (#461), null when the basis still holds. {@code
+   * applicationId} is the latest SUBMITTED application, so every screen opens the same 신청 상세 (I6
+   * #348).
    */
   public record BoardPerson(
       UUID participantId,
+      UUID applicationId,
       String name,
       String cohort,
       Gender gender,

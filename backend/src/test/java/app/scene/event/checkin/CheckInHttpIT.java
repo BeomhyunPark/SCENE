@@ -319,6 +319,7 @@ class CheckInHttpIT {
     assertThat(shown.get("items").get(0).propertyNames())
         .containsExactly(
             "participantId",
+            "applicationId",
             "name",
             "cohort",
             "phoneLast4",
@@ -424,6 +425,16 @@ class CheckInHttpIT {
         .containsExactly("checkInId", "status", "method", "checkedInAt", "checkedInByDisplayName");
     assertThat(brief.get("checkedInByDisplayName").asString()).isEqualTo("Owner");
     assertThat(item(roster, second).get("cohort").asString()).isEqualTo("95");
+    // I6 (#348): each item names its SUBMITTED application, so the screen opens the same 신청 상세.
+    for (UUID id : List.of(first, second, third)) {
+      assertThat(item(roster, id).get("applicationId").asString())
+          .isEqualTo(
+              jdbc.queryForObject(
+                      "SELECT id FROM applications WHERE participant_id = ? AND status = 'SUBMITTED'",
+                      UUID.class,
+                      id)
+                  .toString());
+    }
 
     assertThat(names(roster(w, "q", "다"))).containsExactly("가나다", "나다라");
     assertThat(names(roster(w, "q", "abc"))).containsExactly("ABC Kim");
