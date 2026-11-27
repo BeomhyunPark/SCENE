@@ -100,7 +100,8 @@ class GoogleSignInIT {
         .contains("client_id=test-client-id")
         .contains("scope=openid%20email%20profile")
         .contains("redirect_uri=http://localhost/login/oauth2/code/google")
-        .contains("state=");
+        .contains("state=")
+        .contains("prompt=select_account");
     assertThat(result.getResponse().getHeaders("Set-Cookie"))
         .anyMatch(cookie -> cookie.startsWith("SCENE_SESSION="));
   }
