@@ -1083,11 +1083,15 @@ function AnswerSelect({
 }
 
 /** "94 김하늘" on a tint of the GENDER answer; the gender is also in words for screen readers and the title. */
-function NamePill({ person, compact = false }: { person: BoardParticipant; compact?: boolean }) {
+/**
+ * `link`: the name opens 신청 상세 (I6 #348). A selectable 미배정 card leaves it off: there pressing the name
+ * picks the person ("이름을 눌러 고른 뒤 조로 보내요").
+ */
+function NamePill({ person, compact = false, link = true }: { person: BoardParticipant; compact?: boolean; link?: boolean }) {
   const tone = person.gender?.optionId === "opt_male" ? "male" : person.gender?.optionId === "opt_female" ? "female" : "none";
   return (
     <span className={`event-groups__pill-name event-groups__pill-name--${tone}${person.leader ? " event-groups__pill-name--leader" : ""}`}>
-      <ApplicantLink applicationId={person.applicationId} className="event-groups__name">
+      <ApplicantLink applicationId={link ? person.applicationId : null} className="event-groups__name">
         {participantLabel(person)}
       </ApplicantLink>
       {person.gender ? <span className="event-groups__visually-hidden"> ({person.gender.label})</span> : null}
@@ -1205,7 +1209,7 @@ function PoolCard({
         {selectable ? (
           <input type="checkbox" checked={checked} onChange={onToggle} aria-label={`${label} 고르기`} />
         ) : null}
-        <NamePill person={person} />
+        <NamePill person={person} link={!selectable} />
         {selectable ? <Grip label={`${label} 끌어서 옮기기`} onStart={(event) => onStart(event, true)} /> : null}
       </span>
       <span className="event-groups__pool-slots">

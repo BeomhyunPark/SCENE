@@ -5,6 +5,8 @@ import { App } from "../App";
 import { login } from "../api/session";
 import { localEvent, localUsers } from "../mocks/fixtures/seed";
 import { createForm, setAccepting } from "../mocks/formStore";
+import { moveAsOtherOperator, seedGroup } from "../mocks/groupStore";
+import { placeAsOtherOperator, seedRooms } from "../mocks/roomBoardStore";
 import { setLifecycle } from "../mocks/operatorStore";
 import { submitPublicApplication } from "../mocks/participantStore";
 
@@ -13,7 +15,7 @@ const OWNER = localUsers[0].userId;
 const WAIT = { timeout: 4000 };
 const NAME = "윤상세";
 
-function seedApplicant(): string {
+function seedApplicant(): { applicationId: string; participantId: string } {
   const form = createForm(EVENT, OWNER, {});
   if ("code" in form) throw new Error(form.code);
   setLifecycle(EVENT, "ACTIVE", 1);
@@ -29,7 +31,7 @@ function seedApplicant(): string {
     pin: "730914",
   });
   if ("code" in submitted) throw new Error(submitted.code);
-  return submitted.applicationId;
+  return { applicationId: submitted.applicationId, participantId: submitted.participantId };
 }
 
 async function openAt(path: string) {
@@ -49,7 +51,10 @@ describe("participant name opens the same 신청 상세", () => {
     ["숙소", "rooms"],
   ] as const) {
     it(`from ${screenName}`, async () => {
-      const applicationId = seedApplicant();
+      const { applicationId, participantId } = seedApplicant();
+      // In a group or room: on a pickable 미배정 card the name picks the person instead (see below).
+      moveAsOtherOperator(EVENT, participantId, seedGroup(EVENT, "1조"));
+      placeAsOtherOperator(EVENT, participantId, seedRooms(EVENT, 1)[0]);
       await openAt(`/events/${EVENT}/${segment}`);
       const links = await screen.findAllByRole("link", { name: NAME }, WAIT);
       expect(links[0]).toHaveAttribute("href", `/events/${EVENT}/participants/${applicationId}`);
@@ -62,8 +67,17 @@ describe("participant name opens the same 신청 상세", () => {
     });
   }
 
+  it("keeps pressing the name on a 미배정 card for picking, not opening (조 편성)", async () => {
+    seedApplicant();
+    await openAt(`/events/${EVENT}/groups`);
+    const pick = await screen.findByRole("checkbox", { name: `${NAME} 고르기` }, WAIT);
+    expect(screen.queryByRole("link", { name: NAME })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText(NAME));
+    expect(pick).toBeChecked();
+  });
+
   it("keeps the 참가 현황 back arrow when opened from anywhere else", async () => {
-    const applicationId = seedApplicant();
+    const { applicationId } = seedApplicant();
     await openAt(`/events/${EVENT}/participants/${applicationId}`);
     expect(await screen.findByRole("link", { name: "신청자 목록" }, WAIT)).toHaveAttribute("href", `/events/${EVENT}/participants`);
   });

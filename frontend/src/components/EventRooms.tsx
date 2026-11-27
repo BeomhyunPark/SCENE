@@ -1609,11 +1609,12 @@ function AnswerSelect({
   );
 }
 
-function NamePill({ person, genderOptions }: { person: RoomParticipant; genderOptions: GenderOption[] }) {
+/** `link`: the name opens 신청 상세 (I6 #348); off on a pickable 미배정 card, where pressing the name picks the person. */
+function NamePill({ person, genderOptions, link = true }: { person: RoomParticipant; genderOptions: GenderOption[]; link?: boolean }) {
   const tone = genderTone(person.gender?.optionId, genderOptions);
   return (
     <span className={`event-groups__pill-name event-groups__pill-name--${tone}`}>
-      <ApplicantLink applicationId={person.applicationId} className="event-groups__name">
+      <ApplicantLink applicationId={link ? person.applicationId : null} className="event-groups__name">
         {participantLabel(person)}
       </ApplicantLink>
       {person.gender ? <span className="event-groups__visually-hidden"> ({person.gender.label})</span> : null}
@@ -1670,7 +1671,7 @@ function PoolCard({
     <>
       <span className="event-groups__card-name">
         {canPick ? <input type="checkbox" checked={checked} onChange={onToggle} aria-label={`${label} 고르기`} /> : null}
-        <NamePill person={person} genderOptions={genderOptions} />
+        <NamePill person={person} genderOptions={genderOptions} link={!canPick} />
         {person.review ? (
           <span className="event-rooms__flag" title="다시 볼 것">
             ⚑<span className="event-groups__visually-hidden"> 다시 볼 것</span>
