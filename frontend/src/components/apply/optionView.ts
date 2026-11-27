@@ -1,3 +1,4 @@
+import { withJosa } from "../josa";
 import type { FieldOption, FormField } from "../../api/forms";
 import { optionsHiddenByCondition, visibleFields, visibleOptions, type RawAnswers } from "./answerModel";
 import { ARRIVAL, DEPARTURE } from "./attendanceRange";
@@ -66,10 +67,10 @@ function vehicleNotice(field: FormField, fields: FormField[], raw: RawAnswers): 
     )
     .map((option) => {
       if (option.optionId === "opt_group") {
-        return back ? `마지막 일정까지 있는 분만 ${option.label}을 탈 수 있어요.` : `첫 일정부터 오는 분만 ${option.label}을 탈 수 있어요.`;
+        return back ? `마지막 일정까지 있는 분만 ${withJosa(option.label, "을/를")} 탈 수 있어요.` : `첫 일정부터 오는 분만 ${withJosa(option.label, "을/를")} 탈 수 있어요.`;
       }
       if (option.optionId === "opt_shuttle") {
-        return back ? `집회 시간에 떠나는 분만 ${option.label}을 탈 수 있어요.` : `집회 시간에 오는 분만 ${option.label}을 탈 수 있어요.`;
+        return back ? `집회 시간에 떠나는 분만 ${withJosa(option.label, "을/를")} 탈 수 있어요.` : `집회 시간에 오는 분만 ${withJosa(option.label, "을/를")} 탈 수 있어요.`;
       }
       return null;
     })

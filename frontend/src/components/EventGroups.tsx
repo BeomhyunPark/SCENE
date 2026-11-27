@@ -6,6 +6,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
+import { withJosa } from "./josa";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router";
 import arrowLeft from "../assets/event-create/arrow-left.svg";
@@ -360,7 +361,7 @@ function Board({
         text:
           toGroupId === null
             ? `${movers.length}명을 미배정으로 뺐어요.`
-            : `${movers.length}명을 ${toName}로 보냈어요.${result.alreadyApplied > 0 ? ` ${result.alreadyApplied}명은 이미 그 조에 있었어요.` : ""}`,
+            : `${movers.length}명을 ${withJosa(toName, "으로/로")} 보냈어요.${result.alreadyApplied > 0 ? ` ${result.alreadyApplied}명은 이미 그 조에 있었어요.` : ""}`,
       });
     } catch (error) {
       const conflicts = assignmentConflicts(error);
@@ -413,7 +414,7 @@ function Board({
       async () => {
         const result = await createGroup(eventId, name);
         setNewName("");
-        return `${result.group.name}를 만들었어요.`;
+        return `${withJosa(result.group.name, "을/를")} 만들었어요.`;
       },
       (error) =>
         isApiError(error, "CONFLICT")
@@ -434,7 +435,7 @@ function Board({
       async () => {
         await renameGroup(eventId, group.groupId, trimmed, group.version);
         setRenaming(null);
-        return trimmed === group.name ? null : `이름을 ${trimmed}로 바꿨어요.`;
+        return trimmed === group.name ? null : `이름을 ${withJosa(trimmed, "으로/로")} 바꿨어요.`;
       },
       (error) =>
         isApiError(error, "CONFLICT")
@@ -451,8 +452,8 @@ function Board({
         const result = await deleteGroup(eventId, group.groupId, group.version);
         setDeleting(null);
         return result.unassignedCount > 0
-          ? `${group.name}를 지웠어요. ${result.unassignedCount}명이 미배정이 됐어요.`
-          : `${group.name}를 지웠어요.`;
+          ? `${withJosa(group.name, "을/를")} 지웠어요. ${result.unassignedCount}명이 미배정이 됐어요.`
+          : `${withJosa(group.name, "을/를")} 지웠어요.`;
       },
       (error) => {
         setDeleting(null);
@@ -492,8 +493,8 @@ function Board({
         await setGroupLeaders(eventId, group.groupId, next, group.version);
         if (person.leader) return `${participantLabel(person)}의 조장 표시를 뺐어요.`;
         return previous
-          ? `${group.name} 조장을 ${participantLabel(previous)}에서 ${participantLabel(person)}으로 바꿨어요.`
-          : `${participantLabel(person)}을 ${group.name} 조장으로 정했어요.`;
+          ? `${group.name} 조장을 ${participantLabel(previous)}에서 ${withJosa(participantLabel(person), "으로/로")} 바꿨어요.`
+          : `${withJosa(participantLabel(person), "을/를")} ${group.name} 조장으로 정했어요.`;
       },
       (error) =>
         isApiError(error, "CONCURRENT_MODIFICATION")
@@ -528,7 +529,7 @@ function Board({
     if (plan.kind === "reorder") {
       const who = ids.length === 1 && byId.has(ids[0]) ? participantLabel(byId.get(ids[0])!) : `${ids.length}명`;
       const at = plan.participantIds.indexOf(ids[0]) + 1;
-      reorder(plan, `${who}을 ${groupName(board.groups, plan.groupId)} ${at}번째로 옮겼어요.`);
+      reorder(plan, `${withJosa(who, "을/를")} ${groupName(board.groups, plan.groupId)} ${at}번째로 옮겼어요.`);
       return;
     }
     const before = plan.changes[0]?.beforeParticipantId ?? null;
@@ -540,7 +541,7 @@ function Board({
     const plan = stepPlan(board, person.participantId, by);
     if (plan?.kind !== "reorder") return;
     const at = plan.participantIds.indexOf(person.participantId) + 1;
-    reorder(plan, `${participantLabel(person)}을 ${groupName(board.groups, plan.groupId)} ${at}번째로 옮겼어요.`);
+    reorder(plan, `${withJosa(participantLabel(person), "을/를")} ${groupName(board.groups, plan.groupId)} ${at}번째로 옮겼어요.`);
   }
 
   function dropGroup(groupId: string, beforeGroupId: string | null) {
@@ -551,7 +552,7 @@ function Board({
     void write(
       async () => {
         await reorderGroups(eventId, ids);
-        return `${name}를 ${ids.indexOf(groupId) + 1}번째로 옮겼어요.`;
+        return `${withJosa(name, "을/를")} ${ids.indexOf(groupId) + 1}번째로 옮겼어요.`;
       },
       (error) =>
         isApiError(error, "CONFLICT") ? "다른 운영자가 조를 바꿔서 순서를 저장하지 않았어요. 최신 순서를 불러왔어요." : "순서를 바꾸지 못했어요.",
@@ -880,7 +881,7 @@ function Board({
                             await assignParticipants(eventId, [
                               { participantId: person.participantId, fromGroupId: person.groupId, toGroupId: null },
                             ]);
-                            return `${person.name}을 이전 조에서 뺐어요.`;
+                            return `${withJosa(person.name, "을/를")} 이전 조에서 뺐어요.`;
                           },
                           (error) =>
                             assignmentConflicts(error).length > 0
@@ -951,7 +952,7 @@ function Board({
 
       {deleting ? (
         <ConfirmDialog
-          title={`${deleting.name}를 지울까요?`}
+          title={`${withJosa(deleting.name, "을/를")} 지울까요?`}
           onClose={() => setDeleting(null)}
           footer={
             <>
@@ -1149,7 +1150,7 @@ function Grip({
 }
 
 function dragAnnouncement(item: DragItem, over: DragOver, board: GroupBoard): string {
-  const what = item.kind === "people" ? `${item.label}을 옮기는 중` : `${item.label}를 옮기는 중`;
+  const what = `${withJosa(item.label, "을/를")} 옮기는 중`;
   if (!over) return `${what}. 놓을 곳 위에서 손을 떼세요. Esc를 누르면 취소돼요.`;
   if (over.kind === "page") return `${what}. ${over.dir < 0 ? "이전" : "다음"} 조로 넘어가요.`;
   if (over.kind === "pool") return `${what}. 여기에 놓으면 미배정이 돼요.`;
@@ -1602,7 +1603,7 @@ function ConflictPanel({
         ))}
       </ul>
       <p className="event-groups__muted">
-        {report.toGroupId === null ? "미배정으로 빼기" : `${report.toName}로 보내기`}를 최신 상태로 다시 하려면 아래를 눌러 주세요.
+        {report.toGroupId === null ? "미배정으로 빼기" : `${withJosa(report.toName, "으로/로")} 보내기`}를 최신 상태로 다시 하려면 아래를 눌러 주세요.
       </p>
       <div className="event-groups__conflict-actions">
         {editable ? (

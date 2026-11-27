@@ -1,4 +1,5 @@
 import { useState, type FormEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { withJosa } from "./josa";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router";
 import arrowLeft from "../assets/event-create/arrow-left.svg";
@@ -288,7 +289,7 @@ function Board({
         const result = await assignRooms(eventId, changes);
         setSelected(new Set());
         const who = label ?? `${result.changed}명`;
-        const base = toRoomId === null ? `${who}을 미배정으로 뺐어요.` : `${who}을 ${toName}에 넣었어요.`;
+        const base = toRoomId === null ? `${withJosa(who, "을/를")} 미배정으로 뺐어요.` : `${withJosa(who, "을/를")} ${toName}에 넣었어요.`;
         const already = result.alreadyApplied > 0 ? ` ${result.alreadyApplied}명은 이미 그 방에 있었어요.` : "";
         const warned = warningSummary(board.rooms, result.rooms.filter((room) => room.roomId === toRoomId));
         return { tone: warned ? "info" : "success", text: `${base}${already}${skippedText}${warned}` };
@@ -337,11 +338,11 @@ function Board({
           await updateRoom(eventId, room.roomId, fields, room.version);
           setEditing(null);
           ok = true;
-          return `${fields.name ?? room.name}을 고쳤어요.`;
+          return `${withJosa(fields.name ?? room.name, "을/를")} 고쳤어요.`;
         }
         const result = await createRoom(eventId, fields);
         ok = true;
-        return `${result.room.name}을 만들었어요.`;
+        return `${withJosa(result.room.name, "을/를")} 만들었어요.`;
       },
       (error) => roomWriteFailure(error, board.rooms.length),
     ).then(() => ok);
@@ -378,7 +379,7 @@ function Board({
         ok = made > 0;
         return {
           tone: skipped.length > 0 ? "info" : "success",
-          text: `방 ${made}개를 만들었어요.${skipped.length > 0 ? ` 같은 이름이 있어 ${skipped.join(", ")}은 건너뛰었어요.` : ""}`,
+          text: `방 ${made}개를 만들었어요.${skipped.length > 0 ? ` 같은 이름이 있어 ${withJosa(skipped.join(", "), "은/는")} 건너뛰었어요.` : ""}`,
         };
       },
       (error) => roomWriteFailure(error, board.rooms.length),
@@ -390,7 +391,7 @@ function Board({
       async () => {
         const result = await deleteRoom(eventId, room.roomId, room.version);
         setDeleting(null);
-        return result.unassignedCount > 0 ? `${room.name}을 지웠어요. ${result.unassignedCount}명이 미배정이 됐어요.` : `${room.name}을 지웠어요.`;
+        return result.unassignedCount > 0 ? `${withJosa(room.name, "을/를")} 지웠어요. ${result.unassignedCount}명이 미배정이 됐어요.` : `${withJosa(room.name, "을/를")} 지웠어요.`;
       },
       (error) => {
         setDeleting(null);
@@ -685,7 +686,7 @@ function Board({
                         void write(
                           async () => {
                             await assignRooms(eventId, [{ participantId: person.participantId, fromRoomId: person.roomId, toRoomId: null }]);
-                            return `${person.name}을 방에서 뺐어요.`;
+                            return `${withJosa(person.name, "을/를")} 방에서 뺐어요.`;
                           },
                           () => "빼지 못했어요.",
                         )
@@ -756,7 +757,7 @@ function Board({
 
       {deleting ? (
         <ConfirmDialog
-          title={`${deleting.name}을 지울까요?`}
+          title={`${withJosa(deleting.name, "을/를")} 지울까요?`}
           onClose={() => setDeleting(null)}
           footer={
             <>
@@ -1753,7 +1754,7 @@ function publicationHint(board: RoomBoard): string | null {
 }
 
 function dragText(label: string, over: DragOver, board: RoomBoard): string {
-  const what = `${label}을 옮기는 중`;
+  const what = `${withJosa(label, "을/를")} 옮기는 중`;
   if (!over) return `${what}. 방 위에서 손을 떼세요. Esc를 누르면 취소돼요.`;
   if (over.kind === "pool") return `${what}. 여기에 놓으면 미배정이 돼요.`;
   if (over.kind === "group") return `${what}. ${roomName(board.rooms, over.groupId)}에 넣어요.`;

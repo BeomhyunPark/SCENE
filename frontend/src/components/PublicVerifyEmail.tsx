@@ -44,7 +44,7 @@ export function PublicVerifyEmail() {
         </div>
         <div className="public-verify__content">
           <h1 className="public-verify__title">이메일을 확인해 주세요</h1>
-          <p className="public-verify__support">{email}으로 확인 코드를 보냈어요.</p>
+          <p className="public-verify__support">{email} 주소로 확인 코드를 보냈어요.</p>
           <form className="public-verify__form" onSubmit={hold}>
             <div className="public-verify__field">
               <label className="public-verify__label" htmlFor="verify-code">

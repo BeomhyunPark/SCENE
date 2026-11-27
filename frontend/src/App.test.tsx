@@ -221,7 +221,7 @@ describe("public shell", () => {
     fireEvent.click(submit);
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(screen.getByRole("heading", { name: "이메일을 확인해 주세요" })).toBeInTheDocument();
-    expect(screen.getByText("ada@scene.test으로 확인 코드를 보냈어요.")).toBeInTheDocument();
+    expect(screen.getByText("ada@scene.test 주소로 확인 코드를 보냈어요.")).toBeInTheDocument();
     fetchSpy.mockRestore();
   });
 
@@ -230,7 +230,7 @@ describe("public shell", () => {
     renderAt("/verify-email");
 
     expect(screen.getByRole("heading", { name: "이메일을 확인해 주세요" })).toBeInTheDocument();
-    expect(screen.getByText("example@email.com으로 확인 코드를 보냈어요.")).toBeInTheDocument();
+    expect(screen.getByText("example@email.com 주소로 확인 코드를 보냈어요.")).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "확인 코드" })).toHaveAttribute(
       "placeholder",
       "6자리 확인 코드를 입력해 주세요",

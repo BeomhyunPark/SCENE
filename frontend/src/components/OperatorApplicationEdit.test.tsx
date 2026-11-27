@@ -139,7 +139,7 @@ describe("운영자 신청 고치기·직접 추가 (DEC-088, A12)", () => {
       ["p", true],
       ["g", false],
     ]);
-    expect(revisedByLabel("OPERATOR", 1, "김운영")).toBe("운영자 김운영가 추가");
+    expect(revisedByLabel("OPERATOR", 1, "김운영")).toBe("운영자 김운영이 추가");
     expect(revisedByLabel("OPERATOR", 3, null)).toBe("운영자가 고침");
     expect(revisedByLabel("PARTICIPANT", 2)).toBe("참가자가 고침");
     expect(revisedByLabel(null, 1)).toBe("처음 신청");

@@ -1,3 +1,4 @@
+import { withJosa } from "../josa";
 import type { AnswerItem, ApplicationTable, TableColumn, TableRow } from "../../api/applications";
 import type { FieldOption } from "../../api/forms";
 
@@ -41,7 +42,7 @@ export function answerChoices(column: TableColumn): string[] {
 export function parseAnswer(column: TableColumn, text: string): ParsedAnswer {
   const trimmed = text.trim();
   if (trimmed === "") {
-    if (column.systemKey === "NAME" || column.systemKey === "PHONE") return { ok: false, message: `${column.label}은 비울 수 없어요.` };
+    if (column.systemKey === "NAME" || column.systemKey === "PHONE") return { ok: false, message: `${withJosa(column.label, "은/는")} 비울 수 없어요.` };
     return { ok: true, value: null };
   }
   const options = column.config.options ?? [];
@@ -81,7 +82,7 @@ export function parseAnswer(column: TableColumn, text: string): ParsedAnswer {
       if ([yes.toLowerCase(), "예", "네", "y", "yes", "true", "o", "1", "동의함"].includes(lower)) return { ok: true, value: { value: true } };
       if ([no.toLowerCase(), "아니오", "아니요", "n", "no", "false", "x", "0", "동의 안 함"].includes(lower))
         return { ok: true, value: { value: false } };
-      return { ok: false, message: `${yes} 또는 ${no}로 적어 주세요.` };
+      return { ok: false, message: `${yes} 또는 ${withJosa(no, "으로/로")} 적어 주세요.` };
     }
     case "DATE": {
       const match = /^(\d{4})[-./]\s*(\d{1,2})[-./]\s*(\d{1,2})\.?(?:\s+(\d{1,2}):(\d{2}))?$/.exec(trimmed);

@@ -97,7 +97,7 @@ describe("room board (G3 #458)", () => {
     chooseOption(within(form).getByLabelText("성별 구분"), "opt_female");
     fireEvent.change(within(form).getByLabelText(/위치 메모/), { target: { value: "본관 3층" } });
     fireEvent.click(within(form).getByRole("button", { name: "방 만들기" }));
-    expect(await screen.findByText("301호을 만들었어요.", {}, WAIT)).toBeInTheDocument();
+    expect(await screen.findByText("301호를 만들었어요.", {}, WAIT)).toBeInTheDocument();
     const room = card("301호");
     expect(within(room).getByText("0/2명")).toBeInTheDocument();
     expect(within(room).getByText("여 방")).toBeInTheDocument();
@@ -251,9 +251,9 @@ describe("room board (G3 #458)", () => {
 
     menu("301호");
     fireEvent.click(screen.getByRole("button", { name: "301호 지우기" }));
-    const dialog = screen.getByRole("dialog", { name: "301호을 지울까요?" });
+    const dialog = screen.getByRole("dialog", { name: "301호를 지울까요?" });
     fireEvent.click(within(dialog).getByRole("button", { name: "지우기" }));
-    expect(await screen.findByText("301호을 지웠어요.", {}, WAIT)).toBeInTheDocument();
+    expect(await screen.findByText("301호를 지웠어요.", {}, WAIT)).toBeInTheDocument();
   });
 
   it("makes numbered rooms in one go and fills them with 200 people", async () => {
