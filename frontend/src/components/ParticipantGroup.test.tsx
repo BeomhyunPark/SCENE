@@ -301,6 +301,18 @@ describe("participant group", () => {
     expect(within(detail).queryByRole("button", { name: "다시 시도" })).not.toBeInTheDocument();
   });
 
+  it("shows each member's room on the leader's 조원 list, and none before a room publication (F4)", async () => {
+    const members = LEADER.leaderView.members.map((member, index) =>
+      index === 1 ? { ...member, room: { name: "201호", locationNote: "본관 2층" } } : member,
+    );
+    server.use(...signedIn(), group({ ...LEADER, leaderView: { ...LEADER.leaderView, members } }));
+    openApp();
+    const list = await screen.findByRole("list", { name: "우리 조 조원" });
+    const rows = within(list).getAllByRole("listitem");
+    expect(within(rows.find((row) => row.textContent?.includes("이수진"))!).getByText("방 201호")).toBeInTheDocument();
+    expect(within(list).getAllByText(/^방 /)).toHaveLength(1);
+  });
+
   it("shows the room only when the server sends one", async () => {
     server.use(
       ...signedIn(),

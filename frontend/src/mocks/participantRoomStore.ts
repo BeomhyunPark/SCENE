@@ -131,6 +131,16 @@ export function readParticipantRooms(eventId: string, participantId: string) {
   };
 }
 
+/**
+ * The member's room in the latest room publication, as the leader view carries it (`leaderView.members[].room`,
+ * api.md "내 조"): name and location note only, whatever `roomRosterScope` is. Null before a publication or
+ * without a room (F4).
+ */
+export function publishedRoomOf(eventId: string, participantId: string): { name: string; locationNote: string | null } | null {
+  const room = publications.get(eventId)?.rooms.find((item) => item.members.some((member) => member.participantId === participantId));
+  return room ? { name: room.name, locationNote: room.locationNote ?? null } : null;
+}
+
 /** Name, then id (api.md "숙소"). */
 function byName(members: PublishedRoomMember[]): PublishedRoomMember[] {
   return [...members].sort((a, b) => a.name.localeCompare(b.name, "ko") || a.participantId.localeCompare(b.participantId));

@@ -5,6 +5,7 @@ import { checkedInAtOf } from "./checkInStore";
 import { notifyParticipants, type ParticipantNotificationDraft } from "./participantNotificationStore";
 import { checkInCandidates } from "./participantStore";
 import { groupRosterVisible } from "./participantSettingsStore";
+import { publishedRoomOf } from "./participantRoomStore";
 import { permissionsFor } from "./taskStore";
 
 /** The 새가족 option label (DEC-070 Follow-up 2026-11-17). The board shows it as the middle group. */
@@ -425,7 +426,7 @@ type LeaderMember = {
     slotIds: string[] | null;
     lodgingNights: number[] | null;
   };
-  room: null;
+  room: { name: string; locationNote: string | null } | null;
   applicationRevisedAt: string | null;
 };
 
@@ -443,7 +444,7 @@ export type ParticipantGroupBody = {
  * GET /api/v1/participant/group (#300, DEC-072 §6, DEC-083 · #452) from the latest publication. Names, 또래
  * and 성별 are read now; withdrawn people drop out of the roster and the leader names. Members get the
  * roster while the event switch is on; the leader always gets it and `leaderView`. The server fills
- * `leaderView.members[].room` from the latest room publication (G2 #457); this mock leaves it null.
+ * `leaderView.members[].room` from the latest room publication (G2 #457); so does this mock (F4).
  */
 export function readParticipantGroup(eventId: string, participantId: string): ParticipantGroupBody {
   const active = new Map(activePeople(eventId).map((person) => [person.participantId, person]));
@@ -531,7 +532,7 @@ function leaderMember(eventId: string, board: Board, person: Person, leader: boo
     leader,
     checkIn: { checkedIn: checkedInAt !== null, checkedInAt },
     attendance: { type: person.attendance, arrivalSlotId: null, departureSlotId: null, slotIds, lodgingNights: lodgingNightsOf(board, person, slotIds) },
-    room: null,
+    room: publishedRoomOf(eventId, person.participantId),
     applicationRevisedAt: person.revisedAt ?? null,
   };
 }
