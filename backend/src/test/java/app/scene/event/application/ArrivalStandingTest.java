@@ -74,6 +74,20 @@ class ArrivalStandingTest {
         .isEqualTo(new MealTally.Standing(ArrivalStatus.OVERDUE, "opt_d2_dinner"));
   }
 
+  /**
+   * #522 (테스트나, 금 집회~토 저녁): 도착 예정 until their worship slot is over, then 미도착 for the next
+   * meal, so the field's 도착 예정 chip hides at zero after midnight. Not a missed count.
+   */
+  @Test
+  void aRangeFromDayOneWorshipIsComingUntilWorshipPassesThenOverdue() {
+    List<String> fromWorship =
+        List.of("opt_d1_worship", "opt_d2_breakfast", "opt_d2_lunch", "opt_d2_dinner");
+    assertThat(standing(fromWorship, false, "2027-01-22T19:10:00+09:00"))
+        .isEqualTo(new MealTally.Standing(ArrivalStatus.COMING, "opt_d1_worship"));
+    assertThat(standing(fromWorship, false, "2027-01-23T00:18:00+09:00"))
+        .isEqualTo(new MealTally.Standing(ArrivalStatus.OVERDUE, "opt_d1_worship"));
+  }
+
   @Test
   void beforeTheEventNobodyIsOverdueAndArrivalShowsTheArrivalSlot() {
     String before = "2027-01-21T12:00:00+09:00";

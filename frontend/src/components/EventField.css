@@ -195,35 +195,6 @@
   cursor: default;
 }
 
-/* 조별 only: the counts as one SCENE/Title line (the 전체 view carries them on the chips). */
-.event-field__summary {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0 6px;
-  margin-top: 4px;
-}
-
-.event-field__count {
-  margin: 0;
-  color: var(--color-text-primary);
-  font: var(--scene-title);
-}
-
-.event-field__count strong {
-  font: inherit;
-}
-
-.event-field__count + .event-field__count::before {
-  content: "·";
-  margin-right: 6px;
-  color: var(--color-text-tertiary);
-}
-
-.event-field__count--done {
-  color: var(--color-text-secondary);
-}
-
 /* TL01 filter chips 620:19 (27 high, 11px bold) and count chip 620:17; the 전체/조별 switch sits at the end. */
 .event-field__controls {
   display: flex;
@@ -250,6 +221,18 @@
   color: var(--color-chip-default-text);
   font: var(--scene-label-s);
   cursor: pointer;
+}
+
+/* 조별 (#522): the same chips as numbers only; the filter is in 전체. */
+.event-field__filter--static {
+  display: inline-block;
+  box-sizing: border-box;
+  line-height: 26px;
+  cursor: default;
+}
+
+.event-field__filter--static::after {
+  content: none;
 }
 
 .event-field__filter-count {
