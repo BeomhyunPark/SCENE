@@ -951,7 +951,7 @@ curl -sS \
 
 [DEC-069](../../docs/product/PRODUCT_DECISIONS.md). 브라우저가 페이지째 이동하는 경로라 JSON API가 아니다. 컨트롤러 대신 `identity/GoogleLoginSecurity`의 보안 체인이 처리한다. 운영자 세션 저장소(`SCENE_SESSION`)를 함께 쓴다.
 
-- `GET /oauth2/authorization/google`: Google 동의 화면으로 `302` 이동한다. 범위는 `openid email profile`이다. `state`는 세션에 둔다.
+- `GET /oauth2/authorization/google`: Google 동의 화면으로 `302` 이동한다. 범위는 `openid email profile`이다. `state`는 세션에 둔다. `prompt=select_account`를 붙여 Google이 매번 계정 선택 화면을 보여 준다. 여러 Google 계정이 로그인된 브라우저나 공용 PC에서도 기본 계정으로 바로 들어가지 않고, 초대 화면의 "계정 바꾸기"(로그아웃 후 다시 로그인)에서 다른 계정을 고를 수 있다([#537](https://github.com/BeomhyunPark/SCENE/issues/537)).
 - `GET /login/oauth2/code/google`: Google이 돌려보내는 주소다. 성공하면 세션 id를 바꾸고 `OperatorPrincipal`을 세션에 넣은 뒤 `302 /login/done`이다. 화면이 로그인 전 페이지(`next`)로 이어 간다.
   - Google 이메일이 확인되지 않았으면 `302 /login?error=google_unverified`다.
   - 그 밖의 실패(취소, state 불일치 등)는 `302 /login?error=google`이다. Google의 오류 내용은 화면과 로그에 남기지 않는다.
