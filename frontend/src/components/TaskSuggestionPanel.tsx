@@ -49,8 +49,10 @@ export function TaskSuggestionPanel({
   const eventType = picked === "COMMON" ? null : (picked ?? serverType);
   const durationBucket = toDurationBucket(event.data?.startDate ?? null, event.data?.endDate ?? null);
 
+  const ready = event.data !== undefined;
+
   useEffect(() => {
-    if (!event.data) return;
+    if (!ready) return;
     const controller = new AbortController();
     const timer = window.setTimeout(() => controller.abort(), 3000);
     let alive = true;
@@ -65,10 +67,14 @@ export function TaskSuggestionPanel({
       .suggestTasks({ eventType, durationBucket }, { signal: controller.signal })
       .then((next) => {
         if (!alive || controller.signal.aborted) return;
+        // 받은 뒤에는 시간 제한을 끈다: 끄지 않으면 3초 뒤 abort가 실패로 바꾼다 (#521).
+        window.clearTimeout(timer);
+        controller.signal.removeEventListener("abort", onAbort);
         setSuggestions(next);
         setSelected([]);
       })
       .catch(() => {
+        window.clearTimeout(timer);
         if (alive) setFailed(true);
       });
     return () => {
@@ -77,7 +83,7 @@ export function TaskSuggestionPanel({
       controller.signal.removeEventListener("abort", onAbort);
       controller.abort();
     };
-  }, [event.data, eventType, durationBucket, suggester]);
+  }, [ready, eventType, durationBucket, suggester]);
 
   const taken = new Set(titles.map((title) => title.trim()));
 

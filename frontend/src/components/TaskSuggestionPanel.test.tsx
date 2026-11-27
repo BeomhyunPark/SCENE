@@ -186,4 +186,32 @@ describe("task suggestions", () => {
       vi.useRealTimers();
     }
   });
+  it("keeps the loaded list after the timeout and across the create drawer (#521)", async () => {
+    await login({ userId: localUsers[0].userId });
+    renderTasks(spySuggester(sample).suggester);
+    const open = await screen.findByRole("button", { name: "추천 업무 보기" });
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      fireEvent.click(open);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      fireEvent.click(screen.getByRole("checkbox", { name: /차량 배차/ }));
+      // The 3-second limit must not turn an answered list into the failure copy.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(5000);
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(screen.queryByText("추천을 불러오지 못했어요 · 직접 추가해 주세요")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("checkbox", { name: /회비 안내/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "업무 추가" }));
+    fireEvent.click(screen.getByRole("button", { name: "닫기" }));
+    expect(screen.queryByText("추천을 불러오지 못했어요 · 직접 추가해 주세요")).not.toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: /차량 배차/ })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: /회비 안내/ })).toBeChecked();
+    fireEvent.click(screen.getByRole("button", { name: "선택한 업무 추가 (2)" }));
+    expect(await screen.findByText("업무 2개를 추가했어요.")).toBeInTheDocument();
+  });
 });
