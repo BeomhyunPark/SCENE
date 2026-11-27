@@ -224,11 +224,12 @@ export function SetupCard({
           <NameList
             label="중그룹 목록"
             names={draft.middleGroups}
+            examples={["1중그룹", "2중그룹"]}
             onChange={(middleGroups) => change({ ...draft, middleGroups })}
           />
         ) : null}
         {draft.cell ? (
-          <NameList label="셀 목록" names={draft.cells} onChange={(cells) => change({ ...draft, cells })} />
+          <NameList label="셀 목록" names={draft.cells} examples={["1셀", "2셀"]} onChange={(cells) => change({ ...draft, cells })} />
         ) : null}
         {draft.middleGroup || draft.cell ? <p className="registration-setup__note">{newcomerNote(draft)}</p> : null}
       </fieldset>
@@ -526,14 +527,24 @@ function newcomerNote(setup: FormSetup): string {
 }
 
 /** One name per line. Blank lines are kept while typing; the server drops them. */
-function NameList({ label, names, onChange }: { label: string; names: string[]; onChange: (names: string[]) => void }) {
+function NameList({
+  label,
+  names,
+  examples,
+  onChange,
+}: {
+  label: string;
+  names: string[];
+  examples: [string, string];
+  onChange: (names: string[]) => void;
+}) {
   return (
     <label className="setup-card__names">
       <span>{label}</span>
       <textarea
         rows={4}
         value={names.join("\n")}
-        placeholder={"한 줄에 하나씩 적어 주세요\n예) 1중그룹\n2중그룹"}
+        placeholder={`한 줄에 하나씩 적어 주세요\n예) ${examples[0]}\n${examples[1]}`}
         onChange={(event) => onChange(event.target.value === "" ? [] : event.target.value.split("\n"))}
       />
       <small>목록이 있으면 참가자가 목록에서 골라요. 신청이 들어온 뒤에도 이름을 더하거나 뺄 수 있지만, 비워 둔 목록을 새로 채우거나 다 지울 수는 없어요.</small>
