@@ -38,7 +38,13 @@ export function visibleFields(fields: FormField[], raw: RawAnswers): FormField[]
     const stored = storedValue(field, raw[field.fieldId]);
     if (stored) kept.set(field.fieldId, stored);
   }
-  return visible;
+  // The privacy consent closes the questions (#527): questions the operator adds later get later
+  // positions than the generated consent, but the participant still agrees after reading them all.
+  return [...visible.filter((field) => !isPrivacyConsent(field)), ...visible.filter(isPrivacyConsent)];
+}
+
+function isPrivacyConsent(field: FormField): boolean {
+  return field.presetKey === "CONSENT";
 }
 
 /** Options the participant may pick, given the answers to earlier questions. */
