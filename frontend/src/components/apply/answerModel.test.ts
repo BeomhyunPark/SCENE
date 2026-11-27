@@ -47,6 +47,17 @@ describe("answer model", () => {
     expect(visibleFields(fields, driving).map((item) => item.fieldId)).toEqual(["attendance", "car", "seats", "transport"]);
   });
 
+  it("puts the privacy consent after every other question (#527)", () => {
+    const consent = field("consent", "YES_NO", { style: "CONSENT" }, { presetKey: "CONSENT", required: true });
+    const added = field("added", "SHORT_TEXT");
+    expect(visibleFields([attendance, consent, transport, added], {}).map((item) => item.fieldId)).toEqual([
+      "attendance",
+      "transport",
+      "added",
+      "consent",
+    ]);
+  });
+
   it("filters hidden and conditional options", () => {
     expect(visibleOptions(transport, fields, { attendance: { optionId: "partial" } }).map((item) => item.optionId)).toEqual([
       "own",
