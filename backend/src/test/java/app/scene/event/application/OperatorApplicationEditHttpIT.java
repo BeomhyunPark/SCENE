@@ -394,6 +394,86 @@ class OperatorApplicationEditHttpIT {
   }
 
   /**
+   * #520: saving an edit that changes nothing must not make a revision or tell anyone, also when
+   * the application has a number answer (the stored {@code 3} and the evaluated {@code 3} are
+   * different JSON number kinds) and a yes/no and a short text answer.
+   */
+  @Test
+  void unchangedEditWithANumberAnswerMakesNoRevisionAndNoNotice() throws Exception {
+    Form form = openForm("숫자 owner", SETUP.replace("\"car\":false", "\"car\":true"));
+    Map<String, String> carpool = full();
+    carpool.put("TRANSPORT_IN", opt("opt_car"));
+    carpool.put("CARPOOL_OFFER", "{\"value\":true}");
+    carpool.put("CARPOOL_SEATS", "{\"number\":3}");
+    carpool.put("CARPOOL_AREA", "{\"text\":\"수지\"}");
+    Person garam = form.submit("가람", 1, carpool);
+    String path = answersPath(form, garam.applicationId);
+    int audits = auditCount(form);
+
+    JsonNode same = json.readTree(ok(form.owner(put(path), form.body(1, "가람", 1, carpool))));
+    assertThat(same.get("revised").asBoolean()).isFalse();
+    assertThat(same.get("revision").asInt()).isEqualTo(1);
+    assertThat(same.get("applicationId").asString()).isEqualTo(garam.applicationId);
+    assertThat(auditCount(form)).isEqualTo(audits);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM applications WHERE event_id = ?", Long.class, form.eventId))
+        .isEqualTo(1);
+    assertThat(kinds(notifications(get("/api/v1/participant/notifications").cookie(garam.session))))
+        .doesNotContain("APPLICATION_UPDATED_BY_OPERATOR");
+
+    // A real change to the number is still a change, and only that question is named.
+    carpool.put("CARPOOL_SEATS", "{\"number\":4}");
+    JsonNode revised = json.readTree(ok(form.owner(put(path), form.body(1, "가람", 1, carpool))));
+    assertThat(revised.get("revised").asBoolean()).isTrue();
+    assertThat(revised.get("revision").asInt()).isEqualTo(2);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT changes::text FROM applications WHERE id = ?::uuid",
+                String.class,
+                revised.get("applicationId").asString()))
+        .contains("몇 명까지 태울 수 있어요?")
+        .doesNotContain("동승자를 태울 수 있어요?", "어느 동네에서");
+  }
+
+  /**
+   * #539: the participant's own edit goes through the same comparison as the operator's (#520).
+   * Saving unchanged number answers makes nothing; changing only the name names only the name, and
+   * the operators' notice does not list the seats question.
+   */
+  @Test
+  void participantEditWithANumberAnswerNamesOnlyWhatChanged() throws Exception {
+    Form form = openForm("참가자 숫자 owner", SETUP.replace("\"car\":false", "\"car\":true"));
+    Map<String, String> carpool = full();
+    carpool.put("TRANSPORT_IN", opt("opt_car"));
+    carpool.put("CARPOOL_OFFER", "{\"value\":true}");
+    carpool.put("CARPOOL_SEATS", "{\"number\":3}");
+    carpool.put("CARPOOL_AREA", "{\"text\":\"수지\"}");
+    Person garam = form.submit("가람", 1, carpool);
+    String self = "/api/v1/participant/application";
+
+    JsonNode same =
+        json.readTree(ok(write(put(self), garam.session, form.body(1, "가람", 1, carpool))));
+    assertThat(same.get("revision").asInt()).isEqualTo(1);
+    assertThat(kinds(notifications(get(eventPath(form) + "/notifications").cookie(form.owner))))
+        .doesNotContain("APPLICATION_REVISED");
+
+    JsonNode renamed =
+        json.readTree(ok(write(put(self), garam.session, form.body(1, "가람이", 1, carpool))));
+    assertThat(renamed.get("revision").asInt()).isEqualTo(2);
+    String changes =
+        jdbc.queryForObject(
+            "SELECT changes::text FROM applications WHERE id = ?::uuid",
+            String.class,
+            renamed.get("applicationId").asString());
+    assertThat(changes).doesNotContain("몇 명까지 태울 수 있어요?", "동승자를 태울 수 있어요?", "어느 동네에서");
+    JsonNode told = notifications(get(eventPath(form) + "/notifications").cookie(form.owner));
+    assertThat(told.get("items").get(0).get("kind").asString()).isEqualTo("APPLICATION_REVISED");
+    assertThat(told.get("items").get(0).get("body").asString())
+        .doesNotContain("몇 명까지 태울 수 있어요?");
+  }
+
+  /**
    * The edit's rules: permission, body, stale and withdrawn rows, archived events, a phone that
    * belongs to someone else, a changed phone signing in, consent carried over, an empty required
    * answer, and an edit that changes nothing.
@@ -732,6 +812,10 @@ class OperatorApplicationEditHttpIT {
   }
 
   private Form openForm(String ownerName) throws Exception {
+    return openForm(ownerName, SETUP);
+  }
+
+  private Form openForm(String ownerName, String setup) throws Exception {
     UUID spaceId = UUID.randomUUID();
     jdbc.update("INSERT INTO spaces (id, name) VALUES (?, ?)", spaceId, "Home " + ownerName);
     UUID ownerId = user(ownerName);
@@ -755,7 +839,7 @@ class OperatorApplicationEditHttpIT {
     String forms = "/api/v1/operator/events/" + eventId + "/forms";
     String formId =
         json.readTree(created(write(post(forms), owner, "{}"))).get("formId").asString();
-    ok(write(put(forms + "/" + formId + "/setup"), owner, SETUP));
+    ok(write(put(forms + "/" + formId + "/setup"), owner, setup));
     ok(
         write(
             post("/api/v1/operator/events/" + eventId + "/activate"),

@@ -90,15 +90,9 @@ button.event-notifications__item {
 }
 
 .event-notifications__count {
-  display: inline-block;
-  margin-left: 6px;
-  padding: 0 6px;
-  border-radius: 4px;
-  background: var(--color-bg-subtle);
   color: var(--color-text-secondary);
-  font: var(--scene-label-s);
-  font-weight: 500;
-  vertical-align: middle;
+  font: var(--scene-body-s);
+  font-weight: 400;
 }
 
 .event-notifications__body {

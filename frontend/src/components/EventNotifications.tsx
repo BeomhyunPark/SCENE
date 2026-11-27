@@ -133,7 +133,8 @@ function NotificationRow({ item, href, onOpen }: { item: OperatorNotification; h
         <span className="event-notifications__title">
           {unread ? <span className="event-notifications__sr">읽지 않음 </span> : null}
           {item.title}
-          {item.count > 1 ? <span className="event-notifications__count">{item.count}번</span> : null}
+          {/* A space and a dot keep the title and the count apart, also as text (#539). */}
+          {item.count > 1 ? <span className="event-notifications__count"> · {item.count}번</span> : null}
         </span>
         {item.body ? <span className="event-notifications__body">{item.body}</span> : null}
         <time className="event-notifications__time" dateTime={item.createdAt}>

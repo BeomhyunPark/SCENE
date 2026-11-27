@@ -118,8 +118,7 @@ describe("운영자 알림 (#436)", () => {
     const list = await screen.findByRole("list", { name: "알림 목록" }, WAIT);
     const items = within(list).getAllByRole("listitem");
     expect(items).toHaveLength(1);
-    expect(items[0]).toHaveTextContent("김셋님이 신청 내역을 수정했어요");
-    expect(items[0]).toHaveTextContent("2번");
+    expect(items[0]).toHaveTextContent("김셋님이 신청 내역을 수정했어요 · 2번");
     expect(items[0]).toHaveTextContent("이름");
     expect(items[0]).not.toHaveTextContent("010");
     // No lead repeating the title (#495); the unread count is the only line above the list.
