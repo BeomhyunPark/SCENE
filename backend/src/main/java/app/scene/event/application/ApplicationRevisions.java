@@ -10,11 +10,11 @@ import app.scene.event.participant.ParticipantRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.UUID;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,6 +41,15 @@ public class ApplicationRevisions {
   public static final String BY_OPERATOR = "OPERATOR";
 
   private static final String NAME = "NAME";
+
+  /** Leaf comparison for {@link #sameAnswer}: numbers by value, other values exactly. */
+  private static final Comparator<JsonNode> SAME_VALUE =
+      (a, b) -> {
+        if (a.isNumber() && b.isNumber()) {
+          return a.decimalValue().compareTo(b.decimalValue());
+        }
+        return a.equals(b) ? 0 : 1;
+      };
 
   private final ApplicationRevisionMapper revisions;
   private final ApplicationRepository applications;
@@ -150,6 +159,38 @@ public class ApplicationRevisions {
   }
 
   /**
+   * Whether a stored answer and an evaluated one hold the same value (#520). A stored answer read
+   * back from {@code jsonb} and a freshly evaluated one can hold the same number as different kinds
+   * of JSON number ({@code 3} as int, as long), which {@link JsonNode#equals} tells apart; numbers
+   * are compared by value. A multiple choice is a set: the same options picked in another order are
+   * the same answer. Everything else is compared as before (object keys in any order, text and
+   * booleans exactly).
+   */
+  static boolean sameAnswer(JsonNode before, JsonNode after) {
+    if (before == null || after == null) {
+      return before == after;
+    }
+    return comparable(before).equals(SAME_VALUE, comparable(after));
+  }
+
+  /** The answer with a multiple choice's {@code optionIds} sorted. */
+  private static JsonNode comparable(JsonNode answer) {
+    JsonNode ids = answer.get("optionIds");
+    if (!answer.isObject() || ids == null || !ids.isArray()) {
+      return answer;
+    }
+    List<String> sorted = new ArrayList<>();
+    for (JsonNode id : ids) {
+      sorted.add(id.asString());
+    }
+    sorted.sort(null);
+    ObjectNode copy = ((ObjectNode) answer).deepCopy();
+    ArrayNode array = copy.putArray("optionIds");
+    sorted.forEach(array::add);
+    return copy;
+  }
+
+  /**
    * Stores {@code evaluated} as the next revision of {@code current}. {@code fields} are the form's
    * fields in position order, hidden ones included.
    */
@@ -186,7 +227,7 @@ public class ApplicationRevisions {
     for (FieldDefinition field : fields) {
       JsonNode old = before.get(field.fieldId());
       JsonNode next = after.get(field.fieldId());
-      if (Objects.equals(old, next)) {
+      if (sameAnswer(old, next)) {
         continue;
       }
       boolean isName = NAME.equals(field.systemKey());
