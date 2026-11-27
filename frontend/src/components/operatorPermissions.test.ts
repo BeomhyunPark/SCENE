@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EDITABLE_KEYS, isOn, overrideSummary, sameOverrides, sourceOf, toggled } from "./operatorPermissions";
+import { EDITABLE_KEYS, PERMISSION_GROUPS, isOn, overrideSummary, sameOverrides, sourceOf, toggled } from "./operatorPermissions";
 
 const STAFF = { roleDefaults: ["CHECKIN_WRITE", "EVENT_READ"], overrides: { grants: [], revokes: [] } };
 
@@ -10,6 +10,14 @@ describe("operator permission editing (DEC-079)", () => {
     expect(EDITABLE_KEYS).not.toContain("EVENT_USER_MANAGE");
     expect(EDITABLE_KEYS).toContain("GROUP_WRITE");
     expect(new Set(EDITABLE_KEYS).size).toBe(EDITABLE_KEYS.length);
+  });
+
+  it("describes schedule and notice permissions as features that already exist (#538)", () => {
+    const hints = PERMISSION_GROUPS.flatMap((group) => group.items);
+    const hintOf = (key: string) => hints.find((item) => item.key === key)?.hint;
+    expect(hintOf("SCHEDULE_WRITE")).toBe("일정표에서 일정을 만들고 고쳐 공개해요");
+    expect(hintOf("NOTICE_WRITE")).toBe("공지를 쓰고 올리고 보관해요");
+    for (const item of hints) expect(item.hint).not.toContain("열리면");
   });
 
   it("grants a key the role lacks and revokes a role default", () => {
