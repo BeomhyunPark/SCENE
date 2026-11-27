@@ -30,18 +30,26 @@ export function WordingEditor({
   const [optionLabels, setOptionLabels] = useState<Record<string, string>>(
     Object.fromEntries(shownOptions.map((option) => [option.optionId, option.label])),
   );
-  const [problem, setProblem] = useState("");
+  // After the first save attempt the check runs live, so fixed wording clears its message at once (#526).
+  const [checked, setChecked] = useState(false);
+
+  function findProblem(): string {
+    const trimmed = label.trim();
+    if (trimmed.length < 1 || trimmed.length > 200) return "질문을 1–200자로 써 주세요.";
+    if (description.trim().length > 500) return "설명은 500자까지 쓸 수 있어요.";
+    if (placeholder.trim().length > 100) return "안내 문구는 100자까지 쓸 수 있어요.";
+    if (Object.values(optionLabels).some((value) => value.trim().length < 1 || value.trim().length > 100)) {
+      return "보기 문구를 1–100자로 써 주세요.";
+    }
+    return "";
+  }
+  const problem = checked ? findProblem() : "";
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setChecked(true);
+    if (findProblem()) return;
     const trimmed = label.trim();
-    if (trimmed.length < 1 || trimmed.length > 200) return setProblem("질문을 1–200자로 써 주세요.");
-    if (description.trim().length > 500) return setProblem("설명은 500자까지 쓸 수 있어요.");
-    if (placeholder.trim().length > 100) return setProblem("안내 문구는 100자까지 쓸 수 있어요.");
-    if (Object.values(optionLabels).some((value) => value.trim().length < 1 || value.trim().length > 100)) {
-      return setProblem("보기 문구를 1–100자로 써 주세요.");
-    }
-    setProblem("");
     const changes: Partial<FieldInput> = { label: trimmed, description: description.trim() || null };
     if (system) {
       changes.config = { placeholder: placeholder.trim() || null };

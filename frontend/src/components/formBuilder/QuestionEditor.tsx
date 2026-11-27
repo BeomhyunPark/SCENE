@@ -47,7 +47,9 @@ export function QuestionEditor({
   onCancel: () => void;
 }) {
   const [draft, setDraft] = useState(initial);
-  const [problem, setProblem] = useState("");
+  // After the first save attempt the check runs live, so a fixed draft clears its message at once (#526).
+  const [checked, setChecked] = useState(false);
+  const problem = checked ? (draftProblem(draft) ?? "") : "";
   const lockExisting = locked && !isNew;
   const set = <K extends keyof QuestionDraft>(key: K, value: QuestionDraft[K]) =>
     setDraft((current) => ({ ...current, [key]: value }));
@@ -55,9 +57,8 @@ export function QuestionEditor({
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const found = draftProblem(draft);
-    setProblem(found ?? "");
-    if (!found) onSave(draft);
+    setChecked(true);
+    if (!draftProblem(draft)) onSave(draft);
   }
 
   function changeType(type: AnswerType) {
